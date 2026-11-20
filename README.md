@@ -25,11 +25,33 @@
 ## Contents
 
 - [Shared assets rule: pull before you push](#shared-assets-rule-pull-before-you-push)
+- [Project Setup Tool (Fix All) rule](#project-setup-tool-fix-all-rule)
 - [Project objectives](#project-objectives)
 - [Tools](#tools)
 - [Technology stack](#technology-stack)
 - [Project structure](#project-structure)
+- [Placeholder scene](#placeholder-scene)
 - [Naming conventions](#naming-conventions)
+- [Troubleshooting](Troubleshoot.md)
+
+## Project Setup Tool (Fix All) rule
+
+> [!IMPORTANT]
+> **Never run "Fix All" casually.** The Meta XR Project Setup Tool rewrites files in
+> `ProjectSettings/`, `Assets/XR/Settings/` and `Assets/Oculus/` based on the machine
+> it runs on. If those files change without an explicit, team-agreed decision, the
+> result is merge conflicts and broken settings for every group.
+>
+> Before running it, agree with the team. After running it, review `git status` and
+> commit **only** the changes you deliberately wanted. If the tool changed other
+> files on its own, discard them one file at a time:
+>
+> ```bash
+> git restore <path-to-file>
+> ```
+>
+> Never discard whole folders blindly: a few of those changes may be real work.
+> For the full procedure see [Troubleshoot.md](Troubleshoot.md).
 
 ## Project objectives
 
@@ -48,7 +70,7 @@ The class project is organized around **four groups, two scenarios per group, ei
 | Meta Quest headset | Test the application on target hardware. |
 | Git and GitHub | Collaborate on the shared project and its group-owned content. |
 
-For installation, agent integration, and project-specific `metavr` workflows, see the [Meta VR CLI guide](Guides/MetaVRCLI_Guide.md).
+For installation, agent integration, and project-specific `metavr` workflows, see the [Meta VR CLI guide](Guides/MetaVRCLI_Guide.md). For common repository and Meta Project Setup Tool problems, see [Troubleshoot.md](Troubleshoot.md).
 
 ## Technology stack
 
@@ -145,6 +167,19 @@ PLACEHOLDER DON'T DELETE
 ```
 
 Keep the placeholder until the folder has real content, then delete it. Without at least one tracked file, the folder disappears from GitHub and from fresh clones. When Unity imports the project, it creates a `.meta` file for every folder and placeholder; commit those `.meta` files so the project imports consistently for everyone.
+
+### Placeholder scene
+
+`Assets/_Project/SCN_Placeholder.unity` is the only scene listed in **Build Settings**.
+
+- It is a **placeholder**: nothing in it is supposed to work and it is not connected
+  to any group's content, scene flow or script. Its only purpose is to give the build
+  a scene that exists for everyone, so `EditorBuildSettings.asset` never references
+  missing files and never has to change while the groups work.
+- **Do not edit, rename, move or delete it**, and do not add other scenes to Build
+  Settings from a group branch.
+- When the real scene flow (Home, scenario selection, etc.) is ready, swapping the
+  placeholder for the real scene list is a deliberate change made once on `main`.
 
 ## Naming conventions
 

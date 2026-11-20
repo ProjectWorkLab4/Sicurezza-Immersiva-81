@@ -1,0 +1,55 @@
+# Line-ending normalization policy.
+# IMPORTANT: Git only reads a file named exactly ".gitattributes" (plural).
+# This file replaces the ineffective ".gitattribute" (singular) that was
+# previously committed and never took effect.
+#
+# Policy: text files are stored in the repository with LF endings on every
+# platform. Working trees check out with LF as well, so behavior no longer
+# depends on each developer's core.autocrlf setting.
+
+# Auto-detect and normalize all remaining text files
+* text=auto
+
+# Unity serialized assets and meta files
+*.asset       text eol=lf
+*.meta        text eol=lf
+*.unity       text eol=lf
+*.prefab      text eol=lf
+*.mat         text eol=lf
+*.anim        text eol=lf
+*.controller  text eol=lf
+*.playable    text eol=lf
+*.inputactions text eol=lf
+
+# Source code and documentation
+*.cs          text eol=lf
+*.shader      text eol=lf
+*.json        text eol=lf
+*.xml         text eol=lf
+*.yaml        text eol=lf
+*.md          text eol=lf
+*.txt         text eol=lf
+*.gitignore   text eol=lf
+*.gitattributes text eol=lf
+
+# Binaries — never normalize
+*.pdf         binary
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.tga         binary
+*.psd         binary
+*.wav         binary
+*.mp3         binary
+*.ogg         binary
+*.mp4         binary
+*.fbx         binary
+*.blend       binary
+*.dll         binary
+*.so          binary
+*.aar         binary
+*.jar         binary
+*.keystore    binary
+*.apk         binary
+*.aab         binary
+*.unitypackage binary

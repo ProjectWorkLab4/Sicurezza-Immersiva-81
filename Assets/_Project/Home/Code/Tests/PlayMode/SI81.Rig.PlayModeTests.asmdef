@@ -4,6 +4,7 @@
     "references": [
         "SI81.Input",
         "SI81.Rig",
+        "SI81.Interaction",
         "Unity.InputSystem",
         "Unity.InputSystem.TestFramework",
         "UnityEngine.TestRunner",

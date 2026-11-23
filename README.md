@@ -33,7 +33,17 @@
 - [Project structure](#project-structure)
 - [Placeholder scene](#placeholder-scene)
 - [Naming conventions](#naming-conventions)
+- [Documentation](#documentation)
 - [Troubleshooting](Troubleshoot.md)
+
+## Documentation
+
+- [Shared Player Rig](Assets/_Project/Home/Docs/SharedPlayerRig.md) — rig, unified input, locomotion and the UI hand-off.
+- [Shared world interaction](Assets/_Project/Home/Docs/SharedInteraction.md) — `Interactable` / `RayInteractor` contract for scenario objects.
+- [Interaction button map](Assets/_Project/Docs/Guida_Design-Interactions.md) — targeting, select, grab, back and menu.
+- [Common HUD guide](Assets/_Project/Docs/Guida_HUD_comune_SI81.pdf) — shared HUD layout and content.
+- [Meta VR CLI guide](Guides/MetaVRCLI_Guide.md) — `metavr` setup and device workflows.
+- [Troubleshooting](Troubleshoot.md) — repository, Git and Project Setup Tool problems.
 
 ## Version control rule: Git only
 

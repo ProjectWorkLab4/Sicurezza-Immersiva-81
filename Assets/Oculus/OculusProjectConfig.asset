@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Oculus.VR.Editor::OVRProjectConfig
   targetDeviceTypes: 0200000003000000040000000500000006000000
   allowOptional3DofHeadTracking: 0
-  handTrackingSupport: 1
+  handTrackingSupport: 0
   handTrackingFrequency: 0
   anchorSupport: 0
   sharedAnchorSupport: 0
@@ -42,7 +42,7 @@ MonoBehaviour:
   experimentalFeaturesEnabled: 0
   useForwardHeadPose: 1
   insightPassthroughEnabled: 0
-  _insightPassthroughSupport: 1
+  _insightPassthroughSupport: 0
   isPassthroughCameraAccessEnabled: 0
   _processorFavor: 0
   systemSplashScreen: {fileID: 0}

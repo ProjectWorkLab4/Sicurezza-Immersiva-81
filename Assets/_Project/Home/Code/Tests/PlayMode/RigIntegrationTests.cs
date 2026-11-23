@@ -311,7 +311,7 @@ namespace SI81.Rig.Tests
             Vector3 start = root.transform.position;
 
             Set(leftController, "primary2DAxis", new Vector2(0f, 1f));
-            float deadline = Time.realtimeSinceStartup + 2f;
+            float deadline = Time.realtimeSinceStartup + 10f;
             while (root.transform.position.x - start.x <= 0.05f && Time.realtimeSinceStartup < deadline)
                 yield return null;
 

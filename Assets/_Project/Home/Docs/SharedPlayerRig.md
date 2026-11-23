@@ -5,14 +5,17 @@ The rig is authored here; the common UI (`D:\lavoro\PW4_Test`, `SI81.UI`) is the
 `SCN_Core` owns the rig, the UI and the HUD; scenario scenes load additively and contain no camera, rig,
 Canvas, EventSystem or input module.
 
+World interaction is documented in [SharedInteraction.md](SharedInteraction.md).
+
 ## Assemblies
 
 | Assembly | Owns | References |
 |---|---|---|
 | `SI81.Input` | actions, bindings, contexts, polling/events, UnityEvent bridge | `Unity.InputSystem` |
 | `SI81.Rig` | rig registration/bridge, locomotion, spawn point, aim follower, prefab | `SI81.Input`, `Oculus.VR` |
-| `SI81.Rig.Editor` | prefab builder, Editor direct-play bootstrap | `SI81.Input`, `SI81.Rig`, `Oculus.VR` |
-| `SI81.Rig.PlayModeTests` | one PlayMode integration seam | `SI81.Input`, `SI81.Rig`, Input System test fixture |
+| `SI81.Interaction` | `Interactable`, per-hand `RayInteractor` (hover/select/grab) | `SI81.Input` |
+| `SI81.Rig.Editor` | prefab builder, Editor direct-play bootstrap | `SI81.Input`, `SI81.Rig`, `SI81.Interaction`, `Oculus.VR` |
+| `SI81.Rig.PlayModeTests` | one PlayMode integration seam | `SI81.Input`, `SI81.Rig`, `SI81.Interaction`, Input System test fixture |
 
 `SI81.Rig` never references `SI81.UI`. The UI adapter implements `IRigUIBridge` in the UI/app-shell project and
 calls `UIScreenManager.SetHead/SetTrackingOrigin`, `HUDRoot.SetRig`, `UIPointer.IsPointingAtUI` and
@@ -78,6 +81,8 @@ Prefab: `Assets/_Project/Home/Level/Prefabs/MNG_CoreRig.prefab` (rebuild with
   `LeftControllerAnchor` and `RightControllerAnchor`.
 - `LeftControllerModel` / `RightControllerModel` are visual only; `ControllerAimFollower` aligns them to the
   Input Service aim pose so the drawn ray and the controller agree.
+- `LeftControllerAnchor` / `RightControllerAnchor` carry one `RayInteractor` each (`Hand`, rig `TrackingSpace`,
+  rig root ignored). Scenario objects only add `Interactable`; see [SharedInteraction.md](SharedInteraction.md).
 - Copy the prefab together with its `.cs` and `.meta` files: Unity resolves the prefab's script references by GUID.
 - Snap turn is the comfort default. A comfort vignette is a future component on the rig root; this increment does
   not implement or tune it.
@@ -117,7 +122,8 @@ require OpenXR. The rig hierarchy is created in code: head/left/right, `RigRegis
 
 Covered: hand-off references, Select/Grab/Back/Menu, suppression and held-action cancellation, owner-scoped
 contexts, per-hand UI gate, Move/Turn values, locomotion and snap turn, pause/suppression blocking, Pulse,
-tracking-space aim conversion, singular/reset Input Service.
+tracking-space aim conversion, singular/reset Input Service, and the interaction seam (hover, select, grab follow,
+Rigidbody restore, occlusion, UI gate, World suppression, two-hand independence).
 
 Run from the Editor Test Runner (PlayMode) or:
 
@@ -136,8 +142,9 @@ Groups that already have a rig/input code (Tiziano `OVRInput`, Simone Interactio
 2. Put `SpawnPoint` on `MNG_SpawnPoint`; remove the plain-transform spawn assignment from local scripts.
 3. Replace direct `OVRInput` reads with `InputService` actions/events. Do not add a local action asset, haptics
    service, EventSystem or pointer.
-4. Use `Select`/`Grab`/`TryGetAimPose` only through the shared action layer; world hover/select/grab arrives with
-   the next interaction spec.
+4. Put `Interactable` on every object that must be pointed at, selected or grabbed; consume its C# events or
+   inspector events. Do not write a local raycast, interactor or `OVRInput` read. World interaction arrives with the
+   rig prefab, so the scenario adds only content components.
 5. The UI team merges the prefab and the `IRigUIBridge` adapter, removes the old `CoreRig` hand-off and binds
    `InputService` to the single `InputSystemUIInputModule`, `UIScreenManager` Back and `MissionFlowDriver` Menu.
 6. Run the PlayMode seam and the Quest checklist before merging to `main`.
@@ -160,6 +167,6 @@ Do not claim a device pass without running it. The device serial above is eviden
 
 ## Out of scope
 
-World hover/select/grab dispatch, poke/two-hand/sockets/throwing, teleport/smooth turn/vignette tuning, HUD wrist
-panel content, migration of the four group scenes, hand tracking, XR Interaction Toolkit, new packages, Figma and
-networking.
+Poke/direct interaction, two-hand grab, sockets, throwing and grab anchors, teleport/smooth turn/vignette tuning,
+HUD wrist panel content, migration of the four group scenes, hand tracking, XR Interaction Toolkit, new packages,
+Figma and networking. The world ray visual and the final UI/world priority remain with the UI/world ray decision.

@@ -1,4 +1,5 @@
 using SI81.Input;
+using SI81.Interaction;
 using UnityEditor;
 using UnityEngine;
 
@@ -6,7 +7,8 @@ namespace SI81.Rig.EditorTools
 {
     /// <summary>
     /// Crea o ricrea il prefab MNG_CoreRig: radice con CharacterController + RigRegistration + locomozione,
-    /// OVRCameraRig Meta come figlio (TrackingSpace / Floor Level), modelli controller solo visivi allineati alla posa aim.
+    /// OVRCameraRig Meta come figlio (TrackingSpace / Floor Level), modelli controller solo visivi allineati alla posa aim
+    /// e un RayInteractor per mano sulle ancore dei controller.
     /// Le UIPointer per mano le aggiunge l'adattatore del progetto UI: questo assembly non referenzia SI81.UI.
     /// </summary>
     public static class RigPrefabBuilder
@@ -68,6 +70,8 @@ namespace SI81.Rig.EditorTools
                 registration.Configure(head, trackingSpace, leftHand, rightHand);
                 AttachControllerModel(ovrControllerPrefab, leftHand, OVRInput.Controller.LTouch, Hand.Left, registration);
                 AttachControllerModel(ovrControllerPrefab, rightHand, OVRInput.Controller.RTouch, Hand.Right, registration);
+                AttachRayInteractor(leftHand, Hand.Left, trackingSpace, root.transform);
+                AttachRayInteractor(rightHand, Hand.Right, trackingSpace, root.transform);
 
                 GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -102,12 +106,34 @@ namespace SI81.Rig.EditorTools
                     throw new System.InvalidOperationException("Radice incompleta: servono CharacterController, RigRegistration, RigLocomotion e RigUIPointerFeed.");
                 if (!registration.Handoff.IsComplete)
                     throw new System.InvalidOperationException("RigRegistration non ha testa, origine e due mani.");
-                if (instance.transform.Find("OVRCameraRig/TrackingSpace/CenterEyeAnchor") == null)
+
+                Transform trackingSpace = instance.transform.Find("OVRCameraRig/TrackingSpace");
+                if (trackingSpace == null)
+                    throw new System.InvalidOperationException("Manca OVRCameraRig/TrackingSpace.");
+                if (trackingSpace.Find("CenterEyeAnchor") == null)
                     throw new System.InvalidOperationException("Manca OVRCameraRig/TrackingSpace/CenterEyeAnchor.");
 
                 int followers = instance.GetComponentsInChildren<ControllerAimFollower>(true).Length;
                 if (followers != 2)
                     throw new System.InvalidOperationException($"ControllerAimFollower attesi 2, trovati {followers}.");
+
+                RayInteractor[] interactors = instance.GetComponentsInChildren<RayInteractor>(true);
+                if (interactors.Length != 2)
+                    throw new System.InvalidOperationException($"RayInteractor attesi 2, trovati {interactors.Length}.");
+                bool leftInteractor = false;
+                bool rightInteractor = false;
+                for (int i = 0; i < interactors.Length; i++)
+                {
+                    RayInteractor interactor = interactors[i];
+                    if (interactor.TrackingOrigin != trackingSpace)
+                        throw new System.InvalidOperationException($"RayInteractor {interactor.name} senza la tracking origin del rig.");
+                    if (interactor.IgnoreRoot != instance.transform)
+                        throw new System.InvalidOperationException($"RayInteractor {interactor.name} non ignora la radice del rig.");
+                    if (interactor.Hand == Hand.Left) leftInteractor = true;
+                    if (interactor.Hand == Hand.Right) rightInteractor = true;
+                }
+                if (!leftInteractor || !rightInteractor)
+                    throw new System.InvalidOperationException("RayInteractor: manca la mano sinistra o destra.");
 
                 OVRControllerHelper[] helpers = instance.GetComponentsInChildren<OVRControllerHelper>(true);
                 bool left = false;
@@ -124,7 +150,7 @@ namespace SI81.Rig.EditorTools
                 if (manager == null || manager.trackingOriginType != OVRManager.TrackingOrigin.FloorLevel)
                     throw new System.InvalidOperationException("OVRManager assente o tracking origin diverso da FloorLevel.");
 
-                Debug.Log($"[SI81 Rig] Prefab valido: {PrefabPath} (hand-off completo, 2 modelli, FloorLevel).");
+                Debug.Log($"[SI81 Rig] Prefab valido: {PrefabPath} (hand-off completo, 2 modelli, 2 interattori, FloorLevel).");
             }
             finally
             {
@@ -189,6 +215,19 @@ namespace SI81.Rig.EditorTools
 
             ControllerAimFollower follower = model.AddComponent<ControllerAimFollower>();
             follower.Configure(hand, rig);
+        }
+
+        /// <summary>
+        /// Aggiunge un interattore a raggio all'ancora della mano, con la tracking origin del rig e la radice da ignorare.
+        /// </summary>
+        /// <param name="anchor">Ancora del controller.</param>
+        /// <param name="hand">Mano logica.</param>
+        /// <param name="trackingOrigin">TrackingSpace del rig.</param>
+        /// <param name="ignoreRoot">Radice del rig, esclusa dal raycast.</param>
+        private static void AttachRayInteractor(Transform anchor, Hand hand, Transform trackingOrigin, Transform ignoreRoot)
+        {
+            RayInteractor interactor = anchor.gameObject.AddComponent<RayInteractor>();
+            interactor.Configure(hand, trackingOrigin, ignoreRoot);
         }
     }
 }

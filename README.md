@@ -25,6 +25,7 @@
 ## Contents
 
 - [Shared assets rule: pull before you push](#shared-assets-rule-pull-before-you-push)
+- [Version control rule: Git only](#version-control-rule-git-only)
 - [Project Setup Tool (Fix All) rule](#project-setup-tool-fix-all-rule)
 - [Project objectives](#project-objectives)
 - [Tools](#tools)
@@ -33,6 +34,23 @@
 - [Placeholder scene](#placeholder-scene)
 - [Naming conventions](#naming-conventions)
 - [Troubleshooting](Troubleshoot.md)
+
+## Version control rule: Git only
+
+> [!IMPORTANT]
+> **Git is the only version control system for this project. Nothing else.**
+>
+> Do **not** install, enable or use **Unity Version Control** (also called Unity
+> VCS, UVCS, Plastic SCM, or `com.unity.collab-proxy`). Do not add the package
+> back to `Packages/manifest.json` or `Packages/packages-lock.json`, do not open
+> the Unity Hub **Version Control** tab, and do not commit `.plastic/`,
+> `plastic.workspace` or any other Unity VCS workspace file.
+>
+> If Unity or Unity Hub offers to set up or connect version control, decline the
+> prompt and keep using Git. Pull requests that reintroduce Unity Version Control
+> are rejected.
+>
+> The same rule, with more detail, is in [AGENTS.md](AGENTS.md).
 
 ## Project Setup Tool (Fix All) rule
 

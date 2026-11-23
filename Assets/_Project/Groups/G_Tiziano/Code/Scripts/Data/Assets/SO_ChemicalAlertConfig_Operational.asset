@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 055350feb223a3f4eaad49dd85e81878, type: 3}
+  m_Name: SO_ChemicalAlertConfig_Operational
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Data.ChemicalAlertConfig
+  difficultyId: Operational
+  totalDurationSeconds: 180
+  ventilationCoughThresholdSeconds: 40
+  ventilationToxicStageDelaySeconds: 20
+  ventilationFailureDelaySeconds: 20
+  ventilationJitterSeconds: 2
+  hearts: 3
+  painDurationSeconds: 5
+  hintsEnabled: 0
+  distractionsEnabled: 1
+  guidedHighlights: 0
+  orderedHints: []
+  hintIdleSeconds: 20
+  disturbanceEnabled: 0
+  disturbanceFrequencyHz: 2.5
+  substanceVariants:
+  - {fileID: 11400000, guid: 1574a64395e3f534692b46bda9047232, type: 2}
+  - {fileID: 11400000, guid: 9ce69733006021a49bddadec50d39b46, type: 2}
+  - {fileID: 11400000, guid: e328931b28c61ec4e88eeb892efa9e62, type: 2}
+  ppeShufflePool:
+  - {fileID: 11400000, guid: db937fe4f8e75b345b1a810d45e69a52, type: 2}
+  - {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
+  - {fileID: 11400000, guid: 7b2dfc425330b784db1e3a76120a4427, type: 2}
+  - {fileID: 11400000, guid: 19e2078c7a4c28042aa47f080b3d290c, type: 2}
+  - {fileID: 11400000, guid: b9f5c7f28b2a9784b87c879969ea74bd, type: 2}
+  - {fileID: 11400000, guid: f93415e272233494ea118e9862626f88, type: 2}
+  - {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
+  - {fileID: 11400000, guid: d38dfed623620744dbe24ba6d337dd8c, type: 2}
+  - {fileID: 11400000, guid: 6b1f1e46f75974c4b959789e1a77c194, type: 2}
+  secondSpillEnabled: 1
+  secondSpillWindowStartSeconds: 20
+  secondSpillWindowEndSeconds: 40
+  secondSpillGrowthMultiplier: 2
+  secondSpillAudio: {fileID: 0}
+  defeatOnTimeout: 1
+  successPoints: 30
+  partialPoints: 10
+  failurePoints: 0

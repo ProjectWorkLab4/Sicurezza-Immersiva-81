@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4933763c8c4448b49b8501ee5eaa3f52, type: 3}
+  m_Name: SubstanceVariant_B
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Data.SubstanceVariant
+  variantId: variantB
+  sdsTitleKey: chemical.sds.variantB.title
+  sdsBodyKey: chemical.sds.variantB.body
+  requiredPpe:
+  - {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
+  - {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
+  - {fileID: 11400000, guid: 6b1f1e46f75974c4b959789e1a77c194, type: 2}
+  growthRate: 0.06
+  maxRadius: 1.8
+  puddleColor: {r: 0.2, g: 0.65, b: 0.3, a: 1}

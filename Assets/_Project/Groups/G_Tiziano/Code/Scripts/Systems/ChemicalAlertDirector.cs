@@ -1,4 +1,5 @@
 using System;
+using SI81.Input;
 using UnityEngine;
 using SI81.Tiziano.ChemicalAlert.Core;
 using SI81.Tiziano.ChemicalAlert.Data;
@@ -43,8 +44,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         [SerializeField] private VentilationEscalation ventilationEscalation;
         [SerializeField] private CleanupSystem cleanupSystem;
         [SerializeField] private VentilationSystem ventilationSystem;
-        [SerializeField] private ScenarioInputBindings inputBindings;
-        [SerializeField] private OVRInput.Controller hintController = OVRInput.Controller.RTouch;
+
         [SerializeField] private ScenarioInteractable[] guidedHighlightTargets = new ScenarioInteractable[0];
         [SerializeField] private ScenarioInteractable[] operationalDistractors = new ScenarioInteractable[0];
         [SerializeField] private DisturbanceController disturbanceController;
@@ -141,7 +141,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             if (difficulty == Difficulty.Guided && activeConfiguration != null &&
                 activeConfiguration.HintsEnabled)
             {
-                if (inputBindings != null && inputBindings.GetHintDown(hintController))
+                if (InputService.Instance != null && InputService.Instance.WasMenuPressed())
                     RequestHint();
 
                 if (Time.time - lastCorrectProgressTime >= activeConfiguration.HintIdleSeconds)

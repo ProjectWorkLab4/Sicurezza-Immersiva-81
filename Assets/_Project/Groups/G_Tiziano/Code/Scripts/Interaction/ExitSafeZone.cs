@@ -1,4 +1,6 @@
 using System;
+using SI81.Interaction;
+using SI81.Rig;
 using UnityEngine;
 using SI81.Tiziano.ChemicalAlert.Systems;
 
@@ -39,7 +41,9 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             if (other == null)
                 return false;
 
-            if (other.GetComponentInParent<ScenarioHandInteractor>() != null)
+            if (other.GetComponentInParent<RayInteractor>() != null)
+                return true;
+            if (other.GetComponentInParent<RigRegistration>() != null)
                 return true;
 
             return other.CompareTag("Player") ||

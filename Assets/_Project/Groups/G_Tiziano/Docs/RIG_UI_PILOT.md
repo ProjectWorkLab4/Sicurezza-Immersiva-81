@@ -4,74 +4,69 @@
 **Base:** `origin/group_tiziano` (`21f0ed9`)
 **Merge:** `integration/testing-ui` (`96f52e8`)
 **Data:** 24 novembre 2026
-**Scope:** integrazione di rig, UI e input condivisi sul branch Tiziano. Il gameplay di
-`SCN_ChemicalAlert` non è stato riscritto: i punti che richiedono una decisione del team sono
-elencati sotto.
 
 ## 1. Cosa è stato verificato
 
-- Il merge di `integration/testing-ui` è pulito: gli unici conflitti erano
+- Merge di `integration/testing-ui` pulito: conflitti solo su
   `ProjectSettings/ProjectSettings.asset`, `Assets/XR/Settings/OpenXR Package Settings.asset` e
-  `Guida_Design-Interactions.md.meta`, risolti tenendo la versione di `main`.
-- `Packages/manifest.json` e `packages-lock.json` non contengono `com.unity.collab-proxy`.
-- Il branch Tiziano conteneva un pacchetto locale `com.coplaydev.unity-mcp` con percorso
-  `file:C:/Unity-Projects/unity-mcp-beta/MCPForUnity`: Unity non apriva il progetto. Sostituito con
-  il manifest di `main` (commit `1fffd74`). È un errore da mettere in checklist per tutti i gruppi.
-- `SCN_Core` è indice 0 delle Build Settings, seguita da `SCN_MockScenario`.
-- Il branch contiene il rig condiviso (`SI81.Rig`), l'adattatore `SI81.UI.Rig.RigUIBridge`,
-  `InputService` e `Interactable`/`RayInteractor`.
-- Compilazione Unity del branch: **OK** (exit 0, `Logs/pilot-compile2.log`).
-- Validazione di `SCN_Core` eseguita in batchmode: **1 `RigRegistration`, 1 camera attiva,
-  1 `EventSystem`, 2 `UIPointer`, 1 `RigUIBridge` con tutti i riferimenti, 1 `UIScreenManager`**.
-  Il controllo è passato (exit 0, `Logs/pilot-validation2.log`).
+  `Guida_Design-Interactions.md.meta`, risolti tenendo `main`.
+- Rimosso il pacchetto locale `com.coplaydev.unity-mcp` (`file:C:/...`) che impediva a Unity di
+  aprire il progetto; ora si usa il manifest di `main`.
+- `Packages/manifest.json` senza `com.unity.collab-proxy`.
+- Compilazione Unity del branch: **OK** (exit 0).
+- `SCN_Core` valida: 1 `RigRegistration`, 1 camera attiva, 1 `EventSystem`, 2 `UIPointer`,
+  `RigUIBridge` con tutti i riferimenti, 1 `UIScreenManager`.
+- `SCN_ChemicalAlert` migrata e valida: 0 rig, 0 camera, 0 `EventSystem`, 27
+  `ScenarioInteractable` con 27 `Interactable`, 3 zone PPE, 1 `ChemicalAlertDirector`,
+  `ScenarioController` + `MNG_SpawnPoint`, 0 script mancanti.
 
-## 2. Stato di `SCN_ChemicalAlert`
+## 2. Migrazione eseguita su `SCN_ChemicalAlert`
 
-La scena ha ancora il rig locale:
+1. L'istanza `OVRCameraRig` è stata unpacked e la sua radice è diventata `MNG_Scenario`; così i
+   sistemi di scenario (`DebugCommands`, `PlayerPPEState`, …) hanno mantenuto i riferimenti.
+2. Rimossi i componenti `OVRCameraRig`, `OVRManager`, `OVRHeadsetEmulator` e la gerarchia OVR
+   (TrackingSpace e ancore).
+3. Ricreate le tre zone PPE che stavano sotto la radice del rig:
+   `PPEEquipZone_Head` (0, 1.6, 0.3), `PPEEquipZone_Torso` (0, 1, 0.2),
+   `PPEEquipZone_Hands` (0, 1.2, 0.5), scala 0.35, `SphereCollider` trigger.
+   Il componente `PPEZoneRigAnchor` le riaggancia alla radice del rig condiviso appena
+   `RigRegistration` è disponibile.
+4. Riscritti `PlayerPPEState.zones` e i 9 array `PPEItemObject.equipZones` sulle nuove zone.
+5. Creato `SO_Mission_ChemicalAlert` boilerplate (`Id: 05`, `SceneName: SCN_ChemicalAlert`) e
+   aggiunto a `SO_MissionCatalog`.
+6. Aggiunto `ScenarioController` su `MNG_Scenario` con missione e `MNG_SpawnPoint` (posizione del
+   `DebugSpawnMarker`).
+7. Aggiunto `Interactable` ai 27 `ScenarioInteractable`; `ScenarioInteractable` ora fa da adattatore
+   sugli eventi di `Interactable` (hover, select, grab) e gestisce Inspected mentre l'oggetto è
+   tenuto.
+8. Rimossi `ScenarioHandInteractor` e `ScenarioInputBindings`; il tasto Hint usa
+   `InputService.WasMenuPressed()`. `ExitSafeZone` e `SubstanceContactSensor` riconoscono
+   `RayInteractor` e `RigRegistration`.
+9. Aggiunta `SCN_ChemicalAlert` alle Build Settings dopo `SCN_Core` e `SCN_MockScenario`.
 
-- 1 istanza `OVRCameraRig` (prefab Meta XR Core SDK) con 2 `ScenarioHandInteractor`,
-  1 `ScenarioInputBindings`, `ChemicalAlertDirector`, `DebugCommands`, `PlayerPPEState`,
-  `PlayerHealth`;
-- 26 oggetti con `ScenarioInteractable`;
-- nessun `SO_Mission_*`, nessun `ScenarioController`, nessun `MNG_SpawnPoint`;
-- la scena non è nelle Build Settings.
+## 3. Errori trovati durante la migrazione
 
-Quindi il branch **non è ancora una scena migrata**: è il punto di partenza su cui applicare la
-[Guida_Migrazione_Rig_UI.md](../../../Docs/Guida_Migrazione_Rig_UI.md).
+1. **Zone PPE perse.** Erano figlie della radice `OVRCameraRig`, non del solo TrackingSpace:
+   eliminando il rig sono sparite. Ricreate con `PPEZoneRigAnchor` (aggancio tardivo a
+   `RigRegistration`).
+2. **Id missione duplicato.** `Id: 08` era già usato; portato a `05`.
+3. **Menu = Hint + Pausa.** `MissionFlowDriver` usa lo stesso tasto Menu per la pausa. In Guided,
+   premere Menu per il suggerimento apre anche la pausa. Da decidere dopo il test su visore.
+4. **Riferimenti alle zone.** `PlayerPPEState.zones` e `PPEItemObject.equipZones` puntavano alle
+   zone eliminate; riscritti.
 
-## 3. Blocchi che richiedono una decisione del team Tiziano
+## 4. Build
 
-1. **Tasto Hint (A/X).** `ScenarioInputBindings.GetHintDown` legge `OVRInput.Button.One`.
-   `InputService` non mappa A/X di proposito (il design condiviso usa il grilletto per la UI).
-   Scegliere: Select, Menu, oppure una nuova azione dedicata in `InputBindings`.
-2. **Interazione vicino alla mano.** `ScenarioHandInteractor` usa `OverlapSphere` attorno alla
-   mano e grip/trigger. Il rig condiviso offre `RayInteractor` + `Interactable` a raggio.
-   I 26 `ScenarioInteractable` devono diventare `Interactable` (o avere un adattatore che ne
-   inoltra gli eventi) e va deciso se la presa resta a raggio.
-3. **Rilevamento della mano.** `ExitSafeZone` e `SubstanceContactSensor` cercano un
-   `ScenarioHandInteractor` nel collider per capire se è una mano. Con il rig condiviso vanno
-   rilegati a `RayInteractor` o a un componente marcatore sulle ancore del rig.
-4. **Flusso missione.** La scena non ha `SO_Mission_ChemicalAlert` né `ScenarioController`:
-   il validatore non può passare. Va creato il contenuto missione (titolo, obiettivi, criteri,
-   `SceneName`) e aggiunto `MNG_Scenario`.
-5. **Spawn.** Aggiungere `MNG_SpawnPoint` con `SpawnPoint` e assegnarlo a `ScenarioController`.
+APK: `Build/Sicurezza-Immersiva-81_ver1.apk` (esito in `Logs/pilot-build2.log`).
+La build parte da `SCN_Core`; la missione Chemical Alert è la card 05 del catalogo.
 
-## 4. Ordine consigliato per completare la migrazione
+La prima build è fallita per **disco pieno** (`LLVM ERROR: IO failure on output stream:
+No space left on device` durante il link di `libil2cpp.so`), non per errori di codice. Sono state
+cancellate le vecchie build (`Builds/*.apk`) e le cache `Library`/`Bee`, poi la build è stata
+rilanciata.
 
-1. Creare `SO_Mission_ChemicalAlert` e `MNG_Scenario` con `ScenarioController` (vedi
-   `GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md`).
-2. Scegliere il mapping del tasto Hint e aggiornare `ScenarioInputBindings` o sostituirlo con
-   `InputService`.
-3. Sostituire `ScenarioHandInteractor` con `Interactable` + gli eventi condivisi; adattare
-   `ExitSafeZone` e `SubstanceContactSensor`.
-4. Eliminare l'istanza `OVRCameraRig` dalla scena e spostare i sistemi di scenario su
-   `MNG_Scenario`; aggiungere `MNG_SpawnPoint`.
-5. Aggiungere `SCN_ChemicalAlert` alle Build Settings dopo `SCN_Core` e `SCN_MockScenario`.
-6. Eseguire validatore, test PlayMode e checklist Quest.
+## 5. Cosa resta
 
-## 5. Nota
-
-Il pilot dimostra che il merge di rig/UI non introduce conflitti con il contenuto Tiziano, che il
-branch compila con la nuova pila condivisa e che `SCN_Core` ha un solo rig, una sola camera attiva
-e l'adattatore UI collegato. La migrazione della scena resta un lavoro di contenuto: non è stata
-eseguita per non inventare decisioni di gameplay (tasto Hint, presa a raggio, missione).
+- Compilare obiettivi, criteri e testi reali della missione (ora boilerplate).
+- Decidere il conflitto Hint/Menu (pausa).
+- Provare su Quest: rig, spawn, UI, presa a raggio, zone PPE, Hint, fine missione.

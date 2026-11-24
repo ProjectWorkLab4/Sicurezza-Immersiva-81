@@ -56,7 +56,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37086d3966675294eb1c38ad413c6817, type: 3}
   m_Name: DetachedMetaQuestTouchPlusControllerProfile Android
   m_EditorClassIdentifier: Oculus.VR::Meta.XR.DetachedMetaQuestTouchPlusControllerProfile
-  m_enabled: 1
+  m_enabled: 0
   nameUi: Detached Meta Quest Touch Plus Controller Profile
   version: 0.0.1
   featureIdInternal: com.meta.openxr.feature.input.metaquestplus.detached
@@ -1299,34 +1299,34 @@ MonoBehaviour:
   m_Name: Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.OpenXRSettings
   features:
-  - {fileID: 2551069314450938535}
-  - {fileID: -7274428048040922618}
-  - {fileID: 7256931080510931679}
+  - {fileID: -7335133638886410271}
+  - {fileID: 2274434635183823539}
+  - {fileID: -100994092033878545}
   - {fileID: -8904785329327158108}
   - {fileID: 7822308583087895731}
   - {fileID: 6876689391380940167}
-  - {fileID: -4572899365800454794}
-  - {fileID: 3007909390963297055}
-  - {fileID: 7950957325127841919}
-  - {fileID: -3782730498496279049}
-  - {fileID: 4562276705761611678}
-  - {fileID: -4916324759540503420}
+  - {fileID: -3413655436569607453}
+  - {fileID: -9185304978354708787}
+  - {fileID: 3099465649232118756}
+  - {fileID: 7603003486495679863}
+  - {fileID: -4732280078843546495}
+  - {fileID: -6811584572770532757}
   - {fileID: 8050379603406426409}
-  - {fileID: 3865015248594900669}
-  - {fileID: 3879757821696706502}
-  - {fileID: -3591386881361753687}
+  - {fileID: 6573028717571108449}
+  - {fileID: -5032920893554388488}
+  - {fileID: -4374330260982372380}
   - {fileID: 866003117599908639}
   - {fileID: -833270162743910695}
   - {fileID: 7268730314553476771}
   - {fileID: -6793914871694634940}
   - {fileID: 8578795897831273909}
-  - {fileID: 7347434237882781921}
-  - {fileID: 3784248335814030221}
-  - {fileID: -2474848501864186460}
-  - {fileID: 6979619237471051649}
-  - {fileID: -7733900758992620226}
-  - {fileID: -208302055659998905}
-  - {fileID: -636734744622340223}
+  - {fileID: 4690973249581483223}
+  - {fileID: 1714991219196064638}
+  - {fileID: -7013196851266929972}
+  - {fileID: -150760069215109937}
+  - {fileID: -4382449681332260266}
+  - {fileID: 4457834261711094198}
+  - {fileID: -5813908914309339386}
   - {fileID: -8164116382352041753}
   customLoaderName: 
   m_renderMode: 1
@@ -1632,7 +1632,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b82a8cddc5afeb145ad4e1d76511063f, type: 3}
   m_Name: DetachedOculusTouchControllerProfile Android
   m_EditorClassIdentifier: Oculus.VR::Meta.XR.DetachedOculusTouchControllerProfile
-  m_enabled: 1
+  m_enabled: 0
   nameUi: Detached Oculus Touch Controller Profile
   version: 0.0.1
   featureIdInternal: com.meta.openxr.feature.input.oculustouch.detached
@@ -1810,7 +1810,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eda5cc6e8db3d9944bf84a7379663d7c, type: 3}
   m_Name: DetachedMetaQuestTouchProControllerProfile Android
   m_EditorClassIdentifier: Oculus.VR::Meta.XR.DetachedMetaQuestTouchProControllerProfile
-  m_enabled: 1
+  m_enabled: 0
   nameUi: Detached Meta Quest Touch Pro Controller Profile
   version: 0.0.1
   featureIdInternal: com.meta.openxr.feature.input.metaquestpro.detached

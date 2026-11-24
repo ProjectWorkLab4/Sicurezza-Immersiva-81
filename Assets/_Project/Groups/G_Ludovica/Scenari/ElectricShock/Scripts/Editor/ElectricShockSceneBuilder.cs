@@ -96,6 +96,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Emissione accesa ma nera: l'evidenziazione (Guided) cambia solo il colore per renderer, senza toccare l'asset.
             m.EnableKeyword("_EMISSION");
             m.SetColor("_EmissionColor", Color.black);
+            // Senza questo flag URP considera l'emissione "nera" e alla prima validazione toglie la keyword _EMISSION.
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             EditorUtility.SetDirty(m);
             mats[name] = m;
         }

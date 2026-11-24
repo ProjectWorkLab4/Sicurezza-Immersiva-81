@@ -57,13 +57,14 @@
 
 ## 4. Build
 
-APK: `Build/Sicurezza-Immersiva-81_ver1.apk` (esito in `Logs/pilot-build2.log`).
-La build parte da `SCN_Core`; la missione Chemical Alert è la card 05 del catalogo.
+APK: `Build/Sicurezza-Immersiva-81_ver1.apk` — **build riuscita**, 106.150.007 byte
+(esito in `Logs/pilot-build2.log`). La build parte da `SCN_Core`; la missione Chemical Alert è la
+card 05 del catalogo.
 
 La prima build è fallita per **disco pieno** (`LLVM ERROR: IO failure on output stream:
 No space left on device` durante il link di `libil2cpp.so`), non per errori di codice. Sono state
 cancellate le vecchie build (`Builds/*.apk`) e le cache `Library`/`Bee`, poi la build è stata
-rilanciata.
+rilanciata ed è passata.
 
 ## 5. Cosa resta
 

@@ -182,7 +182,9 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 | Script mancante nella scena | Resta un componente `CoreRig` o un vecchio interattore | Rimuovi il componente; il hand-off ora è `SI81.UI.Rig.RigUIBridge`. |
 | Unity non apre il progetto: `invalid dependencies` / `file:C:/...` | Il tuo `Packages/manifest.json` contiene un pacchetto locale (per esempio un MCP) | Tieni `Packages/manifest.json` e `packages-lock.json` di `main`; non aggiungere percorsi locali. |
 | Zone o trigger spariti dopo la rimozione del rig | Erano figli della radice `OVRCameraRig`, non del solo TrackingSpace | Ricrea le zone e agganciale alla radice del rig condiviso quando `RigRegistration` è disponibile (vedi `PPEZoneRigAnchor` nel pilot). |
-| Missione con `Id` duplicato nel catalogo | L'id era già usato da un altro scenario | Controlla `SO_Mission_*` e usa un id libero. |
+| Missione con `Id` duplicato nel catalogo | L'id era già usato da un altro scenario | Controlla `SO_Mission_*` e usa un id libero; una sola missione per scena. |
+| Il visore mostra un menu vecchio o mancano scenari appena aggiunti | Sul visore è installata un'altra app (package/version diversa) | Controlla `metavr app info com.si81.sicurezzaimmersiva`, installa l'APK nuovo con `metavr app install -r` e avvia quel package. |
+| Card 05/06 assenti | Nel catalogo non esistono missioni con quegli `Id` | Non è un bug della Home: la griglia mostra solo le missioni autorate. Aggiungi `SO_Mission_*` + scena, oppure accetta la numerazione esistente. |
 | Console: `uso Camera.main` | La UI è partita prima del rig | Assicurati che `SCN_Core` sia caricata e che il bridge sia assegnato. |
 
 ## 6. Checklist finale

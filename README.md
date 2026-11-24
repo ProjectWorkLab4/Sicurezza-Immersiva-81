@@ -40,7 +40,8 @@
 
 - [Shared Player Rig](Assets/_Project/Home/Docs/SharedPlayerRig.md) — rig, unified input, locomotion and the UI hand-off.
 - [Shared world interaction](Assets/_Project/Home/Docs/SharedInteraction.md) — `Interactable` / `RayInteractor` contract for scenario objects.
-- [Rig and UI migration guide](Assets/_Project/Docs/Guida_Migrazione_Rig_UI.md) — branch owners move a scenario to the shared rig and common UI.
+- [Rig and UI migration guide](Guides/Guida_Migrazione_Rig_UI.md) — branch owners move a scenario to the shared rig and common UI.
+- [LLM migration instructions](Assets/_Project/Docs/!LLM_Migrazione_Rig_UI.md) — deterministic steps for an agent.
 - [Interaction button map](Assets/_Project/Docs/Guida_Design-Interactions.md) — targeting, select, grab, back and menu.
 - [Common HUD guide](Assets/_Project/Docs/Guida_HUD_comune_SI81.pdf) — shared HUD layout and content.
 - [Meta VR CLI guide](Guides/MetaVRCLI_Guide.md) — `metavr` setup and device workflows.

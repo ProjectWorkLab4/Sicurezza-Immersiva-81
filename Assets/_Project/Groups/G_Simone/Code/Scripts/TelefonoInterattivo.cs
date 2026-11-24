@@ -32,6 +32,12 @@ public class TelefonoInterattivo : MonoBehaviour
         public string numero = "112";
         [TextArea(1, 3)]
         public string descrizione = "Numero unico di emergenza europeo";
+        [Tooltip("Testo della risposta registrata mostrato durante la chiamata.")]
+        [TextArea(2, 5)]
+        public string risposta = string.Empty;
+        [Tooltip("Durata della conversazione in secondi.")]
+        [Min(1f)]
+        public float durataRisposta = 8f;
     }
 
     public enum Stato
@@ -50,6 +56,13 @@ public class TelefonoInterattivo : MonoBehaviour
         new Contatto { nome = "Vigili del fuoco", numero = "115", descrizione = "Soccorso tecnico urgente" },
         new Contatto { nome = "Manutenzione", numero = "800 123 456", descrizione = "Referente impianti interni" }
     };
+
+    [Header("Elenco chiamanti")]
+    [Tooltip("Mostra sul display l'elenco dei numeri disponibili.")]
+    [SerializeField] bool mostraElencoChiamanti = true;
+    [SerializeField] string intestazioneElenco = "CHIAMANTI DISPONIBILI";
+    [Tooltip("Mostra la sequenza di cifre composta con il tastierino.")]
+    [SerializeField] bool mostraNumeroComposto = true;
 
     [Header("Interazione")]
     [Tooltip("Un pulsante per ogni voce della rubrica, nello stesso ordine.")]
@@ -93,6 +106,99 @@ public class TelefonoInterattivo : MonoBehaviour
     public bool CornettaSollevata { get; private set; }
     public Contatto ContattoCorrente { get; private set; }
     public int IndiceCorrente { get; private set; } = -1;
+
+    /// <summary>Full contact list, in the same order as <see cref="pulsantiOpzione"/>.</summary>
+    public Contatto[] Rubrica => rubrica;
+
+    /// <summary>Digits currently typed on the keypad.</summary>
+    public string NumeroComposto { get; private set; } = string.Empty;
+
+    /// <summary>Fired every time the typed number changes.</summary>
+    public event Action<string> ComposizioneCambiata;
+
+    /// <summary>Returns the contact at <paramref name="indice"/>, or null.</summary>
+    public Contatto PerIndice(int indice)
+    {
+        if (rubrica == null || indice < 0 || indice >= rubrica.Length)
+        {
+            return null;
+        }
+
+        return rubrica[indice];
+    }
+
+    /// <summary>Adds a digit to the number being typed.</summary>
+    public void AggiungiCifra(char cifra)
+    {
+        if (!char.IsDigit(cifra))
+        {
+            return;
+        }
+
+        if (NumeroComposto.Length >= 16)
+        {
+            return;
+        }
+
+        NumeroComposto += cifra;
+        ComposizioneCambiata?.Invoke(NumeroComposto);
+        AggiornaInterfaccia();
+    }
+
+    /// <summary>Removes the last typed digit.</summary>
+    public void CancellaCifra()
+    {
+        if (NumeroComposto.Length == 0)
+        {
+            return;
+        }
+
+        NumeroComposto = NumeroComposto.Substring(0, NumeroComposto.Length - 1);
+        ComposizioneCambiata?.Invoke(NumeroComposto);
+        AggiornaInterfaccia();
+    }
+
+    /// <summary>
+    /// Dials <paramref name="numero"/>: if it matches a contact of the address book the
+    /// call starts, otherwise the phone reports that the number is not in the list.
+    /// </summary>
+    public bool ComponiNumero(string numero)
+    {
+        if (!CornettaSollevata || StatoCorrente != Stato.Selezione)
+        {
+            return false;
+        }
+
+        string pulito = SoloCifre(numero);
+
+        if (string.IsNullOrEmpty(pulito))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < rubrica.Length; i++)
+        {
+            if (SoloCifre(rubrica[i].numero) == pulito)
+            {
+                NumeroComposto = pulito;
+                Seleziona(i);
+                return true;
+            }
+        }
+
+        NumeroComposto = pulito;
+        AggiornaInterfaccia();
+        ShowOnVRScreen($"Numero {pulito} non presente nella rubrica.", durataFine);
+        return false;
+    }
+
+    /// <summary>Clears the typed number.</summary>
+    public void PulisciNumero()
+    {
+        NumeroComposto = string.Empty;
+        ComposizioneCambiata?.Invoke(NumeroComposto);
+        AggiornaInterfaccia();
+    }
 
     Coroutine _chiamata;
     int _version;
@@ -147,6 +253,7 @@ public class TelefonoInterattivo : MonoBehaviour
         StatoCorrente = Stato.Selezione;
         ContattoCorrente = null;
         IndiceCorrente = -1;
+        NumeroComposto = string.Empty;
 
         PlayClip(suonoSelezione);
         AggiornaInterfaccia();
@@ -171,6 +278,7 @@ public class TelefonoInterattivo : MonoBehaviour
         StatoCorrente = Stato.Inattivo;
         ContattoCorrente = null;
         IndiceCorrente = -1;
+        NumeroComposto = string.Empty;
 
         AggiornaInterfaccia();
 
@@ -237,11 +345,14 @@ public class TelefonoInterattivo : MonoBehaviour
         PlayClip(suonoChiamata);
         AggiornaInterfaccia();
 
-        ShowOnVRScreen(
-            $"Conversazione con {ContattoCorrente.nome} ({ContattoCorrente.numero}).",
-            durataConversazione);
+        string risposta = ContattoCorrente != null && !string.IsNullOrEmpty(ContattoCorrente.risposta)
+            ? ContattoCorrente.risposta
+            : $"Conversazione con {ContattoCorrente?.nome} ({ContattoCorrente?.numero}).";
 
-        yield return new WaitForSeconds(durataConversazione);
+        ShowOnVRScreen(risposta, durataConversazione);
+
+        float durata = ContattoCorrente != null ? Mathf.Max(1f, ContattoCorrente.durataRisposta) : durataConversazione;
+        yield return new WaitForSeconds(durata);
 
         if (version != _version)
         {
@@ -338,14 +449,32 @@ public class TelefonoInterattivo : MonoBehaviour
                 return "TELEFONO\n\nSolleva la cornetta\nper effettuare una chiamata";
 
             case Stato.Selezione:
-                StringBuilder builder = new StringBuilder("SELEZIONA UN NUMERO\n\n");
-                for (int i = 0; i < rubrica.Length; i++)
+                StringBuilder builder = new StringBuilder();
+
+                if (mostraElencoChiamanti)
                 {
-                    builder.Append(i + 1).Append(". ")
-                        .Append(rubrica[i].nome)
-                        .Append("  (")
-                        .Append(rubrica[i].numero)
-                        .AppendLine(")");
+                    builder.Append(intestazioneElenco).AppendLine("\n");
+
+                    for (int i = 0; i < rubrica.Length; i++)
+                    {
+                        builder.Append(i + 1).Append(". ")
+                            .Append(rubrica[i].nome)
+                            .Append("  ")
+                            .Append(rubrica[i].numero)
+                            .AppendLine();
+                    }
+                }
+                else
+                {
+                    builder.AppendLine("SELEZIONA UN NUMERO");
+                }
+
+                if (mostraNumeroComposto)
+                {
+                    builder.AppendLine();
+                    builder.Append("DIGITA: ")
+                        .Append(string.IsNullOrEmpty(NumeroComposto) ? "____" : NumeroComposto)
+                        .Append('_');
                 }
 
                 return builder.ToString();
@@ -448,6 +577,26 @@ public class TelefonoInterattivo : MonoBehaviour
         {
             audioSource.PlayOneShot(clip);
         }
+    }
+
+    static string SoloCifre(string valore)
+    {
+        if (string.IsNullOrEmpty(valore))
+        {
+            return string.Empty;
+        }
+
+        StringBuilder builder = new StringBuilder(valore.Length);
+
+        foreach (char carattere in valore)
+        {
+            if (char.IsDigit(carattere))
+            {
+                builder.Append(carattere);
+            }
+        }
+
+        return builder.ToString();
     }
 
     static void Subscribe(VRInteractableButton button, Action<VRInteractableButton> handler)

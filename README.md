@@ -31,7 +31,7 @@
 - [Tools](#tools)
 - [Technology stack](#technology-stack)
 - [Project structure](#project-structure)
-- [Placeholder scene](#placeholder-scene)
+- [Build scenes](#build-scenes)
 - [Naming conventions](#naming-conventions)
 - [Documentation](#documentation)
 - [Troubleshooting](Troubleshoot.md)
@@ -196,18 +196,19 @@ PLACEHOLDER DON'T DELETE
 
 Keep the placeholder until the folder has real content, then delete it. Without at least one tracked file, the folder disappears from GitHub and from fresh clones. When Unity imports the project, it creates a `.meta` file for every folder and placeholder; commit those `.meta` files so the project imports consistently for everyone.
 
-### Placeholder scene
+### Build scenes
 
-`Assets/_Project/SCN_Placeholder.unity` is the only scene listed in **Build Settings**.
+`Assets/_Project/Home/Level/Scenes/SCN_Core.unity` is **index 0** of **Build Settings**.
 
-- It is a **placeholder**: nothing in it is supposed to work and it is not connected
-  to any group's content, scene flow or script. Its only purpose is to give the build
-  a scene that exists for everyone, so `EditorBuildSettings.asset` never references
-  missing files and never has to change while the groups work.
-- **Do not edit, rename, move or delete it**, and do not add other scenes to Build
-  Settings from a group branch.
-- When the real scene flow (Home, scenario selection, etc.) is ready, swapping the
-  placeholder for the real scene list is a deliberate change made once on `main`.
+- `SCN_Core` owns the shared Player Rig, the common UI and the HUD. **Do not remove,
+  reorder or replace it.** Scenario scenes load additively on top of it.
+- `Assets/_Project/Home/Level/Scenes/Mock/SCN_MockScenario.unity` is the shared
+  integration scene and stays after `SCN_Core`.
+- A group adds **only its own scenario scene**, after the shared scenes, when its
+  scenario is ready to merge. Never remove or renumber `SCN_Core`, and never add
+  another group's scene.
+- `Assets/_Project/SCN_Placeholder.unity` stays in the repository but is no longer
+  listed in Build Settings; do not delete or reuse it.
 
 ## Naming conventions
 

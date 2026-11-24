@@ -14,37 +14,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
   Id: 10
   Title: Electric Shock
-  Context: 'Ruolo: addetto alla squadra di emergenza. Un collega resta a contatto
-    con un cavo scoperto. Non toccarlo: togli corrente dal quadro, allontana il cavo
-    con un oggetto isolante e presta i primi soccorsi.'
+  Context: "Sei un lavoratore del turno. Un collega ha preso la scossa da un generatore
+    portatile ed \xE8 a terra, ancora a contatto con il cavo. Vicino c'\xE8 un paramedico
+    sotto shock e sotto il generatore c'\xE8 una pozza di benzina. Isola la zona
+    e metti tutti in salvo."
   Icon: {fileID: 21300000, guid: 2716816d7f70cec4c94a61a8822e26a9, type: 3}
   Image: {fileID: 0}
-  GradientTop: {r: 0.54901963, g: 0.47843137, b: 0.07058824, a: 1}
-  GradientBottom: {r: 0.8509804, g: 0.76862746, b: 0.22745098, a: 1}
+  GradientTop: {r: 0.549, g: 0.478, b: 0.071, a: 1}
+  GradientBottom: {r: 0.851, g: 0.769, b: 0.227, a: 1}
   Complexity: 4
   SceneName: SCN_ElectricShock
   Objectives:
-  - Non toccare l'infortunato
-  - Togli corrente dal quadro
-  - Allontana il cavo isolato
-  - Presta i primi soccorsi
+  - Isola il generatore
+  - Spegni l'incendio
+  - Evacua e isola la zona
+  - Assisti collega e paramedico
   Criteria:
   - Outcome: 0
-    Text: Corrente tolta e soccorso prestato
+    Text: Generatore spento, tutti in salvo
   - Outcome: 1
-    Text: Corrente tolta, soccorso in ritardo
+    Text: Generatore spento, zona non isolata
   - Outcome: 2
-    Text: Soccorritore folgorato
+    Text: Persone ferite o estintore errato
   Levels:
   - Level: 1
     UnlockedByDefault: 1
     TimeLimitSecondsOverride: 0
   - Level: 2
     UnlockedByDefault: 1
-    TimeLimitSecondsOverride: 0
+    TimeLimitSecondsOverride: 240
   - Level: 3
     UnlockedByDefault: 1
-    TimeLimitSecondsOverride: 0
+    TimeLimitSecondsOverride: 180
   IsTraining: 0
-  DesignerNote: '(esempio) Contenuto segnaposto: il team proprietario lo sostituisce
-    e toglie questo marcatore.'
+  DesignerNote: "Scenario 10 \xB7 G_Ludovica. Specifica 10_Electric_Shock_LITE. Missione
+    generata da ElectricShockSceneBuilder."

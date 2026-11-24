@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Linq;
 using NUnit.Framework;
-using SI81.Ludovica.TempCore;
+using SI81.UI;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -244,29 +244,6 @@ namespace SI81.Ludovica.ElectricShock.Tests
             }
             Assert.IsFalse(crossed, "PM-1 ha attraversato il generatore");
             Assert.Less(Vector3.Distance(pm1.transform.position, new Vector3(20f, 0f, 12.5f)), 2.5f, "PM-1 deve raggiungere il giocatore");
-        }
-
-        /// <summary>Riavvio al livello successivo tenendo un estintore: niente doppioni, tempo limite giusto per il livello.</summary>
-        [UnityTest]
-        public IEnumerator Restart_WhileHolding_NoDuplicates()
-        {
-            Time.timeScale = 1f;
-            var boot = Object.FindFirstObjectByType<TempCoreBootstrap>();
-            Assert.IsNotNull(boot);
-            var restart = typeof(TempCoreBootstrap).GetMethod("HandleRestart", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            d.Grab(d.Extinguisher(ExtinguisherAgent.Powder));
-            restart.Invoke(boot, null);
-            yield return new WaitForSeconds(0.3f);
-            yield return d.WaitRunning();
-            Assert.AreEqual(DifficultyLevel.Operational, d.Scenario.Level);
-            restart.Invoke(boot, null);
-            yield return new WaitForSeconds(0.3f);
-            yield return d.WaitRunning();
-            Assert.AreEqual(DifficultyLevel.Crisis, d.Scenario.Level);
-            Assert.AreEqual(3, Object.FindObjectsByType<Extinguisher>(FindObjectsSortMode.None).Length);
-            Assert.AreEqual(2, Object.FindObjectsByType<BarrierPanel>(FindObjectsSortMode.None).Length);
-            Assert.AreEqual(1, Object.FindObjectsByType<ElectricShockScenario>(FindObjectsSortMode.None).Length);
-            Assert.IsNull(d.Rig.RightHand.Held);
         }
     }
 }

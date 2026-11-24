@@ -72,9 +72,9 @@ namespace SI81.Ludovica.ElectricShock
         {
             if (holdingHand == null || Time.time - holdStart < holdToEscort) return;
             holdingHand = null;
-            var rig = TempRig.Instance;
-            if (rig == null) return;
-            FollowTarget(rig.Head);
+            var head = PlayerLocator.Head;
+            if (head == null) return;
+            FollowTarget(head);
             ElectricShockHud.Line("PM-1", "Va bene... non riesco a muovermi bene.");
             EscortStarted?.Invoke();
         }

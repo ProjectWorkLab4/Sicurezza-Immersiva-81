@@ -69,7 +69,6 @@ namespace SI81.Ludovica.TempCore
                 r.GetPropertyBlock(block);
                 block.SetColor("_EmissionColor", on ? new Color(0.9f, 0.8f, 0.1f) * 1.5f : Color.black);
                 r.SetPropertyBlock(block);
-                foreach (var m in r.sharedMaterials) if (m != null) m.EnableKeyword("_EMISSION");
             }
         }
 

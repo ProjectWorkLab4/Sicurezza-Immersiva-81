@@ -1,7 +1,10 @@
 {
     "name": "SI81.Ludovica.ElectricShock",
     "rootNamespace": "SI81.Ludovica.ElectricShock",
-    "references": ["SI81.Ludovica.TempCore"],
+    "references": [
+        "SI81.Ludovica.TempCore",
+        "SI81.UI"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

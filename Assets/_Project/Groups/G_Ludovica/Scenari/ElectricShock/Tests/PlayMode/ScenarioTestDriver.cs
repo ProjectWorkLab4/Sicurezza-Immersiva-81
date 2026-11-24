@@ -3,14 +3,15 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using SI81.Ludovica.TempCore;
+using SI81.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SI81.Ludovica.ElectricShock.Tests
 {
     /// <summary>
-    /// Pilota dello scenario per i test Play Mode: carica la scena (che carica da sola il rig temporaneo, modalità desktop),
-    /// legge i campi privati dello scenario e simula le azioni del giocatore senza input reali.
+    /// Pilota dello scenario per i test Play Mode: carica la scena (che carica da sola SCN_Core con la UI comune),
+    /// crea un rig di prova senza camera (solo per simulare le azioni del giocatore) e legge i campi privati dello scenario.
     /// </summary>
     public class ScenarioTestDriver
     {
@@ -18,53 +19,75 @@ namespace SI81.Ludovica.ElectricShock.Tests
         public const string SCENE = "Assets/_Project/Groups/G_Ludovica/Scenari/ElectricShock/SCN_ElectricShock.unity";
         private const BindingFlags NP = BindingFlags.NonPublic | BindingFlags.Instance;
 
-        /// <summary>Scenario in corso.</summary>
-        public ElectricShockScenario Scenario => Object.FindFirstObjectByType<ElectricShockScenario>();
-        /// <summary>Rig temporaneo.</summary>
+        private ElectricShockScenario scenario;
+
+        /// <summary>Scenario caricato (resta leggibile anche dopo lo scaricamento della scena).</summary>
+        public ElectricShockScenario Scenario => scenario;
+        /// <summary>Rig di prova.</summary>
         public TempRig Rig => TempRig.Instance;
 
-        /// <summary>Carica la scena da zero (Guided) e aspetta che lo scenario parta.</summary>
+        /// <summary>Carica la scena da zero (Guided), aspetta lo scenario e crea il rig di prova.</summary>
         public IEnumerator Load()
         {
 #if UNITY_EDITOR
-            MissionSession.Abort();
+            MissionSession.Clear();
             var op = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(SCENE, new LoadSceneParameters(LoadSceneMode.Single));
             while (!op.isDone) yield return null;
-            yield return WaitRunning();
+            CreateTestRig();
+            float until = Time.realtimeSinceStartup + 20f;
+            while (Time.realtimeSinceStartup < until)
+            {
+                scenario = Object.FindFirstObjectByType<ElectricShockScenario>();
+                if (scenario != null && scenario.IsRunning) yield break;
+                yield return null;
+            }
+            Assert.Fail("Lo scenario non è partito entro 20 s (SCN_Core caricata?)");
 #else
             Assert.Ignore("I test dello scenario girano solo nell'Editor.");
             yield break;
 #endif
         }
 
-        /// <summary>Aspetta che uno scenario sia in corso (max 10 s reali).</summary>
-        public IEnumerator WaitRunning()
+        /// <summary>
+        /// Crea il rig temporaneo senza camera né AudioListener (la camera è quella di SCN_Core): serve solo come "corpo"
+        /// del giocatore per osservare, afferrare e parlare nei test.
+        /// </summary>
+        private static void CreateTestRig()
         {
-            float until = Time.realtimeSinceStartup + 10f;
-            while (Time.realtimeSinceStartup < until)
-            {
-                var s = Scenario;
-                if (s != null && s.IsRunning && Rig != null) yield break;
-                yield return null;
-            }
-            Assert.Fail("Lo scenario non è partito entro 10 s");
+            if (TempRig.Instance != null) return;
+            var go = new GameObject("TEST_TempRig");
+            go.SetActive(false);
+            go.transform.position = new Vector3(8f, 0f, 8f);
+            go.AddComponent<CharacterController>();
+            var head = new GameObject("Head").transform;
+            head.SetParent(go.transform, false);
+            var left = new GameObject("LeftHand").AddComponent<TempHand>();
+            left.transform.SetParent(go.transform, false);
+            typeof(TempHand).GetField("isLeft", NP).SetValue(left, true);
+            var right = new GameObject("RightHand").AddComponent<TempHand>();
+            right.transform.SetParent(go.transform, false);
+            var rig = go.AddComponent<TempRig>();
+            typeof(TempRig).GetField("head", NP).SetValue(rig, head);
+            typeof(TempRig).GetField("leftHand", NP).SetValue(rig, left);
+            typeof(TempRig).GetField("rightHand", NP).SetValue(rig, right);
+            go.SetActive(true);
         }
 
-        /// <summary>Aspetta la fine della missione (max secondi di gioco) e restituisce il risultato.</summary>
+        /// <summary>Aspetta la fine della missione (max secondi di gioco).</summary>
         public IEnumerator WaitEnd(float maxGameSeconds)
         {
             float until = Time.time + maxGameSeconds;
-            while (Scenario.IsRunning && Time.time < until) yield return null;
+            while (scenario != null && scenario.IsRunning && Time.time < until) yield return null;
         }
 
         /// <summary>Legge un campo privato dello scenario.</summary>
-        public T Get<T>(string field) => (T)typeof(ElectricShockScenario).GetField(field, NP).GetValue(Scenario);
+        public T Get<T>(string field) => (T)typeof(ElectricShockScenario).GetField(field, NP).GetValue(scenario);
 
         /// <summary>Scrive un campo privato dello scenario.</summary>
-        public void Set(string field, object value) => typeof(ElectricShockScenario).GetField(field, NP).SetValue(Scenario, value);
+        public void Set(string field, object value) => typeof(ElectricShockScenario).GetField(field, NP).SetValue(scenario, value);
 
         /// <summary>Il giocatore parla (B/Y o Q).</summary>
-        public void Shout() => typeof(ElectricShockScenario).GetMethod("OnShout", NP).Invoke(Scenario, new object[] { Rig.Head.position, Rig.Head.forward });
+        public void Shout() => typeof(ElectricShockScenario).GetMethod("OnShout", NP).Invoke(scenario, new object[] { Rig.Head.position, Rig.Head.forward });
 
         /// <summary>La mano destra afferra l'oggetto.</summary>
         public void Grab(TempInteractable item) => typeof(TempHand).GetMethod("TryGrab", NP).Invoke(Rig.RightHand, new object[] { item });
@@ -107,10 +130,10 @@ namespace SI81.Ludovica.ElectricShock.Tests
             ext.OnUseEnd(Rig.RightHand);
         }
 
-        /// <summary>Esito dell'ultima missione chiusa.</summary>
-        public OutcomeType? Outcome => MissionSession.LastResult?.Outcome;
+        /// <summary>Esito dell'ultima missione chiusa (dalla sessione della UI comune).</summary>
+        public OutcomeType? Outcome => MissionSession.LastResult != null ? MissionSession.LastResult.Outcome : (OutcomeType?)null;
 
         /// <summary>true se il Registro delle scelte contiene l'ID.</summary>
-        public bool Logged(string id) => Scenario.Log.Has(id);
+        public bool Logged(string id) => scenario.Log.Has(id);
     }
 }

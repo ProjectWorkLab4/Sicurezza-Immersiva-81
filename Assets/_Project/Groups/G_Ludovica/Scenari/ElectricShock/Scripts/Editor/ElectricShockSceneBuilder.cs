@@ -1,21 +1,20 @@
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using SI81.Ludovica.TempCore;
+using SI81.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.InputSystem.XR;
-using UnityEngine.SceneManagement;
 
 namespace SI81.Ludovica.ElectricShock.EditorTools
 {
     /// <summary>
     /// Costruisce da codice il graybox dello scenario 10 (coordinate della specifica §4: griglia 1 m, origine in basso a sinistra,
-    /// x della mappa = X di Unity, y della mappa = Z di Unity) e la scena core temporanea con il rig.
+    /// x della mappa = X di Unity, y della mappa = Z di Unity) e la missione SO_Mission_ElectricShock per la UI comune.
     /// Tutti i modelli mancanti sono primitive con nome "PLACEHOLDER_*", da sostituire con gli FBX a fine lavoro.
-    /// Rieseguibile: riscrive SCN_ElectricShock e SCN_ElectricShock_TempCore.
+    /// Rieseguibile: riscrive SCN_ElectricShock e aggiorna la missione (catalogo e Build Settings hanno un comando a parte).
     /// </summary>
     public static class ElectricShockSceneBuilder
     {
@@ -24,8 +23,11 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         private const string DATA_DIR = ROOT + "/Data";
         /// <summary>Percorso della scena dello scenario.</summary>
         public const string SCENARIO_SCENE = ROOT + "/SCN_ElectricShock.unity";
-        /// <summary>Percorso della scena core temporanea.</summary>
-        public const string TEMP_CORE_SCENE = ROOT + "/Temp/SCN_ElectricShock_TempCore.unity";
+        /// <summary>Percorso della missione dello scenario.</summary>
+        public const string MISSION_PATH = ROOT + "/SO_Mission_ElectricShock.asset";
+        private const string SAMPLE_MISSION = "Assets/_Project/Home/UI/Data/Missions/SO_Mission_ElectricShock.asset";
+        private const string CATALOG = "Assets/_Project/Home/UI/Data/Missions/SO_MissionCatalog.asset";
+        private const string ICON = "Assets/_Project/Home/Art/Textures/Icons/ICN_ElectricBolt.png";
 
         private static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
 
@@ -36,10 +38,10 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             BuildMaterials();
             LoadOrCreateSettings();
+            LoadOrCreateMission();
             BuildScenarioScene();
-            BuildTempCoreScene();
             EditorSceneManager.OpenScene(SCENARIO_SCENE, OpenSceneMode.Single);
-            Debug.Log("[SI81 ElectricShock] Scene costruite: " + SCENARIO_SCENE + " e " + TEMP_CORE_SCENE);
+            Debug.Log("[SI81 ElectricShock] Scena costruita: " + SCENARIO_SCENE);
         }
 
         // =====================================================================
@@ -91,6 +93,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             }
             m.SetColor("_BaseColor", color);
             m.SetFloat("_Smoothness", smoothness);
+            // Emissione accesa ma nera: l'evidenziazione (Guided) cambia solo il colore per renderer, senza toccare l'asset.
+            m.EnableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", Color.black);
             EditorUtility.SetDirty(m);
             mats[name] = m;
         }
@@ -142,6 +147,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // NewScene scarica gli asset non referenziati: ricarica materiali e dati dopo averla creata.
             BuildMaterials();
             var settings = LoadOrCreateSettings();
+            var mission = LoadOrCreateMission();
 
             var light = new GameObject("MNG_Light").AddComponent<Light>();
             light.type = LightType.Directional;
@@ -182,6 +188,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var stop = pb.gameObject.AddComponent<EmergencyStopButton>();
             SetField(stop, "cap", cap.transform);
             SetInteractable(stop, "Arresto di emergenza", cap.GetComponent<Renderer>());
+            Label(pb.gameObject, LabelKind.Interaction, "Arresto di emergenza", "Grilletto: ferma il generatore", new Vector3(0f, 0.25f, 0f));
 
             var cableRoot = Root("CB01_LiveCable", hazards, 18.8f, 8.5f);
             var cablePoints = new[] { P(20f, 10f, 0.03f), P(18.8f, 8.5f, 0.03f), P(16.9f, 7.6f, 0.03f) };
@@ -201,11 +208,13 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             IgnoreForNavMesh(cableRoot.gameObject);
             SetInteractable(cable, "Cavo sotto tensione", null);
             AddObservable(cableRoot.gameObject, "cable");
+            Label(cableRoot.gameObject, LabelKind.Risk, "Cavo sotto tensione", "Non toccarlo: prima togli la corrente", new Vector3(0f, 0.4f, 0f));
 
             // Pozza e fuoco (si muovono insieme tra le 3 posizioni di replay)
             var pool = Root("PZ01_FuelPool", hazards, 22f, 9f);
             Box("PLACEHOLDER_FuelPool", pool, Vector3.up * 0.006f, new Vector3(2.8f, 0.012f, 1.2f), "FuelPool", false);
             AddObservable(pool.gameObject, "pool");
+            Label(pool.gameObject, LabelKind.Risk, "Pozza di benzina", "Una scintilla può incendiarla", new Vector3(0f, 0.3f, 0f));
             var poolPositions = new[] { Point("PT_Pool_A", points, 21.6f, 9.2f), Point("PT_Pool_B", points, 22f, 9f), Point("PT_Pool_C", points, 21.8f, 8.8f) };
             var fireRoot = new GameObject("FR01_Fire").transform;
             fireRoot.SetParent(pool, false);
@@ -277,6 +286,10 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var tools = new GameObject("TLS_Tools").transform;
             Box("PLACEHOLDER_RackExtinguishers", tools, P(7f, 12.3f, 0.75f), new Vector3(1.6f, 1.5f, 0.1f), "Rack", true);
             var slotRoot = new GameObject("RK02_ExtinguisherSlots").transform;
+            var rackHelp = new GameObject("LBL_ExtinguisherRack").transform;
+            rackHelp.SetParent(tools, false);
+            rackHelp.position = P(7f, 12f, 1.2f);
+            Label(rackHelp.gameObject, LabelKind.ContextHelp, "Estintori", "Leggi l'etichetta prima di usarli", Vector3.zero);
             slotRoot.SetParent(tools, false);
             var slots = new Transform[3];
             for (int i = 0; i < 3; i++)
@@ -329,6 +342,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             victimObstacle.center = new Vector3(0f, 0.17f, 0f);
             victimObstacle.size = new Vector3(1.8f, 0.35f, 0.5f);
             victimObstacle.carving = true;
+            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente, poi controlla coscienza e respiro", new Vector3(0f, 0.6f, 0f));
 
             var by1 = MakeBystander(people, "BY01_Colleague", 14.1f, 4f);
             var by2 = MakeBystander(people, "BY02_Colleague", 15.4f, 4.2f);
@@ -355,12 +369,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var mng = new GameObject("MNG_Scenario");
             var scenario = mng.AddComponent<ElectricShockScenario>();
             var so = new SerializedObject(scenario);
-            so.FindProperty("missionId").stringValue = "10";
-            so.FindProperty("missionTitle").stringValue = "Electric Shock";
-            var obj = so.FindProperty("objectives");
-            string[] objectives = { "Isola il generatore", "Spegni l'incendio", "Evacua e isola la zona", "Assisti collega e paramedico" };
-            obj.arraySize = objectives.Length;
-            for (int i = 0; i < objectives.Length; i++) obj.GetArrayElementAtIndex(i).stringValue = objectives[i];
+            so.FindProperty("mission").objectReferenceValue = mission;
             so.FindProperty("spawnPoint").objectReferenceValue = spawn;
             so.FindProperty("settings").objectReferenceValue = settings;
             so.FindProperty("debriefPhrases").objectReferenceValue = AssetDatabase.LoadAssetAtPath<TextAsset>(DATA_DIR + "/ElectricShock_DebriefPhrases.json");
@@ -547,60 +556,89 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         }
 
         // =====================================================================
-        // Scena core temporanea
+        // Missione, catalogo e Build Settings (UI comune)
         // =====================================================================
 
-        /// <summary>Costruisce SCN_ElectricShock_TempCore: rig temporaneo e caricamento dello scenario (sostituto di SCN_Core).</summary>
-        private static void BuildTempCoreScene()
+        /// <summary>Crea o aggiorna SO_Mission_ElectricShock nella cartella dello scenario (dati della specifica, testi in italiano).</summary>
+        public static MissionDefinition LoadOrCreateMission()
         {
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            BuildMaterials();
-            new GameObject("MNG_TempCore").AddComponent<TempCoreBootstrap>();
-
-            var rigGo = new GameObject("MNG_TempRig");
-            rigGo.transform.position = P(8f, 8f);
-            rigGo.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-            var cc = rigGo.AddComponent<CharacterController>();
-            cc.height = 1.7f;
-            cc.radius = 0.25f;
-            cc.stepOffset = 0.3f;
-            cc.center = Vector3.up * 0.86f;
-
-            var head = new GameObject("Head");
-            head.tag = "MainCamera";
-            head.transform.SetParent(rigGo.transform, false);
-            head.transform.localPosition = Vector3.up * 1.65f;
-            var cam = head.AddComponent<Camera>();
-            cam.nearClipPlane = 0.05f;
-            cam.farClipPlane = 200f;
-            head.AddComponent<AudioListener>();
-            head.AddComponent<TrackedPoseDriver>();
-
-            var left = MakeHand(rigGo.transform, "LeftHand", true, new Vector3(-0.2f, 1.1f, 0.3f));
-            var right = MakeHand(rigGo.transform, "RightHand", false, new Vector3(0.2f, 1.1f, 0.3f));
-
-            var rig = rigGo.AddComponent<TempRig>();
-            SetField(rig, "head", head.transform);
-            SetField(rig, "leftHand", left);
-            SetField(rig, "rightHand", right);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(TEMP_CORE_SCENE));
-            EditorSceneManager.SaveScene(scene, TEMP_CORE_SCENE);
+            var m = AssetDatabase.LoadAssetAtPath<MissionDefinition>(MISSION_PATH);
+            if (m == null)
+            {
+                m = ScriptableObject.CreateInstance<MissionDefinition>();
+                AssetDatabase.CreateAsset(m, MISSION_PATH);
+            }
+            m.Id = "10";
+            m.Title = "Electric Shock";
+            m.Context = "Sei un lavoratore del turno. Un collega ha preso la scossa da un generatore portatile ed è a terra, ancora a contatto con il cavo. "
+                + "Vicino c'è un paramedico sotto shock e sotto il generatore c'è una pozza di benzina. Isola la zona e metti tutti in salvo.";
+            m.Icon = AssetDatabase.LoadAssetAtPath<Sprite>(ICON);
+            m.GradientTop = new Color(0.549f, 0.478f, 0.071f, 1f);
+            m.GradientBottom = new Color(0.851f, 0.769f, 0.227f, 1f);
+            m.Complexity = 4;
+            m.SceneName = "SCN_ElectricShock";
+            m.Objectives = new List<string> { "Isola il generatore", "Spegni l'incendio", "Evacua e isola la zona", "Assisti collega e paramedico" };
+            m.Criteria = new List<CompletionCriterion>
+            {
+                new CompletionCriterion { Outcome = OutcomeType.Positive, Text = "Generatore spento, tutti in salvo" },
+                new CompletionCriterion { Outcome = OutcomeType.Partial, Text = "Generatore spento, zona non isolata" },
+                new CompletionCriterion { Outcome = OutcomeType.Negative, Text = "Persone ferite o estintore errato" }
+            };
+            m.Levels = new List<MissionLevel>
+            {
+                new MissionLevel { Level = DifficultyLevel.Guided, UnlockedByDefault = true, TimeLimitSecondsOverride = 0 },
+                new MissionLevel { Level = DifficultyLevel.Operational, UnlockedByDefault = true, TimeLimitSecondsOverride = 240 },
+                new MissionLevel { Level = DifficultyLevel.Crisis, UnlockedByDefault = true, TimeLimitSecondsOverride = 180 }
+            };
+            m.IsTraining = false;
+            m.DesignerNote = "Scenario 10 · G_Ludovica. Specifica 10_Electric_Shock_LITE. Missione generata da ElectricShockSceneBuilder.";
+            EditorUtility.SetDirty(m);
+            AssetDatabase.SaveAssets();
+            return m;
         }
 
-        /// <summary>Mano del rig temporaneo con un piccolo segnaposto visivo senza collider.</summary>
-        private static TempHand MakeHand(Transform rig, string name, bool isLeft, Vector3 local)
+        /// <summary>
+        /// Mette la missione nel catalogo comune al posto di quella d'esempio (Id 10), elimina l'esempio e aggiunge la scena alle
+        /// Build Settings dopo SCN_Core. Tocca file condivisi: eseguire una volta sola, dopo aver aggiornato il progetto.
+        /// </summary>
+        [MenuItem("SI81/G_Ludovica/Electric Shock/Registra nel catalogo e nelle Build Settings")]
+        public static void RegisterMission()
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(rig, false);
-            go.transform.localPosition = local;
-            go.AddComponent<TrackedPoseDriver>();
-            Box("PLACEHOLDER_Hand", go.transform, Vector3.zero, new Vector3(0.05f, 0.04f, 0.12f), "Hand", false);
-            var hand = go.AddComponent<TempHand>();
-            var so = new SerializedObject(hand);
-            so.FindProperty("isLeft").boolValue = isLeft;
+            var mission = LoadOrCreateMission();
+            var catalog = AssetDatabase.LoadAssetAtPath<MissionCatalog>(CATALOG);
+            if (catalog == null) { Debug.LogError("[SI81 ElectricShock] SO_MissionCatalog non trovato: " + CATALOG); return; }
+            var sample = AssetDatabase.LoadAssetAtPath<MissionDefinition>(SAMPLE_MISSION);
+            int index = sample != null ? catalog.Missions.IndexOf(sample) : -1;
+            catalog.Missions.RemoveAll(x => x == null || x == sample);
+            if (!catalog.Missions.Contains(mission))
+            {
+                if (index >= 0 && index <= catalog.Missions.Count) catalog.Missions.Insert(index, mission);
+                else catalog.Missions.Add(mission);
+            }
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            if (sample != null) AssetDatabase.DeleteAsset(SAMPLE_MISSION);
+
+            var scenes = EditorBuildSettings.scenes.ToList();
+            if (!scenes.Any(sc => sc.path == SCENARIO_SCENE))
+            {
+                scenes.Add(new EditorBuildSettingsScene(SCENARIO_SCENE, true));
+                EditorBuildSettings.scenes = scenes.ToArray();
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("[SI81 ElectricShock] Missione 10 nel catalogo, scena nelle Build Settings.");
+        }
+
+        /// <summary>Etichetta nel mondo della UI comune (LabelAnchor) con testo in italiano.</summary>
+        private static void Label(GameObject go, LabelKind kind, string title, string detail, Vector3 offset)
+        {
+            var anchor = go.AddComponent<LabelAnchor>();
+            var so = new SerializedObject(anchor);
+            so.FindProperty("kind").enumValueIndex = (int)kind;
+            so.FindProperty("title").stringValue = title;
+            so.FindProperty("detail").stringValue = detail;
+            so.FindProperty("offset").vector3Value = offset;
             so.ApplyModifiedPropertiesWithoutUndo();
-            return hand;
         }
 
         // =====================================================================

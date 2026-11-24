@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using SI81.Ludovica.TempCore; // [TEMP] quando arriva la UI comune: using SI81.UI;
+using SI81.Ludovica.TempCore; // rig e interazioni temporanee (finché non arriva il VR Interaction System)
+using SI81.UI;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock
@@ -255,11 +256,11 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Osservazione di cavo, pozza e persone (LG-01, LG-02) e odore di benzina.</summary>
         private void UpdateObservation(float t)
         {
-            var rig = TempRig.Instance;
-            if (rig == null) return;
+            var head = PlayerLocator.Head;
+            if (head == null) return;
             foreach (var o in observables)
             {
-                if (o == null || !o.Tick(rig.Head, t)) continue;
+                if (o == null || !o.Tick(head, t)) continue;
                 if (o.HazardId == "pool")
                 {
                     log.RecordOnce(t, "LG-01", ChoiceOutcome.Correct, ScoreDimension.Awareness);
@@ -267,7 +268,7 @@ namespace SI81.Ludovica.ElectricShock
                 }
             }
 
-            if (!poolSmellAnnounced && fuelPool != null && Vector3.Distance(rig.FeetPosition, fuelPool.position) < 9f)
+            if (!poolSmellAnnounced && fuelPool != null && Vector3.Distance(PlayerLocator.Feet, Flat(fuelPool.position)) < 9f)
             {
                 poolSmellAnnounced = true;
                 ElectricShockHud.Line("", "[Odore di benzina]");
@@ -383,9 +384,9 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Fumo e aria nociva: dopo 20 s in ZN-11 o vicino al fuoco, penalità di Safety (EV-10-04).</summary>
         private void UpdateHarmfulAir()
         {
-            var rig = TempRig.Instance;
-            if (rig == null || log.Has("LG-22")) return;
-            Vector3 head = rig.Head.position;
+            var headT = PlayerLocator.Head;
+            if (headT == null || log.Has("LG-22")) return;
+            Vector3 head = headT.position;
             bool inZone = harmfulAirZone != null && harmfulAirZone.bounds.Contains(head);
             bool nearFire = fire.IsBurning && Vector3.Distance(Flat(head), Flat(fire.transform.position)) < 3f;
             if (!inZone && !nearFire) return;
@@ -399,9 +400,8 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Restare con il collega dopo il controllo della coscienza.</summary>
         private void UpdateVictimCare()
         {
-            var rig = TempRig.Instance;
-            if (rig == null || stayedWithVictim || !victim.ConsciousnessChecked || victim.IsLive) return;
-            if (Vector3.Distance(rig.FeetPosition, Flat(victim.transform.position)) > settings.StayDistance) return;
+            if (PlayerLocator.Head == null || stayedWithVictim || !victim.ConsciousnessChecked || victim.IsLive) return;
+            if (Vector3.Distance(PlayerLocator.Feet, Flat(victim.transform.position)) > settings.StayDistance) return;
             stayTimer += Time.deltaTime;
             if (stayTimer < settings.StayWithVictimSeconds) return;
             stayedWithVictim = true;
@@ -449,10 +449,9 @@ namespace SI81.Ludovica.ElectricShock
             // né assistendo il collega (al massimo dopo 30 s).
             if (pm2 == ParamedicState.AtVictim)
             {
-                var rig = TempRig.Instance;
                 bool escorting = paramedicInShock.IsEscorted && !paramedicInShock.IsSafe;
-                bool assisting = rig != null && victim.ConsciousnessChecked && !stayedWithVictim
-                    && Vector3.Distance(rig.FeetPosition, Flat(victim.transform.position)) <= settings.StayDistance;
+                bool assisting = PlayerLocator.Head != null && victim.ConsciousnessChecked && !stayedWithVictim
+                    && Vector3.Distance(PlayerLocator.Feet, Flat(victim.transform.position)) <= settings.StayDistance;
                 if ((!escorting && !assisting) || t - pm2AtVictimSince >= PM2_MAX_WAIT)
                 {
                     Subtitle("PM-2", "Ci penso io, grazie.");
@@ -810,7 +809,7 @@ namespace SI81.Ludovica.ElectricShock
         private bool ZoneSafe() => !generator.IsRunning && !fire.IsBurning && pendingIgnitionAt < 0f && (ignitedAt < 0f || fire.WasExtinguished) && !exploded;
 
         /// <summary>true se il giocatore è nel raggio della vampata.</summary>
-        private bool PlayerInBlast() => TempRig.Instance != null && InBlast(TempRig.Instance.FeetPosition);
+        private bool PlayerInBlast() => PlayerLocator.Head != null && InBlast(PlayerLocator.Feet);
 
         /// <summary>true se il punto è entro il raggio della vampata dal fuoco.</summary>
         private bool InBlast(Vector3 p) => Vector3.Distance(Flat(p), Flat(fire.transform.position)) < settings.BlastRadius;

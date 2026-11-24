@@ -1,39 +1,33 @@
 # Checklist sul visore — 10 · Electric Shock
 
-Build: Build Profiles → `BP_ElectricShock_Quest` → Build. Log in parallelo: `adb logcat -s Unity | findstr "SI81"`.
-Segna ✔ / ✘ e scrivi cosa succede quando qualcosa non va.
+Build: build normale del progetto (Build Settings: `SCN_Core` all'indice 0, poi gli scenari).
+Log in parallelo (Meta Quest Developer Hub o `adb logcat -s Unity | findstr "SI81"`). Segna ✔ / ✘ e scrivi cosa succede.
 
-## Rig temporaneo
+## Collegamento con la UI comune (verificabile già adesso)
 
-- [ ] All'avvio sei in piedi a un'altezza credibile, guardando verso il generatore (est), e 1 vibrazione conferma Guided.
-- [ ] Le due mani (piccoli parallelepipedi) seguono i controller; la mano non è ruotata in modo strano.
-- [ ] Levetta sinistra: cammini nella direzione in cui guardi. Levetta destra: rotazione a scatti di 30°.
-- [ ] Non attraversi le pareti; attraversi barriere, persone e collega a terra.
-- [ ] Menu (sinistro): riavvio al livello successivo, con 2 e poi 3 vibrazioni.
+- [ ] In Home compare la card **10 · Electric Shock** con l'icona del fulmine.
+- [ ] Mission Brief: contesto, 4 obiettivi, 3 criteri, livelli Guided / Operational / Crisis sbloccati.
+- [ ] Avvia: lo scenario si carica e il giocatore parte da `MNG_SpawnPoint`, guardando verso il generatore.
+- [ ] Sul polso: obiettivo "1/4 Isola il generatore", fase, timer (Operational 4 min, Crisis 3 min).
+- [ ] Avviso iniziale e sottotitolo "Aiuto! Ha preso la scossa!" in basso nella vista.
+- [ ] Guided: etichette nel mondo su cavo, pozza, arresto di emergenza, estintori, collega (max 3 rischi insieme).
+- [ ] Senza fare nulla: a 40-70 s i colleghi toccano la vittima → esito Negativo → Debrief con le righe "!" / "-" → Score & Replay → Home.
+- [ ] Menu sinistro (≡) durante la missione = Pausa della UI (lo scenario non usa quel tasto).
+- [ ] Suoni 3D: ronzio del generatore e crepitio del cavo si sentono avvicinandosi.
+- [ ] Fiamme, fumo, scintille visibili (non rosa né quadrati); prestazioni fluide.
 
-## Interazioni
+## Interazioni (quando arriva il VR Interaction System)
 
-- [ ] Toccando PB-01 e premendo il grilletto il generatore si ferma (log "Generatore fermato").
-- [ ] Grip su un estintore: lo prendi, l'ugello punta in avanti; A/X legge l'etichetta (log "Etichetta").
-- [ ] Grilletto con l'estintore in mano: si vede lo spruzzo e il fuoco si spegne in circa 4 s, anche molto vicino alle fiamme.
-- [ ] Lasciato il grip, l'estintore resta dritto a terra.
-- [ ] Barriere: si prendono, si agganciano ai segni gialli sul varco; con entrambe agganciate il log scrive "Varco chiuso".
-- [ ] Radio: grilletto = chiamata al 112 (log).
+- [ ] PB-01 con il grilletto ferma il generatore; dopo circa 2 s la pozza prende fuoco.
+- [ ] Estintore: grip prende, A/X legge l'etichetta, grilletto spruzza; il fuoco si spegne in circa 4 s anche da vicino.
+- [ ] Barriere agganciate al varco: "Varco chiuso".
+- [ ] Radio: grilletto = chiamata al 112.
 - [ ] B/Y: "Fermi! Allontanatevi!" e i colleghi escono verso il punto di raccolta.
-- [ ] Collega: A/X controlla coscienza e respiro; grilletto breve lo mette in posizione; grilletto tenuto lo trascina.
+- [ ] Collega: A/X coscienza e respiro, grilletto breve posizione, grilletto tenuto trascina.
 - [ ] PM-1: grilletto tenuto 3 s, poi ti segue fino al cerchio verde.
-- [ ] Toccare il cavo o il collega con il generatore acceso chiude il livello (Negativo).
 
-## Scena ed effetti
+## Percorsi completi (uno per livello, con le interazioni)
 
-- [ ] Fiamme, fumo, scintille del cavo e spruzzo sono visibili (non rosa né quadrati).
-- [ ] Dopo l'arresto la pozza prende fuoco dopo circa 2 s.
-- [ ] La pozza si riesce a vedere girando attorno al generatore.
-- [ ] Guided: PB-01 e gli estintori corretti sono evidenziati in giallo.
-- [ ] Prestazioni fluide (nessuno scatto evidente con il fuoco acceso).
-
-## Percorsi completi (uno per livello)
-
-- [ ] Guided: percorso corretto → log "Esito: Positive".
-- [ ] Operational: nessuna barriera, poi aspetta PM-2 con zona sicura → "Esito: Partial" (riga LG-04 nel debrief).
-- [ ] Crisis: lascia bruciare il fuoco e resta vicino al generatore → esplosione → "Esito: Negative" (LG-17).
+- [ ] Guided: percorso corretto → esito Positivo.
+- [ ] Operational: nessuna barriera, poi aspetta PM-2 con zona sicura → Parziale (riga sul varco aperto nel Debrief).
+- [ ] Crisis: lascia bruciare il fuoco e resta vicino al generatore → esplosione → Negativo.

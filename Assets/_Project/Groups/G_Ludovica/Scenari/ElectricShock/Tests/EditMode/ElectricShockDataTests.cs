@@ -1,6 +1,6 @@
 using System.Linq;
 using NUnit.Framework;
-using SI81.Ludovica.TempCore;
+using SI81.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -134,17 +134,45 @@ namespace SI81.Ludovica.ElectricShock.Tests
                 var scenarios = all.Select(g => g.GetComponent<ElectricShockScenario>()).Where(c => c != null).ToList();
                 Assert.AreEqual(1, scenarios.Count);
                 Assert.AreEqual("MNG_Scenario", scenarios[0].name);
-                var objectives = new SerializedObject(scenarios[0]).FindProperty("objectives");
-                Assert.That(objectives.arraySize, Is.InRange(1, 4));
-                for (int i = 0; i < objectives.arraySize; i++)
-                    Assert.LessOrEqual(objectives.GetArrayElementAtIndex(i).stringValue.Length, 30, "Obiettivo oltre 30 caratteri");
+                Assert.AreEqual(AssetDatabase.LoadAssetAtPath<MissionDefinition>(ROOT + "/SO_Mission_ElectricShock.asset"), scenarios[0].Mission, "MNG_Scenario senza la missione giusta");
                 Assert.IsNotNull(all.FirstOrDefault(g => g.name == "MNG_SpawnPoint"));
+                Assert.IsNotNull(new SerializedObject(scenarios[0]).FindProperty("spawnPoint").objectReferenceValue, "Spawn Point non assegnato");
             }
             finally
             {
                 EditorSceneManager.CloseScene(scene, true);
                 if (setup.Length > 0) EditorSceneManager.RestoreSceneManagerSetup(setup);
             }
+        }
+
+        /// <summary>
+        /// Missione secondo la guida (§6): Id 10, titolo, contesto ≤ 280, 1-4 obiettivi ≤ 30 caratteri, 3 criteri, livelli,
+        /// SceneName = SCN_ElectricShock; nel catalogo comune una sola missione con Id 10; scena nelle Build Settings dopo SCN_Core.
+        /// </summary>
+        [Test]
+        public void Mission_IsValidAndRegistered()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<MissionDefinition>(ROOT + "/SO_Mission_ElectricShock.asset");
+            Assert.IsNotNull(m, "SO_Mission_ElectricShock mancante");
+            Assert.AreEqual("10", m.Id);
+            Assert.AreEqual("Electric Shock", m.Title);
+            Assert.AreEqual("SCN_ElectricShock", m.SceneName);
+            Assert.LessOrEqual(m.Context.Length, MissionDefinition.MAX_CONTEXT_LENGTH);
+            Assert.That(m.Objectives.Count, Is.InRange(1, MissionDefinition.MAX_OBJECTIVES));
+            foreach (var o in m.Objectives) Assert.LessOrEqual(o.Length, 30, "Obiettivo oltre 30 caratteri: " + o);
+            Assert.AreEqual(3, m.Criteria.Count);
+            Assert.AreEqual(3, m.Levels.Count);
+            Assert.IsNotNull(m.Icon, "Icona mancante");
+            StringAssert.DoesNotContain("[DA COMPILARE]", m.Context + m.DesignerNote);
+
+            var catalog = AssetDatabase.LoadAssetAtPath<MissionCatalog>("Assets/_Project/Home/UI/Data/Missions/SO_MissionCatalog.asset");
+            Assert.IsNotNull(catalog);
+            Assert.AreEqual(1, catalog.Missions.Count(x => x != null && x.Id == "10"), "Nel catalogo ci deve essere una sola missione con Id 10");
+            Assert.IsTrue(catalog.Missions.Contains(m), "La missione non è nel catalogo");
+
+            var scenes = EditorBuildSettings.scenes.Select(sc => sc.path).ToList();
+            Assert.AreEqual("Assets/_Project/Home/Level/Scenes/SCN_Core.unity", scenes[0], "SCN_Core deve restare all'indice 0");
+            Assert.IsTrue(scenes.Contains(ROOT + "/SCN_ElectricShock.unity"), "Scena non nelle Build Settings");
         }
     }
 }

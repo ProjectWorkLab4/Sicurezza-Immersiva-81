@@ -10,9 +10,9 @@ namespace SI81.Ludovica.TempCore
     /// <summary>
     /// [TEMP] Rig del giocatore finché non arriva quello di SCN_Core (VR Interaction System).
     /// VR: testa e mani tracciate, levetta sinistra = camminare, levetta destra = rotazione a scatti,
-    /// grip = afferra, grilletto = usa, A/X = ispeziona, B/Y = parla ("Fermi! Allontanatevi!"), Menu = riavvia al livello successivo.
-    /// Desktop (Editor senza visore): WASD, tasto destro del mouse = guardare, E = afferra/lascia, clic sinistro = usa,
-    /// R = ispeziona, Q = parla, Tab = riavvia al livello successivo.
+    /// grip = afferra, grilletto = usa, A/X = ispeziona, B/Y = parla ("Fermi! Allontanatevi!"). Il tasto Menu sinistro è la Pausa
+    /// della UI comune: il rig non lo usa. Desktop (Editor senza visore): WASD, tasto destro del mouse = guardare,
+    /// E = afferra/lascia, clic sinistro = usa, R = ispeziona, Q = parla.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class TempRig : MonoBehaviour
@@ -33,15 +33,13 @@ namespace SI81.Ludovica.TempCore
         private bool snapReady = true;
         private float verticalSpeed;
 
-        private InputAction leftGrip, leftTrigger, leftPrimary, leftSecondary, leftMenu, leftStick;
+        private InputAction leftGrip, leftTrigger, leftPrimary, leftSecondary, leftStick;
         private InputAction rightGrip, rightTrigger, rightPrimary, rightSecondary, rightStick;
 
         /// <summary>Rig attivo (uno solo).</summary>
         public static TempRig Instance { get; private set; }
         /// <summary>Il giocatore ha parlato (B/Y o Q): posizione della testa e direzione dello sguardo.</summary>
         public static event Action<Vector3, Vector3> Shout;
-        /// <summary>Il giocatore ha chiesto il riavvio (Menu o Tab).</summary>
-        public static event Action RestartRequested;
 
         /// <summary>Testa (camera).</summary>
         public Transform Head => head;
@@ -69,7 +67,6 @@ namespace SI81.Ludovica.TempCore
             leftTrigger = Button("LeftHand", "{TriggerButton}", "triggerPressed");
             leftPrimary = Button("LeftHand", "{PrimaryButton}", "primaryButton");
             leftSecondary = Button("LeftHand", "{SecondaryButton}", "secondaryButton");
-            leftMenu = Button("LeftHand", "{MenuButton}", "menu");
             leftStick = Stick("LeftHand");
             rightGrip = Button("RightHand", "{GripButton}", "gripPressed");
             rightTrigger = Button("RightHand", "{TriggerButton}", "triggerPressed");
@@ -83,7 +80,7 @@ namespace SI81.Ludovica.TempCore
                 head.localPosition = new Vector3(0f, desktopEyeHeight, 0f);
                 head.localRotation = Quaternion.identity;
                 leftHand.gameObject.SetActive(false);
-                Debug.Log($"{TempHud.TAG} Rig desktop: WASD muovi, tasto destro guarda, E afferra/lascia, clic sinistro usa, R ispeziona, Q parla, Tab riavvia al livello successivo.");
+                Debug.Log($"{TempHud.TAG} Rig desktop: WASD muovi, tasto destro guarda, E afferra/lascia, clic sinistro usa, R ispeziona, Q parla.");
             }
             else
             {
@@ -96,7 +93,7 @@ namespace SI81.Ludovica.TempCore
         private void OnDestroy()
         {
             if (Instance == this) Instance = null;
-            foreach (var a in new[] { leftGrip, leftTrigger, leftPrimary, leftSecondary, leftMenu, leftStick, rightGrip, rightTrigger, rightPrimary, rightSecondary, rightStick })
+            foreach (var a in new[] { leftGrip, leftTrigger, leftPrimary, leftSecondary, leftStick, rightGrip, rightTrigger, rightPrimary, rightSecondary, rightStick })
                 a?.Dispose();
         }
 
@@ -138,7 +135,6 @@ namespace SI81.Ludovica.TempCore
             rightHand.Tick(ReadHand(rightGrip, rightTrigger, rightPrimary), null);
 
             if (leftSecondary.WasPressedThisFrame() || rightSecondary.WasPressedThisFrame()) Shout?.Invoke(head.position, head.forward);
-            if (leftMenu.WasPressedThisFrame()) RestartRequested?.Invoke();
         }
 
         /// <summary>Aggiornamento in modalità desktop (tastiera e mouse).</summary>
@@ -176,7 +172,6 @@ namespace SI81.Ludovica.TempCore
             rightHand.Tick(buttons, new Ray(head.position, head.forward));
 
             if (kb.qKey.wasPressedThisFrame) Shout?.Invoke(head.position, head.forward);
-            if (kb.tabKey.wasPressedThisFrame) RestartRequested?.Invoke();
         }
 
         /// <summary>Movimento continuo relativo alla direzione dello sguardo, con gravità.</summary>

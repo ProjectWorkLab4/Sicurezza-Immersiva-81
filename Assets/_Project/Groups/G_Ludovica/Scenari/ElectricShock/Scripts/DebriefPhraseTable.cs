@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SI81.Ludovica.TempCore;
+using SI81.UI;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock

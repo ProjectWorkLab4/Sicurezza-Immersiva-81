@@ -1,8 +1,16 @@
 {
     "name": "SI81.Ludovica.ElectricShock.Editor",
     "rootNamespace": "SI81.Ludovica.ElectricShock.EditorTools",
-    "references": ["SI81.Ludovica.TempCore", "SI81.Ludovica.ElectricShock", "Unity.InputSystem", "Unity.AI.Navigation"],
-    "includePlatforms": ["Editor"],
+    "references": [
+        "SI81.Ludovica.TempCore",
+        "SI81.Ludovica.ElectricShock",
+        "Unity.InputSystem",
+        "Unity.AI.Navigation",
+        "SI81.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

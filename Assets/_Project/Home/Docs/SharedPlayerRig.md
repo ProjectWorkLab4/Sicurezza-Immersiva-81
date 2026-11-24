@@ -137,7 +137,7 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 ## Migration for scenario teams
 
 The operational, file-by-file procedure (human part in Italian plus deterministic LLM instructions) is in
-[Guida_Migrazione_Rig_UI.md](../Docs/Guida_Migrazione_Rig_UI.md). The summary below stays as the contract.
+[Guida_Migrazione_Rig_UI.md](../../../../Guides/Guida_Migrazione_Rig_UI.md). The summary below stays as the contract.
 
 Groups that already have a rig/input code (Tiziano `OVRInput`, Simone Interaction SDK, Ludovica bare camera):
 

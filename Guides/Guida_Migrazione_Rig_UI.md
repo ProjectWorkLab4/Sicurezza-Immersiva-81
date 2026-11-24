@@ -2,18 +2,15 @@
 
 **Versione 1.0 — 24 novembre 2026**
 Per gli owner dei branch di gruppo: `G_Ludovica`, `G_Marius`, `G_Simone`, `G_Tiziano`.
-Riferimenti: [SharedPlayerRig.md](../Home/Docs/SharedPlayerRig.md),
-[SharedInteraction.md](../Home/Docs/SharedInteraction.md),
-[GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md](GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md).
 
-> Questa guida ha due parti:
-> **Parte A** è per le persone (in italiano).
-> **Parte B** è per l'assistente LLM che esegue la migrazione (in inglese, istruzioni deterministiche).
-> La guida V2 resta il riferimento per kit scenario, catalogo missioni e validatore e **non va modificata**.
+Riferimenti: [SharedPlayerRig.md](../Assets/_Project/Home/Docs/SharedPlayerRig.md),
+[SharedInteraction.md](../Assets/_Project/Home/Docs/SharedInteraction.md),
+[GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md](../Assets/_Project/Docs/GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md).
 
----
-
-# Parte A — Guida per gli owner dei branch
+> Le istruzioni deterministiche per l'assistente LLM sono in
+> [`!LLM_Migrazione_Rig_UI.md`](../Assets/_Project/Docs/!LLM_Migrazione_Rig_UI.md).
+> La guida V2 resta il riferimento per kit scenario, catalogo missioni e validatore e **non va
+> modificata**.
 
 ## 1. Cosa cambia, in breve
 
@@ -135,6 +132,8 @@ Il rig porta un `RayInteractor` per mano. Gli oggetti con cui interagire devono 
 - `SceneName` della missione deve coincidere con il nome del file di scena.
 - La card in Home diventa disponibile solo quando la scena è **attiva nelle Build Settings** e il
   GUID della scena è quello atteso.
+- Una sola missione per scena: se esiste già un `SO_Mission_*` per la tua scena, usalo; non
+  duplicarlo.
 
 ### 3.6 Build Settings
 
@@ -157,9 +156,10 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
   -testFilter SI81.Rig.Tests.RigIntegrationTests -testResults Logs/rig-tests.xml -logFile Logs/rig-tests.log
 ```
 
-4. Prova sul Quest con la checklist di [SharedPlayerRig.md](../Home/Docs/SharedPlayerRig.md):
-   un rig, floor corretto, controller e raggio allineati, stick sinistro, snap turn, Menu in pausa,
-   B/Y solo nel menu, trigger che clicca la UI senza selezionare il mondo, aptica.
+4. Prova sul Quest con la checklist di
+   [SharedPlayerRig.md](../Assets/_Project/Home/Docs/SharedPlayerRig.md): un rig, floor corretto,
+   controller e raggio allineati, stick sinistro, snap turn, Menu in pausa, B/Y solo nel menu,
+   trigger che clicca la UI senza selezionare il mondo, aptica.
 
 ## 4. Note per gruppo
 
@@ -195,6 +195,7 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 - [ ] `MNG_SpawnPoint` con `SpawnPoint` è presente e assegnato a `ScenarioController`.
 - [ ] Nessuna lettura di `OVRInput`, `UnityEngine.Input` o XRI nel codice di scenario.
 - [ ] Oggetti interattivi con `Interactable`; nessun raycast/interattore locale.
+- [ ] Una sola missione `SO_Mission_*` per la scena, già presente nel catalogo.
 - [ ] `SCN_Core` è indice 0 delle Build Settings; la propria scena è dopo le scene condivise.
 - [ ] Validatore, Play Mode e test del rig passano.
 - [ ] Checklist Quest eseguita sul visore.
@@ -214,122 +215,24 @@ La compilazione del branch pilota è passata (exit 0) e la validazione di `SCN_C
 1 `RigRegistration`, 1 camera attiva, 1 `EventSystem`, 2 `UIPointer` e il `RigUIBridge` con tutti i
 riferimenti. La scena `SCN_ChemicalAlert` è stata migrata: 0 rig/camera/EventSystem locali,
 radice OVR convertita in `MNG_Scenario`, `ScenarioController` + `MNG_SpawnPoint`, 27
-`Interactable`, 3 zone PPE ricreate con `PPEZoneRigAnchor`, missione boilerplate `Id: 05`.
+`Interactable`, 3 zone PPE ricreate con `PPEZoneRigAnchor`.
+
+Chemical Alert usa la missione **già esistente** `SO_Mission_ChemicalAlert` (`Id: 04`); una seconda
+missione pilota (`Id: 05`) è stata creata e poi rimossa perché duplicava la stessa scena.
+`SCN_Core` non aveva un collider sotto il rig: il pilota ha aggiunto `COL_Floor_Core` (superficie a
+`y = 0`) per fermare la caduta.
 
 Errori trovati e corretti nel pilot:
 
 - le zone PPE (`Head`, `Torso`, `Hands`) erano figlie della radice `OVRCameraRig` e sono state
   perse eliminando il rig; vanno ricreate e riagganciate al rig condiviso;
-- `Id: 08` era già usato da un'altra missione: usare un id libero;
+- una missione per scena: non creare un secondo `SO_Mission_*` per una scena già in catalogo;
 - `PlayerPPEState.zones` e `PPEItemObject.equipZones` puntavano alle zone eliminate e vanno
   riscritti;
 - il tasto Menu scelto per l'Hint apre anche la pausa (`MissionFlowDriver`): serve una decisione
-  di gameplay.
+  di gameplay;
+- la build del pilot usava l'application id template: sul visore restava aperta la vecchia app e
+  il menu sembrava vecchio. Usa `com.si81.sicurezzaimmersiva` e reinstallala con `-r`.
 
-Dettaglio completo, build APK ed esito: `Assets/_Project/Groups/G_Tiziano/Docs/RIG_UI_PILOT.md`
-sul branch del pilot (PR #22).
-
----
-
-# Parte B — Istruzioni per l'assistente LLM
-
-**Scope:** migrate one group branch to the shared Player Rig and common UI already merged in `main`.
-Do not redesign gameplay. Do not modify `GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md` or `SharedPlayerRig.md`
-unless explicitly asked.
-
-## B.1 Invariants
-
-1. `SCN_Core` is the only scene that owns the player rig, camera, UI, HUD and EventSystem.
-2. A scenario scene contains only environment, content, `MNG_Scenario`, `MNG_SpawnPoint`.
-3. `SI81.Input.InputService` is the only input owner. No `OVRInput`, no local action asset.
-4. `SI81.Interaction.Interactable` + the rig's `RayInteractor` are the only interaction path.
-5. `SI81.Rig` never references `SI81.UI`; the adapter is `SI81.UI.Rig.RigUIBridge`.
-6. Keep `ProjectSettings/`, `Packages/`, `Assets/Oculus/`, `Assets/XR/`, `Assets/Resources/` and
-   shared folder `.meta` files from `main`.
-7. `SCN_Core` remains Build Settings index 0. Never renumber it.
-
-## B.2 Procedure
-
-1. **Merge**
-   ```bash
-   git switch <group-branch>
-   git pull origin <group-branch>
-   git switch -c migration/<group>
-   git merge origin/main
-   ```
-   Resolve conflicts by taking `main` for the paths in B.1.6. Then:
-   ```bash
-   git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json
-   grep -n '"file:' Packages/manifest.json
-   ```
-   Both must print nothing (no Unity VCS, no local `file:` package paths such as a local MCP).
-   Do not run Unity Project Setup Tool.
-
-2. **Strip local scene infrastructure.** Open the scenario scene and delete GameObjects/components:
-   `OVRCameraRig`, `OVRManager`, `XROrigin`, `Camera`, `AudioListener`, `Canvas`, `EventSystem`,
-   `InputSystemUIInputModule`, `TrackedDeviceRaycaster`, `XRInteractionManager`,
-   `XRGrabInteractable`, `XRRayInteractor`, locomotion providers, `PauseInput`, `UIPointer`,
-   local `ScenarioHandInteractor`-style components, local `.inputactions`.
-
-3. **Spawn point.** Create `MNG_SpawnPoint` with `SI81.Rig.SpawnPoint`. Set its world position and
-   yaw. Assign it to `ScenarioController.spawnPoint`. Do not move
-   `UIScreenManager.TrackingOrigin` from scenario code. Before deleting the local rig, list every
-   child of its root: scene content parented to the rig (equip zones, hand triggers, markers) must
-   be recreated and anchored to `RigRegistration` at runtime.
-
-4. **Input.** Replace direct input reads with `InputService`:
-   - polling: `WasSelectPressed(Hand)`, `IsGrabHeld(Hand)`, `WasMenuPressed()`,
-     `WasBackPressed()`, `ReadMove()`, `ReadTurn()`;
-   - events: `SelectPerformed`, `SelectCanceled`, `GrabPerformed`, `GrabCanceled`,
-     `MenuPerformed`, `BackPerformed`, `MoveChanged`, `TurnChanged`;
-   - world suppression: `PushContext(InputChannel.World, owner)` and dispose the handle;
-   - aim: `TryGetAimPose(Hand, out Vector3, out Quaternion)`.
-   Never instantiate `InputAction`, `InputActionAsset` or `InputSystemUIInputModule` in scenario code.
-
-5. **Interaction.** Add `Interactable` to every object that must be hovered, selected or grabbed.
-   Set `Selectable`, `Grabbable`, `FollowsHand`. Consume `HoverEntered`, `HoverExited`,
-   `SelectEntered`, `SelectExited`, `GrabEntered`, `GrabExited`. Delete local raycast/hover/grab
-   code. If scenario-specific events are required, write a small adapter component that forwards
-   `Interactable` events; do not duplicate the interactor.
-
-6. **Mission/UI.** Keep `MNG_Scenario` with `ScenarioController` (or a subclass) and one
-   `SO_Mission_<Title>`. `SceneName` must equal the scene file name. Use `HUDService`,
-   `DecisionPanel` and `MissionSession`; do not create Canvas or HUD.
-
-7. **Build Settings.** Ensure
-   `Assets/_Project/Home/Level/Scenes/SCN_Core.unity` is index 0 and
-   `Assets/_Project/Home/Level/Scenes/Mock/SCN_MockScenario.unity` follows. Add only the group's
-   scene after them, with its `.meta` GUID unchanged.
-
-8. **Validate.** Run the scenario validator, then:
-   ```powershell
-   Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform PlayMode `
-     -testFilter SI81.Rig.Tests.RigIntegrationTests -testResults Logs/rig-tests.xml -logFile Logs/rig-tests.log
-   ```
-   Open `SCN_Core` + scenario in Play Mode: exactly one `RigRegistration`, one camera, one
-   `EventSystem`, no `Nessun IRigUIBridge` warning.
-
-## B.3 Forbidden
-
-- Editing `ProjectSettings/EditorBuildSettings.asset` to remove/reorder `SCN_Core`.
-- Adding `com.unity.collab-proxy` or opening Unity Version Control.
-- Running Meta XR Project Setup Tool "Fix All".
-- Adding a camera, rig, Canvas, EventSystem, input module, local action asset, local raycast or
-  local grab implementation to a scenario scene.
-- Editing `GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md`, `SharedPlayerRig.md` or files under
-  `Assets/_Project/Shared/` as part of a group migration.
-
-## B.4 Acceptance
-
-- `git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json` → empty.
-- `git grep -n -E "OVRInput|XRGrabInteractable|XRRayInteractor|XRInteractionManager" -- <group Code>` → empty.
-- Build Settings: `SCN_Core` index 0, group scene after shared scenes.
-- Unity batchmode compile: no `error CS`.
-- PlayMode rig tests pass; Editor smoke has one rig, one EventSystem, UI hand-off working.
-- Quest checklist from `SharedPlayerRig.md` executed by the owner.
-
-## B.5 Scenario-kit details
-
-For scenario creation, validation, mission catalog, `SO_Mission_*`, `SceneName` and the
-`ScenarioController` API, follow [GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md](GUIDA_INTEGRAZIONE_SCENARIO_V2.0.md).
-That guide is read-only. This document only defines the rig/UI/input migration on top of it.
+Dettaglio completo, build APK ed esito:
+`Assets/_Project/Groups/G_Tiziano/Docs/RIG_UI_PILOT.md` sul branch del pilot (PR #22).

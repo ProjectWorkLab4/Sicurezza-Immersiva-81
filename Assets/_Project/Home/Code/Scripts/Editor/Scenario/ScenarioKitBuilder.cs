@@ -2,7 +2,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using SI81.Rig;
+using SI81.Rig.EditorTools;
 using SI81.UI;
+using SI81.UI.Rig;
 using UnityEditor;
 using UnityEditor.Events;
 using UnityEditor.SceneManagement;
@@ -47,15 +50,6 @@ namespace SI81.UI.EditorTools
         internal const string CORE_NAME = "SCN_Core";
         /// <summary>Marcatore dei campi da compilare nel template (il validatore lo cerca).</summary>
         internal const string TODO_MARKER = "[DA COMPILARE]";
-
-        /// <summary>Rig condiviso di SCN_Core (Meta XR Core SDK).</summary>
-        private const string OVR_CAMERA_RIG_PREFAB = "Packages/com.meta.xr.sdk.core/Prefabs/OVRCameraRig.prefab";
-        /// <summary>Modelli dei controller Meta (OVRControllerHelper sceglie il modello giusto per il visore).</summary>
-        private const string OVR_CONTROLLER_PREFAB = "Packages/com.meta.xr.sdk.core/Prefabs/OVRControllerPrefab.prefab";
-        /// <summary>OVRInput.Controller.LTouch.</summary>
-        private const int OVR_CONTROLLER_LTOUCH = 1;
-        /// <summary>OVRInput.Controller.RTouch.</summary>
-        private const int OVR_CONTROLLER_RTOUCH = 2;
 
         // =====================================================================
         // Menu
@@ -195,7 +189,7 @@ namespace SI81.UI.EditorTools
         // =====================================================================
 
         /// <summary>
-        /// Crea o aggiorna SCN_Core: rig segnaposto (MNG_CoreRig con testa, due controller e puntatori), istanza di MNG_UI con servizi
+        /// Crea o aggiorna SCN_Core: prefab MNG_CoreRig del Player Rig condiviso (con i puntatori UI), istanza di MNG_UI con servizi
         /// reali (useMocks = false) e tutte le schermate disponibili, istanza di MNG_HUD (se il prefab del Blocco C esiste).
         /// </summary>
         private static string BuildCoreScene(UITheme theme, MissionCatalog catalog)
@@ -223,34 +217,34 @@ namespace SI81.UI.EditorTools
             RenderSettings.ambientLight = backdrop;
             RenderSettings.fog = false;
 
-            // --- Rig condiviso: OVRCameraRig di Meta XR Core SDK (testa e controller tracciati, modelli dei controller). ---
-            // È l'UNICO rig dell'app: le scene di scenario non devono averne un altro (CLAUDE.md 4.11).
-            GameObject rig = BaseBuilder.GetOrCreateRoot(scene, "MNG_CoreRig");
+            // --- Rig condiviso: prefab MNG_CoreRig di SI81.Rig (l'UNICO rig dell'app). ---
+            // Le scene di scenario non devono averne un altro: vedi SharedPlayerRig.md.
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(RigPrefabBuilder.PrefabPath) == null)
+                return $"SCN_Core: NON creata, manca {RigPrefabBuilder.PrefabPath}. Esegui SI81/Rig/Rebuild MNG_CoreRig Prefab.";
+            foreach (GameObject root in scene.GetRootGameObjects())
+                if (root.name == "MNG_CoreRig" && !PrefabUtility.IsPartOfPrefabInstance(root))
+                    Object.DestroyImmediate(root); // rig segnaposto delle versioni precedenti
+            GameObject rig = BaseBuilder.GetOrCreatePrefabInstance(scene, RigPrefabBuilder.PrefabPath, "MNG_CoreRig");
             BaseBuilder.ResetLocal(rig.transform);
-            Transform oldOffset = rig.transform.Find("MNG_RigOffset");
-            if (oldOffset != null) Object.DestroyImmediate(oldOffset.gameObject); // rig segnaposto delle versioni precedenti
-            var ovrRigPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(OVR_CAMERA_RIG_PREFAB);
-            if (ovrRigPrefab == null)
-                return $"SCN_Core: NON creata, manca {OVR_CAMERA_RIG_PREFAB} (Meta XR Core SDK).";
-            GameObject ovrRig = BaseBuilder.GetOrCreateChildPrefabInstance(rig.transform, OVR_CAMERA_RIG_PREFAB, "OVRCameraRig");
-            BaseBuilder.ResetLocal(ovrRig.transform);
-            SetEnumByName(ovrRig, "OVRManager", "_trackingOriginType", "FloorLevel");
-            Transform origin = FindDeep(ovrRig.transform, "TrackingSpace");
-            Transform head = FindDeep(ovrRig.transform, "CenterEyeAnchor");
-            Transform left = FindDeep(ovrRig.transform, "LeftControllerAnchor");
-            Transform right = FindDeep(ovrRig.transform, "RightControllerAnchor");
+            RigRegistration registration = rig.GetComponent<RigRegistration>();
+            if (registration == null)
+                return "SCN_Core: NON creata, MNG_CoreRig senza RigRegistration.";
+            Transform origin = registration.TrackingOrigin;
+            Transform head = registration.Head;
+            Transform left = registration.LeftHand;
+            Transform right = registration.RightHand;
             if (origin == null || head == null || left == null || right == null)
-                return "SCN_Core: NON creata, OVRCameraRig senza TrackingSpace / CenterEyeAnchor / Left-RightControllerAnchor.";
+                return "SCN_Core: NON creata, MNG_CoreRig con riferimenti incompleti (Head / TrackingOrigin / LeftHand / RightHand).";
             Camera camera = head.GetComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = backdrop;
-            camera.nearClipPlane = 0.01f;
-            camera.farClipPlane = 100f;
-            BuildControllerModel(left, OVR_CONTROLLER_LTOUCH);
-            BuildControllerModel(right, OVR_CONTROLLER_RTOUCH);
+            if (camera != null)
+            {
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = backdrop;
+                camera.nearClipPlane = 0.01f;
+                camera.farClipPlane = 100f;
+            }
             BuildPointer(left.gameObject, UIPointerHand.Left, theme, pointerMaterial, reticleMaterial);
             BuildPointer(right.gameObject, UIPointerHand.Right, theme, pointerMaterial, reticleMaterial);
-            BaseBuilder.GetOrAdd<CoreRig>(rig).Configure(head, origin, left, right);
             Transform offset = origin;
 
             // --- MNG_UI con servizi reali. ---
@@ -278,6 +272,15 @@ namespace SI81.UI.EditorTools
                 Debug.LogError($"[SI81 Scenari] Prefab MNG_HUD non trovato in {HUD_PREFAB}: SCN_Core è stata creata SENZA HUD. Integra il Blocco C ed esegui di nuovo SI81/Scenari/Crea kit scenario.");
                 report.AppendLine("ATTENZIONE: MNG_HUD assente (Blocco C non integrato): SCN_Core senza HUD.");
             }
+
+            // --- Adattatore rig -> UI (SI81.UI.Rig): unico punto di contatto tra i due assembly. ---
+            RigUIBridge bridge = BaseBuilder.GetOrAdd<RigUIBridge>(ui);
+            bridge.Configure(ui.GetComponent<UIScreenManager>(), Object.FindFirstObjectByType<HUDRoot>(FindObjectsInactive.Include),
+                left.GetComponent<UIPointer>(), right.GetComponent<UIPointer>(),
+                Object.FindFirstObjectByType<HapticsService>(FindObjectsInactive.Include));
+            var registrationSo = new SerializedObject(registration);
+            registrationSo.FindProperty("uiBridge").objectReferenceValue = bridge;
+            registrationSo.ApplyModifiedPropertiesWithoutUndo();
 
             rig.transform.SetSiblingIndex(0);
             ui.transform.SetSiblingIndex(1);
@@ -337,52 +340,6 @@ namespace SI81.UI.EditorTools
             foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
                 if (t.name == name) return t;
             return null;
-        }
-
-        /// <summary>
-        /// Imposta un campo enum serializzato di un componente (cercato per nome del tipo) usando il nome del valore,
-        /// così il builder non dipende dall'assembly di Meta.
-        /// </summary>
-        /// <param name="go">GameObject con il componente.</param>
-        /// <param name="typeName">Nome del tipo del componente.</param>
-        /// <param name="field">Nome del campo serializzato.</param>
-        /// <param name="valueName">Nome del valore enum.</param>
-        private static void SetEnumByName(GameObject go, string typeName, string field, string valueName)
-        {
-            foreach (Component c in go.GetComponents<Component>())
-            {
-                if (c == null || c.GetType().Name != typeName) continue;
-                var so = new SerializedObject(c);
-                SerializedProperty p = so.FindProperty(field);
-                int index = p != null ? System.Array.IndexOf(p.enumNames, valueName) : -1;
-                if (index < 0) { Debug.LogWarning($"[SI81 Scenari] {typeName}.{field} = {valueName} non impostabile."); return; }
-                if (p.enumValueIndex != index) { p.enumValueIndex = index; so.ApplyModifiedPropertiesWithoutUndo(); }
-                return;
-            }
-        }
-
-        /// <summary>
-        /// Mette sotto l'ancora del controller il modello del controller Meta (OVRControllerPrefab) per la mano indicata:
-        /// il giocatore vede i controller in mano.
-        /// </summary>
-        /// <param name="anchor">LeftControllerAnchor o RightControllerAnchor.</param>
-        /// <param name="controller">Valore OVRInput.Controller (LTouch = 1, RTouch = 2).</param>
-        private static void BuildControllerModel(Transform anchor, int controller)
-        {
-            if (AssetDatabase.LoadAssetAtPath<GameObject>(OVR_CONTROLLER_PREFAB) == null)
-            {
-                Debug.LogWarning($"[SI81 Scenari] {OVR_CONTROLLER_PREFAB} non trovato: niente modelli dei controller.");
-                return;
-            }
-            GameObject model = BaseBuilder.GetOrCreateChildPrefabInstance(anchor, OVR_CONTROLLER_PREFAB, "MESH_Controller");
-            BaseBuilder.ResetLocal(model.transform);
-            foreach (Component c in model.GetComponents<Component>())
-            {
-                if (c == null || c.GetType().Name != "OVRControllerHelper") continue;
-                var so = new SerializedObject(c);
-                SerializedProperty p = so.FindProperty("m_controller");
-                if (p != null && p.intValue != controller) { p.intValue = controller; so.ApplyModifiedPropertiesWithoutUndo(); }
-            }
         }
 
         /// <summary>

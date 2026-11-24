@@ -364,6 +364,8 @@ namespace SI81.UI.EditorTools
                 UIScreenManager manager = GetOrAdd<UIScreenManager>(root);
                 // Flusso di missione (pausa, esito, Debrief, Score & Replay): un solo driver su MNG_UI, nessun parametro da configurare.
                 GetOrAdd<MissionFlowDriver>(root);
+                // Adattatore rig -> UI: presente nel prefab, i riferimenti si assegnano nell'istanza di SCN_Core.
+                GetOrAdd<SI81.UI.Rig.RigUIBridge>(root);
 
                 // --- EventSystem: l'unico dell'app. ---
                 GameObject eventSystemGo = GetOrCreateChild(root.transform, EVENT_SYSTEM_NAME, EVENT_SYSTEM_LEGACY_NAME).gameObject;

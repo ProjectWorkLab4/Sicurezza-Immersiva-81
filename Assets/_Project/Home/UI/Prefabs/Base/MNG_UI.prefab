@@ -154,6 +154,7 @@ GameObject:
   - component: {fileID: 2129081605608869840}
   - component: {fileID: 4461011802580719935}
   - component: {fileID: 5263824303222039361}
+  - component: {fileID: 2033047441991145140}
   m_Layer: 0
   m_Name: MNG_UI
   m_TagString: Untagged
@@ -231,7 +232,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionFlowDriver
   outcomeSeconds: 4
   trainingEndDelay: 0.5
-  keyboardPause: 1
+--- !u!114 &2033047441991145140
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3556769357190122378}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a91c26ff7115204c82999f11a494587, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI.Rig::SI81.UI.Rig.RigUIBridge
+  screens: {fileID: 0}
+  hud: {fileID: 0}
+  leftPointer: {fileID: 0}
+  rightPointer: {fileID: 0}
+  haptics: {fileID: 0}
 --- !u!1 &6843976182928405844
 GameObject:
   m_ObjectHideFlags: 0

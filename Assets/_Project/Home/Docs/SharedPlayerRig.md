@@ -16,10 +16,12 @@ World interaction is documented in [SharedInteraction.md](SharedInteraction.md).
 | `SI81.Interaction` | `Interactable`, per-hand `RayInteractor` (hover/select/grab) | `SI81.Input` |
 | `SI81.Rig.Editor` | prefab builder, Editor direct-play bootstrap | `SI81.Input`, `SI81.Rig`, `SI81.Interaction`, `Oculus.VR` |
 | `SI81.Rig.PlayModeTests` | one PlayMode integration seam | `SI81.Input`, `SI81.Rig`, `SI81.Interaction`, Input System test fixture |
+| `SI81.UI.Rig` | `RigUIBridge`, the only adapter between the rig and the common UI | `SI81.UI`, `SI81.Rig`, `SI81.Input` |
 
-`SI81.Rig` never references `SI81.UI`. The UI adapter implements `IRigUIBridge` in the UI/app-shell project and
+`SI81.Rig` never references `SI81.UI`. `SI81.UI.Rig.RigUIBridge` implements `IRigUIBridge` and
 calls `UIScreenManager.SetHead/SetTrackingOrigin`, `HUDRoot.SetRig`, `UIPointer.IsPointingAtUI` and
 `HapticsService.Pulse`. `SI81.UI` may reference `SI81.Input` but never `SI81.Rig` or the Meta SDK.
+Only the adapter assembly references both sides.
 
 ## Input Service
 
@@ -134,6 +136,9 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 
 ## Migration for scenario teams
 
+The operational, file-by-file procedure (human part in Italian plus deterministic LLM instructions) is in
+[Guida_Migrazione_Rig_UI.md](../Docs/Guida_Migrazione_Rig_UI.md). The summary below stays as the contract.
+
 Groups that already have a rig/input code (Tiziano `OVRInput`, Simone Interaction SDK, Ludovica bare camera):
 
 1. Remove the local camera/rig, Canvas, EventSystem, input module, `PauseInput` and `UIPointer` from the
@@ -145,8 +150,9 @@ Groups that already have a rig/input code (Tiziano `OVRInput`, Simone Interactio
 4. Put `Interactable` on every object that must be pointed at, selected or grabbed; consume its C# events or
    inspector events. Do not write a local raycast, interactor or `OVRInput` read. World interaction arrives with the
    rig prefab, so the scenario adds only content components.
-5. The UI team merges the prefab and the `IRigUIBridge` adapter, removes the old `CoreRig` hand-off and binds
-   `InputService` to the single `InputSystemUIInputModule`, `UIScreenManager` Back and `MissionFlowDriver` Menu.
+5. The UI team has already merged the prefab and the `SI81.UI.Rig.RigUIBridge` adapter, removed the old
+   `CoreRig` hand-off and bound `InputService` to the single `InputSystemUIInputModule`, `UIScreenManager`
+   Back and `MissionFlowDriver` Menu. Groups do not repeat this work.
 6. Run the PlayMode seam and the Quest checklist before merging to `main`.
 
 ## Quest 3 device gate

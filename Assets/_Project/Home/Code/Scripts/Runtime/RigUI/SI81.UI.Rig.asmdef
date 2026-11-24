@@ -1,0 +1,18 @@
+{
+    "name": "SI81.UI.Rig",
+    "rootNamespace": "SI81.UI.Rig",
+    "references": [
+        "SI81.UI",
+        "SI81.Rig",
+        "SI81.Input"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e854ede8a9d475b4ea0cc6436fc8d2f9, type: 3}
+  m_Name: SO_Mission_ElectricShock
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
+  Id: 10
+  Title: Electric Shock
+  Context: 'Ruolo: addetto alla squadra di emergenza. Un collega resta a contatto
+    con un cavo scoperto. Non toccarlo: togli corrente dal quadro, allontana il cavo
+    con un oggetto isolante e presta i primi soccorsi.'
+  Icon: {fileID: 21300000, guid: 2716816d7f70cec4c94a61a8822e26a9, type: 3}
+  Image: {fileID: 0}
+  GradientTop: {r: 0.54901963, g: 0.47843137, b: 0.07058824, a: 1}
+  GradientBottom: {r: 0.8509804, g: 0.76862746, b: 0.22745098, a: 1}
+  Complexity: 4
+  SceneName: SCN_ElectricShock
+  Objectives:
+  - Non toccare l'infortunato
+  - Togli corrente dal quadro
+  - Allontana il cavo isolato
+  - Presta i primi soccorsi
+  Criteria:
+  - Outcome: 0
+    Text: Corrente tolta e soccorso prestato
+  - Outcome: 1
+    Text: Corrente tolta, soccorso in ritardo
+  - Outcome: 2
+    Text: Soccorritore folgorato
+  Levels:
+  - Level: 1
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  - Level: 2
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  - Level: 3
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  IsTraining: 0
+  DesignerNote: '(esempio) Contenuto segnaposto: il team proprietario lo sostituisce
+    e toglie questo marcatore.'

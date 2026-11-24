@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 788dcd9e39a7dc341b61cb4badea530f, type: 3}
+  m_Name: SO_MissionCatalog
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionCatalog
+  Missions:
+  - {fileID: 11400000, guid: 0d95a85bdd35748479243103da0b4e0c, type: 2}
+  - {fileID: 11400000, guid: a46903823385adb4ab57d26622115cd2, type: 2}
+  - {fileID: 11400000, guid: 0ed019b170e4a5442a9e6ec484e6ac4d, type: 2}
+  - {fileID: 11400000, guid: 33087081ca5c261488e95854e7b06b0c, type: 2}
+  - {fileID: 11400000, guid: 3c6dde5e8f88958469d36a76cabb835b, type: 2}
+  - {fileID: 11400000, guid: 4322ba97b807e4f499b4e9f070e34666, type: 2}
+  - {fileID: 11400000, guid: 274a6bab706c35e48a79a94be9921a12, type: 2}
+  - {fileID: 11400000, guid: e26992964a2841643b82fc3650a20570, type: 2}
+  - {fileID: 11400000, guid: 0499bf9be0a334f42ae7f4518c672db6, type: 2}
+  Training: {fileID: 11400000, guid: 9184b94aa6bfa5f4a8ea4dd7d47e233a, type: 2}
+  Guided: {fileID: 11400000, guid: 4aaec7647f520284a9438578e7d6d2ac, type: 2}
+  Operational: {fileID: 11400000, guid: ba1ce38e1dbfbe444b0754746f3c853e, type: 2}
+  Crisis: {fileID: 11400000, guid: 8eec8bcf4b55f9140b98a3a502850ea9, type: 2}
+  Badges:
+  - Id: first_mission
+    Title: Prima missione
+    Description: Concludi la tua prima missione.
+    Icon: {fileID: 21300000, guid: f091195cd88d6a44d8fcad1364cba6a5, type: 3}
+    Rule: 0
+  - Id: three_scenarios
+    Title: Esploratore
+    Description: Gioca 3 scenari diversi.
+    Icon: {fileID: 21300000, guid: 5a3f6222b5a1cf748b190c4d7c364a8b, type: 3}
+    Rule: 1
+  - Id: four_stars
+    Title: Ottimo risultato
+    Description: Ottieni almeno 4 stelle in uno scenario.
+    Icon: {fileID: 21300000, guid: 97b827a25df40b34dad6c1556b618700, type: 3}
+    Rule: 2
+  - Id: five_positives
+    Title: Esiti sicuri
+    Description: Ottieni 5 esiti positivi.
+    Icon: {fileID: 21300000, guid: 02500f5b7077da143a319bfb51bb8205, type: 3}
+    Rule: 3
+  - Id: operational_completed
+    Title: Operativo
+    Description: Concludi uno scenario al livello Operational.
+    Icon: {fileID: 21300000, guid: 0f8acb79651e06743a03fb6b8836ddfa, type: 3}
+    Rule: 4
+  - Id: crisis_completed
+    Title: Sangue freddo
+    Description: Concludi uno scenario al livello Crisis.
+    Icon: {fileID: 21300000, guid: 97c3e872d650b1f41b3cab585afde2c2, type: 3}
+    Rule: 5
+  - Id: five_stars
+    Title: Cinque stelle
+    Description: Ottieni 5 stelle in uno scenario.
+    Icon: {fileID: 21300000, guid: 97b827a25df40b34dad6c1556b618700, type: 3}
+    Rule: 6
+  - Id: fast_run
+    Title: Allarme lampo
+    Description: Concludi con esito positivo in meno di 3 minuti.
+    Icon: {fileID: 21300000, guid: e0ed4d6943a237d45bfeb53ef9ca06e3, type: 3}
+    Rule: 7
+  - Id: ten_sessions
+    Title: Veterano
+    Description: Gioca 10 sessioni.
+    Icon: {fileID: 21300000, guid: ae3cabebf091ba14e80a88021187951c, type: 3}
+    Rule: 8
+  - Id: all_levels
+    Title: Tutti i livelli
+    Description: Concludi i 3 livelli di uno stesso scenario.
+    Icon: {fileID: 21300000, guid: f7959409323826f4e88b1f65d8f852a7, type: 3}
+    Rule: 9
+  - Id: perfect_dimension
+    Title: Dimensione perfetta
+    Description: Raggiungi 95 in una dimensione del punteggio.
+    Icon: {fileID: 21300000, guid: 360d87c850862fa4da60bcd8bbabaad0, type: 3}
+    Rule: 10
+  - Id: all_scenarios
+    Title: Completista
+    Description: Gioca tutti gli scenari del catalogo.
+    Icon: {fileID: 21300000, guid: 527e7f040dfeaa7438b722c00adc086c, type: 3}
+    Rule: 11

@@ -1,0 +1,579 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e871625e50893444695fd30ee643333a, type: 3}
+  m_Name: SO_UITheme
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.UITheme
+  colors:
+  - Token: color.confirm
+    Value: {r: 0, g: 0.44705883, b: 0.69803923, a: 1}
+    Description: Conferma, esito positivo, Guided. Testo #FFFFFF 5,19:1
+  - Token: color.deny
+    Value: {r: 0.8352941, g: 0.36862746, b: 0, a: 1}
+    Description: Errore, rischio, Crisis. SOLO testo #000000 (5,43:1). Mai testo
+      bianco
+  - Token: color.brand.dark
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 1}
+    Description: Pannelli menu e HUD, Operational, esito parziale
+  - Token: color.brand.light
+    Value: {r: 0.6784314, g: 0.8666667, b: 0.5568628, a: 1}
+    Description: Evidenza su fondo scuro. Solo testo #000000
+  - Token: color.surface.card
+    Value: {r: 1, g: 1, b: 1, a: 1}
+    Description: Card su pannello
+  - Token: color.surface.panel
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 1}
+    Description: = brand.dark, opaco (alpha >= 0,94). Used by in-scenario HUD panels.
+  - Token: color.surface.glass
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 0.85}
+    Description: 'Pannello vetro: brand.dark 85% + sfocatura sfondo 40. PROPOSTA.'
+  - Token: color.surface.glass-light
+    Value: {r: 1, g: 1, b: 1, a: 0.78}
+    Description: 'Vetro chiaro: bianco 78% + sfocatura sfondo 30. Bottom bar. PROPOSTA.'
+  - Token: color.text.primary
+    Value: {r: 0, g: 0, b: 0, a: 1}
+    Description: Testo su bianco, brand.light, deny, state.active
+  - Token: color.text.on-dark
+    Value: {r: 1, g: 1, b: 1, a: 1}
+    Description: Testo principale su brand.dark e confirm
+  - Token: color.text.on-green
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 1}
+    Description: Testo secondario su brand.dark (6,48:1)
+  - Token: color.text.secondary
+    Value: {r: 0.4, g: 0.4, b: 0.4, a: 1}
+    Description: Testo secondario su bianco (5,74:1)
+  - Token: color.state.active
+    Value: {r: 0.2901961, g: 0.87058824, b: 0.5019608, a: 1}
+    Description: 'Verde attivo (sostituisce oliva #99A638): pulsante primario, voce
+      attiva bottom bar, pill fase attiva. Testo #000 12,05:1; su #1B5E48 4,40:1.
+      PROPOSTA.'
+  - Token: color.border.on-dark
+    Value: {r: 1, g: 1, b: 1, a: 1}
+    Description: "Solo bordo di BTN_Primary (2 unit\xE0, punto aperto), superficie
+      Dark. Nessun bordo su hover/selezione (CLAUDE.md 4.1)."
+  - Token: color.border.on-light
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 1}
+    Description: "Solo bordo di BTN_Primary (2 unit\xE0, punto aperto), superficie
+      Light. Nessun bordo su hover/selezione (CLAUDE.md 4.1)."
+  - Token: color.tile.neutral
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 1}
+    Description: Tile neutre, hover bottom bar. Also BTN_Primary Disabled fill at
+      opacity 0.4.
+  - Token: color.level.guided
+    Value: {r: 0, g: 0.44705883, b: 0.69803923, a: 1}
+    Description: "Livello 1 \xB7 Guided"
+  - Token: color.level.operational
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 1}
+    Description: "Livello 2 \xB7 Operational"
+  - Token: color.level.crisis
+    Value: {r: 0.8352941, g: 0.36862746, b: 0, a: 1}
+    Description: "Livello 3 \xB7 Crisis"
+  - Token: color.level.bar.on-light
+    Value: {r: 0.08627451, g: 0.56078434, b: 0.41960785, a: 1}
+    Description: Barre piene icona livello su bianco
+  - Token: color.level.bar.off-light
+    Value: {r: 0.5803922, g: 0.5803922, b: 0.5803922, a: 1}
+    Description: Barre vuote su bianco, solo contorno (stroke 1.5)
+  - Token: color.level.bar.on-dark
+    Value: {r: 0.6784314, g: 0.8666667, b: 0.5568628, a: 1}
+    Description: Barre piene su fondo scuro (HUD)
+  - Token: color.level.bar.off-dark
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 1}
+    Description: Barre vuote su scuro, solo contorno (stroke 1.5)
+  - Token: color.outcome.positive
+    Value: {r: 0, g: 0.44705883, b: 0.69803923, a: 1}
+    Description: check_circle + Esito positivo
+  - Token: color.outcome.partial
+    Value: {r: 0.105882354, g: 0.36862746, b: 0.28235295, a: 1}
+    Description: contrast + Esito parziale, solo su card bianca
+  - Token: color.outcome.negative
+    Value: {r: 0.8352941, g: 0.36862746, b: 0, a: 1}
+    Description: cancel + Esito negativo, testo nero
+  - Token: color.subtitle.bg
+    Value: {r: 0.15686275, g: 0.16862746, b: 0.15294118, a: 0.92}
+    Description: Sfondo sottotitoli, alpha >= 0,92
+  - Token: color.subtitle.text
+    Value: {r: 1, g: 1, b: 1, a: 1}
+    Description: Testo sottotitoli
+  - Token: color.subtitle.event
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 1}
+    Description: Riga evento sonoro
+  - Token: color.subtitle.speaker
+    Value: {r: 0.6784314, g: 0.8666667, b: 0.5568628, a: 1}
+    Description: Nome di chi parla
+  - Token: color.risk.stroke
+    Value: {r: 0.8352941, g: 0.36862746, b: 0, a: 1}
+    Description: Cerchio tratteggiato rischio + bordo esterno nero
+  - Token: color.risk.outer
+    Value: {r: 0, g: 0, b: 0, a: 1}
+    Description: Bordo esterno del cerchio rischio
+  - Token: color.grab.inner
+    Value: {r: 1, g: 1, b: 1, a: 1}
+    Description: Contorno grab interno
+  - Token: color.grab.outer
+    Value: {r: 0, g: 0, b: 0, a: 1}
+    Description: Contorno grab esterno
+  - Token: color.pointer.valid
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 1}
+    Description: PROPOSTA (VR Interaction System)
+  - Token: color.pointer.invalid
+    Value: {r: 0.8352941, g: 0.36862746, b: 0, a: 1}
+    Description: PROPOSTA (VR Interaction System)
+  - Token: color.button.disabled
+    Value: {r: 0.9254902, g: 0.9254902, b: 0.9254902, a: 0.4}
+    Description: 'Derivato (Figma nota 5): pulsante disabilitato = tile.neutral #ECECEC
+      al 40%, senza bordo.'
+  - Token: color.button.disabled-text
+    Value: {r: 0, g: 0, b: 0, a: 1}
+    Description: 'Derivato (Figma nota 5): testo nero sul pulsante disabilitato.'
+  - Token: color.dialog.backdrop
+    Value: {r: 0, g: 0, b: 0, a: 0.45}
+    Description: "[Blocco A \xB7 Dialogo] Velo scuro dietro PANEL_ConfirmDialog (modale:
+      blocca i raggi sul resto della schermata). PROPOSTA."
+  - Token: color.backdrop.top
+    Value: {r: 0.07058824, g: 0.22745098, b: 0.1764706, a: 1}
+    Description: "PROVVISORIO: parte alta dello sfondo segnaposto della scena menu
+      (scura, CLAUDE.md 4.4), finch\xE9 non arriva il 360\xB0 pre-sfocato della base
+      operativa."
+  - Token: color.backdrop.bottom
+    Value: {r: 0.019607844, g: 0.05490196, b: 0.043137256, a: 1}
+    Description: 'PROVVISORIO: parte bassa dello sfondo segnaposto della scena menu
+      e colore di sfondo della camera.'
+  textStyles:
+  - Name: Display
+    Font: {fileID: 11400000, guid: 3fd009e9786dd974c80bfa2864bd50c2, type: 2}
+    Size: 64
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 700
+  - Name: Title
+    Font: {fileID: 11400000, guid: 3fd009e9786dd974c80bfa2864bd50c2, type: 2}
+    Size: 32
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 700
+  - Name: Subtitle
+    Font: {fileID: 11400000, guid: 3a3a9aba0cc265742be7dc2e8da411ab, type: 2}
+    Size: 24
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 400
+  - Name: Subtitle Bold
+    Font: {fileID: 11400000, guid: 3fd009e9786dd974c80bfa2864bd50c2, type: 2}
+    Size: 24
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 700
+  - Name: HUD min
+    Font: {fileID: 11400000, guid: 3a3a9aba0cc265742be7dc2e8da411ab, type: 2}
+    Size: 21
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 400
+  - Name: Body
+    Font: {fileID: 11400000, guid: 3a3a9aba0cc265742be7dc2e8da411ab, type: 2}
+    Size: 18
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 400
+  - Name: Body Bold
+    Font: {fileID: 11400000, guid: 3fd009e9786dd974c80bfa2864bd50c2, type: 2}
+    Size: 18
+    LineHeightPercent: 125
+    LineSpacing: -43.99
+    CharacterSpacing: 0
+    Weight: 700
+  shadows:
+  - Role: card
+    Offset: {x: 0, y: -3}
+    Blur: 8
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.25}
+  - Role: selected.lift
+    Offset: {x: 0, y: -8}
+    Blur: 20
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.35}
+  - Role: selected.glow
+    Offset: {x: 0, y: -0}
+    Blur: 18
+    Spread: 0
+    Color: {r: 0.6784314, g: 0.8666667, b: 0.5568628, a: 1}
+  - Role: hover
+    Offset: {x: 0, y: -8}
+    Blur: 20
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.35}
+  - Role: pressed
+    Offset: {x: 0, y: -3}
+    Blur: 8
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.25}
+  - Role: check.badge
+    Offset: {x: 0, y: -2}
+    Blur: 6
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.25}
+  - Role: bottomBar
+    Offset: {x: 0, y: -10}
+    Blur: 30
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.25}
+  - Role: menuPanel
+    Offset: {x: 0, y: -20}
+    Blur: 60
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.28}
+  - Role: sidePanel
+    Offset: {x: 0, y: -20}
+    Blur: 60
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.3}
+  - Role: dialog
+    Offset: {x: 0, y: -20}
+    Blur: 60
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.35}
+  - Role: hudCard
+    Offset: {x: 0, y: -6}
+    Blur: 18
+    Spread: 0
+    Color: {r: 0, g: 0, b: 0, a: 0.35}
+  glassSheen:
+    StartColor: {r: 1, g: 1, b: 1, a: 0.18}
+    EndColor: {r: 1, g: 1, b: 1, a: 0}
+    EndPosition: 0.6
+    HandleStart: 0.142857
+    HandleEnd: 0.857143
+  numbers:
+  - Token: space.xs
+    Value: 4
+  - Token: space.s
+    Value: 8
+  - Token: space.m
+    Value: 12
+  - Token: space.l
+    Value: 16
+  - Token: space.xl
+    Value: 24
+  - Token: padding.panel
+    Value: 24
+  - Token: gap.grid
+    Value: 16
+  - Token: radius.panel
+    Value: 24
+  - Token: radius.card
+    Value: 12
+  - Token: radius.button
+    Value: 10
+  - Token: radius.pill
+    Value: 999
+  - Token: size.target-min
+    Value: 40
+  - Token: score.stars.1.min
+    Value: 20
+  - Token: score.stars.2.min
+    Value: 40
+  - Token: score.stars.3.min
+    Value: 60
+  - Token: score.stars.4.min
+    Value: 80
+  - Token: score.stars.5.min
+    Value: 90
+  - Token: badge.fast_run.seconds
+    Value: 180
+  - Token: size.settings-row.width
+    Value: 516
+  - Token: size.settings-row.height
+    Value: 48
+  - Token: padding.settings-row.left
+    Value: 16
+  - Token: padding.settings-row.right
+    Value: 8
+  - Token: gap.settings-row
+    Value: 12
+  - Token: size.settings-icon
+    Value: 24
+  - Token: opacity.settings-disabled
+    Value: 0.4
+  - Token: size.settings-toggle.track-width
+    Value: 56
+  - Token: size.settings-toggle.track-height
+    Value: 32
+  - Token: size.settings-toggle.knob
+    Value: 24
+  - Token: size.settings-toggle.state-width
+    Value: 32
+  - Token: size.settings-slider.track-width
+    Value: 200
+  - Token: size.settings-slider.track-height
+    Value: 12
+  - Token: size.settings-slider.handle
+    Value: 28
+  - Token: size.settings-slider.handle-hover
+    Value: 32
+  - Token: size.settings-slider.grab
+    Value: 40
+  - Token: size.settings-slider.value-width
+    Value: 44
+  - Token: step.settings-slider.tick
+    Value: 10
+  - Token: size.settings-selector.arrow
+    Value: 40
+  - Token: size.settings-selector.value-width
+    Value: 130
+  - Token: gap.settings-selector
+    Value: 4
+  - Token: size.settings-action.height
+    Value: 40
+  - Token: padding.settings-action.left
+    Value: 12
+  - Token: padding.settings-action.right
+    Value: 16
+  - Token: gap.settings-action
+    Value: 6
+  - Token: border.primary
+    Value: 2
+  - Token: stroke.level-bar
+    Value: 1.5
+  - Token: margin.screen
+    Value: 40
+  - Token: size.menu-canvas.width
+    Value: 840
+  - Token: size.menu-canvas.height
+    Value: 627
+  - Token: distance.menu
+    Value: 1.5
+  - Token: height.menu-center
+    Value: 1.5
+  - Token: height.eye
+    Value: 1.6
+  - Token: size.menu-panel.width
+    Value: 760
+  - Token: size.menu-panel.height
+    Value: 475
+  - Token: size.menu-panel.height-brief
+    Value: 535
+  - Token: size.side-panel.width
+    Value: 320
+  - Token: gap.side-panel
+    Value: 24
+  - Token: gap.side-panel.rows
+    Value: 6
+  - Token: angle.side-panel.tilt
+    Value: 20
+  - Token: size.shadow.compact-min-height
+    Value: 120
+  - Token: size.bottom-bar.width
+    Value: 520
+  - Token: size.bottom-bar.height
+    Value: 56
+  - Token: padding.bottom-bar
+    Value: 6
+  - Token: gap.bottom-bar.menu
+    Value: 16
+  - Token: size.bottom-bar-item.height
+    Value: 44
+  - Token: padding.bottom-bar-item
+    Value: 10
+  - Token: size.bottom-bar-item.icon
+    Value: 32
+  - Token: gap.bottom-bar-item
+    Value: 6
+  - Token: alpha.card.disabled
+    Value: 0.4
+  - Token: size.scenario-card.width
+    Value: 166
+  - Token: size.scenario-card.height
+    Value: 140
+  - Token: size.scenario-card.thumbnail-height
+    Value: 80
+  - Token: size.scenario-card.icon
+    Value: 44
+  - Token: inset.scenario-card.pill
+    Value: 6
+  - Token: padding.scenario-card.pill-left
+    Value: 6
+  - Token: padding.scenario-card.pill-right
+    Value: 8
+  - Token: padding.scenario-card.pill-y
+    Value: 1
+  - Token: gap.scenario-card.pill
+    Value: 2
+  - Token: size.scenario-card.pill-icon
+    Value: 20
+  - Token: padding.scenario-card.x
+    Value: 8
+  - Token: padding.scenario-card.y
+    Value: 6
+  - Token: gap.scenario-card.body
+    Value: 2
+  - Token: gap.scenario-card.row
+    Value: 6
+  - Token: size.scenario-card.dot
+    Value: 8
+  - Token: gap.scenario-card.dot
+    Value: 3
+  - Token: size.scenario-card.levels-icon
+    Value: 20
+  - Token: size.training-card.width
+    Value: 712
+  - Token: size.training-card.height
+    Value: 56
+  - Token: padding.training-card.left
+    Value: 16
+  - Token: padding.training-card.right
+    Value: 4
+  - Token: gap.training-card
+    Value: 12
+  - Token: size.training-card.icon
+    Value: 32
+  - Token: scale.training-card.hover
+    Value: 1.02
+  - Token: scale.training-card.pressed
+    Value: 0.99
+  - Token: size.difficulty-card.width
+    Value: 226
+  - Token: size.difficulty-card.height
+    Value: 117
+  - Token: padding.difficulty-card
+    Value: 10
+  - Token: gap.difficulty-card
+    Value: 4
+  - Token: size.check-badge
+    Value: 30
+  - Token: outset.check-badge
+    Value: 8
+  - Token: size.check-badge.icon
+    Value: 24
+  - Token: size.btn.height
+    Value: 48
+  - Token: size.btn.primary-width
+    Value: 200
+  - Token: padding.btn.x
+    Value: 16
+  - Token: gap.btn
+    Value: 8
+  - Token: size.btn.icon
+    Value: 24
+  - Token: size.btn.back
+    Value: 40
+  - Token: size.badge
+    Value: 64
+  - Token: size.badge.icon
+    Value: 32
+  - Token: size.settings-tab.width
+    Value: 180
+  - Token: size.settings-tab.height
+    Value: 48
+  - Token: padding.settings-tab
+    Value: 12
+  - Token: gap.settings-tab
+    Value: 8
+  - Token: size.list-row.width
+    Value: 440
+  - Token: size.list-row.height
+    Value: 40
+  - Token: padding.list-row
+    Value: 12
+  - Token: gap.list-row
+    Value: 12
+  - Token: size.list-row.stars-width
+    Value: 153
+  - Token: size.list-row.score-width
+    Value: 56
+  - Token: size.state-check
+    Value: 30
+  - Token: offset.state-check
+    Value: 8
+  - Token: size.state-check.compact
+    Value: 22
+  - Token: size.dialog.width
+    Value: 480
+  - Token: size.dialog.height
+    Value: 240
+  - Token: interval.world-label.tick
+    Value: 0.1
+  - Token: angle.world-label.yaw-threshold
+    Value: 20
+  - Token: count.world-label.max-interaction
+    Value: 2
+  - Token: count.world-label.max-context
+    Value: 3
+  - Token: duration.outcome
+    Value: 4
+  - Token: duration.outcome.min
+    Value: 3
+  - Token: duration.outcome.max
+    Value: 5
+  - Token: haptic.decision.amplitude
+    Value: 0.5
+  - Token: haptic.decision.duration
+    Value: 0.08
+  - Token: interval.decision.timer-tick
+    Value: 0.1
+  - Token: size.decision.width
+    Value: 480
+  - Token: padding.decision.x
+    Value: 24
+  - Token: padding.decision.y
+    Value: 20
+  - Token: gap.decision
+    Value: 10
+  - Token: size.decision.timer-height
+    Value: 6
+  - Token: size.decision.icon
+    Value: 32
+  - Token: size.outcome.width
+    Value: 480
+  - Token: size.outcome.min-height
+    Value: 160
+  - Token: padding.outcome
+    Value: 24
+  - Token: gap.outcome
+    Value: 12
+  motion:
+    HoverScale: 1.04
+    PressedScale: 0.98
+    HoverDuration: 0.12
+    PressDuration: 0.08
+    SelectDuration: 0.15
+    FadeDuration: 0.2
+    ScreenTransitionDuration: 0.25
+  hud:
+    AlertDuration: 3
+    AlertPitch: -15
+    SubtitlePitchMin: -28
+    SubtitlePitchMax: -20
+    MaxPitch: 10
+    SubtitleMaxChars: 32
+    SubtitleMaxLines: 2
+    WristObjectiveMaxChars: 30
+    WristIdleAlpha: 0.3
+    WristFocusDistance: 0.4
+    WristPanelSizeMeters: {x: 0.12, y: 0.07}
+    TimerWarningFirst: 60
+    TimerWarningSecond: 30
+    WorldLabelMinDistance: 0.75
+    WorldLabelMaxDistance: 4
+    MaxRiskLabels: 3
+  pointer:
+    RayWidth: 0.004
+    RayMaxLength: 4
+    IdleRayLength: 0.6
+    ReticleDiameter: 0.016
+    ReticleSurfaceOffset: 0.002

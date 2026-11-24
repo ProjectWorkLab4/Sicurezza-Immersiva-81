@@ -1,0 +1,364 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed159d4521a0b9a45bc6b2f911d7dc9d, type: 3}
+  m_Name: SO_UIStrings_It
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.UIStrings
+  languageCode: it
+  entries:
+  - Key: ui.nav.home
+    Text: Home
+  - Key: ui.nav.profile
+    Text: Profilo
+  - Key: ui.nav.stats
+    Text: Statistiche
+  - Key: ui.nav.settings
+    Text: Impostazioni
+  - Key: ui.button.start_scenario
+    Text: Avvia scenario
+  - Key: ui.button.choose_level
+    Text: Scegli un livello
+  - Key: ui.button.start_training
+    Text: Avvia training
+  - Key: ui.button.resume
+    Text: Riprendi
+  - Key: ui.button.restart
+    Text: Ricomincia
+  - Key: ui.button.quick_settings
+    Text: Impostazioni rapide
+  - Key: ui.button.exit_to_home
+    Text: Esci alla Home
+  - Key: ui.button.cancel
+    Text: Annulla
+  - Key: ui.button.exit
+    Text: Esci
+  - Key: ui.button.next
+    Text: Avanti
+  - Key: ui.button.change_level
+    Text: Cambia livello
+  - Key: ui.button.retry
+    Text: Riprova
+  - Key: ui.button.back_to_home
+    Text: Torna alla Home
+  - Key: ui.format.scenario_title
+    Text: "{0} \xB7 {1}"
+  - Key: ui.format.stars
+    Text: '{0}/5'
+  - Key: ui.format.safety_score
+    Text: SPI {0}/100
+  - Key: ui.format.percent
+    Text: '{0}%'
+  - Key: ui.format.degrees
+    Text: "{0}\xB0"
+  - Key: ui.format.delta_positive
+    Text: +{0}
+  - Key: ui.format.delta_negative
+    Text: "\u2212{0}"
+  - Key: ui.level.badge
+    Text: "Livello {0} \xB7 {1}"
+  - Key: ui.level.guided
+    Text: Guided
+  - Key: ui.level.operational
+    Text: Operational
+  - Key: ui.level.crisis
+    Text: Crisis
+  - Key: ui.level.guided_desc
+    Text: Oggetti evidenziati, suggerimenti, feedback immediato
+  - Key: ui.level.operational_desc
+    Text: Pochi aiuti, rischi non evidenziati, tempo limitato
+  - Key: ui.level.crisis_desc
+    Text: Nessun aiuto, informazioni incomplete, escalation
+  - Key: ui.outcome.positive
+    Text: Esito positivo
+  - Key: ui.outcome.partial
+    Text: Esito parziale
+  - Key: ui.outcome.negative
+    Text: Esito negativo
+  - Key: ui.outcome.positive_short
+    Text: Positivo
+  - Key: ui.outcome.partial_short
+    Text: Parziale
+  - Key: ui.outcome.negative_short
+    Text: Negativo
+  - Key: ui.home.title
+    Text: Scenari
+  - Key: ui.home.new
+    Text: Nuovo
+  - Key: ui.brief.breadcrumb
+    Text: Scenari / Mission brief
+  - Key: ui.brief.best_result
+    Text: Miglior risultato
+  - Key: ui.brief.description
+    Text: Descrizione
+  - Key: ui.brief.choose_difficulty
+    Text: "Scegli la difficolt\xE0"
+  - Key: ui.brief.completion_criteria
+    Text: Criteri di completamento
+  - Key: ui.brief.criterion
+    Text: '{0}: {1}'
+  - Key: ui.dimension.safety
+    Text: Safety
+  - Key: ui.dimension.awareness
+    Text: Awareness
+  - Key: ui.dimension.decision
+    Text: Decision
+  - Key: ui.dimension.execution
+    Text: Execution
+  - Key: ui.dimension.time
+    Text: Time
+  - Key: ui.stats.title
+    Text: Statistiche
+  - Key: ui.stats.not_played
+    Text: Non giocato
+  - Key: ui.stats.summary
+    Text: Riepilogo
+  - Key: ui.stats.positives
+    Text: Positivi
+  - Key: ui.stats.partials
+    Text: Parziali
+  - Key: ui.stats.negatives
+    Text: Negativi
+  - Key: ui.stats.sessions
+    Text: Sessioni
+  - Key: ui.stats.average_line
+    Text: "{0} di media \xB7 {1} scenari giocati su {2}"
+  - Key: ui.stats.best_score
+    Text: Punteggio migliore
+  - Key: ui.stats.last_attempt
+    Text: Ultimo tentativo
+  - Key: ui.stats.average_line_one
+    Text: "{0} di media \xB7 1 scenario giocato su {1}"
+  - Key: ui.stats.attempts_max_level_one
+    Text: "1 tentativo \xB7 livello max:"
+  - Key: ui.stats.attempts_max_level
+    Text: "{0} tentativi \xB7 livello max:"
+  - Key: ui.profile.title
+    Text: Profilo
+  - Key: ui.profile.missions_completed
+    Text: Missioni completate {0}/{1}
+  - Key: ui.profile.recent_results
+    Text: Ultimi risultati
+  - Key: ui.profile.skills
+    Text: Competenze
+  - Key: ui.profile.badges_count
+    Text: "Badge \xB7 {0} su {1}"
+  - Key: ui.profile.badge_locked
+    Text: Bloccato
+  - Key: ui.settings.title
+    Text: Impostazioni
+  - Key: ui.settings.tab.comfort
+    Text: Comfort
+  - Key: ui.settings.tab.audio
+    Text: Audio
+  - Key: ui.settings.tab.subtitles
+    Text: Sottotitoli
+  - Key: ui.settings.tab.controls
+    Text: Controlli
+  - Key: ui.settings.tab.accessibility
+    Text: "Accessibilit\xE0"
+  - Key: ui.settings.tab.general
+    Text: Generale
+  - Key: ui.settings.toggle.on
+    Text: ON
+  - Key: ui.settings.toggle.off
+    Text: OFF
+  - Key: ui.settings.comfort.locomotion
+    Text: Locomozione
+  - Key: ui.settings.comfort.locomotion_teleport
+    Text: Teletrasporto
+  - Key: ui.settings.comfort.locomotion_continuous
+    Text: Movimento continuo
+  - Key: ui.settings.comfort.turn
+    Text: Rotazione
+  - Key: ui.settings.comfort.turn_snap
+    Text: Snap
+  - Key: ui.settings.comfort.turn_continuous
+    Text: Continua
+  - Key: ui.settings.comfort.snap_angle
+    Text: Angolo snap
+  - Key: ui.settings.comfort.vignette
+    Text: Vignettatura in movimento
+  - Key: ui.settings.comfort.vignette_off
+    Text: Disattivata
+  - Key: ui.settings.comfort.vignette_low
+    Text: Bassa
+  - Key: ui.settings.comfort.vignette_medium
+    Text: Media
+  - Key: ui.settings.comfort.vignette_high
+    Text: Alta
+  - Key: ui.settings.comfort.user_height
+    Text: Altezza utente
+  - Key: ui.settings.comfort.recalibrate
+    Text: Ricalibra
+  - Key: ui.settings.comfort.seated_mode
+    Text: "Modalit\xE0 seduto"
+  - Key: ui.settings.audio.master_volume
+    Text: Volume generale
+  - Key: ui.settings.audio.voices
+    Text: Voci
+  - Key: ui.settings.audio.effects
+    Text: Effetti
+  - Key: ui.settings.audio.alarms
+    Text: Allarmi e segnali
+  - Key: ui.settings.audio.music
+    Text: Musica
+  - Key: ui.settings.subtitles.enabled
+    Text: Sottotitoli
+  - Key: ui.settings.subtitles.size
+    Text: Dimensione sottotitoli
+  - Key: ui.settings.subtitles.background_opacity
+    Text: "Opacit\xE0 sfondo sottotitoli"
+  - Key: ui.settings.controls.dominant_hand
+    Text: Mano dominante
+  - Key: ui.settings.controls.hand_right
+    Text: Destra
+  - Key: ui.settings.controls.hand_left
+    Text: Sinistra
+  - Key: ui.settings.controls.ui_haptics
+    Text: Vibrazione UI
+  - Key: ui.settings.accessibility.ui_text_size
+    Text: Dimensione testo UI
+  - Key: ui.settings.accessibility.reduce_flashes
+    Text: Riduci lampeggi
+  - Key: ui.settings.general.language
+    Text: Lingua
+  - Key: ui.settings.general.language_italian
+    Text: Italiano
+  - Key: ui.settings.general.replay_training
+    Text: Rivedi Training
+  - Key: ui.settings.general.start
+    Text: Avvia
+  - Key: ui.settings.general.info
+    Text: Informazioni
+  - Key: ui.settings.general.open
+    Text: Apri
+  - Key: ui.settings.general.reset_defaults
+    Text: Ripristina predefiniti
+  - Key: ui.settings.general.reset
+    Text: Ripristina
+  - Key: ui.training.title
+    Text: "Training \xB7 Tutorial comune"
+  - Key: ui.training.card_subtitle
+    Text: Impara i comandi base
+  - Key: ui.training.breadcrumb
+    Text: Scenari / Training
+  - Key: ui.training.what_you_learn
+    Text: Cosa imparerai
+  - Key: ui.training.locomotion.title
+    Text: Locomozione
+  - Key: ui.training.locomotion.desc
+    Text: Teletrasporto o movimento continuo
+  - Key: ui.training.turn.title
+    Text: Rotazione
+  - Key: ui.training.turn.desc
+    Text: Girarsi a scatti o in modo continuo
+  - Key: ui.training.grab.title
+    Text: Afferrare oggetti
+  - Key: ui.training.grab.desc
+    Text: Grip per prendere, rilascia per lasciare
+  - Key: ui.training.select.title
+    Text: Selezionare i pannelli
+  - Key: ui.training.select.desc
+    Text: Punta il raggio e premi il grilletto
+  - Key: ui.training.pause.title
+    Text: Aprire la Pausa
+  - Key: ui.training.pause.desc
+    Text: Tasto Menu sinistro o B/Y tenuto 1 s
+  - Key: ui.training.no_score_note
+    Text: "Nessun punteggio: puoi ripeterlo quando vuoi da Impostazioni \u2192 Generale."
+  - Key: ui.training.complete_title
+    Text: Training completato
+  - Key: ui.training.complete_body
+    Text: Ora conosci i comandi base. Puoi iniziare le missioni.
+  - Key: ui.training.learned.move
+    Text: Muoverti e girarti
+  - Key: ui.training.learned.grab
+    Text: Afferrare e rilasciare gli oggetti
+  - Key: ui.training.learned.select
+    Text: Selezionare i pannelli con il raggio
+  - Key: ui.training.learned.pause
+    Text: Aprire la Pausa
+  - Key: ui.score.safety_label
+    Text: "SPI \xB7 Indice di sicurezza"
+  - Key: ui.score.out_of_100
+    Text: /100
+  - Key: ui.pause.title
+    Text: "{0} \xB7 Pausa"
+  - Key: ui.pause.phase
+    Text: 'Fase: {0}'
+  - Key: ui.pause.objectives
+    Text: Obiettivi
+  - Key: ui.dialog.exit_mission.title
+    Text: Uscire dalla missione?
+  - Key: ui.dialog.exit_mission.body
+    Text: I progressi di questa missione andranno persi.
+  - Key: ui.dialog.restart.title
+    Text: Ricominciare la missione?
+  - Key: ui.dialog.restart.body
+    Text: I progressi di questa missione andranno persi.
+  - Key: ui.dialog.reset_defaults.title
+    Text: Ripristinare i valori predefiniti?
+  - Key: ui.dialog.reset_defaults.body
+    Text: Tutte le impostazioni torneranno ai valori iniziali.
+  - Key: ui.format.score_of_100
+    Text: '{0}/100'
+  - Key: ui.debrief.title
+    Text: "Debrief \xB7 {0}"
+  - Key: ui.debrief.correct_path
+    Text: Percorso corretto
+  - Key: ui.debrief.decisions
+    Text: Decisioni
+  - Key: ui.debrief.errors
+    Text: Errori
+  - Key: ui.debrief.critical_prefix
+    Text: "Critico \xB7 {0}"
+  - Key: ui.debrief.cause_effect
+    Text: "{0} \u2192 {1}"
+  - Key: ui.score.title
+    Text: "Risultato \xB7 {0}"
+  - Key: ui.score.rank
+    Text: Rank
+  - Key: ui.score.new_badges
+    Text: Nuovi badge
+  - Key: ui.score.dimensions_vs_previous
+    Text: "Dimensioni \xB7 rispetto al tentativo precedente"
+  - Key: hud.wrist.time_label
+    Text: TEMPO
+  - Key: hud.wrist.objective_progress
+    Text: '{0}/{1}'
+  - Key: hud.wrist.timer
+    Text: '{0:00}:{1:00}'
+  - Key: hud.phase.scan
+    Text: Scan
+  - Key: hud.phase.decision
+    Text: Decision
+  - Key: hud.phase.action
+    Text: Action
+  - Key: hud.phase.resolution
+    Text: Resolution
+  - Key: hud.prompt.button.grip
+    Text: GRIP
+  - Key: hud.prompt.action.grab
+    Text: Afferra
+  - Key: hud.subtitles.speaker_line
+    Text: '{0}: {1}'
+  - Key: hud.subtitles.sound_event
+    Text: '[{0}]'
+  - Key: ui.home.unavailable
+    Text: Non disponibile
+  - Key: ui.format.complexity
+    Text: '{0}/5'
+  - Key: ui.home.page
+    Text: '{0}/{1}'
+  - Key: ui.brief.objective_item
+    Text: '{0}. {1}'
+  - Key: ui.sandbox.gallery
+    Text: Galleria componenti

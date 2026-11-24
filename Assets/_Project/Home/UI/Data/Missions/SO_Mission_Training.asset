@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e854ede8a9d475b4ea0cc6436fc8d2f9, type: 3}
+  m_Name: SO_Mission_Training
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
+  Id: 00
+  Title: Training
+  Context: 'Tutorial comune: impari a muoverti, afferrare gli oggetti, selezionare
+    i pannelli con il raggio e aprire la Pausa. Nessun punteggio.'
+  Icon: {fileID: 21300000, guid: c62ca211fb0ac1345bebe97ecf6a37f8, type: 3}
+  Image: {fileID: 0}
+  GradientTop: {r: 0.14117648, g: 0.5019608, b: 0.36078432, a: 1}
+  GradientBottom: {r: 0.4627451, g: 0.7882353, b: 0.5411765, a: 1}
+  Complexity: 1
+  SceneName: SCN_Training
+  Objectives:
+  - Muoviti e girati nella stanza
+  - Afferra e rilascia un oggetto
+  - Seleziona un pannello
+  - Apri la Pausa
+  Criteria:
+  - Outcome: 0
+    Text: Completi tutti e 4 i passi del tutorial.
+  - Outcome: 1
+    Text: "Completi i passi ma chiedi aiuto pi\xF9 volte."
+  - Outcome: 2
+    Text: Esci dal tutorial prima della fine.
+  Levels:
+  - Level: 1
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  IsTraining: 1
+  DesignerNote: (esempio) Training comune senza punteggio.

@@ -194,6 +194,26 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 - [ ] Validatore, Play Mode e test del rig passano.
 - [ ] Checklist Quest eseguita sul visore.
 
+## 7. Esito del pilot Tiziano
+
+Il pilot è sul branch `pilot/rig-ui-migration-tiziano`, creato da `origin/group_tiziano` e aggiornato
+con `integration/testing-ui`. Il merge ha prodotto solo tre conflitti, tutti su file condivisi
+(`ProjectSettings/ProjectSettings.asset`, `Assets/XR/Settings/OpenXR Package Settings.asset`,
+`Guida_Design-Interactions.md.meta`), risolti tenendo `main`.
+
+Il pilot ha trovato un blocco reale: il branch Tiziano conteneva un pacchetto locale
+`com.coplaydev.unity-mcp` con percorso `file:C:/Unity-Projects/...`, che impediva a Unity di aprire il
+progetto. Va rimosso tenendo `Packages/manifest.json` di `main`.
+
+La compilazione del branch pilota è passata (exit 0) e la validazione di `SCN_Core` ha trovato
+1 `RigRegistration`, 1 camera attiva, 1 `EventSystem`, 2 `UIPointer` e il `RigUIBridge` con tutti i
+riferimenti. La scena `SCN_ChemicalAlert` non è stata riscritta: usa ancora `OVRCameraRig`,
+`ScenarioHandInteractor` e `ScenarioInputBindings`, non ha `SO_Mission_*` né `ScenarioController`.
+Il dettaglio dei punti che richiedono una decisione del team (tasto Hint A/X non mappato,
+interazione vicino alla mano contro raggio, rilevamento mano in `ExitSafeZone`/`SubstanceContactSensor`,
+missione mancante) è in
+`Assets/_Project/Groups/G_Tiziano/Docs/RIG_UI_PILOT.md` sul branch del pilot.
+
 ---
 
 # Parte B — Istruzioni per l'assistente LLM

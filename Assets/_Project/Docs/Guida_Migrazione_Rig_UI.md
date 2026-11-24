@@ -185,6 +185,7 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 | Missione con `Id` duplicato nel catalogo | L'id era già usato da un altro scenario | Controlla `SO_Mission_*` e usa un id libero; una sola missione per scena. |
 | Il visore mostra un menu vecchio o mancano scenari appena aggiunti | Sul visore è installata un'altra app (package/version diversa) | Controlla `metavr app info com.si81.sicurezzaimmersiva`, installa l'APK nuovo con `metavr app install -r` e avvia quel package. |
 | Card 05/06 assenti | Nel catalogo non esistono missioni con quegli `Id` | Non è un bug della Home: la griglia mostra solo le missioni autorate. Aggiungi `SO_Mission_*` + scena, oppure accetta la numerazione esistente. |
+| Il giocatore cade all'infinito e la UI sembra salire | `SCN_Core` non ha un collider sotto il rig, ma `MNG_CoreRig` ha `CharacterController` + gravità | Aggiungi un floor collider con la superficie a `y = 0` (`COL_Floor_Core`). |
 | Console: `uso Camera.main` | La UI è partita prima del rig | Assicurati che `SCN_Core` sia caricata e che il bridge sia assegnato. |
 
 ## 6. Checklist finale

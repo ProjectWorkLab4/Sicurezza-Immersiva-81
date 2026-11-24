@@ -1,0 +1,686 @@
+[
+ {
+  "file": "ICN_Home.svg",
+  "materialName": "home",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/home/default/48px.svg",
+  "bytes": 564,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Home_Filled.svg",
+  "materialName": "home",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/home/fill1/48px.svg",
+  "bytes": 503,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ArrowBack.svg",
+  "materialName": "arrow_back",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/arrow_back/default/48px.svg",
+  "bytes": 289,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Star.svg",
+  "materialName": "star",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/star/default/48px.svg",
+  "bytes": 474,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Star_Filled.svg",
+  "materialName": "star",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/star/fill1/48px.svg",
+  "bytes": 387,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_CheckCircle.svg",
+  "materialName": "check_circle",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/check_circle/default/48px.svg",
+  "bytes": 536,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_CheckCircle_Filled.svg",
+  "materialName": "check_circle",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/check_circle/fill1/48px.svg",
+  "bytes": 430,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_PlayArrow.svg",
+  "materialName": "play_arrow",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/play_arrow/default/48px.svg",
+  "bytes": 267,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Person.svg",
+  "materialName": "person",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/person/default/48px.svg",
+  "bytes": 589,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Person_Filled.svg",
+  "materialName": "person",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/person/fill1/48px.svg",
+  "bytes": 346,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_BarChart.svg",
+  "materialName": "bar_chart",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/bar_chart/default/48px.svg",
+  "bytes": 638,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_BarChart_Filled.svg",
+  "materialName": "bar_chart",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/bar_chart/fill1/48px.svg",
+  "bytes": 638,
+  "ok": true,
+  "notes": "fill1 SVG identical to default (glyph has no FILL axis difference)"
+ },
+ {
+  "file": "ICN_Settings.svg",
+  "materialName": "settings",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/settings/default/48px.svg",
+  "bytes": 1020,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Settings_Filled.svg",
+  "materialName": "settings",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/settings/fill1/48px.svg",
+  "bytes": 716,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_LocalFireDepartment.svg",
+  "materialName": "local_fire_department",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/local_fire_department/default/48px.svg",
+  "bytes": 649,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_LocalFireDepartment_Filled.svg",
+  "materialName": "local_fire_department",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/local_fire_department/fill1/48px.svg",
+  "bytes": 500,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Lock.svg",
+  "materialName": "lock",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/lock/default/48px.svg",
+  "bytes": 645,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_School.svg",
+  "materialName": "school",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/school/default/48px.svg",
+  "bytes": 637,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_RestartAlt.svg",
+  "materialName": "restart_alt",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/restart_alt/default/48px.svg",
+  "bytes": 547,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Exit.svg",
+  "materialName": "logout",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/logout/default/48px.svg",
+  "bytes": 564,
+  "ok": true,
+  "notes": "Glifo Material 'logout', nome Unity per funzione: Esci (ex ICN_Logout, v0.1.2)."
+ },
+ {
+  "file": "ICN_Contrast.svg",
+  "materialName": "contrast",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/contrast/default/48px.svg",
+  "bytes": 378,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Cancel.svg",
+  "materialName": "cancel",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/cancel/default/48px.svg",
+  "bytes": 601,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Cancel_Filled.svg",
+  "materialName": "cancel",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/cancel/fill1/48px.svg",
+  "bytes": 495,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_History.svg",
+  "materialName": "history",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/history/default/48px.svg",
+  "bytes": 648,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_WorkspacePremium_Filled.svg",
+  "materialName": "workspace_premium",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/workspace_premium/fill1/48px.svg",
+  "bytes": 528,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_RadioButtonChecked.svg",
+  "materialName": "radio_button_checked",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/radio_button_checked/default/48px.svg",
+  "bytes": 495,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_RadioButtonChecked_Filled.svg",
+  "materialName": "radio_button_checked",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/radio_button_checked/fill1/48px.svg",
+  "bytes": 495,
+  "ok": true,
+  "notes": "fill1 SVG identical to default (glyph has no FILL axis difference)"
+ },
+ {
+  "file": "ICN_RadioButtonUnchecked.svg",
+  "materialName": "radio_button_unchecked",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/radio_button_unchecked/default/48px.svg",
+  "bytes": 402,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ChevronLeft.svg",
+  "materialName": "chevron_left",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/chevron_left/default/48px.svg",
+  "bytes": 253,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ChevronRight.svg",
+  "materialName": "chevron_right",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/chevron_right/default/48px.svg",
+  "bytes": 252,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Refresh.svg",
+  "materialName": "refresh",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/refresh/default/48px.svg",
+  "bytes": 480,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_SelfImprovement.svg",
+  "materialName": "self_improvement",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/self_improvement/default/48px.svg",
+  "bytes": 632,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_SelfImprovement_Filled.svg",
+  "materialName": "self_improvement",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/self_improvement/fill1/48px.svg",
+  "bytes": 632,
+  "ok": true,
+  "notes": "fill1 SVG identical to default (glyph has no FILL axis difference)"
+ },
+ {
+  "file": "ICN_Undo.svg",
+  "materialName": "undo",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/undo/default/48px.svg",
+  "bytes": 387,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Timer.svg",
+  "materialName": "timer",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/timer/default/48px.svg",
+  "bytes": 719,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Timer_Filled.svg",
+  "materialName": "timer",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/timer/fill1/48px.svg",
+  "bytes": 726,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Warning.svg",
+  "materialName": "warning",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/warning/default/48px.svg",
+  "bytes": 521,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Warning_Filled.svg",
+  "materialName": "warning",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/warning/fill1/48px.svg",
+  "bytes": 486,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Lightbulb.svg",
+  "materialName": "lightbulb",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/lightbulb/default/48px.svg",
+  "bytes": 489,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_NotificationsActive.svg",
+  "materialName": "notifications_active",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/notifications_active/default/48px.svg",
+  "bytes": 733,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_NotificationsActive_Filled.svg",
+  "materialName": "notifications_active",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/notifications_active/fill1/48px.svg",
+  "bytes": 654,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ArrowLeft_Filled.svg",
+  "materialName": "arrow_left",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/arrow_left/fill1/48px.svg",
+  "bytes": 304,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_FireExtinguisher.svg",
+  "materialName": "fire_extinguisher",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/fire_extinguisher/default/48px.svg",
+  "bytes": 728,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Help_Filled.svg",
+  "materialName": "help",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/help/fill1/48px.svg",
+  "bytes": 871,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_RecordVoiceOver.svg",
+  "materialName": "record_voice_over",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/record_voice_over/default/48px.svg",
+  "bytes": 934,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_DirectionsRun.svg",
+  "materialName": "directions_run",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/directions_run/default/48px.svg",
+  "bytes": 646,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Call.svg",
+  "materialName": "call",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/call/default/48px.svg",
+  "bytes": 551,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_FlashOff.svg",
+  "materialName": "flash_off",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/flash_off/default/48px.svg",
+  "bytes": 655,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_EcgHeart.svg",
+  "materialName": "ecg_heart",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/ecg_heart/default/48px.svg",
+  "bytes": 702,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Science.svg",
+  "materialName": "science",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/science/default/48px.svg",
+  "bytes": 410,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Forklift.svg",
+  "materialName": "forklift",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/forklift/default/48px.svg",
+  "bytes": 1175,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_PrecisionManufacturing.svg",
+  "materialName": "precision_manufacturing",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/precision_manufacturing/default/48px.svg",
+  "bytes": 733,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_DoorOpen.svg",
+  "materialName": "door_open",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/door_open/default/48px.svg",
+  "bytes": 700,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ElectricBolt.svg",
+  "materialName": "electric_bolt",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/electric_bolt/default/48px.svg",
+  "bytes": 338,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Engineering_Filled.svg",
+  "materialName": "engineering",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/engineering/fill1/48px.svg",
+  "bytes": 1750,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Bolt_Filled.svg",
+  "materialName": "bolt",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/bolt/fill1/48px.svg",
+  "bytes": 265,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_VolumeUp.svg",
+  "materialName": "volume_up",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/volume_up/default/48px.svg",
+  "bytes": 558,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_VolumeUp_Filled.svg",
+  "materialName": "volume_up",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/volume_up/fill1/48px.svg",
+  "bytes": 507,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Subtitles.svg",
+  "materialName": "subtitles",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/subtitles/default/48px.svg",
+  "bytes": 901,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Subtitles_Filled.svg",
+  "materialName": "subtitles",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/subtitles/fill1/48px.svg",
+  "bytes": 864,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_SportsEsports.svg",
+  "materialName": "sports_esports",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/sports_esports/default/48px.svg",
+  "bytes": 773,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_SportsEsports_Filled.svg",
+  "materialName": "sports_esports",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/sports_esports/fill1/48px.svg",
+  "bytes": 618,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_AccessibilityNew.svg",
+  "materialName": "accessibility_new",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/accessibility_new/default/48px.svg",
+  "bytes": 506,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_AccessibilityNew_Filled.svg",
+  "materialName": "accessibility_new",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/accessibility_new/fill1/48px.svg",
+  "bytes": 506,
+  "ok": true,
+  "notes": "fill1 SVG identical to default (glyph has no FILL axis difference)"
+ },
+ {
+  "file": "ICN_Tune.svg",
+  "materialName": "tune",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/tune/default/48px.svg",
+  "bytes": 1416,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Tune_Filled.svg",
+  "materialName": "tune",
+  "variant": "filled",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/tune/fill1/48px.svg",
+  "bytes": 1416,
+  "ok": true,
+  "notes": "fill1 SVG identical to default (glyph has no FILL axis difference)"
+ },
+ {
+  "file": "ICN_Info.svg",
+  "materialName": "info",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/info/default/48px.svg",
+  "bytes": 820,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_SettingsBackupRestore.svg",
+  "materialName": "settings_backup_restore",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/settings_backup_restore/default/48px.svg",
+  "bytes": 813,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_ArrowForward.svg",
+  "materialName": "arrow_forward",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/arrow_forward/default/48px.svg",
+  "bytes": 289,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Replay.svg",
+  "materialName": "replay",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/replay/default/48px.svg",
+  "bytes": 500,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_DirectionsWalk.svg",
+  "materialName": "directions_walk",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/directions_walk/default/48px.svg",
+  "bytes": 807,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_RotateRight.svg",
+  "materialName": "rotate_right",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/rotate_right/default/48px.svg",
+  "bytes": 762,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_BackHand.svg",
+  "materialName": "back_hand",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/back_hand/default/48px.svg",
+  "bytes": 586,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_AdsClick.svg",
+  "materialName": "ads_click",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/ads_click/default/48px.svg",
+  "bytes": 757,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_PauseCircle.svg",
+  "materialName": "pause_circle",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/pause_circle/default/48px.svg",
+  "bytes": 847,
+  "ok": true,
+  "notes": ""
+ },
+ {
+  "file": "ICN_Check.svg",
+  "materialName": "check",
+  "variant": "outlined",
+  "url": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/check/default/48px.svg",
+  "bytes": 240,
+  "ok": true,
+  "notes": ""
+ }
+]

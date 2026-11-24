@@ -1,0 +1,1752 @@
+{
+  "source": "Figma dB3WqCkkOGTceYTtRM8vat page 0:1 Screens (skipped 10:656, 122:1578) | curato: punteggio unico ui.format.safety_score, rimossi ui.format.score, ui.format.stars_and_score, ui.score.safety_score",
+  "strings": [
+    {
+      "key": "ui.nav.home",
+      "text": "Home",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Impostazioni",
+        "Training brief",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.nav.profile",
+      "text": "Profilo",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Impostazioni",
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.nav.stats",
+      "text": "Statistiche",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Impostazioni",
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.nav.settings",
+      "text": "Impostazioni",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Impostazioni",
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.start_scenario",
+      "text": "Avvia scenario",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.choose_level",
+      "text": "Scegli un livello",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.start_training",
+      "text": "Avvia training",
+      "screens": [
+        "Home",
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.resume",
+      "text": "Riprendi",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.restart",
+      "text": "Ricomincia",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.quick_settings",
+      "text": "Impostazioni rapide",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.exit_to_home",
+      "text": "Esci alla Home",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.cancel",
+      "text": "Annulla",
+      "screens": [
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.exit",
+      "text": "Esci",
+      "screens": [
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.next",
+      "text": "Avanti",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.change_level",
+      "text": "Cambia livello",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.retry",
+      "text": "Riprova",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.button.back_to_home",
+      "text": "Torna alla Home",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.scenario_title",
+      "text": "{0} · {1}",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Pausa",
+        "Debrief",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.stars",
+      "text": "{0}/5",
+      "screens": [
+        "Mission Brief",
+        "Home",
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.safety_score",
+      "text": "SPI {0}/100",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": "Unica chiave con il testo del punteggio (SPI N/100, decisione del team 2026-11-19): sostituisce ui.format.score, ui.format.stars_and_score, ui.score.safety_score. Riusata come {0} da ui.stats.average_line."
+    },
+    {
+      "key": "ui.format.percent",
+      "text": "{0}%",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.degrees",
+      "text": "{0}°",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.delta_positive",
+      "text": "+{0}",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.format.delta_negative",
+      "text": "−{0}",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.badge",
+      "text": "Livello {0} · {1}",
+      "screens": [
+        "Mission Brief",
+        "Statistiche",
+        "Pausa",
+        "Pausa · conferma Esci",
+        "Debrief",
+        "Score & Replay",
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.guided",
+      "text": "Guided",
+      "screens": [
+        "Mission Brief",
+        "HUD Livello 1"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.operational",
+      "text": "Operational",
+      "screens": [
+        "Mission Brief",
+        "Statistiche",
+        "Pausa",
+        "Debrief",
+        "Score & Replay",
+        "HUD Livello 2",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.crisis",
+      "text": "Crisis",
+      "screens": [
+        "Mission Brief",
+        "HUD Livello 3"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.guided_desc",
+      "text": "Oggetti evidenziati, suggerimenti, feedback immediato",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.operational_desc",
+      "text": "Pochi aiuti, rischi non evidenziati, tempo limitato",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.level.crisis_desc",
+      "text": "Nessun aiuto, informazioni incomplete, escalation",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.positive",
+      "text": "Esito positivo",
+      "screens": [
+        "Resolution"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.partial",
+      "text": "Esito parziale",
+      "screens": [
+        "Debrief",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.negative",
+      "text": "Esito negativo",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.positive_short",
+      "text": "Positivo",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.partial_short",
+      "text": "Parziale",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.outcome.negative_short",
+      "text": "Negativo",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.home.title",
+      "text": "Scenari",
+      "screens": [
+        "Home"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.home.new",
+      "text": "Nuovo",
+      "screens": [
+        "Home"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.breadcrumb",
+      "text": "Scenari / Mission brief",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.best_result",
+      "text": "Miglior risultato",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.description",
+      "text": "Descrizione",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.choose_difficulty",
+      "text": "Scegli la difficoltà",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.completion_criteria",
+      "text": "Criteri di completamento",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.brief.criterion",
+      "text": "{0}: {1}",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dimension.safety",
+      "text": "Safety",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dimension.awareness",
+      "text": "Awareness",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dimension.decision",
+      "text": "Decision",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dimension.execution",
+      "text": "Execution",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dimension.time",
+      "text": "Time",
+      "screens": [
+        "Statistiche",
+        "Profilo",
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.title",
+      "text": "Statistiche",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.not_played",
+      "text": "Non giocato",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.summary",
+      "text": "Riepilogo",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.positives",
+      "text": "Positivi",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.partials",
+      "text": "Parziali",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.negatives",
+      "text": "Negativi",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.sessions",
+      "text": "Sessioni",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.average_line",
+      "text": "{0} di media · {1} scenari giocati su {2}",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": "Composta: {0} = strings.Format(\"ui.format.safety_score\", media), {1} = scenari giocati, {2} = scenari totali. Il testo del punteggio vive solo in ui.format.safety_score (CLAUDE.md 4.6)."
+    },
+    {
+      "key": "ui.stats.best_score",
+      "text": "Punteggio migliore",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": "Intestazione; il valore usa ui.format.safety_score (CLAUDE.md 4.6)."
+    },
+    {
+      "key": "ui.stats.last_attempt",
+      "text": "Ultimo tentativo",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.stats.average_line_one",
+      "text": "{0} di media · 1 scenario giocato su {1}",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": "Singolare di ui.stats.average_line (1 scenario giocato). {0} = strings.Format(\"ui.format.safety_score\", media), {1} = scenari totali."
+    },
+    {
+      "key": "ui.stats.attempts_max_level_one",
+      "text": "1 tentativo · livello max:",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": "Singolare di ui.stats.attempts_max_level (esattamente 1 tentativo)."
+    },
+    {
+      "key": "ui.stats.attempts_max_level",
+      "text": "{0} tentativi · livello max:",
+      "screens": [
+        "Statistiche"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.title",
+      "text": "Profilo",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.missions_completed",
+      "text": "Missioni completate {0}/{1}",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.recent_results",
+      "text": "Ultimi risultati",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.skills",
+      "text": "Competenze",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.badges_count",
+      "text": "Badge · {0} su {1}",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.profile.badge_locked",
+      "text": "Bloccato",
+      "screens": [
+        "Profilo"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.title",
+      "text": "Impostazioni",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.comfort",
+      "text": "Comfort",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.audio",
+      "text": "Audio",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.subtitles",
+      "text": "Sottotitoli",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.controls",
+      "text": "Controlli",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.accessibility",
+      "text": "Accessibilità",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.tab.general",
+      "text": "Generale",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.toggle.on",
+      "text": "ON",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.toggle.off",
+      "text": "OFF",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.locomotion",
+      "text": "Locomozione",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.locomotion_teleport",
+      "text": "Teletrasporto",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.locomotion_continuous",
+      "text": "Movimento continuo",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.turn",
+      "text": "Rotazione",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.turn_snap",
+      "text": "Snap",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.turn_continuous",
+      "text": "Continua",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.snap_angle",
+      "text": "Angolo snap",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.vignette",
+      "text": "Vignettatura in movimento",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.vignette_off",
+      "text": "Disattivata",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.vignette_low",
+      "text": "Bassa",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.vignette_medium",
+      "text": "Media",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.vignette_high",
+      "text": "Alta",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.user_height",
+      "text": "Altezza utente",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.recalibrate",
+      "text": "Ricalibra",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.comfort.seated_mode",
+      "text": "Modalità seduto",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.audio.master_volume",
+      "text": "Volume generale",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.audio.voices",
+      "text": "Voci",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.audio.effects",
+      "text": "Effetti",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.audio.alarms",
+      "text": "Allarmi e segnali",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.audio.music",
+      "text": "Musica",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.subtitles.enabled",
+      "text": "Sottotitoli",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.subtitles.size",
+      "text": "Dimensione sottotitoli",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.subtitles.background_opacity",
+      "text": "Opacità sfondo sottotitoli",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.controls.dominant_hand",
+      "text": "Mano dominante",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.controls.hand_right",
+      "text": "Destra",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.controls.hand_left",
+      "text": "Sinistra",
+      "screens": [
+        "inferred"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.controls.ui_haptics",
+      "text": "Vibrazione UI",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.accessibility.ui_text_size",
+      "text": "Dimensione testo UI",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.accessibility.reduce_flashes",
+      "text": "Riduci lampeggi",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.language",
+      "text": "Lingua",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.language_italian",
+      "text": "Italiano",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.replay_training",
+      "text": "Rivedi Training",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.start",
+      "text": "Avvia",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.info",
+      "text": "Informazioni",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.open",
+      "text": "Apri",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.reset_defaults",
+      "text": "Ripristina predefiniti",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.settings.general.reset",
+      "text": "Ripristina",
+      "screens": [
+        "Impostazioni"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.title",
+      "text": "Training · Tutorial comune",
+      "screens": [
+        "Home",
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.card_subtitle",
+      "text": "Impara i comandi base",
+      "screens": [
+        "Home"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.breadcrumb",
+      "text": "Scenari / Training",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.what_you_learn",
+      "text": "Cosa imparerai",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.locomotion.title",
+      "text": "Locomozione",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.locomotion.desc",
+      "text": "Teletrasporto o movimento continuo",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.turn.title",
+      "text": "Rotazione",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.turn.desc",
+      "text": "Girarsi a scatti o in modo continuo",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.grab.title",
+      "text": "Afferrare oggetti",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.grab.desc",
+      "text": "Grip per prendere, rilascia per lasciare",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.select.title",
+      "text": "Selezionare i pannelli",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.select.desc",
+      "text": "Punta il raggio e premi il grilletto",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.pause.title",
+      "text": "Aprire la Pausa",
+      "screens": [
+        "Training brief",
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.pause.desc",
+      "text": "Tasto Menu sinistro o B/Y tenuto 1 s",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.no_score_note",
+      "text": "Nessun punteggio: puoi ripeterlo quando vuoi da Impostazioni → Generale.",
+      "screens": [
+        "Training brief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.complete_title",
+      "text": "Training completato",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.complete_body",
+      "text": "Ora conosci i comandi base. Puoi iniziare le missioni.",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.learned.move",
+      "text": "Muoverti e girarti",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.learned.grab",
+      "text": "Afferrare e rilasciare gli oggetti",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.learned.select",
+      "text": "Selezionare i pannelli con il raggio",
+      "screens": [
+        "Training completato"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.training.learned.pause",
+      "text": "Aprire la Pausa",
+      "screens": [
+        "Training completato"
+      ],
+      "note": "Figma NEW"
+    },
+    {
+      "key": "ui.score.safety_label",
+      "text": "SPI · Indice di sicurezza",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": "Etichetta sopra il numero grande; insieme a ui.score.out_of_100 compone 'SPI N/100' con la spiegazione 'Indice di sicurezza' (Figma nota 17)"
+    },
+    {
+      "key": "ui.score.out_of_100",
+      "text": "/100",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": "Suffisso piccolo accanto al numero"
+    },
+    {
+      "key": "ui.pause.title",
+      "text": "{0} · Pausa",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.pause.phase",
+      "text": "Fase: {0}",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.pause.objectives",
+      "text": "Obiettivi",
+      "screens": [
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dialog.exit_mission.title",
+      "text": "Uscire dalla missione?",
+      "screens": [
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dialog.exit_mission.body",
+      "text": "I progressi di questa missione andranno persi.",
+      "screens": [
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.dialog.restart.title",
+      "text": "Ricominciare la missione?",
+      "screens": [
+        "Pausa · conferma Ricomincia"
+      ],
+      "note": "[Blocco A · Dialogo] NUOVA (FIGMA_SPECS punto 13). Testo proposto."
+    },
+    {
+      "key": "ui.dialog.restart.body",
+      "text": "I progressi di questa missione andranno persi.",
+      "screens": [
+        "Pausa · conferma Ricomincia"
+      ],
+      "note": "[Blocco A · Dialogo] NUOVA (FIGMA_SPECS punto 13). Testo proposto."
+    },
+    {
+      "key": "ui.dialog.reset_defaults.title",
+      "text": "Ripristinare i valori predefiniti?",
+      "screens": [
+        "Impostazioni · Generale"
+      ],
+      "note": "[Blocco A · Dialogo] NUOVA (FIGMA_SPECS punto 13). Testo proposto."
+    },
+    {
+      "key": "ui.dialog.reset_defaults.body",
+      "text": "Tutte le impostazioni torneranno ai valori iniziali.",
+      "screens": [
+        "Impostazioni · Generale"
+      ],
+      "note": "[Blocco A · Dialogo] NUOVA (FIGMA_SPECS punto 13). Testo proposto."
+    },
+    {
+      "key": "ui.format.score_of_100",
+      "text": "{0}/100",
+      "screens": [
+        "Statistiche · elenco missioni"
+      ],
+      "note": "[Blocco A · Pulsanti] NUOVA (FIGMA_SPECS BTN_ListRow): punteggio breve di una riga. Se un altro blocco la aggiunge, tenere UNA sola copia."
+    },
+    {
+      "key": "ui.debrief.title",
+      "text": "Debrief · {0}",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.debrief.correct_path",
+      "text": "Percorso corretto",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.debrief.decisions",
+      "text": "Decisioni",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.debrief.errors",
+      "text": "Errori",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.debrief.critical_prefix",
+      "text": "Critico · {0}",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.debrief.cause_effect",
+      "text": "{0} → {1}",
+      "screens": [
+        "Debrief"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.score.title",
+      "text": "Risultato · {0}",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.score.rank",
+      "text": "Rank",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.score.new_badges",
+      "text": "Nuovi badge",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.score.dimensions_vs_previous",
+      "text": "Dimensioni · rispetto al tentativo precedente",
+      "screens": [
+        "Score & Replay"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.wrist.time_label",
+      "text": "TEMPO",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.wrist.objective_progress",
+      "text": "{0}/{1}",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.wrist.timer",
+      "text": "{0:00}:{1:00}",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.phase.scan",
+      "text": "Scan",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.phase.decision",
+      "text": "Decision",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.phase.action",
+      "text": "Action",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione",
+        "Pausa",
+        "Pausa · conferma Esci"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.phase.resolution",
+      "text": "Resolution",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.prompt.button.grip",
+      "text": "GRIP",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.prompt.action.grab",
+      "text": "Afferra",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.subtitles.speaker_line",
+      "text": "{0}: {1}",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hud.subtitles.sound_event",
+      "text": "[{0}]",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2",
+        "HUD Livello 3",
+        "HUD Decisione"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ui.home.unavailable",
+      "text": "Non disponibile",
+      "screens": [
+        "Home"
+      ],
+      "note": "[Blocco A · Card] Pillola della BTN_ScenarioCard Disabled (lucchetto + testo), FIGMA_SPECS 1."
+    },
+    {
+      "key": "ui.format.complexity",
+      "text": "{0}/5",
+      "screens": [
+        "Home",
+        "Mission Brief"
+      ],
+      "note": "[Blocco A · Card] Complessità dello scenario (N/5), stesso formato di ui.format.stars ma semanticamente distinta."
+    },
+    {
+      "key": "ui.home.page",
+      "text": "{0}/{1}",
+      "screens": [
+        "Home"
+      ],
+      "note": "[Blocco B] Numero di pagina della griglia scenari (più di 8 scenari)."
+    },
+    {
+      "key": "ui.brief.objective_item",
+      "text": "{0}. {1}",
+      "screens": [
+        "Mission Brief"
+      ],
+      "note": "[Blocco B] Obiettivo numerato; {1} è dato dello scenario."
+    },
+    {
+      "key": "ui.sandbox.gallery",
+      "text": "Galleria componenti",
+      "screens": [
+        "Sandbox"
+      ],
+      "note": "[Blocco A] SOLO SCN_UISandbox: titolo della galleria dei componenti (non è una schermata di prodotto)."
+    }
+  ],
+  "mock": [
+    {
+      "it": "01 · Fire Starter",
+      "screen": "Home"
+    },
+    {
+      "it": "02 · Blackout",
+      "screen": "Home"
+    },
+    {
+      "it": "03 · Man Down",
+      "screen": "Home"
+    },
+    {
+      "it": "04 · Chemical Alert",
+      "screen": "Home"
+    },
+    {
+      "it": "07 · Forklift Chaos",
+      "screen": "Home"
+    },
+    {
+      "it": "08 · Machine Lock",
+      "screen": "Home"
+    },
+    {
+      "it": "09 · Evacuation",
+      "screen": "Home"
+    },
+    {
+      "it": "10 · Electric Shock",
+      "screen": "Home"
+    },
+    {
+      "it": "2/5 (complessità)",
+      "screen": "Mission Brief"
+    },
+    {
+      "it": "4/5 (miglior risultato, stelle)",
+      "screen": "Mission Brief"
+    },
+    {
+      "it": "Ruolo: addetto alla squadra antincendio di piano. Open space al 2° piano, pausa pranzo: una ciabatta multipresa sovraccarica sotto una scrivania inizia a fumare. Riconosci il principio d'incendio, dai l'allarme e intervieni in sicurezza prima che il fumo raggiunga le vie d'esodo.",
+      "screen": "Mission Brief"
+    },
+    {
+      "it": "1. Individua la fonte del fumo e valuta il rischio",
+      "screen": "Mission Brief (obiettivi)"
+    },
+    {
+      "it": "2. Dai l'allarme al coordinatore dell'emergenza",
+      "screen": "Mission Brief (obiettivi)"
+    },
+    {
+      "it": "3. Togli corrente alla ciabatta multipresa",
+      "screen": "Mission Brief (obiettivi)"
+    },
+    {
+      "it": "4. Spegni il principio d'incendio con l'estintore",
+      "screen": "Mission Brief (obiettivi)"
+    },
+    {
+      "it": "spento entro 3 min",
+      "screen": "Mission Brief (criteri)"
+    },
+    {
+      "it": "spento in ritardo",
+      "screen": "Mission Brief (criteri)"
+    },
+    {
+      "it": "incendio esteso",
+      "screen": "Mission Brief (criteri)"
+    },
+    {
+      "it": "Home cards: stelle 4/5, 3/5, 2/5; progress 2/5, 3/5, 4/5",
+      "screen": "Home"
+    },
+    {
+      "it": "Statistiche righe: 86/100, 72/100, 64/100, 58/100; stelle 4/5, 3/5, 2/5",
+      "screen": "Statistiche"
+    },
+    {
+      "it": "Riepilogo: Positivi 5, Parziali 2, Negativi (vuoto), Sessioni 9; media 70/100; 4 scenari su 8",
+      "screen": "Statistiche"
+    },
+    {
+      "it": "Dettaglio 01: migliore 86/100, 4/5; Safety 82, Awareness 74, Decision 90, Execution 68, Time 71; 4 tentativi, livello max 2 Operational",
+      "screen": "Statistiche"
+    },
+    {
+      "it": "Operatore_Luca",
+      "screen": "Profilo"
+    },
+    {
+      "it": "Missioni completate 3/8; risultati 4/5 · 86/100, 3/5 · 72/100, 3/5 · 64/100",
+      "screen": "Profilo"
+    },
+    {
+      "it": "Competenze: Safety 76, Awareness 70, Decision 81, Execution 64, Time 69; Badge 5 su 12",
+      "screen": "Profilo"
+    },
+    {
+      "it": "Valori impostazioni: 45°, 80 (x5 volumi), 100%, 92%",
+      "screen": "Impostazioni"
+    },
+    {
+      "it": "Ciabatta surriscaldata",
+      "screen": "HUD Livello 1 (HUD_RiskLabel)"
+    },
+    {
+      "it": "Stacca la corrente prima di intervenire",
+      "screen": "HUD Livello 1 (HUD_RiskLabel)"
+    },
+    {
+      "it": "Estintore CO2",
+      "screen": "HUD Livello 1 (HUD_ContextHelp / HUD_InteractionPrompt)"
+    },
+    {
+      "it": "Adatto agli impianti elettrici: non lascia residui.",
+      "screen": "HUD Livello 1 (HUD_ContextHelp)"
+    },
+    {
+      "it": "Il fuoco si sta estendendo",
+      "screen": "HUD Livello 1 (HUD_EventAlert)"
+    },
+    {
+      "it": "Le fiamme hanno raggiunto il cestino: usa l'estintore ora",
+      "screen": "HUD Livello 1 (HUD_EventAlert)"
+    },
+    {
+      "it": "Dai l'allarme al coordinatore",
+      "screen": "HUD Livello 1 / Pausa (obiettivo)"
+    },
+    {
+      "it": "Metti in sicurezza l'ufficio",
+      "screen": "HUD Livello 3 (obiettivo)"
+    },
+    {
+      "it": "2/4 (progresso obiettivi)",
+      "screen": "HUD Livello 1"
+    },
+    {
+      "it": "03:12, 04:36, 00:28 (timer)",
+      "screen": "HUD Livello 1"
+    },
+    {
+      "it": "Acqua su un impianto elettrico: rischio di folgorazione",
+      "screen": "HUD Livello 2 (HUD_ActionFeedback)"
+    },
+    {
+      "it": "Allarme antincendio",
+      "screen": "HUD Livello 1 (sottotitolo evento)"
+    },
+    {
+      "it": "Marco",
+      "screen": "HUD Livello 1 (speaker)"
+    },
+    {
+      "it": "c'è fumo sotto la scrivania vicino alla finestra, vieni!",
+      "screen": "HUD Livello 1 (sottotitolo)"
+    },
+    {
+      "it": "Cosa dici al collega?",
+      "screen": "HUD Decisione"
+    },
+    {
+      "it": "Usciamo subito, chiudi la porta",
+      "screen": "HUD Decisione"
+    },
+    {
+      "it": "Prendi l'estintore CO2 in corridoio",
+      "screen": "HUD Decisione"
+    },
+    {
+      "it": "Chiama il 112 mentre do l'allarme",
+      "screen": "HUD Decisione"
+    },
+    {
+      "it": "Incendio spento in 2:48 e allarme dato",
+      "screen": "Resolution"
+    },
+    {
+      "it": "Individua la fonte del fumo",
+      "screen": "Pausa (obiettivi)"
+    },
+    {
+      "it": "Valuta il rischio",
+      "screen": "Pausa (obiettivi)"
+    },
+    {
+      "it": "Spegni con l'estintore CO2",
+      "screen": "Pausa (obiettivi)"
+    },
+    {
+      "it": "Individua il fumo e la ciabatta surriscaldata",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Dai l'allarme con il pulsante più vicino",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Avvisa il coordinatore dell'emergenza",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Togli corrente dall'interruttore del piano",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Usa l'estintore CO2, mai acqua sull'impianto",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Allontana i colleghi verso le vie d'esodo",
+      "screen": "Debrief (percorso corretto)"
+    },
+    {
+      "it": "Hai dato l'allarme subito → i colleghi sono usciti in tempo",
+      "screen": "Debrief (decisioni)"
+    },
+    {
+      "it": "Hai scelto l'estintore CO2 → nessun rischio elettrico",
+      "screen": "Debrief (decisioni)"
+    },
+    {
+      "it": "Hai avvisato il coordinatore dopo 2 min → squadra arrivata tardi",
+      "screen": "Debrief (decisioni)"
+    },
+    {
+      "it": "Ti sei avvicinato al fumo senza abbassarti → esposizione al fumo",
+      "screen": "Debrief (errori, il primo con prefisso Critico)"
+    },
+    {
+      "it": "Non hai chiuso la porta dell'ufficio → il fumo è arrivato in corridoio",
+      "screen": "Debrief (errori, il primo con prefisso Critico)"
+    },
+    {
+      "it": "78/100; stelle 3/5; Safety 80 +6, Awareness 72 +3, Decision 85 +10, Execution 70 −2, Time 64 +1",
+      "screen": "Score & Replay"
+    },
+    {
+      "it": "Allarme lampo",
+      "screen": "Score & Replay (badge)"
+    }
+  ],
+  "excluded": [
+    {
+      "it": "Comfort visivo (riduzione luce blu)",
+      "screen": "Impostazioni · Accessibilità",
+      "reason": "CLAUDE.md §8: no blue-light filter on the UI"
+    }
+  ]
+}

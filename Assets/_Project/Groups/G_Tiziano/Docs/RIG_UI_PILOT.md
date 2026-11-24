@@ -54,6 +54,16 @@
    premere Menu per il suggerimento apre anche la pausa. Da decidere dopo il test su visore.
 4. **Riferimenti alle zone.** `PlayerPPEState.zones` e `PPEItemObject.equipZones` puntavano alle
    zone eliminate; riscritti.
+5. **App sbagliata sul visore.** La build usava l'application id di `main`
+   (`com.UnityTechnologies.com.unity.template.urpblank`), quindi sul Quest restava aperta la
+   vecchia app `com.si81.sicurezzaimmersiva` del 23 novembre con il menu vecchio. La build del
+   pilot ora usa `com.si81.sicurezzaimmersiva` e sostituisce quella installata.
+6. **Missione Chemical Alert duplicata.** Il catalogo aveva già `SO_Mission_ChemicalAlert` (Id 04,
+   scena `SCN_ChemicalAlert`). Il pilot ne aveva creata una seconda (Id 05). La seconda è stata
+   rimossa e `ScenarioController` punta alla 04.
+7. **Id 05/06 mancanti.** Nel catalogo non esistono missioni con Id 05 o 06: le card mostrate sono
+   solo quelle autorate. Non è un errore della Home; se servono quegli scenari vanno creati e
+   aggiunti al catalogo.
 
 ## 4. Build
 

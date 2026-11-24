@@ -3615,7 +3615,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 830e170aeae943540b84646f7d9764c0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SI81.UI::SI81.UI.ScenarioController
-  mission: {fileID: 11400000, guid: e69182ebba886e1499c03eb3c7931245, type: 2}
+  mission: {fileID: 11400000, guid: 33087081ca5c261488e95854e7b06b0c, type: 2}
   spawnPoint: {fileID: 442560699}
   editorLevel: 1
   loadCoreInEditor: 1

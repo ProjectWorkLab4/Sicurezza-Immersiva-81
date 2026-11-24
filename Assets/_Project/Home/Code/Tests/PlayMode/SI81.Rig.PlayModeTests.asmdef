@@ -1,0 +1,26 @@
+{
+    "name": "SI81.Rig.PlayModeTests",
+    "rootNamespace": "SI81.Rig.Tests",
+    "references": [
+        "SI81.Input",
+        "SI81.Rig",
+        "SI81.Interaction",
+        "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

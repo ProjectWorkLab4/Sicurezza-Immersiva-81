@@ -25,14 +25,43 @@
 ## Contents
 
 - [Shared assets rule: pull before you push](#shared-assets-rule-pull-before-you-push)
+- [Version control rule: Git only](#version-control-rule-git-only)
 - [Project Setup Tool (Fix All) rule](#project-setup-tool-fix-all-rule)
 - [Project objectives](#project-objectives)
 - [Tools](#tools)
 - [Technology stack](#technology-stack)
 - [Project structure](#project-structure)
-- [Placeholder scene](#placeholder-scene)
+- [Build scenes](#build-scenes)
 - [Naming conventions](#naming-conventions)
+- [Documentation](#documentation)
 - [Troubleshooting](Troubleshoot.md)
+
+## Documentation
+
+- [Shared Player Rig](Assets/_Project/Home/Docs/SharedPlayerRig.md) — rig, unified input, locomotion and the UI hand-off.
+- [Shared world interaction](Assets/_Project/Home/Docs/SharedInteraction.md) — `Interactable` / `RayInteractor` contract for scenario objects.
+- [Rig and UI migration guide](Assets/_Project/Docs/Guida_Migrazione_Rig_UI.md) — branch owners move a scenario to the shared rig and common UI.
+- [Interaction button map](Assets/_Project/Docs/Guida_Design-Interactions.md) — targeting, select, grab, back and menu.
+- [Common HUD guide](Assets/_Project/Docs/Guida_HUD_comune_SI81.pdf) — shared HUD layout and content.
+- [Meta VR CLI guide](Guides/MetaVRCLI_Guide.md) — `metavr` setup and device workflows.
+- [Troubleshooting](Troubleshoot.md) — repository, Git and Project Setup Tool problems.
+
+## Version control rule: Git only
+
+> [!IMPORTANT]
+> **Git is the only version control system for this project. Nothing else.**
+>
+> Do **not** install, enable or use **Unity Version Control** (also called Unity
+> VCS, UVCS, Plastic SCM, or `com.unity.collab-proxy`). Do not add the package
+> back to `Packages/manifest.json` or `Packages/packages-lock.json`, do not open
+> the Unity Hub **Version Control** tab, and do not commit `.plastic/`,
+> `plastic.workspace` or any other Unity VCS workspace file.
+>
+> If Unity or Unity Hub offers to set up or connect version control, decline the
+> prompt and keep using Git. Pull requests that reintroduce Unity Version Control
+> are rejected.
+>
+> The same rule, with more detail, is in [AGENTS.md](AGENTS.md).
 
 ## Project Setup Tool (Fix All) rule
 
@@ -168,18 +197,19 @@ PLACEHOLDER DON'T DELETE
 
 Keep the placeholder until the folder has real content, then delete it. Without at least one tracked file, the folder disappears from GitHub and from fresh clones. When Unity imports the project, it creates a `.meta` file for every folder and placeholder; commit those `.meta` files so the project imports consistently for everyone.
 
-### Placeholder scene
+### Build scenes
 
-`Assets/_Project/SCN_Placeholder.unity` is the only scene listed in **Build Settings**.
+`Assets/_Project/Home/Level/Scenes/SCN_Core.unity` is **index 0** of **Build Settings**.
 
-- It is a **placeholder**: nothing in it is supposed to work and it is not connected
-  to any group's content, scene flow or script. Its only purpose is to give the build
-  a scene that exists for everyone, so `EditorBuildSettings.asset` never references
-  missing files and never has to change while the groups work.
-- **Do not edit, rename, move or delete it**, and do not add other scenes to Build
-  Settings from a group branch.
-- When the real scene flow (Home, scenario selection, etc.) is ready, swapping the
-  placeholder for the real scene list is a deliberate change made once on `main`.
+- `SCN_Core` owns the shared Player Rig, the common UI and the HUD. **Do not remove,
+  reorder or replace it.** Scenario scenes load additively on top of it.
+- `Assets/_Project/Home/Level/Scenes/Mock/SCN_MockScenario.unity` is the shared
+  integration scene and stays after `SCN_Core`.
+- A group adds **only its own scenario scene**, after the shared scenes, when its
+  scenario is ready to merge. Never remove or renumber `SCN_Core`, and never add
+  another group's scene.
+- `Assets/_Project/SCN_Placeholder.unity` stays in the repository but is no longer
+  listed in Build Settings; do not delete or reuse it.
 
 ## Naming conventions
 

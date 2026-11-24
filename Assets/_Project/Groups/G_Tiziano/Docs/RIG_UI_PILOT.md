@@ -64,13 +64,17 @@
 7. **Id 05/06 mancanti.** Nel catalogo non esistono missioni con Id 05 o 06: le card mostrate sono
    solo quelle autorate. Non è un errore della Home; se servono quegli scenari vanno creati e
    aggiunti al catalogo.
+8. **Caduta infinita in `SCN_Core`.** La scena non aveva nessun collider, mentre `MNG_CoreRig` ha
+   `CharacterController` + gravità: il rig cadeva all'infinito e la UI sembrava salire. Aggiunto
+   `COL_Floor_Core` (BoxCollider 40×0.2×40, superficie a y=0).
 
 ## 4. Build
 
-APK finale: `Build/Sicurezza-Immersiva-81_ver2.apk` — **build riuscita**, 106.150.259 byte,
-package `com.si81.sicurezzaimmersiva`, versione `0.2.0` (version code 2). Installata con
+APK finale: `Build/Sicurezza-Immersiva-81_ver3.apk` — **build riuscita**, 106.150.383 byte,
+package `com.si81.sicurezzaimmersiva`, versione `0.3.0` (version code 3). Installata con
 `metavr app install -r` sopra la vecchia app e avviata sul Quest 3 `2G0YC5ZG1402NV`.
 La build parte da `SCN_Core`; Chemical Alert è la missione Id 04 già presente nel catalogo.
+La v0.3 include il floor collider che impedisce la caduta del rig.
 
 La prima build (`ver1`) usava l'application id template di `main`
 (`com.UnityTechnologies.com.unity.template.urpblank`): sul visore restava aperta la vecchia

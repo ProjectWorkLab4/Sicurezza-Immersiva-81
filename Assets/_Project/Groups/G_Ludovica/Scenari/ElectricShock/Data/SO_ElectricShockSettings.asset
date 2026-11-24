@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f76b6cd4a86642c4997f15f81b78c5d0, type: 3}
+  m_Name: SO_ElectricShockSettings
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Ludovica.ElectricShock.ElectricShockSettings
+  IgnitionTime: {x: 45, y: 75}
+  IgnitionAfterStop: 2
+  ExplosionWarning: 12
+  BlastRadius: 7
+  BystanderAttemptTime: {x: 40, y: 70}
+  BystanderHesitation: 8
+  ParamedicAfterCall: {x: 75, y: 120}
+  ParamedicWithoutCall: 150
+  HarmfulAirSeconds: 20
+  StayWithVictimSeconds: 10
+  StayDistance: 2
+  ObservePoolDeadline: 30
+  ImpulsiveStopTime: 5
+  TimelyStopAfterObserve: 30
+  ShoutRange: 15
+  Levels:
+  - Level: 1
+    ExplosionDelay: {x: 90, y: 120}
+    HighlightObjects: 1
+    AutoReadLabel: 1
+    RandomizeRack: 0
+    TankSwelling: 1
+    BlastRing: 1
+    Bystanders: 2
+    Distractors: 0
+    BackgroundNoise: 0
+    MaxHints: -1
+    FirstHintDelay: 20
+  - Level: 2
+    ExplosionDelay: {x: 60, y: 90}
+    HighlightObjects: 0
+    AutoReadLabel: 0
+    RandomizeRack: 0
+    TankSwelling: 1
+    BlastRing: 0
+    Bystanders: 2
+    Distractors: 1
+    BackgroundNoise: 0
+    MaxHints: 3
+    FirstHintDelay: 45
+  - Level: 3
+    ExplosionDelay: {x: 45, y: 70}
+    HighlightObjects: 0
+    AutoReadLabel: 0
+    RandomizeRack: 1
+    TankSwelling: 0
+    BlastRing: 0
+    Bystanders: 3
+    Distractors: 2
+    BackgroundNoise: 1
+    MaxHints: 0
+    FirstHintDelay: 0

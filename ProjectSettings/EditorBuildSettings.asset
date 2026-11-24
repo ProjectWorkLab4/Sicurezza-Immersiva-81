@@ -6,8 +6,14 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/_Project/Home/Level/Scenes/SCN_Core.unity
+    guid: 23b355b341596ae46b7e3c78f00bf9ff
+  - enabled: 1
+    path: Assets/_Project/Groups/G_Ludovica/Assets/Scenes/SCN_ForkliftChaos.unity
+    guid: e8459afe76c1b064d90d37202a1e41a8
+  - enabled: 1
+    path: Assets/_Project/Home/Level/Scenes/Mock/SCN_MockScenario.unity
+    guid: 85edfe27706d2734b86359abf487ed2e
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

@@ -12,23 +12,25 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         [SerializeField] private ScenarioInteractable interactable;
         [SerializeField] private ChemicalAlertDirector director;
         [SerializeField] private PPEItem itemData;
-        [SerializeField] private PPEEquipZone[] equipZones = new PPEEquipZone[0];
+        [SerializeField] private PlayerPPEState ppeState;
 
         private Transform initialParent;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
-        private PPEEquipZone equippedZone;
+        private Renderer[] visualRenderers = new Renderer[0];
+        private Collider[] colliders = new Collider[0];
+        private bool[] originalRendererStates = new bool[0];
+        private bool[] originalColliderStates = new bool[0];
+        private bool acquired;
 
         /// <summary>Gets the data asset represented by this object.</summary>
         public PPEItem ItemData => itemData;
         /// <summary>Gets whether this PPE is marked as a decoy.</summary>
         public bool IsDecoy => itemData != null && itemData.IsDecoy;
-        /// <summary>Gets the currently equipped zone, if any.</summary>
-        public PPEEquipZone EquippedZone => equippedZone;
-        /// <summary>Gets whether this item is currently equipped.</summary>
-        public bool IsEquipped => equippedZone != null;
+        /// <summary>Gets whether this physical copy has already been acquired.</summary>
+        public bool IsAcquired => acquired;
 
-        /// <summary>Assigns the PPE data item placed in this shuffled cabinet slot.</summary>
+        /// <summary>Assigns the PPE data represented by this physical cabinet copy.</summary>
         public void SetItemData(PPEItem value)
         {
             if (value == null)
@@ -37,11 +39,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 return;
             }
 
-            if (equippedZone != null)
-                equippedZone.RemoveItem(this);
-
             itemData = value;
-            UnityEngine.Debug.Log($"[CA] PPE cabinet slot shuffled: {name} -> {itemData.ItemId}; decoy={itemData.IsDecoy}.");
+            UnityEngine.Debug.Log($"[CA] PPE cabinet copy set: {name} -> {itemData.ItemId}.");
         }
 
         private void Awake()
@@ -52,6 +51,16 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             initialParent = transform.parent;
             initialPosition = transform.position;
             initialRotation = transform.rotation;
+            if (interactable == null)
+                interactable = GetComponent<ScenarioInteractable>();
+            visualRenderers = GetComponentsInChildren<Renderer>(true);
+            colliders = GetComponentsInChildren<Collider>(true);
+            originalRendererStates = new bool[visualRenderers.Length];
+            for (int i = 0; i < visualRenderers.Length; i++)
+                originalRendererStates[i] = visualRenderers[i] != null && visualRenderers[i].enabled;
+            originalColliderStates = new bool[colliders.Length];
+            for (int i = 0; i < colliders.Length; i++)
+                originalColliderStates[i] = colliders[i] != null && colliders[i].enabled;
         }
 
         private void OnEnable()
@@ -76,55 +85,15 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 director.PhaseChanged -= HandlePhaseChanged;
         }
 
-        /// <summary>Tries to equip this item in the first compatible nearby zone.</summary>
-        public bool TryAutoEquip()
-        {
-            if (equipZones == null)
-                return false;
-
-            foreach (PPEEquipZone zone in equipZones)
-            {
-                if (zone != null && zone.TryEquip(this))
-                    return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>Attaches this item to a compatible zone.</summary>
-        public void EquipToZone(PPEEquipZone zone)
-        {
-            if (zone == null || itemData == null)
-                return;
-
-            if (equippedZone != null && equippedZone != zone)
-                equippedZone.RemoveItem(this);
-
-            equippedZone = zone;
-            transform.SetParent(zone.transform, false);
-            transform.localPosition = Vector3.zero;
-            transform.localRotation = Quaternion.identity;
-
-            Rigidbody body = GetComponent<Rigidbody>();
-            if (body != null)
-                body.isKinematic = true;
-        }
-
-        /// <summary>Removes this item from its current zone.</summary>
-        public void Unequip()
-        {
-            if (equippedZone != null)
-                equippedZone.RemoveItem(this);
-        }
-
-        /// <summary>Restores this item to its original scene position.</summary>
+        /// <summary>Restores this cabinet copy's original position, visual and interaction for a retry.</summary>
         public void ResetState()
         {
-            if (equippedZone != null)
-                equippedZone.RemoveItem(this);
-
+            acquired = false;
             transform.SetParent(initialParent, true);
             transform.SetPositionAndRotation(initialPosition, initialRotation);
+            SetAcquiredVisual(false);
+            if (interactable != null)
+                interactable.SetInteractionEnabled(true);
 
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
@@ -133,24 +102,72 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }
-        }
 
-        /// <summary>Clears the owning zone reference during unequip/reset.</summary>
-        public void ClearEquippedZone(PPEEquipZone zone)
-        {
-            if (equippedZone == zone)
-                equippedZone = null;
+            if (interactable != null)
+                interactable.SetInteractionEnabled(true);
         }
 
         private void HandleReleased(ScenarioInteractable source)
         {
-            TryAutoEquip();
+            if (!acquired)
+                return;
+
+            transform.SetParent(initialParent, true);
+            transform.SetPositionAndRotation(initialPosition, initialRotation);
+            Rigidbody body = GetComponent<Rigidbody>();
+            if (body != null)
+            {
+                body.isKinematic = true;
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
         }
 
         private void HandleGrabbed(ScenarioInteractable source)
         {
-            if (equippedZone != null)
-                equippedZone.RemoveItem(this);
+            if (acquired)
+                return;
+
+            if (ppeState == null)
+            {
+                UnityEngine.Debug.LogError($"[CA] {name}: PlayerPPEState reference is missing.", this);
+                return;
+            }
+
+            ppeState.TryAcquire(this);
+        }
+
+        /// <summary>Marks this copy as collected and hides its model/collider.</summary>
+        public void MarkAcquired()
+        {
+            acquired = true;
+            SetAcquiredVisual(true);
+        }
+
+        /// <summary>Hides or restores this physical copy's visual and colliders after acquisition/reset.</summary>
+        public void SetAcquiredVisual(bool hidden)
+        {
+            for (int i = 0; i < visualRenderers.Length; i++)
+            {
+                if (visualRenderers[i] != null)
+                    visualRenderers[i].enabled = hidden ? false : (i < originalRendererStates.Length && originalRendererStates[i]);
+            }
+
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null)
+                    colliders[i].enabled = hidden ? false : (i < originalColliderStates.Length && originalColliderStates[i]);
+            }
+
+            if (interactable != null)
+                interactable.SetInteractionEnabled(!hidden);
+        }
+
+        /// <summary>Disables this duplicate copy while keeping its shelf visual visible.</summary>
+        public void DisableInteractionAsDuplicate()
+        {
+            if (interactable != null)
+                interactable.SetInteractionEnabled(false);
         }
 
         private void HandlePhaseChanged(ChemicalAlertDirector.Phase phase)

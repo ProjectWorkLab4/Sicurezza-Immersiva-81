@@ -88,7 +88,6 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             Register("2", "stampa stato perimetro", PrintSpillPerimeterState);
             Register("3", "completa cleanup debug", CompleteCleanupDebug);
             Register("4", "stampa stato cleanup", PrintCleanupState);
-            Register("5", "forza uscita safe", ForceExitSafe);
             Register("6", "stampa esito e recap", PrintResultRecap);
             Register("7", "esegue lo smoke test completo", RunSmokeTest);
             Register("8", "richiede un hint Guided", RequestDirectorHint);
@@ -183,8 +182,8 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 string[] requiredMarkerNames =
                 {
                     "SPAWN_Player", "POS_Barrel", "POS_Puddle", "POS_VentButton", "POS_Truck",
-                    "POS_SDS", "POS_PPECabinet", "POS_SpillKit", "POS_WasteBag",
-                    "ZONE_ExitSafe", "ZONE_SpillArea"
+                    "POS_SDS", "POS_PPECabinet", "POS_SpillKit",
+                    "ZONE_SpillArea"
                 };
                 List<Transform> foundMarkers = new List<Transform>();
                 foreach (string requiredMarkerName in requiredMarkerNames)
@@ -588,7 +587,7 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 perimeter.PrintState(UnityEngine.Debug.Log);
         }
 
-        /// <summary>Runs the complete perimeter, coverage and disposal debug sequence.</summary>
+        /// <summary>Runs the complete perimeter and absorption debug sequence.</summary>
         [ContextMenu("Complete cleanup debug")]
         public void CompleteCleanupDebug()
         {
@@ -601,26 +600,13 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             cleanup.DebugCompleteCleanup();
         }
 
-        /// <summary>Prints current cleanup coverage and disposal state.</summary>
+        /// <summary>Prints current sheet placement and absorption state.</summary>
         [ContextMenu("Print cleanup state")]
         public void PrintCleanupState()
         {
             CleanupSystem cleanup = FindFirstObjectByType<CleanupSystem>();
             if (cleanup != null)
                 cleanup.PrintState(UnityEngine.Debug.Log);
-        }
-
-        /// <summary>Forces the safe-zone exit resolution.</summary>
-        [ContextMenu("Force safe exit")]
-        public void ForceExitSafe()
-        {
-            ExitSafeZone exit = FindFirstObjectByType<ExitSafeZone>();
-            if (exit == null)
-            {
-                UnityEngine.Debug.LogError("[CA] DebugCommands: ExitSafeZone non trovato.");
-                return;
-            }
-            exit.ForceExit();
         }
 
         /// <summary>Prints the Director result and ActionLog recap.</summary>
@@ -634,25 +620,15 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
 
         /// <summary>
         /// Runs the complete Chemical Alert scenario in sequence using Simulate* commands
-        /// and logs PASS/FAIL for each step (ventilation, SDS, PPE, perimeter, sheets, disposal, exit).
+        /// and logs PASS/FAIL for each step (ventilation, SDS, PPE, ring, sheets, absorption, automatic result).
         /// Can be re-run after a scenario reset.
         /// </summary>
         [ContextMenu("RunSmokeTest")]
         public void RunSmokeTest()
         {
             ChemicalAlertDirector director = FindDirector();
-            if (director != null)
-            {
-                if (director.CurrentPhase == ChemicalAlertDirector.Phase.Briefing)
-                {
-                    director.AdvancePhase();
-                    director.AdvancePhase();
-                }
-                else if (director.CurrentPhase == ChemicalAlertDirector.Phase.Scan)
-                {
-                    director.AdvancePhase();
-                }
-            }
+            if (director == null)
+                return;
 
             // 1. Ventilazione
             VentTerminal ventTerminal = FindFirstObjectByType<VentTerminal>();
@@ -685,9 +661,6 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 ? puddle.CurrentVariant
                 : (sds != null ? sds.CurrentVariant : null);
             PPEItemObject[] ppeObjects = FindObjectsByType<PPEItemObject>(FindObjectsSortMode.None);
-            PPEEquipZone[] equipZones = ppeState != null && ppeState.Zones != null && ppeState.Zones.Length > 0
-                ? ppeState.Zones
-                : FindObjectsByType<PPEEquipZone>(FindObjectsSortMode.None);
 
             if (variant != null && variant.RequiredPpe != null)
             {
@@ -697,19 +670,18 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                         continue;
 
                     PPEItemObject itemObj = ppeObjects.FirstOrDefault(item => item != null && item.ItemData == required);
-                    PPEEquipZone zone = equipZones.FirstOrDefault(z => z != null && z.Slot == required.EquipmentSlot);
-                    if (itemObj != null && zone != null)
+                    if (itemObj != null)
                     {
                         SimulateGrab(itemObj.gameObject.name);
-                        itemObj.transform.position = zone.transform.position;
                         SimulateRelease(itemObj.gameObject.name);
                     }
                 }
             }
-            bool ppePass = ppeState != null && variant != null && ppeState.HasRequiredSet(variant);
+            bool ppePass = ppeState != null && variant != null &&
+                ppeState.HasRequiredSet(variant) && ppeState.HasAllRequiredProtection;
             UnityEngine.Debug.Log($"[CA] SmokeTest 3/7 DPI: {(ppePass ? "PASS" : "FAIL")}");
 
-            // 4. Perimetro
+            // 4. Anello contenitivo singolo
             PerimeterSlots perimeter = FindFirstObjectByType<PerimeterSlots>();
             PerimeterSlot[] slots = FindObjectsByType<PerimeterSlot>(FindObjectsSortMode.None)
                 .OrderBy(s => s.name)
@@ -717,18 +689,17 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             SpillSausage[] sausages = FindObjectsByType<SpillSausage>(FindObjectsSortMode.None)
                 .OrderBy(s => s.name)
                 .ToArray();
-            int pairCount = Mathf.Min(slots.Length, sausages.Length);
-            for (int i = 0; i < pairCount; i++)
+            if (slots.Length > 0 && sausages.Length > 0)
             {
-                SimulateGrab(sausages[i].gameObject.name);
-                sausages[i].transform.position = slots[i].transform.position;
-                SimulateRelease(sausages[i].gameObject.name);
+                SimulateGrab(sausages[0].gameObject.name);
+                sausages[0].transform.position = slots[0].transform.position;
+                SimulateRelease(sausages[0].gameObject.name);
             }
             bool perimeterPass = perimeter != null && perimeter.IsComplete &&
                 puddle != null && puddle.Contained;
             UnityEngine.Debug.Log($"[CA] SmokeTest 4/7 perimetro: {(perimeterPass ? "PASS" : "FAIL")}");
 
-            // 5. Fogli
+            // 5. Fogli assorbenti (tre fogli posizionati sulla perdita)
             CleanupSystem cleanup = FindFirstObjectByType<CleanupSystem>();
             AbsorbentSheet[] sheets = FindObjectsByType<AbsorbentSheet>(FindObjectsSortMode.None)
                 .OrderBy(s => s.name)
@@ -748,29 +719,25 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 cleanup.PlacedCount >= cleanup.RequiredSheetCount;
             UnityEngine.Debug.Log($"[CA] SmokeTest 5/7 fogli: {(sheetsPass ? "PASS" : "FAIL")}");
 
-            // 6. Smaltimento
-            WasteBag wasteBag = FindFirstObjectByType<WasteBag>();
-            for (int i = 0; i < sheets.Length; i++)
-            {
-                if (sheets[i] != null && sheets[i].IsPlaced && wasteBag != null)
-                {
-                    SimulateGrab(sheets[i].gameObject.name);
-                    sheets[i].transform.position = wasteBag.transform.position;
-                    SimulateRelease(sheets[i].gameObject.name);
-                }
-            }
-            bool disposalPass = cleanup != null && cleanup.DisposedCount >= cleanup.RequiredSheetCount &&
-                cleanup.IsCleanupComplete && puddle != null && puddle.Covered;
-            UnityEngine.Debug.Log($"[CA] SmokeTest 6/7 smaltimento: {(disposalPass ? "PASS" : "FAIL")}");
+            // 6. Attendi l'assorbimento 4.5s con il timer debug (la visual resta code-driven, senza clip Animator).
+            float absorptionDuration = director.CurrentConfig == null
+                ? 4.5f
+                : director.CurrentConfig.AbsorptionDurationSeconds;
+            if (cleanup != null)
+                cleanup.AdvanceDebugTime(absorptionDuration);
+            bool absorptionPass = cleanup != null && cleanup.IsCleanupComplete &&
+                puddle != null && puddle.Covered && puddle.CurrentRadius <= 0.01f;
+            UnityEngine.Debug.Log($"[CA] SmokeTest 6/7 assorbimento: {(absorptionPass ? "PASS" : "FAIL")}");
 
-            // 7. Uscita
-            ForceExitSafe();
-            bool exitPass = director != null && director.Outcome == Outcome.Success &&
+            // 7. Risoluzione automatica dopo il delay configurato (default 2s).
+            float successDelay = director.CurrentConfig == null ? 2f : director.CurrentConfig.SuccessDelaySeconds;
+            director.AdvanceCompletionDebugTime(successDelay);
+            bool resultPass = director.Outcome == Outcome.Success &&
                 director.LastResult != null && director.LastResult.Outcome == Outcome.Success;
-            UnityEngine.Debug.Log($"[CA] SmokeTest 7/7 uscita: {(exitPass ? "PASS" : "FAIL")}");
+            UnityEngine.Debug.Log($"[CA] SmokeTest 7/7 esito automatico: {(resultPass ? "PASS" : "FAIL")}");
 
             int passedSteps = (ventPass ? 1 : 0) + (sdsPass ? 1 : 0) + (ppePass ? 1 : 0) +
-                (perimeterPass ? 1 : 0) + (sheetsPass ? 1 : 0) + (disposalPass ? 1 : 0) + (exitPass ? 1 : 0);
+                (perimeterPass ? 1 : 0) + (sheetsPass ? 1 : 0) + (absorptionPass ? 1 : 0) + (resultPass ? 1 : 0);
             UnityEngine.Debug.Log($"[CA] SmokeTest summary: {passedSteps}/7 {(passedSteps == 7 ? "PASS" : "FAIL")}");
         }
 

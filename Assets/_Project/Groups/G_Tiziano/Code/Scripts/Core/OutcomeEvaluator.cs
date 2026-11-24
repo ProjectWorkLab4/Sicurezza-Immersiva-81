@@ -15,7 +15,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             int heartsRemaining,
             float timeRemainingSeconds,
             bool lossContained,
-            bool wasteDisposed,
+            bool cleanupComplete,
             bool ventilationFailed,
             float totalDurationSeconds = 180f)
         {
@@ -25,7 +25,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
 
             if (heartsRemaining <= 0 || timeRemainingSeconds <= 0f || ventilationFailed)
                 outcome = Outcome.Failure;
-            else if (allActionsCorrect && lossContained && wasteDisposed)
+            else if (allActionsCorrect && lossContained && cleanupComplete)
                 outcome = Outcome.Success;
             else
                 outcome = Outcome.Partial;
@@ -35,7 +35,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
                 heartsRemaining,
                 timeRemainingSeconds,
                 lossContained,
-                wasteDisposed,
+                cleanupComplete,
                 ventilationFailed,
                 totalDurationSeconds);
 
@@ -96,7 +96,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
                 true,
                 true), Outcome.Failure, output, ref passed, ref total);
 
-            CheckCase("partial_waste_not_disposed", Evaluate(
+            CheckCase("partial_cleanup_incomplete", Evaluate(
                 CreateCorrectLog(),
                 3,
                 120f,
@@ -131,7 +131,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             int heartsRemaining,
             float timeRemainingSeconds,
             bool lossContained,
-            bool wasteDisposed,
+            bool cleanupComplete,
             bool ventilationFailed,
             float totalDurationSeconds)
         {
@@ -154,7 +154,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             if (!lossContained)
                 scores[Dimension.Execution] = Math.Min(scores[Dimension.Execution], 30);
 
-            if (!wasteDisposed)
+            if (!cleanupComplete)
                 scores[Dimension.Execution] = Math.Min(scores[Dimension.Execution], 60);
 
             int timeScore = totalDurationSeconds <= 0f
@@ -187,7 +187,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             log.Add("sds.inspect", true, Dimension.Awareness, string.Empty);
             log.Add("ppe.equip.correct", true, Dimension.Safety, string.Empty);
             log.Add("spill.contain", true, Dimension.Execution, string.Empty);
-            log.Add("waste.dispose", true, Dimension.Execution, string.Empty);
+            log.Add("cleanup.complete", true, Dimension.Execution, string.Empty);
             return log;
         }
 

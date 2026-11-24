@@ -1,16 +1,13 @@
 # HANDOFF — Chemical Alert
 
 ## Stato corrente (riscrivere a ogni task, max 15 righe)
-- Ultima task completata: AGGIUSTAMENTO T17b — Asset modellatore (panno, salsicciotto, pulsante) in scena.
-- T18: creati `Docs/TECHNICAL_DOCS.md` (architettura, eventi Director per la UI, chiavi localizzazione/ActionLog, flowchart Mermaid, 28 script, asset) e `Docs/TEST_COMMANDS_MANUAL.md` (controlli Meta Quest 3/Simulator + 34 comandi di debug).
-- Scena composta SOLO da prefab in `Level/Prefabs/` (ogni root è un'istanza); riferimenti cross-object riparati dopo la conversione (erano rimasti asset→asset).
-- 3 nuovi asset da `Shared/Art/Models/` istanziati senza duplicarli: `MESH_SALSICCIOTTO_ONEDRIVE` (anello, scala compensata per le catene slot/pozzanghera), `MESH_PANNO_ASSORBENTE_TEAM` (foglio piatto) e `MESH_PULSANTI_TEAM` (pannello 2 bottoni rosso/verde).
-- Tavolino `SpillKit` (dietro il camion, Sud): fila di 6 salsicciotti-anello a Z=-3.65 + catasta di 6 panni a (0.55, -3.12); `SheetTray` rimosso perché i panni vi finivano dentro.
-- `VentilationButton` sul muro Sud a sinistra del tavolino (`(1.02, 1.40, -4.855)`, pannello a filo muro); rimossa la colonnina provvisoria di fianco al camion; `POS_VentButton` spostato col pulsante.
-- Colliders salsicciotti/panni ridimensionati per grab e snap; `ResetState` coerente con le nuove posizioni iniziali.
-- In attesa dal modellatore: i 3 DPI (occhialini, maschera, guanti) → armadietto/scaffale a destra del tavolino.
-- Play Mode: 3 `RunSmokeTest` consecutivi con reset → `Success` (`7/7 PASS`); 0 errori di gioco; validazione scena 0 issue; scena salvata.
-- Prossima task: T19 — Controllo prestazioni (Quest).
+- Ultima verifica completata: punto 2 di `TASK_PROGRESS.md` — Play Mode, smoke test, replay e seconda perdita T16.
+- Scena `SCN_ChemicalAlert`: reload da disco, 20 root / 566 GameObject, 0 missing script, 0 prefab rotti; riferimenti Director e `PlayerPPEState` assegnati.
+- `RunSmokeTest` eseguito 3 volte dopo reset: ogni run `7/7 PASS`, `Outcome=Success`, 3 cuori, 3 DPI, pozzanghera contenuta/coperta e cleanup completo.
+- Replay: seed fisso `81081` riproduce `variantB` e seconda perdita a `29.85 s`; seed casuali distinti e varianti diverse.
+- T16: perdita attivata a 30 s, `event.second_spill` registrato, crescita x2, anello singolo `1/1` ferma la crescita; bonifica ed esito `Success` verificati.
+- Aggiornati `00_BRIEF.md`, `Docs/TECHNICAL_DOCS.md`, `Docs/TEST_COMMANDS_MANUAL.md`, `HANDOFF.md` e `TASK_PROGRESS.md`.
+- Prossimo: punto 3 Simulator/headset (bloccato finché XR Simulator 2.0 non è avviato); poi restano i punti 4, 5 e 7.
 
 ## Log (solo append, max 8 righe per task)
 ### Txx — titolo — data
@@ -258,3 +255,10 @@
 - File: `Level/Scenes/SCN_ChemicalAlert.unity`, `Docs/Agent/HANDOFF.md`.
 - Comando di test: `7` → `RunSmokeTest` → `7/7 PASS`, `Outcome=Success`.
 - Test Simulator: verificare 2 salsicciotti sul piano e 4 accessibili dal ripiano inferiore.
+
+### TASK_PROGRESS punti 1–2 — Audit scena e verifica runtime — 2026-11-24
+- Fatto: reload/audit scena; `RunSmokeTest` ×3, replay seed fisso/casuale e seconda perdita T16 con anello singolo verificati.
+- File: `Docs/Agent/Chemical_Alert/{00_BRIEF.md,HANDOFF.md,TASK_PROGRESS.md}`, `Docs/{TECHNICAL_DOCS.md,TEST_COMMANDS_MANUAL.md}`.
+- Test: smoke `7/7 PASS` ×3; seed `81081` deterministico (`variantB`, `29.85 s`); seed casuali diversi; T16 a 30 s, crescita fermata da contenimento `1/1`, esito `Success`.
+- Console: nessun errore/warning di gameplay; alla chiusura Play Mode restano messaggi OVR/XR di teardown.
+- Problemi aperti: Simulator/headset non verificati; punti 3–7 ancora aperti in `TASK_PROGRESS.md`.

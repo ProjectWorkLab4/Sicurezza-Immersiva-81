@@ -54,7 +54,10 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         private void OnEnable()
         {
             if (interactable != null)
+            {
                 interactable.Inspected += HandleInspected;
+                interactable.Activated += HandleActivated;
+            }
             if (director != null)
                 director.PhaseChanged += HandlePhaseChanged;
         }
@@ -62,7 +65,10 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         private void OnDisable()
         {
             if (interactable != null)
+            {
                 interactable.Inspected -= HandleInspected;
+                interactable.Activated -= HandleActivated;
+            }
             if (director != null)
                 director.PhaseChanged -= HandlePhaseChanged;
         }
@@ -94,9 +100,23 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             hasBeenRead = true;
             SdsRead?.Invoke(currentVariant);
             if (director != null)
+            {
                 director.RecordAction("sds.inspect", true, Dimension.Awareness, "chemical.sds.read");
+                director.NotifySdsRead(currentVariant);
+            }
             UnityEngine.Debug.Log(
                 $"[CA] SdsRead: {name}; variant={(currentVariant == null ? "None" : currentVariant.VariantId)}");
+        }
+
+        private void HandleActivated(ScenarioInteractable source)
+        {
+            if (director == null)
+                return;
+
+            if (hasBeenRead)
+                director.ToggleSdsPanel(currentVariant);
+            else
+                HandleInspected(source);
         }
 
         private void HandlePhaseChanged(ChemicalAlertDirector.Phase phase)

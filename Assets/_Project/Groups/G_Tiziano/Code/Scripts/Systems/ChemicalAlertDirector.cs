@@ -43,6 +43,9 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         [SerializeField] private VentilationEscalation ventilationEscalation;
         [SerializeField] private CleanupSystem cleanupSystem;
         [SerializeField] private VentilationSystem ventilationSystem;
+        [SerializeField] private Puddle puddle;
+        [SerializeField] private SdsItem sdsItem;
+        [SerializeField] private PlayerPPEState playerPPEState;
         [SerializeField] private ScenarioInputBindings inputBindings;
         [SerializeField] private OVRInput.Controller hintController = OVRInput.Controller.RTouch;
         [SerializeField] private ScenarioInteractable[] guidedHighlightTargets = new ScenarioInteractable[0];
@@ -62,9 +65,16 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private bool lossContained;
         private bool cleanupComplete;
         private bool secondSpillRegistered;
+        private bool ventilationActivated;
+        private bool sdsRead;
+        private bool completionDelayPending;
+        private bool sdsPanelOpen;
+        private bool eyeProtectionWarningRaised;
+        private float completionDelayRemaining;
         private DangerLevel dangerLevel = DangerLevel.Down;
         private float lastCorrectProgressTime;
         private int nextHintIndex;
+        private float lastVignetteProgress = -1f;
 
         /// <summary>Raised whenever the scenario phase changes.</summary>
         public event Action<Phase> PhaseChanged;
@@ -78,6 +88,20 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public event Action<string> HintRequested;
         /// <summary>Raised when the readable ventilation danger level changes.</summary>
         public event Action<DangerLevel> DangerLevelChanged;
+        /// <summary>Raised when the SDS is read so the SDS panel can be shown.</summary>
+        public event Action<SubstanceVariant> SdsRead;
+        /// <summary>Raised when a PPE type is acquired.</summary>
+        public event Action<string> PpeAcquired;
+        /// <summary>Raised whenever current hearts change.</summary>
+        public event Action<int> HeartsChanged;
+        /// <summary>Raised with a stable error localization key.</summary>
+        public event Action<string> ErrorReported;
+        /// <summary>Raised when the SDS panel should close.</summary>
+        public event Action SdsPanelDismissRequested;
+        /// <summary>Raised with vignette intensity (zero hides) and the current hazard color.</summary>
+        public event Action<float, Color> ToxicVignetteChanged;
+        /// <summary>Raised when a cough cue should be played.</summary>
+        public event Action CoughRequested;
 
         /// <summary>Gets the current phase.</summary>
         public Phase CurrentPhase => phase;
@@ -101,6 +125,17 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public int EmittedHintCount => nextHintIndex;
         /// <summary>Gets whether reduced Crisis effects are active.</summary>
         public bool ReducedEffects => disturbanceController != null && disturbanceController.ReducedEffects;
+        /// <summary>Gets whether industrial ventilation is currently on.</summary>
+        public bool IsVentilationOn => ventilationSystem != null && ventilationSystem.IsOn;
+        /// <summary>Gets whether the SDS information panel is currently open.</summary>
+        public bool IsSdsPanelOpen => sdsPanelOpen;
+
+        /// <summary>Publishes current health to the UI/Game System boundary.</summary>
+        public void NotifyHeartsChanged(int value)
+        {
+            hearts = Mathf.Max(0, value);
+            HeartsChanged?.Invoke(hearts);
+        }
 
         private void Awake()
         {
@@ -119,6 +154,13 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 ventilationEscalation.LossStarted += HandleVentilationLoss;
             if (cleanupSystem != null)
                 cleanupSystem.CleanupComplete += HandleCleanupComplete;
+            if (puddle != null)
+                puddle.ContainedChanged += HandleContainedChanged;
+            if (ventilationEscalation != null)
+            {
+                ventilationEscalation.CoughTriggered += HandleCoughTriggered;
+                ventilationEscalation.VentilationStageChanged += HandleVentilationStageChanged;
+            }
         }
 
         private void OnDisable()
@@ -129,14 +171,30 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 ventilationEscalation.LossStarted -= HandleVentilationLoss;
             if (cleanupSystem != null)
                 cleanupSystem.CleanupComplete -= HandleCleanupComplete;
+            if (puddle != null)
+                puddle.ContainedChanged -= HandleContainedChanged;
+            if (ventilationEscalation != null)
+            {
+                ventilationEscalation.CoughTriggered -= HandleCoughTriggered;
+                ventilationEscalation.VentilationStageChanged -= HandleVentilationStageChanged;
+            }
         }
 
         private void Update()
         {
             UpdateDangerLevel();
+            UpdateToxicVignette();
 
             if (phase != Phase.Action || outcome.HasValue)
                 return;
+
+            if (completionDelayPending)
+            {
+                completionDelayRemaining = Mathf.Max(0f, completionDelayRemaining - Time.deltaTime);
+                if (completionDelayRemaining <= 0f)
+                    CompleteAutomaticResult();
+                return;
+            }
 
             if (difficulty == Difficulty.Guided && activeConfiguration != null &&
                 activeConfiguration.HintsEnabled)
@@ -202,16 +260,117 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         {
             if (isCorrect)
                 lastCorrectProgressTime = Time.time;
-            return actionLog.Add(actionId, isCorrect, dimension, consequenceKey);
+            ActionLogEntry entry = actionLog.Add(actionId, isCorrect, dimension, consequenceKey);
+            TryScheduleAutomaticResult();
+            return entry;
+        }
+
+        /// <summary>Registers ventilation activation as a scenario objective.</summary>
+        public void NotifyVentilationActivated()
+        {
+            if (ventilationActivated)
+                return;
+
+            ventilationActivated = true;
+            RecordAction("ventilation.activate", true, Dimension.Awareness, "chemical.ventilation.on");
+            UnityEngine.Debug.Log("[CA] Objective complete: ventilation.activate.");
+            TryScheduleAutomaticResult();
+        }
+
+        /// <summary>Publishes the SDS content event and marks the SDS objective complete.</summary>
+        public void NotifySdsRead(SubstanceVariant variant)
+        {
+            if (!sdsRead)
+            {
+                sdsRead = true;
+                TryScheduleAutomaticResult();
+            }
+
+            sdsPanelOpen = true;
+            SdsRead?.Invoke(variant);
+            UnityEngine.Debug.Log($"[CA] SDS data exposed: variant={(variant == null ? "None" : variant.VariantId)}.");
+        }
+
+        /// <summary>Toggles the SDS panel when the already-read SDS is activated again.</summary>
+        public void ToggleSdsPanel(SubstanceVariant variant)
+        {
+            if (sdsPanelOpen)
+            {
+                DismissSdsPanel();
+                return;
+            }
+
+            NotifySdsRead(variant);
+        }
+
+        /// <summary>Requests that the SDS panel be dismissed by B or re-interaction.</summary>
+        public void DismissSdsPanel()
+        {
+            if (!sdsPanelOpen)
+                return;
+
+            sdsPanelOpen = false;
+            SdsPanelDismissRequested?.Invoke();
+        }
+
+        /// <summary>Requests the optional cough sound cue through the scenario boundary.</summary>
+        public void RequestCoughCue()
+        {
+            CoughRequested?.Invoke();
+        }
+
+        /// <summary>Publishes PPE acquisition and rechecks automatic completion.</summary>
+        public void NotifyPpeAcquired(PPEItem item)
+        {
+            if (item == null)
+                return;
+
+            PpeAcquired?.Invoke(item.ItemId);
+            UnityEngine.Debug.Log($"[CA] Objective progress: PPE acquired={item.ItemId}.");
+            TryScheduleAutomaticResult();
+        }
+
+        /// <summary>Logs and publishes a gameplay error, optionally charging one life.</summary>
+        public void ReportError(string actionId, string errorKey, Dimension dimension, bool costsLife)
+        {
+            if (string.IsNullOrWhiteSpace(errorKey))
+            {
+                UnityEngine.Debug.LogError("[CA] Director: ReportError requires a stable error key.", this);
+                return;
+            }
+
+            string resolvedActionId = string.IsNullOrWhiteSpace(actionId) ? "error.unspecified" : actionId;
+            actionLog.Add(resolvedActionId, false, dimension, errorKey);
+            ErrorReported?.Invoke(errorKey);
+            UnityEngine.Debug.Log($"[CA] ErrorReported: key={errorKey}; action={resolvedActionId}; difficulty={difficulty}; costsLife={costsLife}.");
+
+            if (costsLife && difficulty != Difficulty.Guided && playerHealth != null)
+                playerHealth.TakeDamage("ppe.error", activeConfiguration == null ? 5f : activeConfiguration.PainDurationSeconds, true, false);
+        }
+
+        /// <summary>Advances the automatic completion delay for deterministic debug checks.</summary>
+        public void AdvanceCompletionDebugTime(float seconds)
+        {
+            if (!completionDelayPending || seconds <= 0f)
+                return;
+
+            completionDelayRemaining = Mathf.Max(0f, completionDelayRemaining - seconds);
+            if (completionDelayRemaining <= 0f)
+                CompleteAutomaticResult();
         }
 
         /// <summary>Resets phase, timer, hearts, outcome, result and action log.</summary>
         public void ResetScenario()
         {
+            if (sdsPanelOpen)
+                SdsPanelDismissRequested?.Invoke();
+            sdsPanelOpen = false;
             activeConfiguration = FindConfiguration(difficulty);
             phase = Phase.Briefing;
             timeRemaining = activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds;
             hearts = activeConfiguration == null ? 3 : activeConfiguration.Hearts;
+            if (playerHealth != null)
+                playerHealth.ResetState();
             outcome = null;
             lastResult = null;
             timeUpRaised = false;
@@ -219,12 +378,20 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             lossContained = false;
             cleanupComplete = false;
             secondSpillRegistered = false;
+            ventilationActivated = false;
+            sdsRead = false;
+            completionDelayPending = false;
+            completionDelayRemaining = 0f;
+            sdsPanelOpen = false;
+            eyeProtectionWarningRaised = false;
+            lastVignetteProgress = -1f;
             lastCorrectProgressTime = Time.time;
             nextHintIndex = 0;
             actionLog.Clear();
             SetDangerLevel(DangerLevel.Down);
             ApplyDifficultyBehavior();
             PhaseChanged?.Invoke(phase);
+            SetPhase(Phase.Action);
         }
 
         /// <summary>Records the dynamic second-spill event for listeners and the result recap.</summary>
@@ -314,30 +481,6 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 logger($"[CA] Result action: {entry.ActionId}; correct={entry.IsCorrect}; dimension={entry.Dimension}; consequence={entry.ConsequenceKey}");
         }
 
-        /// <summary>Handles a safe-zone exit and resolves Success, Partial or Failure.</summary>
-        public void HandleExitSafe()
-        {
-            if (outcome.HasValue)
-                return;
-
-            RecordAction("exit.safe", true, Dimension.Decision, "exit.safe");
-            if (hearts <= 0 || ventilationFailed)
-            {
-                CompleteResult(Core.Outcome.Failure, ventilationFailed);
-                return;
-            }
-
-            ScenarioResult result = outcomeEvaluator.Evaluate(
-                actionLog,
-                hearts,
-                timeRemaining,
-                lossContained,
-                cleanupComplete,
-                ventilationFailed,
-                activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds);
-            CompleteResult(result.Outcome, false, result);
-        }
-
         private void SetPhase(Phase nextPhase)
         {
             if (phase == nextPhase)
@@ -391,8 +534,89 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private void HandleCleanupComplete()
         {
             cleanupComplete = true;
-            lossContained = true;
+            lossContained = puddle == null || puddle.Contained;
             UnityEngine.Debug.Log("[CA] Director: CleanupComplete received.");
+            TryScheduleAutomaticResult();
+        }
+
+        private void HandleContainedChanged(bool isContained)
+        {
+            lossContained = isContained;
+            TryScheduleAutomaticResult();
+        }
+
+        private void HandleCoughTriggered()
+        {
+            RequestCoughCue();
+        }
+
+        private void HandleVentilationStageChanged(float progress)
+        {
+            UpdateToxicVignette();
+        }
+
+        private void TryScheduleAutomaticResult()
+        {
+            if (completionDelayPending || outcome.HasValue || phase != Phase.Action ||
+                !ventilationActivated || !sdsRead ||
+                playerPPEState == null || !playerPPEState.HasAllRequiredProtection ||
+                !lossContained || !cleanupComplete || puddle == null || !puddle.Covered)
+                return;
+
+            completionDelayPending = true;
+            completionDelayRemaining = activeConfiguration == null
+                ? 2f
+                : activeConfiguration.SuccessDelaySeconds;
+            UnityEngine.Debug.Log($"[CA] Objectives complete; resolving result in {completionDelayRemaining:0.00}s.");
+            if (completionDelayRemaining <= 0f)
+                CompleteAutomaticResult();
+        }
+
+        private void CompleteAutomaticResult()
+        {
+            if (!completionDelayPending || outcome.HasValue)
+                return;
+
+            completionDelayPending = false;
+            ScenarioResult result = outcomeEvaluator.Evaluate(
+                actionLog,
+                hearts,
+                timeRemaining,
+                lossContained,
+                cleanupComplete,
+                ventilationFailed,
+                activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds);
+            CompleteResult(result.Outcome, ventilationFailed, result);
+        }
+
+        private void UpdateToxicVignette()
+        {
+            bool toxic = ventilationEscalation != null &&
+                ventilationEscalation.CurrentStage == VentilationEscalation.Stage.Toxic &&
+                (ventilationSystem == null || !ventilationSystem.IsOn);
+            bool eyesProtected = playerPPEState != null && playerPPEState.HasEyeProtection;
+            float intensity = toxic && !eyesProtected
+                ? Mathf.Clamp01(ventilationEscalation.StageProgress)
+                : 0f;
+            Color tint = puddle != null && puddle.CurrentVariant != null
+                ? puddle.CurrentVariant.PuddleColor
+                : Color.yellow;
+
+            if (toxic && !eyesProtected && !eyeProtectionWarningRaised)
+            {
+                eyeProtectionWarningRaised = true;
+                ReportError(
+                    "ventilation.toxic.without.eyes",
+                    "chemical.error.eye_protection",
+                    Dimension.Safety,
+                    false);
+            }
+
+            if (Mathf.Abs(intensity - lastVignetteProgress) > 0.01f)
+            {
+                lastVignetteProgress = intensity;
+                ToxicVignetteChanged?.Invoke(intensity, tint);
+            }
         }
 
         private bool EmitNextHint(string source)

@@ -30,6 +30,9 @@ namespace SI81.Tiziano.ChemicalAlert.Data
         [SerializeField, Min(0f)] private float secondSpillWindowEndSeconds = 40f;
         [SerializeField, Min(1f)] private float secondSpillGrowthMultiplier = 2f;
         [SerializeField] private AudioClip secondSpillAudio;
+        [SerializeField, Min(1)] private int requiredAbsorbentSheetCount = 3;
+        [SerializeField, Min(0.1f)] private float absorptionDurationSeconds = 4.5f;
+        [SerializeField, Min(0f)] private float successDelaySeconds = 2f;
         [SerializeField] private bool defeatOnTimeout = true;
         [SerializeField, Min(0)] private int successPoints;
         [SerializeField, Min(0)] private int partialPoints;
@@ -79,6 +82,12 @@ namespace SI81.Tiziano.ChemicalAlert.Data
         public float SecondSpillGrowthMultiplier => secondSpillGrowthMultiplier;
         /// <summary>Gets the optional second-spill audio signal.</summary>
         public AudioClip SecondSpillAudio => secondSpillAudio;
+        /// <summary>Gets the number of sheets to place on the puddle for absorption.</summary>
+        public int RequiredAbsorbentSheetCount => requiredAbsorbentSheetCount;
+        /// <summary>Gets the time used for the puddle absorption scale-down.</summary>
+        public float AbsorptionDurationSeconds => absorptionDurationSeconds;
+        /// <summary>Gets the delay between completing gameplay objectives and resolving the result.</summary>
+        public float SuccessDelaySeconds => successDelaySeconds;
         /// <summary>Gets whether timeout causes defeat.</summary>
         public bool DefeatOnTimeout => defeatOnTimeout;
         /// <summary>Gets success points.</summary>
@@ -104,6 +113,9 @@ namespace SI81.Tiziano.ChemicalAlert.Data
             secondSpillWindowStartSeconds = Mathf.Max(0f, secondSpillWindowStartSeconds);
             secondSpillWindowEndSeconds = Mathf.Max(secondSpillWindowStartSeconds, secondSpillWindowEndSeconds);
             secondSpillGrowthMultiplier = Mathf.Max(1f, secondSpillGrowthMultiplier);
+            requiredAbsorbentSheetCount = Mathf.Clamp(requiredAbsorbentSheetCount, 1, 6);
+            absorptionDurationSeconds = Mathf.Max(0.1f, absorptionDurationSeconds);
+            successDelaySeconds = Mathf.Max(0f, successDelaySeconds);
         }
     }
 }

@@ -7,7 +7,7 @@ using SI81.Tiziano.ChemicalAlert.Interaction;
 namespace SI81.Tiziano.ChemicalAlert.Systems
 {
     /// <summary>
-    /// Seeds each scenario replay, chooses its substance, shuffles cabinet PPE and schedules the second spill.
+    /// Seeds each scenario replay, chooses its substance, validates the fixed three-item PPE cabinet and schedules the second spill.
     /// </summary>
     public sealed class ScenarioReplayController : MonoBehaviour
     {
@@ -68,6 +68,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         {
             if (!replayPrepared)
                 BeginReplay();
+            if (director != null && director.CurrentPhase == ChemicalAlertDirector.Phase.Action)
+                HandlePhaseChanged(ChemicalAlertDirector.Phase.Action);
         }
 
         private void Update()
@@ -181,7 +183,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
             sdsItem.SetVariant(currentVariant);
             puddle.SetVariant(currentVariant);
-            ShuffleCabinet(config.PpeShufflePool, currentVariant);
+            ValidateCabinet(config.PpeShufflePool, currentVariant);
             director.ReapplyDifficultyBehavior();
 
             secondSpillTriggered = false;
@@ -222,35 +224,52 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             return true;
         }
 
-        private void ShuffleCabinet(PPEItem[] configuredPool, SubstanceVariant variant)
+        private void ValidateCabinet(PPEItem[] configuredPool, SubstanceVariant variant)
         {
             if (configuredPool == null || cabinetItems == null ||
-                configuredPool.Length != cabinetItems.Length || configuredPool.Length == 0)
+                configuredPool.Length != 3 || cabinetItems.Length != 6)
             {
-                UnityEngine.Debug.LogError($"[CA] ReplayController: PPE pool ({(configuredPool == null ? 0 : configuredPool.Length)}) must match cabinet slots ({(cabinetItems == null ? 0 : cabinetItems.Length)}).", this);
+                UnityEngine.Debug.LogError($"[CA] ReplayController: expected 3 PPE types and 6 physical copies; pool={(configuredPool == null ? 0 : configuredPool.Length)}, copies={(cabinetItems == null ? 0 : cabinetItems.Length)}.", this);
                 return;
             }
 
-            List<PPEItem> shuffled = new List<PPEItem>(configuredPool);
-            for (int i = shuffled.Count - 1; i > 0; i--)
+            Dictionary<PPEItem, int> cabinetCounts = new Dictionary<PPEItem, int>();
+            foreach (PPEItem item in configuredPool)
             {
-                int swapIndex = random.Next(i + 1);
-                PPEItem item = shuffled[i];
-                shuffled[i] = shuffled[swapIndex];
-                shuffled[swapIndex] = item;
+                if (item == null)
+                {
+                    UnityEngine.Debug.LogError("[CA] ReplayController: PPE pool contains a null item.", this);
+                    return;
+                }
+                cabinetCounts[item] = 0;
+            }
+
+            foreach (PPEItemObject copy in cabinetItems)
+            {
+                if (copy == null || copy.ItemData == null || !cabinetCounts.ContainsKey(copy.ItemData))
+                {
+                    UnityEngine.Debug.LogError("[CA] ReplayController: cabinet copy is missing or has a PPE type outside the 3-item pool.", this);
+                    return;
+                }
+                cabinetCounts[copy.ItemData]++;
+            }
+
+            foreach (KeyValuePair<PPEItem, int> count in cabinetCounts)
+            {
+                if (count.Value != 2)
+                {
+                    UnityEngine.Debug.LogError($"[CA] ReplayController: expected two cabinet copies of '{count.Key.ItemId}', found {count.Value}.", this);
+                    return;
+                }
             }
 
             foreach (PPEItem required in variant.RequiredPpe)
             {
-                if (required != null && !shuffled.Contains(required))
-                    UnityEngine.Debug.LogError($"[CA] ReplayController: required PPE '{required.ItemId}' is missing from the shuffle pool.", this);
+                if (required != null && !cabinetCounts.ContainsKey(required))
+                    UnityEngine.Debug.LogError($"[CA] ReplayController: required PPE '{required.ItemId}' is missing from the 3-item cabinet.", this);
             }
 
-            for (int i = 0; i < cabinetItems.Length; i++)
-            {
-                if (cabinetItems[i] != null && shuffled[i] != null)
-                    cabinetItems[i].SetItemData(shuffled[i]);
-            }
+            UnityEngine.Debug.Log("[CA] PPE cabinet validated: 3 required types, 2 interactive copies each; no decoys.");
         }
 
         private float ChooseSecondSpillTime(ChemicalAlertConfig config)

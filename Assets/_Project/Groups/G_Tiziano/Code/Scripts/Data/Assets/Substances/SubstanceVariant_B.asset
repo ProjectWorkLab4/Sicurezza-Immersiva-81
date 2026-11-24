@@ -18,7 +18,7 @@ MonoBehaviour:
   requiredPpe:
   - {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
   - {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
-  - {fileID: 11400000, guid: 6b1f1e46f75974c4b959789e1a77c194, type: 2}
+  - {fileID: 11400000, guid: d38dfed623620744dbe24ba6d337dd8c, type: 2}
   growthRate: 0.06
   maxRadius: 1.8
   puddleColor: {r: 0.2, g: 0.65, b: 0.3, a: 1}

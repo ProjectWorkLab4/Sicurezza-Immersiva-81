@@ -95,6 +95,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             state = State.On;
             if (escalation != null)
                 escalation.StopEscalation();
+            if (director != null)
+                director.NotifyVentilationActivated();
             UnityEngine.Debug.Log($"[CA] VentilationSystem: On; escalation stopped.");
         }
 

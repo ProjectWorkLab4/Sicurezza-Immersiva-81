@@ -1,0 +1,33 @@
+SCHEDA DI DATI DI SICUREZZA (SDS) - VERSIONE RAPIDA EMERGENZA
+
+1. IDENTIFICAZIONE SOSTANZA
+- Nome: Acido Formico (concentrazione superiore al 90%)
+- Codice CAS / ONU: 64-18-6 / UN 1779
+- Aspetto e odore: Liquido incolore, emette vapori pungenti e soffocanti
+
+2. PERICOLI PRINCIPALI (AVVERTENZA: PERICOLO)
+- Pittogrammi: Infiammabile | Tossico | Corrosivo e Irritante
+- Infiammabile (H226): Liquido e vapori infiammabili; forma miscele esplosive con l'aria
+- Tossico (H331, H302): Tossico se inalato; nocivo se ingerito
+- Corrosivo e Irritante (H314, EUH071): Provoca gravi ustioni cutanee, lesioni oculari gravi e forte irritazione/corrosione delle vie respiratorie
+
+3. DISPOSITIVI DI PROTEZIONE INDIVIDUALE (DPI OBBLIGATORI)
+- Vie respiratorie: Maschera pieno facciale con filtro per gas acidi (Tipo E o B)
+- Mani: Guanti chimici in gomma butilica o Viton (vietati guanti in lattice o stoffa)
+- Occhi e corpo: Occhiali a tenuta o visiera protettiva e tuta/grembiule antiacido
+
+4. PROCEDURA SVERSAMENTO (CHEMICAL ALERT)
+- Allontanare il personale non addetto e isolare la zona
+- Eliminare immediatamente fiamme libere, scintille e fonti di calore
+- Attivare al massimo la ventilazione o l'aspirazione forzata del locale
+- Contenere e assorbire con materiale inerte (sabbia asciutta, terra o legante per acidi). NON usare segatura o materiali combustibili
+- Evitare che il liquido finisca negli scarichi o nelle fognature
+
+5. MISURE ANTINCENDIO
+- Mezzi idonei: Polvere chimica, anidride carbonica, schiuma resistente all'alcol, acqua nebulizzata
+- Mezzi VIETATI: Getto d'acqua pieno
+
+6. PRIMO SOCCORSO IMMEDIATO
+- Inalazione: Portare subito il soggetto all'aria aperta e chiamare i soccorsi
+- Contatto pelle o occhi: Togliere gli indumenti contaminati e sciacquare con acqua corrente per almeno 15 minuti (usare doccia di emergenza o lavaocchi)
+- Numeri di emergenza: 112 / Centro Antiveleni (06 305 4343)

@@ -6,7 +6,7 @@ using SI81.Tiziano.ChemicalAlert.Interaction;
 namespace SI81.Tiziano.ChemicalAlert.Systems
 {
     /// <summary>
-    /// Manages the ring of spill-containment slots around the puddle.
+    /// Manages placement of the single complete spill-containment ring.
     /// </summary>
     public sealed class PerimeterSlots : MonoBehaviour, IResettable
     {
@@ -29,7 +29,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         /// <summary>Tries to snap a released sausage to the nearest free slot.</summary>
         public bool TryPlace(SpillSausage sausage)
         {
-            if (sausage == null || slots == null)
+            if (sausage == null || slots == null || director != null && director.Outcome.HasValue)
                 return false;
 
             PerimeterSlot nearest = null;
@@ -51,6 +51,22 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 return false;
 
             LogOrderIfNeeded();
+            bool hasGloves = ppeState != null && ppeState.HasGloves;
+            if (director != null)
+            {
+                if (hasGloves)
+                    director.RecordAction("spill.contain", true, Dimension.Execution, "chemical.spill.contained");
+                else
+                    director.ReportError(
+                        "spill.contain.without.gloves",
+                        "chemical.error.gloves",
+                        Dimension.Safety,
+                        true);
+            }
+
+            if (director != null && director.Outcome.HasValue)
+                return false;
+
             nearest.Place(sausage);
             UnityEngine.Debug.Log($"[CA] Perimeter slot filled: {FilledCount}/{SlotCount}");
 
@@ -88,6 +104,12 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         /// <summary>Clears all slots and restores the containment state.</summary>
         public void ResetState()
         {
+            if (sausages != null)
+            {
+                foreach (SpillSausage sausage in sausages)
+                    if (sausage != null) sausage.ResetState();
+            }
+
             if (slots != null)
             {
                 foreach (PerimeterSlot slot in slots)
@@ -147,17 +169,18 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             bool sdsRead = sdsItem != null && sdsItem.HasBeenRead;
             bool ppeReady = ppeState != null && puddle != null &&
                 ppeState.HasRequiredSet(puddle.CurrentVariant);
+            bool ventilationOn = director != null && director.IsVentilationOn;
 
-            if (!sdsRead || !ppeReady)
+            if (!sdsRead || !ppeReady || !ventilationOn)
             {
                 orderErrorLogged = true;
                 if (director != null)
-                    director.RecordAction(
+                    director.ReportError(
                         "spillkit.before-procedure",
-                        false,
+                        "chemical.error.procedure_order",
                         Dimension.Decision,
-                        "chemical.order.spillkit-early");
-                UnityEngine.Debug.Log("[CA] SpillKit order error: used before SDS/PPE; non-blocking.");
+                        false);
+                UnityEngine.Debug.Log($"[CA] Recommended order error: ventilation={ventilationOn}; SDS={sdsRead}; PPE={ppeReady}; action continues.");
             }
         }
     }

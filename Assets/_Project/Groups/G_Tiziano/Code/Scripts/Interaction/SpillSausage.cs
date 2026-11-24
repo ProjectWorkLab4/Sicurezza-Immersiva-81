@@ -11,10 +11,13 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         [SerializeField] private ScenarioInteractable interactable;
         [SerializeField] private PerimeterSlots perimeterSlots;
         [SerializeField] private ChemicalAlertDirector director;
+        [SerializeField] private Transform visual;
+        [SerializeField, Min(1f)] private float placedVisualScaleFactor = 9f;
 
         private Transform initialParent;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
+        private Vector3 initialVisualScale;
         private PerimeterSlot placedSlot;
 
         /// <summary>Gets the current occupying slot.</summary>
@@ -26,10 +29,13 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         {
             if (interactable == null)
                 interactable = GetComponent<ScenarioInteractable>();
+            if (visual == null)
+                visual = transform.Find("Visual");
 
             initialParent = transform.parent;
             initialPosition = transform.position;
             initialRotation = transform.rotation;
+            initialVisualScale = visual == null ? Vector3.one : visual.localScale;
         }
 
         private void OnEnable()
@@ -58,9 +64,10 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         public void AttachToSlot(PerimeterSlot slot)
         {
             placedSlot = slot;
-            transform.SetParent(slot.transform, false);
-            transform.localPosition = Vector3.zero;
-            transform.localRotation = Quaternion.identity;
+            transform.SetParent(slot.transform, true);
+            transform.SetPositionAndRotation(slot.transform.position, slot.transform.rotation);
+            if (visual != null)
+                visual.localScale = initialVisualScale * placedVisualScaleFactor;
 
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
@@ -82,6 +89,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
             transform.SetParent(initialParent, true);
             transform.SetPositionAndRotation(initialPosition, initialRotation);
+            if (visual != null)
+                visual.localScale = initialVisualScale;
 
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)

@@ -103,7 +103,6 @@ GameObject:
   - component: {fileID: 4385247294048479956}
   - component: {fileID: 1026366650755622748}
   - component: {fileID: 800145357060694603}
-  - component: {fileID: 9051266715808196023}
   m_Layer: 0
   m_Name: AbsorbentSheet
   m_TagString: Untagged
@@ -190,6 +189,7 @@ MonoBehaviour:
   grabbable: 1
   activatable: 1
   inspectable: 1
+  interactionEnabled: 1
   onGrabbed:
     m_PersistentCalls:
       m_Calls: []
@@ -223,23 +223,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Interaction.AbsorbentSheet
   interactable: {fileID: 1026366650755622748}
   cleanupSystem: {fileID: 0}
-  wasteItem: {fileID: 9051266715808196023}
   director: {fileID: 0}
---- !u!114 &9051266715808196023
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4920130373723024044}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a081152cea6ba1044a57c288bc24eaf0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Systems.WasteItem
-  interactable: {fileID: 1026366650755622748}
-  director: {fileID: 0}
-  ppeState: {fileID: 0}
-  playerHealth: {fileID: 0}
-  puddle: {fileID: 0}
-  wasteBag: {fileID: 0}

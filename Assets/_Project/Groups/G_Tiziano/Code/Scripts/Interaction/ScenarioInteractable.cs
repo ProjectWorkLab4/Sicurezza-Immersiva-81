@@ -13,6 +13,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         [SerializeField] private bool grabbable = true;
         [SerializeField] private bool activatable = true;
         [SerializeField] private bool inspectable = true;
+        [SerializeField] private bool interactionEnabled = true;
         [SerializeField] private UnityEvent onGrabbed = new UnityEvent();
         [SerializeField] private UnityEvent onReleased = new UnityEvent();
         [SerializeField] private UnityEvent onActivated = new UnityEvent();
@@ -40,11 +41,17 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         public event Action<ScenarioInteractable> HoverExit;
 
         /// <summary>Gets whether the object can be grabbed.</summary>
-        public bool Grabbable => grabbable;
+        public bool Grabbable => interactionEnabled && grabbable;
         /// <summary>Gets whether the object can be activated.</summary>
-        public bool Activatable => activatable;
+        public bool Activatable => interactionEnabled && activatable;
         /// <summary>Gets whether the object can be inspected.</summary>
-        public bool Inspectable => inspectable;
+        public bool Inspectable => interactionEnabled && inspectable;
+
+        /// <summary>Enables or disables player input on this interaction surface.</summary>
+        public void SetInteractionEnabled(bool enabled)
+        {
+            interactionEnabled = enabled;
+        }
 
         private void Update()
         {
@@ -88,6 +95,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// <summary>Raises the grab events.</summary>
         public void RaiseGrabbed()
         {
+            if (!Grabbable)
+                return;
             Grabbed?.Invoke(this);
             onGrabbed.Invoke();
             UnityEngine.Debug.Log($"[CA] Grabbed: {name}");
@@ -104,7 +113,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// <summary>Raises the activation events.</summary>
         public void RaiseActivated()
         {
-            if (!activatable) return;
+            if (!Activatable) return;
             Activated?.Invoke(this);
             onActivated.Invoke();
             UnityEngine.Debug.Log($"[CA] Activated: {name}");
@@ -113,7 +122,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// <summary>Raises the inspection events.</summary>
         public void RaiseInspected()
         {
-            if (!inspectable) return;
+            if (!Inspectable) return;
             Inspected?.Invoke(this);
             onInspected.Invoke();
             UnityEngine.Debug.Log($"[CA] Inspected: {name}");

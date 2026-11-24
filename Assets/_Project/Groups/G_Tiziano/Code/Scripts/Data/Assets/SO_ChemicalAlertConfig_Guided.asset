@@ -37,20 +37,17 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9ce69733006021a49bddadec50d39b46, type: 2}
   - {fileID: 11400000, guid: e328931b28c61ec4e88eeb892efa9e62, type: 2}
   ppeShufflePool:
-  - {fileID: 11400000, guid: db937fe4f8e75b345b1a810d45e69a52, type: 2}
   - {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
-  - {fileID: 11400000, guid: 7b2dfc425330b784db1e3a76120a4427, type: 2}
-  - {fileID: 11400000, guid: 19e2078c7a4c28042aa47f080b3d290c, type: 2}
-  - {fileID: 11400000, guid: b9f5c7f28b2a9784b87c879969ea74bd, type: 2}
-  - {fileID: 11400000, guid: f93415e272233494ea118e9862626f88, type: 2}
   - {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
   - {fileID: 11400000, guid: d38dfed623620744dbe24ba6d337dd8c, type: 2}
-  - {fileID: 11400000, guid: 6b1f1e46f75974c4b959789e1a77c194, type: 2}
   secondSpillEnabled: 1
   secondSpillWindowStartSeconds: 20
   secondSpillWindowEndSeconds: 40
   secondSpillGrowthMultiplier: 2
   secondSpillAudio: {fileID: 0}
+  requiredAbsorbentSheetCount: 3
+  absorptionDurationSeconds: 4.5
+  successDelaySeconds: 2
   defeatOnTimeout: 0
   successPoints: 0
   partialPoints: 0

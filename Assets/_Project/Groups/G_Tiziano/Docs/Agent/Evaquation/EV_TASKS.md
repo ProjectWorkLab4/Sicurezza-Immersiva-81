@@ -9,7 +9,7 @@
 ## Mappa
 - Ordine: **E00 → E01 → E02 → E03 → E04 → E05 → E06 → E07 (🎯 vertical slice) → E08 → E09 → E10 → E11 → E12 → (E13)**.
 - Con i modelli a 1M di contesto si possono unire senza rischi: **[E00+E01] · [E02+E03] · [E04+E05] · [E08+E09] · [E10+E12]**. E06 ed E07 meglio da soli.
-- **E11 (modello reale)** si può fare appena l'utente carica l'FBX, anche prima di E08; se il modello è già pronto prima di E01, E01 usa direttamente il modello invece del graybox.
+- **E11 (modello reale)** si può fare appena l'utente carica l'FBX, anche prima di E08; se il modello (costruito sulla pianta del BRIEF) è già pronto prima di E01, E01 lo usa direttamente invece del graybox.
 - Scadenza: Evacuation su Unity 24–25 nov → vertical slice (E07) entro il 24.
 
 ---
@@ -72,12 +72,13 @@
 **Fai:** replay: seed nuovo a ogni `ResetScenario()` (fissabile da comando), posti NPC e fuochi variano, seed e scelte loggati in `ResultReady`/ActionLog (`ReplayStart`). 5 partite consecutive con esiti diversi senza errori né oggetti residui (NPC, briciole, porte, fuoco, allarme, sottoscrizioni). Verifica che lo stesso seed riproduca stessa disposizione. Controlla rischi di riferimenti nulli dopo reset multipli e 10 reset di fila.
 **Done quando:** 5 partite variate OK; seed fisso ripetibile; 10 reset puliti; smoke test ancora tutto PASS.
 
-## E11 — Montaggio scena con il modello reale (richiede upload dell'utente)
+## E11 — Sostituzione del graybox con il modello 3D (richiede upload dell'utente)
 **Dipende da:** E07 (idealmente E10)
-**Input dell'utente (compila prima di lanciare):** percorso FBX in `Shared/`: `<…>`; mappatura ruoli → parti del modello: ufficio 1 = `<…>`, ufficio 2 = `<…>`, corridoio = `<…>`, scale emergenza = `<…>`, scale interne = `<…>`, ascensore = `<…>`; prop disponibili (scrivanie, sedie, porte, cartelli, scale…): `<…>`.
-**Fai:** **duplica** da `Shared/` a `GROUP/Art/Models/` (mai modificare l'originale), istanzia il modello, aggiungi collider semplici (box) a muri/pavimento senza mesh collider complessi, sostituisci i figli `Visual` del graybox e **sposta i marker** nelle posizioni reali (nomi invariati, aggiorna `ROUTE_*` e `FIRESLOT_*` e `NPCSLOT_*`: servono almeno 6 slot per stanza), disattiva/rimuovi il graybox, orienta porte e piani sulle pareti reali. Poi esegui validatore corsia (E09), smoke test, e controlla scala 1:1 e assenza di compenetrazioni nei punti di passaggio.
-**Fuori scope:** creare/modificare modelli o animazioni.
-**Done quando:** scena giocabile nel modello reale, smoke test PASS, validatore corsia OK su 200 seed, 0 errori; elenco dei marker spostati in HANDOFF.
+**Contesto:** il modello è costruito dal modellatore SULLA STESSA PIANTA del graybox (layout del BRIEF, definitivo). Quindi i marker restano quasi dove sono: serve solo riallinearli alle misure reali del modello. Nessuna rimappatura di stanze.
+**Input dell'utente (compila prima di lanciare):** percorso FBX/prefab in `Shared/`: `<…>`; prop già inclusi (scrivanie, sedie, porte, cartelli, scale, ascensore, piani di evacuazione): `<…>`; note su differenze di misure rispetto al BRIEF: `<…>`.
+**Fai:** **duplica** da `Shared/` a `GROUP/Art/Models/` (mai modificare l'originale), istanzia il modello e allinealo all'origine del graybox (stessa origine e orientamento: X est, Z nord). Aggiungi collider semplici (box) a muri/pavimento, niente mesh collider complessi. Sostituisci i figli `Visual` del graybox (porte, scrivanie, scale, ascensore, cartello, piani) con i prop del modello, mantenendo root, collider e logica. Verifica ogni marker (`SPAWN_Player`, `NPCSLOT_*` ≥6 per stanza, `POS_*`, `ZONE_*`, `ROUTE_*`, `FIRESLOT_*`) contro la geometria reale: sposta solo quelli che risultano dentro muri/arredi o fuori posto, nomi invariati. Disattiva/rimuovi il graybox. Poi esegui validatore corsia (E09), smoke test, e controlla scala 1:1 e assenza di compenetrazioni nei passaggi (porte, corridoio, vani scale).
+**Fuori scope:** creare/modificare modelli o animazioni; cambiare il layout.
+**Done quando:** scena giocabile col modello, smoke test PASS, validatore corsia OK su 200 seed, 0 errori; elenco dei marker spostati in HANDOFF.
 
 ## E12 — Documentazione e tabella frasi del debrief
 **Dipende da:** E07 (aggiornare dopo E08–E11)

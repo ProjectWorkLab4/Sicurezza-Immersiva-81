@@ -4,7 +4,7 @@
 - Ultima task completata: nessuna.
 - Chemical Alert: congelato e completo (fino a T18 + aggiustamenti). NON modificarlo. Docs CA in `Docs/Agent/`.
 - Decisioni confermate dall'utente: scale giuste = emergenza (dritto, cartello+sbarrafuoco), scale a sinistra = interne (sbagliate); 5 NPC (3+2), raccolti in fila indiana, evacuati quando il giocatore evacua; Crisis = 1 cuore, contatto fuoco = ingresso nel collider, 3° contatto = morte; fuoco da slot predefiniti (5 attivi su 10); ascensore = fallimento all'interazione con i pulsanti; livelli Guided/Operational/Crisis ("Stress" = Crisis); nessun feedback sonoro di timeout.
-- Modello 3D dell'edificio: da caricare prima di E11 (si parte in graybox).
+- Pianta definitiva = quella dell'SDD (nel BRIEF). Il modello 3D è in costruzione sulla stessa pianta: si parte in graybox, E11 lo sostituisce riallineando i marker.
 - Prossima task: E00 (o E00+E01).
 
 ## Log (solo append, max 8 righe per task)

@@ -17,8 +17,8 @@ MonoBehaviour:
   sdsBodyKey: chemical.sds.variantC.body
   requiredPpe:
   - {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
+  - {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
   - {fileID: 11400000, guid: d38dfed623620744dbe24ba6d337dd8c, type: 2}
-  - {fileID: 11400000, guid: db937fe4f8e75b345b1a810d45e69a52, type: 2}
   growthRate: 0.08
   maxRadius: 2.1
   puddleColor: {r: 0.25, g: 0.45, b: 0.85, a: 1}

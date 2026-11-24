@@ -51,7 +51,13 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         /// <summary>Applies one damage event unless Guided mode suppresses damage.</summary>
         public bool TakeDamage(string kind, float durationSeconds)
         {
-            if (died || Time.time < invulnerableUntil)
+            return TakeDamage(kind, durationSeconds, false, true);
+        }
+
+        /// <summary>Applies one damage event with configurable cooldown and ActionLog behavior.</summary>
+        public bool TakeDamage(string kind, float durationSeconds, bool bypassInvulnerability, bool recordAction)
+        {
+            if (died || (!bypassInvulnerability && Time.time < invulnerableUntil))
                 return false;
 
             if (director != null &&
@@ -62,10 +68,14 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             }
 
             hearts = Mathf.Max(0, hearts - 1);
-            invulnerableUntil = Time.time + invulnerabilitySeconds;
+            invulnerableUntil = bypassInvulnerability
+                ? 0f
+                : Time.time + invulnerabilitySeconds;
             DamageTaken?.Invoke(kind, durationSeconds);
-            if (director != null)
+            if (recordAction && director != null)
                 director.RecordAction("health.damage", false, Dimension.Safety, "chemical.burn");
+            if (director != null)
+                director.NotifyHeartsChanged(hearts);
             UnityEngine.Debug.Log($"[CA] DamageTaken: kind={kind}; duration={durationSeconds:0.00}s; hearts={hearts}");
 
             if (hearts == 0)
@@ -98,6 +108,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             hearts = director == null || director.CurrentConfig == null
                 ? fallbackHearts
                 : director.CurrentConfig.Hearts;
+            if (director != null)
+                director.NotifyHeartsChanged(hearts);
             died = false;
             invulnerableUntil = 0f;
         }

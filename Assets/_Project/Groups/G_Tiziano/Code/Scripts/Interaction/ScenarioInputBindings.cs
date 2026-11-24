@@ -30,5 +30,10 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// </summary>
         public bool GetHintDown(OVRInput.Controller controller) =>
             OVRInput.GetDown(OVRInput.Button.One, controller);
+
+        /// <summary>Returns whether the physical B button was pressed to dismiss a modal panel.</summary>
+        public bool GetDismissDown(OVRInput.Controller controller) =>
+            OVRInput.GetDown(OVRInput.RawButton.B, controller);
+
     }
 }

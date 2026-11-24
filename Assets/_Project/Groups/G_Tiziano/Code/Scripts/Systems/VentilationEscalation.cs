@@ -83,6 +83,11 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
         private void Update()
         {
+            if (!tracking && director != null &&
+                director.CurrentPhase == ChemicalAlertDirector.Phase.Action &&
+                ventilationSystem != null && !ventilationSystem.IsOn)
+                BeginActionEscalation();
+
             if (tracking && ventilationSystem != null && !ventilationSystem.IsOn)
                 AdvanceDebugTime(Time.deltaTime * debugTimeMultiplier);
         }

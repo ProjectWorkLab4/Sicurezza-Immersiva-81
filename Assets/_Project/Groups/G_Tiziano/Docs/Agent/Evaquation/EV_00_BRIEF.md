@@ -15,8 +15,8 @@ Serious game VR "Sicurezza Immersiva 81" (Unity 6000.3, URP, OpenXR, Meta XR Cor
 Ufficio, singolo piano. Suona l'allarme di evacuazione (Guided/Operational: semplice evacuazione; Crisis: incendio attivo). Il giocatore deve: ispezionare il piano di evacuazione, far evacuare i colleghi di ENTRAMBE le stanze (raccogliendoli in fila indiana), raggiungere le scale di EMERGENZA. L'ascensore è letale.
 Timer: Guided cronometro senza limite · Operational 180 s · Crisis 120 s.
 
-### Layout (graybox 1:1, metri; X = est, Z = nord; Y=0 pavimento, soffitto 3 m) — coordinate INDICATIVE
-Il modello reale (E11) sostituirà il graybox: conta il NOME dei marker e le relazioni, non i numeri. Tutto il gameplay è ancorato a marker/prefab, mai a coordinate nel codice.
+### Layout (DEFINITIVO, scala 1:1, metri; X = est, Z = nord; Y=0 pavimento, soffitto 3 m)
+La pianta è quella dell'SDD; il modello 3D finale è costruito su di essa e sostituirà il graybox (E11) con piccoli aggiustamenti di misura. Le coordinate sono approssimate al metro: conta il NOME dei marker e le relazioni. Tutto il gameplay è ancorato a marker/prefab, mai a coordinate nel codice.
 - ZN-01 Ufficio 1: x 2–8, z 8–14. 4 scrivanie+sedie (prop). Porta sul lato sud (z=8) a x≈5.
 - ZN-03 Ufficio 2: x 8–14, z 8–14, identico. Porta sul lato sud a x≈10.
 - ZN-02 Corridoio: x 2–14, z 5–8.

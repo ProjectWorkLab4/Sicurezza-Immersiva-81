@@ -21,12 +21,18 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private bool covered;
         private bool secondSpillActive;
         private float activeGrowthMultiplier = 1f;
+        private bool absorbing;
+        private float absorptionElapsedSeconds;
+        private float absorptionDurationSeconds;
+        private float absorptionStartRadius;
         private Collider puddleCollider;
         private Renderer visualRenderer;
         private MaterialPropertyBlock colorPropertyBlock;
 
         /// <summary>Raised when containment state changes.</summary>
         public event System.Action<bool> ContainedChanged;
+        /// <summary>Raised when the timed absorbent-sheet sequence reaches zero radius.</summary>
+        public event System.Action AbsorptionCompleted;
         /// <summary>Gets whether the spill is contained.</summary>
         public bool Contained => contained;
         /// <summary>Gets whether absorbent-sheet coverage has hidden the spill.</summary>
@@ -41,6 +47,14 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public SubstanceVariant CurrentVariant => currentVariant;
         /// <summary>Gets whether the second-spill growth acceleration is active.</summary>
         public bool SecondSpillActive => secondSpillActive;
+        /// <summary>Gets whether the puddle is currently shrinking during absorption.</summary>
+        public bool IsAbsorbing => absorbing;
+        /// <summary>Gets the current normalized absorption progress.</summary>
+        public float AbsorptionProgress => covered
+            ? 1f
+            : absorbing && absorptionDurationSeconds > 0f
+                ? Mathf.Clamp01(absorptionElapsedSeconds / absorptionDurationSeconds)
+                : 0f;
 
         private void Awake()
         {
@@ -65,6 +79,16 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
         private void Update()
         {
+            if (absorbing)
+            {
+                AdvanceAbsorption(Time.deltaTime);
+                return;
+            }
+
+            if (!growing && !contained && !covered && director != null &&
+                director.CurrentPhase == ChemicalAlertDirector.Phase.Action)
+                growing = true;
+
             if (!growing || contained || GrowthRate <= 0f)
                 return;
 
@@ -112,6 +136,28 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             return expanded;
         }
 
+        /// <summary>Starts the configured puddle shrink after all required sheets are placed.</summary>
+        public bool BeginAbsorption(float durationSeconds)
+        {
+            if (absorbing || covered || !contained)
+                return false;
+
+            growing = false;
+            absorbing = true;
+            absorptionElapsedSeconds = 0f;
+            absorptionDurationSeconds = Mathf.Max(0.1f, durationSeconds);
+            absorptionStartRadius = currentRadius;
+            UnityEngine.Debug.Log($"[CA] Puddle absorption started: radius={absorptionStartRadius:0.00}; duration={absorptionDurationSeconds:0.00}s.");
+            return true;
+        }
+
+        /// <summary>Advances the absorption visual without waiting for real time in debug checks.</summary>
+        public void AdvanceAbsorptionDebugTime(float seconds)
+        {
+            if (absorbing && seconds > 0f)
+                AdvanceAbsorption(seconds);
+        }
+
         /// <summary>Marks the puddle contained and stops growth.</summary>
         public void SetContained(bool value)
         {
@@ -149,6 +195,10 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             covered = false;
             secondSpillActive = false;
             activeGrowthMultiplier = 1f;
+            absorbing = false;
+            absorptionElapsedSeconds = 0f;
+            absorptionDurationSeconds = 0f;
+            absorptionStartRadius = 0f;
             currentRadius = Mathf.Max(0.01f, MaxRadius * initialRadiusFraction);
             if (puddleCollider != null)
                 puddleCollider.enabled = true;
@@ -156,6 +206,29 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 visualRenderer.enabled = true;
             ApplyScale();
             ApplyVariantColor();
+        }
+
+        private void AdvanceAbsorption(float seconds)
+        {
+            if (!absorbing || seconds <= 0f)
+                return;
+
+            absorptionElapsedSeconds = Mathf.Min(
+                absorptionDurationSeconds,
+                absorptionElapsedSeconds + seconds);
+            float progress = Mathf.Clamp01(absorptionElapsedSeconds / absorptionDurationSeconds);
+            currentRadius = Mathf.Lerp(absorptionStartRadius, 0f, progress);
+            ApplyScale();
+
+            if (progress < 1f)
+                return;
+
+            currentRadius = 0f;
+            absorbing = false;
+            ApplyScale();
+            SetCovered(true);
+            AbsorptionCompleted?.Invoke();
+            UnityEngine.Debug.Log("[CA] Puddle absorption completed: radius=0.");
         }
 
         private void HandlePhaseChanged(ChemicalAlertDirector.Phase phase)

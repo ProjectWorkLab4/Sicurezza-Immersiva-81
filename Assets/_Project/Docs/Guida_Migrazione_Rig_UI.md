@@ -181,6 +181,8 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 | Card "Non disponibile" | Scena non attiva nelle Build Settings o `SceneName` diverso | Aggiungi la scena dopo `SCN_Core`, controlla il GUID. |
 | Script mancante nella scena | Resta un componente `CoreRig` o un vecchio interattore | Rimuovi il componente; il hand-off ora è `SI81.UI.Rig.RigUIBridge`. |
 | Unity non apre il progetto: `invalid dependencies` / `file:C:/...` | Il tuo `Packages/manifest.json` contiene un pacchetto locale (per esempio un MCP) | Tieni `Packages/manifest.json` e `packages-lock.json` di `main`; non aggiungere percorsi locali. |
+| Zone o trigger spariti dopo la rimozione del rig | Erano figli della radice `OVRCameraRig`, non del solo TrackingSpace | Ricrea le zone e agganciale alla radice del rig condiviso quando `RigRegistration` è disponibile (vedi `PPEZoneRigAnchor` nel pilot). |
+| Missione con `Id` duplicato nel catalogo | L'id era già usato da un altro scenario | Controlla `SO_Mission_*` e usa un id libero. |
 | Console: `uso Camera.main` | La UI è partita prima del rig | Assicurati che `SCN_Core` sia caricata e che il bridge sia assegnato. |
 
 ## 6. Checklist finale
@@ -268,7 +270,9 @@ unless explicitly asked.
 
 3. **Spawn point.** Create `MNG_SpawnPoint` with `SI81.Rig.SpawnPoint`. Set its world position and
    yaw. Assign it to `ScenarioController.spawnPoint`. Do not move
-   `UIScreenManager.TrackingOrigin` from scenario code.
+   `UIScreenManager.TrackingOrigin` from scenario code. Before deleting the local rig, list every
+   child of its root: scene content parented to the rig (equip zones, hand triggers, markers) must
+   be recreated and anchored to `RigRegistration` at runtime.
 
 4. **Input.** Replace direct input reads with `InputService`:
    - polling: `WasSelectPressed(Hand)`, `IsGrabHeld(Hand)`, `WasMenuPressed()`,

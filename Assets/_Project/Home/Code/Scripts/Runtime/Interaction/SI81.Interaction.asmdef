@@ -1,0 +1,16 @@
+{
+    "name": "SI81.Interaction",
+    "rootNamespace": "SI81.Interaction",
+    "references": [
+        "SI81.Input"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

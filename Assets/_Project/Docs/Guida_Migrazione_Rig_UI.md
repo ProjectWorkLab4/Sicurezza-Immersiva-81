@@ -207,12 +207,22 @@ progetto. Va rimosso tenendo `Packages/manifest.json` di `main`.
 
 La compilazione del branch pilota è passata (exit 0) e la validazione di `SCN_Core` ha trovato
 1 `RigRegistration`, 1 camera attiva, 1 `EventSystem`, 2 `UIPointer` e il `RigUIBridge` con tutti i
-riferimenti. La scena `SCN_ChemicalAlert` non è stata riscritta: usa ancora `OVRCameraRig`,
-`ScenarioHandInteractor` e `ScenarioInputBindings`, non ha `SO_Mission_*` né `ScenarioController`.
-Il dettaglio dei punti che richiedono una decisione del team (tasto Hint A/X non mappato,
-interazione vicino alla mano contro raggio, rilevamento mano in `ExitSafeZone`/`SubstanceContactSensor`,
-missione mancante) è in
-`Assets/_Project/Groups/G_Tiziano/Docs/RIG_UI_PILOT.md` sul branch del pilot.
+riferimenti. La scena `SCN_ChemicalAlert` è stata migrata: 0 rig/camera/EventSystem locali,
+radice OVR convertita in `MNG_Scenario`, `ScenarioController` + `MNG_SpawnPoint`, 27
+`Interactable`, 3 zone PPE ricreate con `PPEZoneRigAnchor`, missione boilerplate `Id: 05`.
+
+Errori trovati e corretti nel pilot:
+
+- le zone PPE (`Head`, `Torso`, `Hands`) erano figlie della radice `OVRCameraRig` e sono state
+  perse eliminando il rig; vanno ricreate e riagganciate al rig condiviso;
+- `Id: 08` era già usato da un'altra missione: usare un id libero;
+- `PlayerPPEState.zones` e `PPEItemObject.equipZones` puntavano alle zone eliminate e vanno
+  riscritti;
+- il tasto Menu scelto per l'Hint apre anche la pausa (`MissionFlowDriver`): serve una decisione
+  di gameplay.
+
+Dettaglio completo, build APK ed esito: `Assets/_Project/Groups/G_Tiziano/Docs/RIG_UI_PILOT.md`
+sul branch del pilot (PR #22).
 
 ---
 

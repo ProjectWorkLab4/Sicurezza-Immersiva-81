@@ -180,6 +180,7 @@ Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform Pla
 | Menu non si apre | Manca `MissionFlowDriver` o l'input Menu non arriva | Usa `MNG_UI` aggiornato; Menu = tasto menu sinistro / Tab. |
 | Card "Non disponibile" | Scena non attiva nelle Build Settings o `SceneName` diverso | Aggiungi la scena dopo `SCN_Core`, controlla il GUID. |
 | Script mancante nella scena | Resta un componente `CoreRig` o un vecchio interattore | Rimuovi il componente; il hand-off ora è `SI81.UI.Rig.RigUIBridge`. |
+| Unity non apre il progetto: `invalid dependencies` / `file:C:/...` | Il tuo `Packages/manifest.json` contiene un pacchetto locale (per esempio un MCP) | Tieni `Packages/manifest.json` e `packages-lock.json` di `main`; non aggiungere percorsi locali. |
 | Console: `uso Camera.main` | La UI è partita prima del rig | Assicurati che `SCN_Core` sia caricata e che il bridge sia assegnato. |
 
 ## 6. Checklist finale
@@ -224,8 +225,10 @@ unless explicitly asked.
    Resolve conflicts by taking `main` for the paths in B.1.6. Then:
    ```bash
    git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json
+   grep -n '"file:' Packages/manifest.json
    ```
-   Must print nothing. Do not run Unity Project Setup Tool.
+   Both must print nothing (no Unity VCS, no local `file:` package paths such as a local MCP).
+   Do not run Unity Project Setup Tool.
 
 2. **Strip local scene infrastructure.** Open the scenario scene and delete GameObjects/components:
    `OVRCameraRig`, `OVRManager`, `XROrigin`, `Camera`, `AudioListener`, `Canvas`, `EventSystem`,

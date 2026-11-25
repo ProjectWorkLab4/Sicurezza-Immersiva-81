@@ -7,12 +7,21 @@ namespace G_Ludovica.ForkliftChaos
     /// <summary>Azione specifica dello scenario 07 richiamata da un oggetto interattivo.</summary>
     public enum ForkliftChaosAction
     {
+        // Osservazione: basta guardare l'oggetto (nessun pulsante, nessun pannello).
+        ObserveMarco,
+        ObserveForklift1,
+        ObservePallet,
+        ObserveBlindCorner,
+
+        // Azioni fisiche: sguardo + grilletto sul oggetto, oppure tasto funzione in Editor.
         StopForklift1,
         PickupRadio,
         Call112,
         CallForeman,
+        PickupBarrier,
         PlaceBarrier,
         PlaceCones,
+        KnockPallet,
         TalkToMarco,
         CheckBreathing,
         PressWound,
@@ -20,14 +29,13 @@ namespace G_Ludovica.ForkliftChaos
         StartCPR,
         UseAED,
         MoveMarco,
-        KeepColleaguesOut,
         StopForklift2
     }
 
     /// <summary>
-    /// Interazione leggera per il scenario Forklift Chaos: raggio dalla testa + grilletto controller, oppure tasto
-    /// funzione in Editor. Non duplica il sistema di input comune; usa gli stessi binding XR del rig condiviso e
-    /// delega sempre l'esito al controller dello scenario.
+    /// Interazione leggera per il scenario Forklift Chaos: raggio dalla testa + grilletto controller (o dwell di sguardo
+    /// per le osservazioni), oppure tasto funzione in Editor. Non duplica il sistema di input comune; usa gli stessi
+    /// binding XR del rig condiviso e delega sempre l'esito al controller dello scenario.
     /// </summary>
     [AddComponentMenu("SI81/Scenari/Forklift Chaos/Interactable")]
     public sealed class ForkliftChaosInteractable : MonoBehaviour
@@ -39,33 +47,47 @@ namespace G_Ludovica.ForkliftChaos
         [SerializeField] private float reach = 2.8f;
         [SerializeField] private bool once = true;
         [SerializeField] private bool requiresRadio;
+        [SerializeField] private bool lookOnly;
+        [SerializeField] private float dwellSeconds = 1.1f;
 
-        // Evita che un solo grilletto attivi piu' interazioni sulla stesso oggetto nel medesimo frame.
+        // Un solo grilletto per frame: evita che piu' componenti sullo stesso oggetto partano insieme.
         private static int lastTriggerFrame = -1;
 
         private InputAction triggerAction;
         private ForkliftChaosScenario scenario;
         private bool used;
+        private float lookTime;
 
-        /// <summary>Azione associata all'oggetto.</summary>
         public ForkliftChaosAction Action => action;
-        /// <summary>Etichetta mostrata nei messaggi di errore.</summary>
         public string Label => label;
 
-        /// <summary>Configurazione usata dal builder Editor.</summary>
-        public void Configure(ForkliftChaosAction newAction, string newLabel, Key newKey, bool needsRadio = false, float newReach = 2.8f)
+        public void Configure(ForkliftChaosAction newAction, string newLabel, Key newKey,
+            bool needsRadio = false, float newReach = 2.8f)
         {
             action = newAction;
             label = string.IsNullOrEmpty(newLabel) ? newAction.ToString() : newLabel;
             editorKey = newKey;
             requiresRadio = needsRadio;
             reach = Mathf.Max(0.5f, newReach);
+            lookOnly = false;
         }
 
-        /// <summary>Rende l'oggetto di nuovo utilizzabile (replay senza ricaricare la scena).</summary>
+        public void ConfigureLook(ForkliftChaosAction newAction, string newLabel, float newDwell = 1.1f,
+            float newReach = 3.5f)
+        {
+            action = newAction;
+            label = string.IsNullOrEmpty(newLabel) ? newAction.ToString() : newLabel;
+            editorKey = Key.None;
+            reach = Mathf.Max(0.5f, newReach);
+            dwellSeconds = Mathf.Max(0.2f, newDwell);
+            lookOnly = true;
+            requiresRadio = false;
+        }
+
         public void ResetUsed()
         {
             used = false;
+            lookTime = 0f;
         }
 
         private void OnEnable()
@@ -90,6 +112,17 @@ namespace G_Ludovica.ForkliftChaos
             if (scenario == null) scenario = FindFirstObjectByType<ForkliftChaosScenario>();
             if (scenario == null || !scenario.IsRunning) return;
 
+            if (lookOnly)
+            {
+                if (IsAimedAt())
+                {
+                    lookTime += Time.deltaTime;
+                    if (lookTime >= dwellSeconds) Fire();
+                }
+                else lookTime = 0f;
+                return;
+            }
+
             bool pressed = false;
             if (triggerAction.WasPressedThisFrame() && IsAimedAt() && lastTriggerFrame != Time.frameCount)
             {
@@ -100,13 +133,16 @@ namespace G_Ludovica.ForkliftChaos
                 pressed = Keyboard.current[editorKey].wasPressedThisFrame;
 
             if (!pressed) return;
-
             if (requiresRadio && !scenario.HasRadio)
             {
                 scenario.Feedback("Prendi prima la radio dal rack RK-01.", FeedbackKind.Negative);
                 return;
             }
+            Fire();
+        }
 
+        private void Fire()
+        {
             used = true;
             scenario.HandleInteraction(action, this);
         }

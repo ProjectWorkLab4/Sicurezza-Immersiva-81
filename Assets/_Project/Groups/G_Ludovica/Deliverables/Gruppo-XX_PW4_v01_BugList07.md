@@ -13,9 +13,12 @@
 | BUG-06 | Alta | Da verificare | La scena non è ancora registrata in `EditorBuildSettings` (file condiviso): il lanciatore dalla Home potrebbe non trovare `SCN_ForkliftChaos` nella build finale. | Chiedere accordo al gruppo proprietario e aggiungere la scena alla build. | Common Core |
 | BUG-07 | Media | Da verificare | I due NPC colleghi sono capsule graybox e non modelli animati; il numero varia 1–3 ma il dettaglio grafico è minimo. | Sostituire con prefab NPC se disponibile; verificare che il variare del numero sia percepibile. | G_Ludovica |
 | BUG-08 | Bassa | Da verificare | `SO_Mission_ForkliftChaos` contiene ancora il `DesignerNote` del template. | Pulire il campo prima della build finale (asset condiviso: serve coordinamento). | Common Core |
+| BUG-09 | Alta | Da verificare | La locomozione sposta direttamente il `TrackingOrigin`: non c'è collisione, quindi il giocatore può attraversare scaffali e pareti. | Aggiungere un CharacterController o un casco di collisione sul rig condiviso (richiede accordo Common Core) oppure limitare il movimento con bounds locali. | G_Ludovica / Common Core |
+| BUG-10 | Bassa | Da verificare | Radio e barriera, una volta prese, restano agganciate alla testa come semplici transform: in VR non sono afferrate con le mani e non hanno fisica. | Integrare con il sistema di grab/use del Common Core quando disponibile. | G_Ludovica / Game System |
 
 ## Note
 
 - Nessun playtest è stato ancora eseguito: i difetti sopra sono problemi strutturali o di integrazione, non osservazioni da sessione.
 - I nuovi difetti emersi dai playtest T1–T5 vanno aggiunti qui con ID progressivo, gravità, passi per riprodurre e stato.
 - L'hook di test `MNG_TestEnd` e il suo script sono stati rimossi: la chiusura missione passa ora solo dalla logica reale.
+- I pannelli a scelta multipla sono stati rimossi: le cinque decisioni ora richiedono movimento, sguardo e oggetti fisici. Il `CoreRig` condiviso non aveva locomozione: è stata aggiunta localmente in `MNG_Locomotion`.

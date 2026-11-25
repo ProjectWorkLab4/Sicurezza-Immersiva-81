@@ -62,6 +62,7 @@ namespace G_Ludovica.ForkliftChaos
         private bool blindCornerObserved;
         private bool m1Stopped;
         private bool radioPicked;
+        private bool barrierPicked;
         private bool called112;
         private bool calledForeman;
         private bool barrierPlaced;
@@ -72,7 +73,6 @@ namespace G_Ludovica.ForkliftChaos
         private bool covered;
         private bool cprStarted;
         private bool aedUsed;
-        private bool firstAidAsked;
         private bool marcoMoved;
         private bool marcoMovedSafely;
         private bool colleaguesEntered;
@@ -139,14 +139,16 @@ namespace G_Ludovica.ForkliftChaos
 
             StartTracked(IntroRoutine());
             StartTracked(TimedEventsRoutine());
+            StartTracked(IdleWobbleRoutine());
+            StartTracked(BreathingRoutine());
         }
 
         /// <summary>Azzera tutti i flag locali (la scena viene comunque ricaricata tra i replay).</summary>
         private void ResetState()
         {
-            observed = blindCornerObserved = m1Stopped = radioPicked = called112 = calledForeman = false;
+            observed = blindCornerObserved = m1Stopped = radioPicked = barrierPicked = called112 = calledForeman = false;
             barrierPlaced = conesPlaced = spoken = breathingChecked = woundPressed = covered = false;
-            cprStarted = aedUsed = firstAidAsked = marcoMoved = marcoMovedSafely = colleaguesEntered = colleaguesHeld = false;
+            cprStarted = aedUsed = marcoMoved = marcoMovedSafely = colleaguesEntered = colleaguesHeld = false;
             corridorBlocked = m2Started = m2Horn = m2Stopped = m2Hit = pallet1Fallen = pallet2Fallen = false;
             slipped = rescueArrived = rescueDelayed = apnea = timeout = finished = false;
             callTime = hornTime = rescueAt = -1f;
@@ -214,217 +216,80 @@ namespace G_Ludovica.ForkliftChaos
             Record("EV-01", "Urlo udito, timer avviato.", ChoiceKind.Correct, "Awareness");
 
             yield return new WaitForSeconds(2.5f);
-            AskObservationDecision();
+            SetHint("Cammina e guarda: Marco, Muletto 1, pallet, angolo cieco.");
         }
 
-        private void AskObservationDecision()
-        {
-            SetPhase(PHASE_DECISION);
-            float timeout = Level == DifficultyLevel.Guided ? 14f : Level == DifficultyLevel.Operational ? 9f : 6f;
-            AskDecision("Prima di intervenire, cosa fai?",
-                new[] { "Osserva dalla soglia", "Corri verso Marco", "Afferra il pallet" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        observed = true;
-                        blindCornerObserved = head != null && blindCorner != null &&
-                                              Vector3.Distance(head.position, blindCorner.position) <= blindCornerRadius;
-                        Record("LG-01", "Individuati M1 acceso, pallet instabile e angolo cieco.", ChoiceKind.Correct, "Awareness");
-                        Feedback("Osservazione corretta.", FeedbackKind.Positive);
-                        UpdateObjectives();
-                    }
-                    else if (index == 1)
-                    {
-                        Record("LG-03", "Esposto a Muletto 2 e pallet senza osservare.", ChoiceKind.Risky, "Time");
-                        Feedback("Entrare di corsa non dà punti Time.", FeedbackKind.Negative);
-                    }
-                    else if (index == 2)
-                    {
-                        Record("LG-19", "Pallet urtato: rischio di caduta su Marco.", ChoiceKind.Critical, "Safety");
-                        TriggerPallet1Fall(true);
-                    }
-                    else
-                    {
-                        Record("LG-02", "Angolo cieco non controllato.", ChoiceKind.Missed, "Awareness");
-                    }
-                    StartTracked(SecondDecisionRoutine());
-                }, timeout);
-        }
+        // =====================================================================
+        // Osservazione e oggetti fisici (nessun pannello a scelta multipla)
+        // =====================================================================
 
-        private IEnumerator SecondDecisionRoutine()
-        {
-            yield return new WaitForSeconds(5f);
-            if (finished) yield break;
-            SetPhase(PHASE_DECISION);
-            float timeout = Level == DifficultyLevel.Guided ? 14f : 9f;
-            AskDecision("Come metti in sicurezza la corsia?",
-                new[] { "Spegni M1 e posa BL-01", "Solo radio al capo turno", "Sposta Marco subito" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        Feedback("Spegni M1 dal comando e posa la barriera sul rack.", FeedbackKind.Positive);
-                        SetHint("Comando M1: F1. Barriera: F5, coni: F6.");
-                    }
-                    else if (index == 1)
-                    {
-                        Record("LG-05", "Muletto 1 lasciato acceso: niente Successo.", ChoiceKind.Missed, "Safety");
-                        SetHint("La radio non sostituisce lo spegnimento di M1.");
-                    }
-                    else if (index == 2)
-                    {
-                        MoveMarco(false);
-                    }
-                    else
-                    {
-                        Record("LG-05", "Muletto 1 non spento.", ChoiceKind.Missed, "Safety");
-                    }
-                }, timeout);
-        }
-
-        private void AskRadioDecision()
-        {
-            if (called112 || finished) return;
-            SetPhase(PHASE_DECISION);
-            AskDecision("Hai la radio. Chi chiami?",
-                new[] { "112 e capo turno", "Solo capo turno", "Nessuno" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        calledForeman = true;
-                        Call112();
-                    }
-                    else if (index == 1)
-                    {
-                        calledForeman = true;
-                        Record("LG-07", "112 non chiamato: soccorsi non programmati.", ChoiceKind.Missed, "Decision");
-                    }
-                    else
-                    {
-                        Record("LG-07", "Nessuna chiamata: soccorsi non programmati.", ChoiceKind.Missed, "Decision");
-                    }
-                }, Level == DifficultyLevel.Guided ? 12f : 7f);
-        }
-
-        private void AskRescueDecision()
-        {
-            SetPhase(PHASE_DECISION);
-            AskDecision("Marco è confuso. Cosa fai?",
-                new[] { "Parla, controlla il respiro, comprimi e copri", "Lo sposto subito", "Aspetto i soccorsi" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        spoken = true;
-                        breathingChecked = true;
-                        Record("LG-13", "Stato di Marco verificato.", ChoiceKind.Correct, "Execution");
-                        Feedback("Ora premi sulla ferita e copri Marco.", FeedbackKind.Positive);
-                        UpdateObjectives();
-                        AskFirstAidDecision();
-                    }
-                    else if (index == 1)
-                    {
-                        MoveMarco(false);
-                    }
-                    else
-                    {
-                        Record("LG-14", "Nessun intervento su Marco.", ChoiceKind.Missed, "Execution");
-                    }
-                }, Level == DifficultyLevel.Guided ? 14f : 8f);
-        }
-
-        /// <summary>Passi di primo soccorso selezionabili col raggio sul pannello (oltre ai tasti F9/F10 in Editor).</summary>
-        private void AskFirstAidDecision()
-        {
-            if (firstAidAsked || finished || !IsRunning) return;
-            firstAidAsked = true;
-            SetPhase(PHASE_DECISION);
-            AskDecision("Come assisti Marco?",
-                new[] { "Comprimi e copri", "Sposta Marco", "Attendi soccorsi" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        woundPressed = true;
-                        covered = true;
-                        Feedback("Compressione e copertura eseguite.", FeedbackKind.Positive);
-                        CheckWoundAndCover();
-                    }
-                    else if (index == 1)
-                    {
-                        MoveMarco(false);
-                    }
-                    else
-                    {
-                        Record("LG-14", "Nessun intervento su Marco.", ChoiceKind.Missed, "Execution");
-                    }
-                    UpdateObjectives();
-                }, Level == DifficultyLevel.Guided ? 16f : 9f);
-        }
-
-        /// <summary>Variante apnea: RCP 30:2 e DAE scelti dal pannello, con scadenza gestita da ApneaRoutine.</summary>
-        private void AskApneaDecision()
+        /// <summary>Segna l'osservazione richiesta: il giocatore deve guardare l'oggetto, non scegliere da un menu.</summary>
+        private void Observe(ForkliftChaosAction action)
         {
             if (finished || !IsRunning) return;
-            SetPhase(PHASE_DECISION);
-            AskDecision("Marco non respira. Cosa fai?",
-                new[] { "RCP 30:2 e DAE", "Controlla ancora", "Sposta Marco" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
+            switch (action)
+            {
+                case ForkliftChaosAction.ObserveMarco:
+                    if (!observed)
                     {
-                        cprStarted = true;
-                        aedUsed = true;
-                        Record("LG-15", "RCP 30:2 e DAE avviati dopo il respiro assente.", ChoiceKind.Correct, "Execution");
-                        Feedback("RCP e DAE avviati: continua fino ai soccorsi.", FeedbackKind.Positive);
+                        observed = true;
+                        Record("LG-01", "Marco a terra: visto sanguinamento e stato di coscienza.", ChoiceKind.Correct, "Awareness");
+                        Feedback("Marco è a terra e sanguina. Non spostarlo.", FeedbackKind.Positive);
+                        SetHint("Vai al rack RK-01: prendi radio e barriera.");
+                        UpdateObjectives();
                     }
-                    else if (index == 1)
+                    break;
+                case ForkliftChaosAction.ObserveForklift1:
+                    if (!observed)
                     {
-                        Record("LG-16", "Respiro dubbio: agisci come se fosse assente.", ChoiceKind.Missed, "Execution");
+                        observed = true;
+                        Record("LG-01", "Muletto 1 acceso con carico instabile individuato.", ChoiceKind.Correct, "Awareness");
+                        Feedback("Muletto 1 è acceso: spegnilo dal comando.", FeedbackKind.Positive);
+                        UpdateObjectives();
                     }
-                    else
+                    break;
+                case ForkliftChaosAction.ObservePallet:
+                    if (!observed)
                     {
-                        MoveMarco(false);
+                        observed = true;
+                        Record("LG-01", "Pallet in bilico individuato prima dell'urto.", ChoiceKind.Correct, "Awareness");
+                        Feedback("Pallet instabile: non sostarci sotto.", FeedbackKind.Positive);
+                        UpdateObjectives();
                     }
-                }, Level == DifficultyLevel.Guided ? 14f : 8f);
+                    break;
+                case ForkliftChaosAction.ObserveBlindCorner:
+                    blindCornerObserved = true;
+                    if (!observed)
+                    {
+                        observed = true;
+                        Record("LG-01", "Angolo cieco controllato prima di entrare in corsia.", ChoiceKind.Correct, "Awareness");
+                    }
+                    Record("LG-02", "Angolo cieco verificato: nessun mezzo arriva alle spalle.", ChoiceKind.Correct, "Awareness");
+                    Feedback("Hai controllato l'angolo cieco.", FeedbackKind.Positive);
+                    UpdateObjectives();
+                    break;
+            }
         }
 
-        private void AskM2Decision()
+        /// <summary>La radio resta in mano: i due pulsanti (112 / capo turno) sono oggetti fisici figli della radio.</summary>
+        private void AttachRadioToHead()
         {
-            SetPhase(PHASE_DECISION);
-            AskDecision("Muletto 2 arriva dall'angolo cieco. Come lo fermi?",
-                new[] { "Barriera BL-01", "Radio al capo turno", "Corri nella corsia" },
-                index =>
-                {
-                    SetPhase(PHASE_ACTION);
-                    if (index == 0)
-                    {
-                        if (!barrierPlaced)
-                        {
-                            barrierPlaced = true;
-                            SetBarrierActive(true);
-                            Record("LG-06", "Barriera chiusa prima dell'arrivo di M2.", ChoiceKind.Correct, "Safety");
-                        }
-                        Record("LG-09", "Muletto fermato con la barriera.", ChoiceKind.Correct, "Decision");
-                    }
-                    else if (index == 1)
-                    {
-                        if (!calledForeman) calledForeman = true;
-                        Record("LG-09", "Muletto fermato via radio.", ChoiceKind.Correct, "Decision");
-                    }
-                    else
-                    {
-                        Record("LG-10", "Sei corso nella corsia davanti al mezzo.", ChoiceKind.Critical, "Safety");
-                    }
-                }, 7f);
+            if (radioPickup == null) return;
+            Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
+            if (h == null) return;
+            radioPickup.transform.SetParent(h, true);
+            radioPickup.transform.localPosition = new Vector3(0.32f, -0.3f, 0.62f);
+            radioPickup.transform.localRotation = Quaternion.Euler(12f, -18f, 0f);
+        }
+
+        private void AttachBarrierToHead()
+        {
+            if (barrierPickup == null) return;
+            Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
+            if (h == null) return;
+            barrierPickup.transform.SetParent(h, true);
+            barrierPickup.transform.localPosition = new Vector3(-0.38f, -0.38f, 0.75f);
+            barrierPickup.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
         }
 
         // =====================================================================
@@ -437,6 +302,26 @@ namespace G_Ludovica.ForkliftChaos
             if (!IsRunning || finished) return;
             switch (action)
             {
+                case ForkliftChaosAction.ObserveMarco:
+                case ForkliftChaosAction.ObserveForklift1:
+                case ForkliftChaosAction.ObservePallet:
+                case ForkliftChaosAction.ObserveBlindCorner:
+                    Observe(action);
+                    break;
+
+                case ForkliftChaosAction.KnockPallet:
+                    TriggerPallet1Fall(true);
+                    break;
+
+                case ForkliftChaosAction.PickupBarrier:
+                    if (!barrierPicked)
+                    {
+                        barrierPicked = true;
+                        AttachBarrierToHead();
+                        Feedback("Barriera in mano: posala sulla linea BL-01.", FeedbackKind.Positive);
+                    }
+                    break;
+
                 case ForkliftChaosAction.StopForklift1:
                     if (!m1Stopped)
                     {
@@ -453,25 +338,36 @@ namespace G_Ludovica.ForkliftChaos
                     {
                         radioPicked = true;
                         if (radioPickup != null) radioPickup.SetActive(false);
-                        Feedback("Radio portatile raccolta.", FeedbackKind.Positive);
-                        AskRadioDecision();
+                        AttachRadioToHead();
+                        Feedback("Radio in mano: usa i tasti 112 e capo turno.", FeedbackKind.Positive);
                     }
                     break;
 
                 case ForkliftChaosAction.Call112:
-                    Call112();
+                    if (!radioPicked) Feedback("Prendi prima la radio dal rack RK-01.", FeedbackKind.Negative);
+                    else Call112();
                     break;
 
                 case ForkliftChaosAction.CallForeman:
-                    CallForeman();
+                    if (!radioPicked) Feedback("Prendi prima la radio dal rack RK-01.", FeedbackKind.Negative);
+                    else CallForeman();
                     break;
 
                 case ForkliftChaosAction.PlaceBarrier:
+                    if (!barrierPicked)
+                    {
+                        Feedback("Prendi prima la barriera dal rack RK-01.", FeedbackKind.Negative);
+                        break;
+                    }
                     if (!barrierPlaced)
                     {
                         barrierPlaced = true;
                         SetBarrierActive(true);
-                        if (barrierPickup != null) barrierPickup.SetActive(false);
+                        if (barrierPickup != null)
+                        {
+                            barrierPickup.transform.SetParent(null, true);
+                            barrierPickup.SetActive(false);
+                        }
                         Record("LG-06", "Corsia delimitata: M2 e colleghi non entrano.", ChoiceKind.Correct, "Safety");
                         Feedback("Barriera BL-01 posata.", FeedbackKind.Positive);
                         UpdateObjectives();
@@ -503,8 +399,7 @@ namespace G_Ludovica.ForkliftChaos
                         breathingChecked = true;
                         Record("LG-13", "Respiro controllato: scegli il soccorso corretto.", ChoiceKind.Correct, "Execution");
                         Feedback("Respiro verificato.", FeedbackKind.Positive);
-                        if (!spoken) AskRescueDecision();
-                        else AskFirstAidDecision();
+                        SetHint("Ora parla con Marco, comprimi e coprilo con gli oggetti accanto a lui.");
                     }
                     break;
 
@@ -547,10 +442,6 @@ namespace G_Ludovica.ForkliftChaos
 
                 case ForkliftChaosAction.MoveMarco:
                     MoveMarco(true);
-                    break;
-
-                case ForkliftChaosAction.KeepColleaguesOut:
-                    CallForeman();
                     break;
 
                 case ForkliftChaosAction.StopForklift2:
@@ -637,6 +528,11 @@ namespace G_Ludovica.ForkliftChaos
 
         private void CallForeman()
         {
+            if (!radioPicked)
+            {
+                Feedback("Prendi prima la radio dal rack RK-01.", FeedbackKind.Negative);
+                return;
+            }
             if (calledForeman) return;
             calledForeman = true;
             colleaguesHeld = true;
@@ -647,6 +543,34 @@ namespace G_Ludovica.ForkliftChaos
         // =====================================================================
         // Eventi dinamici
         // =====================================================================
+
+        /// <summary>Movimento minimo del carico instabile: il mezzo "vive" prima ancora degli eventi.</summary>
+        private IEnumerator IdleWobbleRoutine()
+        {
+            while (!m1Stopped && !finished && forklift1 != null)
+            {
+                forklift1.transform.Rotate(0f, 0f, 1.2f);
+                yield return new WaitForSeconds(0.4f);
+                if (m1Stopped || finished || forklift1 == null) yield break;
+                forklift1.transform.Rotate(0f, 0f, -1.2f);
+                yield return new WaitForSeconds(0.4f);
+            }
+        }
+
+        /// <summary>Respiro visibile di Marco (si ferma in apnea): serve anche per il controllo del respiro.</summary>
+        private IEnumerator BreathingRoutine()
+        {
+            if (marco == null) yield break;
+            Vector3 baseScale = marco.transform.localScale;
+            float t = 0f;
+            while (!finished && !rescueArrived && !apnea && marco != null)
+            {
+                t += Time.deltaTime;
+                marco.transform.localScale = baseScale * (1f + Mathf.Sin(t * 2.4f) * 0.03f);
+                yield return null;
+            }
+            if (marco != null) marco.transform.localScale = baseScale;
+        }
 
         private IEnumerator TimedEventsRoutine()
         {
@@ -667,7 +591,7 @@ namespace G_Ludovica.ForkliftChaos
                 if (t > 20f && head != null && marco != null &&
                     Vector3.Distance(head.position, marco.transform.position) < 3.2f && !spoken && !breathingChecked)
                 {
-                    AskRescueDecision();
+                    SetHint("Sei vicino a Marco: parla, controlla il respiro, comprimi e copri.");
                     break;
                 }
                 yield return new WaitForSeconds(1f);
@@ -705,7 +629,15 @@ namespace G_Ludovica.ForkliftChaos
                 Feedback("Preavviso 6 s: barriera F5 o radio F11.", FeedbackKind.Neutral);
             Record("EV-02", "Clacson e avvisi percepiti.", ChoiceKind.Correct, "Awareness");
 
-            if (Time.time - hornTime < 0.1f) AskM2Decision();
+            SetHint("Clacson: posa la barriera BL-01 o usa il tasto capo turno sulla radio.");
+            if (calledForeman && !barrierPlaced)
+            {
+                m2Stopped = true;
+                SetM2Warning(false);
+                Record("LG-09", "Muletto 2 fermato via radio dal capo turno.", ChoiceKind.Correct, "Decision");
+                Feedback("Mezzo fermo prima dell'accesso.", FeedbackKind.Positive);
+                yield break;
+            }
             yield return new WaitForSeconds(lead);
             yield return MoveM2Routine();
         }
@@ -826,7 +758,7 @@ namespace G_Ludovica.ForkliftChaos
             apnea = true;
             Alert("Marco non respira\nInizia RCP 30:2 e usa il DAE", "ICN_Warning_Filled");
             Subtitle("Capo turno", "Se il respiro è dubbio, agisci come se fosse assente.", 6f);
-            AskApneaDecision();
+            SetHint("Marco non respira: RCP 30:2 e DAE con gli oggetti accanto a lui.");
             yield return new WaitForSeconds(replay != null ? replay.cprDeadlineSeconds : 120f);
             if (finished || cprStarted) yield break;
             Record("LG-16", "Apnea senza RCP entro 120 s: livello fallito.", ChoiceKind.Critical, "Execution");

@@ -11,8 +11,9 @@
 | Dispositivo | Quest 3 / Quest 3S — da compilare: ____________________ |
 | Meta XR Core SDK / OpenXR | 209.0.0 / 1.16.1 (vedi `ValentinoAGENTS.md`) |
 | Livelli da provare | Guided, Operational, Crisis |
-| Comandi Editor | F1 spegni M1 · F2 radio · F3 112 · F4 capo turno · F5 barriera · F6 coni · F7 parla · F8 respiro · F9 ferita · F10 copri · F11 ferma M2 · F12 sposta Marco · F13 RCP · F14 DAE · F15 colleghi |
-| Comandi VR | sguardo + grilletto sugli oggetti; pannello decisioni con raggio del controller |
+| Movimento | Editor: `WASD`/frecce, `Q`/`E` ruota, mouse+tasto destro, `Shift` corsa · VR: stick sinistro cammina, stick destro svolta a scatti |
+| Comandi Editor | F1 spegni M1 · F2 prendi radio · F3 tasto 112 · F4 tasto CAPO · F5 prendi barriera · F6 posa barriera · F7 coni · `G` urtare pallet · F8 parla · F9 respiro · F10 ferita · F11 copri · F12 ferma M2 · F13 sposta Marco · F14 RCP · F15 DAE |
+| Comandi VR | sguardo prolungato per osservare; sguardo + grilletto sugli oggetti etichettati. **Nessun pannello a scelta multipla.** |
 
 ## 2. Matrice dei playtest (5 richiesti, ≥2 esterni)
 
@@ -22,7 +23,7 @@
 | T2 | Interno | ________ | Operational | M2 non fermato + colleghi entrati | clacson 6 s prima, ombra, decisione M2 via radio, LG-18, soccorsi +60 s → **Parziale**, timeline debrief leggibile | DA ESEGUIRE | |
 | T3 | Interno | ________ | Crisis | Errori critici | sposta Marco senza pericolo → Fallimento; riprova: corri in corsia → investimento; riprova: sosta in LZ-B → pallet su Marco | DA ESEGUIRE | |
 | T4 | **Esterno** | ________ | Guided | Utente naïf, nessuna spiegazione | capisce cosa fare con soli avvisi/sottotitoli? tempo di reazione al clacson < 6 s? comfort (nessuna nausea)? | DA ESEGUIRE | |
-| T5 | **Esterno** | ________ | Operational | Utente naïf, replay variato | secondo play con orario M2 e RK-01 diversi: riconosce l'angolo cieco? usa il pannello decisioni senza aiuto? | DA ESEGUIRE | |
+| T5 | **Esterno** | ________ | Operational | Utente naïf, replay variato | secondo play con orario M2 e RK-01 diversi: riconosce l'angolo cieco? trova i pulsanti sulla radio e il kit di soccorso senza aiuto? | DA ESEGUIRE | |
 
 ## 3. Checklist di conformità (spuntare durante i test)
 
@@ -33,11 +34,13 @@
 - [ ] EV-08: corsa vicino a Marco produce penalità ma nessuno spostamento forzato della vista.
 - [ ] EV-05: non coperto a 180 s produce avviso e penalità Execution.
 - [ ] EV-06: sirena e fine livello; ritardo di 60 s se la corsia è bloccata.
-- [ ] Apnea: mai in Guided; RCP/DAE disponibili via pannello; timeout 120 s = Fallimento.
+- [ ] Apnea: mai in Guided; RCP/DAE disponibili come cubi etichettati accanto a Marco; timeout 120 s = Fallimento.
 - [ ] Debrief: SPI, stelle, 5 dimensioni, righe con minuto/ID/esito/conseguenza, percorso corretto, nota 112.
 - [ ] Niente Successo senza barriera BL-01.
 - [ ] Tre livelli giocabili e rigiocabili; variabili di replay effettivamente diverse tra T4 e T5.
-- [ ] Nessun errore in Console; nessun pannelloDecisioni bloccato; HUD leggibile a 1,2 m.
+- [ ] Nessun errore in Console; nessun pannelloDecisioni (non più usato); HUD leggibile a 1,2 m.
+- [ ] Locomozione: WASD/stick sinistro muovono il rig; Q/E o stick destro ruotano; non si attraversano i muri.
+- [ ] Nessun quiz a comparsa: per osservare e agire servono sguardo e grilletto sugli oggetti.
 
 ## 4. Esiti attesi per configurazione (riferimento per il compilatore)
 

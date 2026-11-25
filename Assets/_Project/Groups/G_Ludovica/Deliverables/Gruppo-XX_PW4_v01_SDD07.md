@@ -35,26 +35,30 @@ Coordinate in metri, asse Z del mondo = asse Y della mappa SVG.
 
 Rotta Muletto 2: (36,5) → (30,5) → (30,9) → (31,1; 10,5) → (31,1; 18,4). Waypoint `WP_M2_1…5`.
 
-## 3. Cinque decision point
+## 3. Cinque momenti decisivi (senza pannelli a scelta multipla)
 
-| DP | Domanda | Opzioni corrette | Conseguenza dell'errore |
+I cinque decision point **non sono quiz**: il giocatore li risolve camminando, guardando e usando oggetti nella scena. Non esiste più `AskDecision` in questo scenario.
+
+| DP | Azione fisica richiesta | Errore possibile | Conseguenza |
 |---|---|---|---|
-| DP1 | Prima di intervenire, cosa fai? | Osserva dalla soglia (e controlla l'angolo cieco) | Correre in corsia = Rischioso (LG-03); afferrare il pallet = caduta su Marco (LG-19); non osservare entro 30 s = LG-02 |
-| DP2 | Come metti in sicurezza la corsia? | Spegni M1 e posa BL-01 con i coni | Solo radio = M1 acceso, niente Successo (LG-05); spostare Marco = LG-11 |
-| DP3 | Hai la radio. Chi chiami? | 112 e capo turno | Solo capo turno / nessuno = soccorsi non programmati (LG-07) |
-| DP4 | Marco è confuso / non respira. Cosa fai? | Parla, controlla il respiro, comprimi e copri; se apnea, RCP 30:2 + DAE | Spostamento senza pericolo = LG-11; apnea senza RCP entro 120 s = LG-16 |
-| DP5 | Muletto 2 arriva, colleghi si avvicinano | Barriera (o radio) per M2; barriera o capo turno per i colleghi | M2 non fermato = investimento (LG-10); colleghi in corsia = LG-18 e soccorsi ritardati |
+| DP1 | Avvicinarsi e **guardare** Marco, M1, PA-01 e l'angolo cieco (dwell 1,2 s su ciascuno) | Guardare il pallet e urtarlo (`G`) | LG-02 / LG-03 / LG-19 |
+| DP2 | Spegnere M1 (`F1`) e posare la barriera presa dal rack (`F5`) sulla linea BL-01 (`F6`), poi i coni (`F7`) | Lasciare M1 acceso / spostare Marco | LG-05, niente Successo / LG-11 |
+| DP3 | Prendere la radio (`F2`) e premere i **due tasti fisici** sulla radio: `112` (`F3`) e `CAPO` (`F4`) | Solo capo turno o nessuna chiamata | LG-07, soccorsi non programmati |
+| DP4 | Usare gli oggetti del kit accanto a Marco: parla (`F8`), respiro (`F9`), ferita (`F10`), copri (`F11`), RCP (`F14`), DAE (`F15`) | Spostamento senza pericolo (`F13`); apnea senza RCP entro 120 s | LG-11 / LG-16 |
+| DP5 | Con il clacson, posare la barriera BL-01 o premere il tasto `CAPO` sulla radio; fermare M2 puntandolo (`F12`) | Correre in corsia / non fermare il mezzo | LG-10 (investimento) |
 
 ## 4. Interazioni (≥3 richieste)
 
 | Gruppo | Azioni | VR | Editor |
 |---|---|---|---|
-| osserva / ispeziona | Marco, M1 acceso, pallet in bilico, angolo cieco | sguardo + pannello decisioni | pannello decisioni |
-| grab / use | radio dal rack, barriera BL-01, coni, comando di arresto M1 | sguardo + grilletto | F1–F6 |
-| comunica | Marco, capo turno, 112, colleghi, conducente M2 | pannello decisioni + radio | F3, F4, F7, F15 |
-| soccorso | compressione, copertura, RCP 30:2, DAE, spostamento d'emergenza | pannello decisioni (secondario: F9–F14) | F9–F14 |
+| osserva / ispeziona | Marco, M1, pallet, angolo cieco | sguardo prolungato (dwell) | sguardo prolungato |
+| grab / use | radio + tasti 112/capo, barriera dal rack → posa su BL-01, coni, comando M1 | sguardo + grilletto sugli oggetti etichettati | F1–F7 |
+| comunica | tasto `112`, tasto `CAPO`, parla con Marco | sguardo + grilletto sui pulsanti fisici | F3, F4, F8 |
+| soccorso | respiro, compressione, copertura, spostamento d'emergenza, RCP, DAE | sette cubi etichettati accanto a Marco | F9–F15 |
 
-Nota VR: le interazioni condividono lo stesso collider (Marco); per evitare attivazioni multiple un solo grilletto per frame è accettato, e le azioni di soccorso sono selezionabili dal pannello decisioni.
+**Locomozione:** script `ForkliftChaosLocomotion` (`MNG_Locomotion`) sposta il `TrackingOrigin` del CoreRig. In Editor: `WASD`/frecce, `Q`/`E` per ruotare, mouse con tasto destro, `Shift` per correre. In VR: stick sinistro = cammina, stick destro = svolta a scatti da 30°. Nessun asset condiviso è stato modificato.
+
+Nota VR: ogni azione ha un oggetto proprio con collider ed etichetta; non ci sono più pannelli a comparsa. Un solo grilletto per frame impedisce attivazioni doppie. La radio e la barriera, una volta prese, restano agganciate alla testa del giocatore.
 
 ## 5. Rischi ed eventi
 

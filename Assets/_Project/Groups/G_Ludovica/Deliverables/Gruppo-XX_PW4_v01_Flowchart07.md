@@ -9,7 +9,7 @@ flowchart TD
     DP1 -->|Osserva dalla soglia| O1[LG-01 Awareness ✓<br/>controlla angolo cieco]
     DP1 -->|Corri in corsia| O2[LG-03 Time ✗<br/>esposto a M2 e pallet]
     DP1 -->|Afferra il pallet| O3[LG-19 Safety ✗✗<br/>PA-01 cade su Marco]
-    DP1 -->|Timeout pannello| O4[LG-02 Awareness ✗<br/>angolo cieco non controllato]
+    DP1 -->|Non guardi entro 30 s| O4[LG-02 Awareness ✗<br/>angolo cieco non controllato]
 
     O1 --> DP2{DP2 · spegni M1<br/>e delimita BL-01?}
     O2 --> DP2

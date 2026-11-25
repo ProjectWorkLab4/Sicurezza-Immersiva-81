@@ -15,9 +15,9 @@ namespace SI81.ManDown
     /// Non gestisce input, camera, mani, interazioni o UI specifica. Le future classi ManDownNpc, ManDownPhone,
     /// ManDownCpr e ManDownAed comunicano tramite i metodi pubblici e gli eventi qui esposti.
     ///
-    /// Modalità supportata: solo Realistica (180 s configurabili). Il timer è quello di HUDService: all'avvio viene
-    /// riavviato con la durata dello scenario, senza creare un secondo contatore. Alla scadenza arriva TimerExpired,
-    /// che chiude la missione con fallimento TIMEOUT.
+    /// Modalità supportata: solo Realistica. Il timer è esclusivamente quello dell'UI comune: viene avviato da
+    /// HUDRoot.BeginFromSession() con mission.GetTimeLimit() e non viene riavviato da questo componente. Alla scadenza
+    /// arriva TimerExpired, che chiude la missione con fallimento TIMEOUT.
     /// </summary>
     [AddComponentMenu("SI81/Scenari/Man Down Scenario")]
     public class ManDownScenario : ScenarioController
@@ -50,6 +50,8 @@ namespace SI81.ManDown
         // Identificativi delle azioni registrate.
         /// <summary>Azione: verifica della coscienza.</summary>
         public const string ACTION_CONSCIOUSNESS_CHECK = "CONSCIOUSNESS_CHECK";
+        /// <summary>Risultato della valutazione della coscienza: l'NPC è sempre incosciente.</summary>
+        public const string CONSCIOUSNESS_RESULT = "NPC incosciente";
         /// <summary>Azione: verifica della respirazione.</summary>
         public const string ACTION_BREATHING_CHECK = "BREATHING_CHECK";
         /// <summary>Azione: chiamata simulata al 112.</summary>
@@ -265,7 +267,8 @@ namespace SI81.ManDown
         }
 
         /// <summary>
-        /// Inizializza stato, condizioni iniziali, timer e registro azioni. Sicura da chiamare più volte.
+        /// Inizializza stato, condizioni iniziali e registro azioni. Sicura da chiamare più volte.
+        /// Il timer non viene toccato: resta gestito dalla UI comune.
         /// </summary>
         public void InitializeScenario()
         {
@@ -282,8 +285,7 @@ namespace SI81.ManDown
                 Debug.LogWarning("[SI81 ManDown] È implementata solo la modalità Realistica (Operational). " +
                                  "Il timer e le soglie di questo scenario restano quelli configurati.", this);
 
-            // Stesso timer della UI comune: si riavvia con la durata dello scenario, non se ne crea un secondo.
-            HUDService.StartTimer(Mathf.Max(1, Mathf.RoundToInt(missionDurationSeconds)));
+            // Il timer è già partito con HUDRoot.BeginFromSession(): non richiamare HUDService.StartTimer().
             SetPhase(PHASE_SCAN);
             ChangePhase(ManDownPhase.ConsciousnessAssessment);
 
@@ -293,8 +295,9 @@ namespace SI81.ManDown
 
         /// <summary>
         /// Reset completo dei dati dello scenario. Se la missione è ancora in corso e il componente è attivo,
-        /// reinizializza subito stati, condizioni iniziali e timer. Dopo la conclusione la sessione comune non può
-        /// essere riaperta sulla stessa istanza: per una nuova partita va ricaricata la scena.
+        /// reinizializza subito stati e condizioni iniziali. Il timer non viene fermato né riavviato: resta gestito
+        /// dalla UI comune. Dopo la conclusione la sessione comune non può essere riaperta sulla stessa istanza:
+        /// per una nuova partita va ricaricata la scena.
         /// </summary>
         public void ResetScenario()
         {
@@ -306,7 +309,6 @@ namespace SI81.ManDown
             phase = ManDownPhase.NotStarted;
             missionStartTime = 0f;
             lastResult = null;
-            HUDService.StopTimer();
 
             Debug.Log("[SI81 ManDown] Reset dello scenario eseguito.", this);
 
@@ -344,7 +346,7 @@ namespace SI81.ManDown
             if (!AcceptsActions || consciousnessChecked) return;
 
             consciousnessChecked = true;
-            RecordAction(ACTION_CONSCIOUSNESS_CHECK, true, true, null);
+            RecordAction(ACTION_CONSCIOUSNESS_CHECK, true, true, CONSCIOUSNESS_RESULT);
             if (phase == ManDownPhase.Initialization || phase == ManDownPhase.ConsciousnessAssessment)
                 ChangePhase(ManDownPhase.BreathingAssessment);
             ConsciousnessAssessed?.Invoke();

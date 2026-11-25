@@ -1,7 +1,7 @@
 # TASK_PROGRESS — Man Down (G_Marius)
 
 - **Data:** 2026-11-25
-- **Stato:** otto decisioni aperte e decisioni integrative **approvate e documentate**; TASK 01 (rig condiviso) e TASK 02 (`ManDownScenario`) completati e verificati in Editor/Play Mode. Il controller non crea UI, input o interazioni: `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed` e scoring definitivo restano da implementare. Validazione fisica su Meta Quest 3 ancora **manuale**.
+- **Stato:** otto decisioni aperte e decisioni integrative **approvate e documentate**; TASK 01 (rig condiviso), TASK 02 (`ManDownScenario`) e TASK 03 (sola verifica della coscienza dell'NPC) completati e verificati in Editor/Play Mode. Il controller usa solo il timer comune e la coscienza resta sottoazione dell'obiettivo 2 senza `CompleteObjective()` né avanzamento da `PHASE_SCAN`. `ManDownNpc` esiste solo per la coscienza; `ManDownPhone`, `ManDownCpr`, `ManDownAed`, respirazione, scoring definitivo e UI dedicata restano da implementare. Validazione fisica su Meta Quest 3 ancora **manuale**.
 - **Regole operative:** `Docs/Man_Down/AGENTS.md` §0, §0.1, §0.2 e §0.3 (quest'ultimo ha priorità su rig, UI e Build Settings). Leggere `AGENTS.md` e questo file all'inizio di ogni task e dopo ogni interruzione/compattazione.
 - **Priorità:** le decisioni approvate dall'utente prevalgono su GDD specifico, flowchart e GDD generale in caso di incongruenze.
 
@@ -13,8 +13,8 @@
 |---:|---|---|---|
 | 1 | Preparazione e documentazione | **Completata** | TASK 00, 00b, 00c, 00d, 00e; analisi, direttive e decisioni approvate registrate. |
 | 2 | Integrazione del player rig condiviso (TASK 01) | **Completata in Editor/Play Mode** | Nessun rig locale: la scena usa `SCN_Core`, `InputService`, `Interactable` e `RayInteractor` condivisi. Prova su Quest 3 ancora manuale. |
-| 3 | Controller della missione (TASK 02) | **Completata** | `ManDownScenario` eredita da `ScenarioController`; stato, random 70/30 e 75/25 configurabili/forzabili, timer condiviso 180 s, API ed eventi verificati. |
-| 4 | Controllo della coscienza | **Logica pronta (TASK 02)** | `VerifyConsciousness()` + evento; manca il componente che lo richiama. |
+| 3 | Controller della missione (TASK 02) | **Completata** | `ManDownScenario` eredita da `ScenarioController`; stato, random 70/30 e 75/25 configurabili/forzabili, API ed eventi verificati. In TASK 03 rimossi avvio/riavvio timer duplicati: resta solo il timer comune. |
+| 4 | Controllo della coscienza (TASK 03) | **Completata in Editor/Play Mode** | `ManDownNpc` su spalla con `Interactable`/`LabelAnchor` condivisi, GRIP → `VerifyConsciousness()`, azione unica `NPC incosciente`; nessun avanzamento HUD. Prova su Quest 3 ancora manuale. |
 | 5 | Telefono e chiamata al 112 | **Logica pronta (TASK 02)** | `Call112()` e penalità `EMERGENCY_NOT_CALLED`; manca `ManDownPhone` e l'interazione. |
 | 6 | Controllo della respirazione | **Logica pronta (TASK 02)** | Esito 70/30 configurabile/forzabile e evento; manca l'indizio visivo in `ManDownNpc`. |
 | 7 | Posizione laterale e monitoraggio | **Logica pronta (TASK 02)** | `PlaceSidePosition()` e `Monitor()` nel ramo normale; manca la posa in `ManDownNpc`. |
@@ -29,12 +29,12 @@
 
 ## Task corrente
 
-- **TASK 02 — Controller logico centrale `ManDownScenario`** (2026-11-25).
-- **Richiesta:** completare esclusivamente il controller logico compatibile con `ScenarioController` condiviso: inizializzazione all'inizio effettivo, condizioni indipendenti configurabili/forzabili, fasi non rigide, registro azioni e timestamp, ricezione dei risultati RCP grezzi, timeout 180 s, esiti e ID approvati, API/eventi per le classi future. Nessuna UI, input XR, interazione o gameplay dei componenti dedicati.
-- **Esito:** due script creati in `Code/Scripts/ManDown/`; su `MNG_Scenario` il componente base `SI81.UI.ScenarioController` è stato **sostituito** da `SI81.ManDown.ManDownScenario` (non aggiunto accanto: la base ha `[DisallowMultipleComponent]`). Missione e spawn point preservati.
-- **Timer:** `HUDRoot.BeginFromSession()` avvia già il timer condiviso; `ManDownScenario` riavvia lo stesso `HUDService.StartTimer(int)` con 180 s. Nessun contatore parallelo; alla scadenza `TimerExpired` conclude con `TIMEOUT`.
-- **Verifiche:** ricompilazione riuscita con 0 errori; harness temporaneo isolato **49/49 verifiche superate, 0 fallimenti**; Play Mode con timer condiviso attivo e scadenza forzata; console runtime 0 errori.
-- **Limiti:** `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`, UI e scoring definitivo non sono stati implementati. Nessuna prova su visore: movimento/rotazione reali, pose controller, haptics e presa/selezione restano test manuali. TASK 01 resta completato e verificato come registrato sotto.
+- **TASK 03 — Sola verifica della coscienza dell'NPC** (2026-11-25).
+- **Richiesta:** completare esclusivamente la coscienza del NPC a terra usando `SI81.Interaction.Interactable`, `RayInteractor`/`InputService` condivisi e `LabelAnchor`; nessuna respirazione, telefono/112, RCP, DAE, rischi ambientali, primo soccorso aziendale, scoring definitivo, `CompleteObjective()` o avanzamento HUD.
+- **Esito:** creato `ManDownNpc.cs` su `MESH_RiggedEmployee`; aggiunto il figlio `MESH_ShoulderGrip` con `BoxCollider`, `Interactable` e `LabelAnchor` comuni. Il GRIP sulla spalla chiama `ManDownScenario.VerifyConsciousness()`, che registra `CONSCIOUSNESS_CHECK` con nota `NPC incosciente`. NPC invariato nel modello, materiali e posa.
+- **Compatibilità TASK 02:** rimossi `HUDService.StartTimer(...)` da `InitializeScenario()` e `HUDService.StopTimer()` da `ResetScenario()`. `HUDRoot.BeginFromSession()` resta l'unico avvio del timer, basato su `mission.GetTimeLimit(...)`; `SO_Mission_ManDown` invariato. I 180 s approvati restano una decisione di gameplay, non applicata sull'asset missione in questo task.
+- **Verifiche:** ricompilazione riuscita (0 errori, 4 warning `CS0414` preesistenti); validatore scenario `0 errori, 9 avvisi` di naming preesistente; Play Mode con test `si81_task03_playmode_test.cs` **35/35 PASS**; console runtime 0 errori; Play Mode fermato e progetto salvato.
+- **Limiti:** la fase interna diventa `BreathingAssessment`, ma `PhaseKeyFor(...)` resta `PHASE_SCAN`: obiettivo 2 e HUD non avanzano. In diagnostica direct Play Mode il timer comune risulta `timerRunning=False`, `countdown=False`, `remaining=0`: è stato verificato solo che non venga riavviato, non l'avvio tramite Home. Nessuna prova su visore: avvicinamento reale del controller, GRIP, pose, haptics e inquadratura dell'etichetta restano test manuali. TASK 01 e TASK 02 restano completati come registrato sotto.
 
 ---
 
@@ -89,14 +89,25 @@
 - **Conclusione:** `FinishMission()` usa il punteggio provvisorio; `FinishMission(int)` consente un valore esplicito per test e per il futuro scoring, applicando comunque timeout, `CPR_OMITTED`, `LOW_SCORE`, penalità e limite a parziale senza 112. Una sola conclusione per istanza.
 - **Esiti:** `>= 80` successo, `>= 50` e `< 80` parziale, `< 50` fallimento; fallimenti automatici e penalizzazioni con tutti gli ID approvati, registrabili in più cause. Senza chiamata al 112 non c'è arrivo simulato né dichiarazione di fuori pericolo e l'esito è al massimo parziale, salvo fallimenti automatici.
 - **Scena:** su `MNG_Scenario` il componente `SI81.UI.ScenarioController` è stato rimosso e sostituito da `SI81.ManDown.ManDownScenario`; missione `SO_Mission_ManDown` e spawn point preservati, `editorLevel=Guided`, `loadCoreInEditor=false`, un solo componente derivato da `ScenarioController`.
-- **Non implementato:** rilevamento fisico RCP/DAE, componenti interattivi su NPC/telefoni/DAE, UI, audio, input XR e calcolo definitivo delle cinque dimensioni.
+- **Non implementato in TASK 02:** rilevamento fisico RCP/DAE, componenti interattivi su NPC/telefoni/DAE, UI, audio, input XR e calcolo definitivo delle cinque dimensioni. TASK 03 ha poi aggiunto solo la coscienza dell'NPC.
+
+### Verifica della coscienza (TASK 03, 2026-11-25)
+
+- **File creati:** `Code/Scripts/ManDown/ManDownNpc.cs` (+ `.meta`); componente su `MESH_RiggedEmployee` con `[DisallowMultipleComponent]`.
+- **File modificati:** `Code/Scripts/ManDown/ManDownScenario.cs` (costanti `ACTION_CONSCIOUSNESS_CHECK` e `CONSCIOUSNESS_RESULT`, rimozione avvio/riavvio timer); `Level/Scenes/SCN_ManDown.unity` (figlio `MESH_ShoulderGrip` e riferimenti); documenti `AGENTS.md`, `TASK_PROGRESS.md`, `Man_Down_Specifiche.md`.
+- **Gesto approvato:** il giocatore avvicina il controller a una spalla e preme GRIP; nessuno spostamento fisico o scuotimento dell'NPC. `Interactable` ha `canSelect=false`, `canGrab=true`, `followsHand=false`; il `LabelAnchor` è di tipo `Interaction`, con titolo `Persona a terra`, dettaglio `Verifica la coscienza` e chiavi personalizzate vuote, quindi predefiniti comuni `GRIP` / `Afferra`.
+- **Stato autorevole:** `ManDownNpc` non mantiene `assessed` locale; legge `scenario.IsConsciousnessChecked`. La sottoscrizione a `GrabEntered` avviene in `OnEnable()` e viene rimossa in `OnDisable()`, evitando duplicati e riferimenti alla partita precedente. `AssessConsciousness()` ignora duplicati, riferimenti nulli e azioni fuori missione.
+- **Registrazione:** `VerifyConsciousness()` aggiunge una sola `ManDownActionRecord` con ID `CONSCIOUSNESS_CHECK`, `Completed=true`, `Success=true`, timestamp relativo all'inizio missione e `Note="NPC incosciente"`. L'alias `ManDownNpc.CONSCIOUSNESS_RESULT` punta alla costante del controller. Nessuna penalità numerica, `RecordChoice()` o calcolo definitivo.
+- **Fase e HUD:** la fase interna passa a `BreathingAssessment`, ma `PhaseKeyFor(BreathingAssessment)` resta `PHASE_SCAN`; non vengono chiamati `CompleteObjective()` né avanzano obiettivo/counter HUD. La verifica resta una sottoazione dell'obiettivo 2.
+- **Timer:** nessun `HUDService.StartTimer()`/`StopTimer()` nello scenario; `HUDRoot.BeginFromSession()` usa il timer comune con `mission.GetTimeLimit(...)`. `SO_Mission_ManDown` resta invariato (Operational 600 s, override 0); i 180 s approvati non sono stati applicati all'asset senza una decisione esplicita.
+- **Scene e NPC:** `MESH_ShoulderGrip` è figlio di `MESH_RiggedEmployee` con posizione locale `(-0,700; 0,380; -0,450)` e `BoxCollider` non trigger di size `(0,320; 0,240; 0,340)`. L'NPC conserva 12 `SkinnedMeshRenderer`, posizione world `(-14,500; 0,321; 23,500)`, rotazione `270°` sull'asse X e bounds invariati.
 
 ---
 
 ## Operazioni rimanenti
 
-1. **Attendere approvazione esplicita prima del task successivo.** TASK 02 è chiuso in Editor/Play Mode; non iniziare autonomamente i componenti dedicati.
-2. **`ManDownNpc`:** rappresentazione NPC con respiro e posa laterale via transform, zone configurabili per torace ed elettrodi; richiama `VerifyBreathing()`, `PlaceSidePosition()` ed `Monitor()`.
+1. **Attendere approvazione esplicita prima del task successivo.** TASK 03 è chiuso in Editor/Play Mode; non iniziare autonomamente telefono, respirazione, RCP, DAE, UI dedicata o scoring definitivo. La prossima meccanica prevista è la respirazione (TASK 05), legata all'obiettivo 2.
+2. **`ManDownNpc` (solo estensione futura):** oggi contiene la sola coscienza. Aggiungere poi respiro visivo e posa laterale via transform, zone configurabili per torace ed elettrodi, richiamando `VerifyBreathing()`, `PlaceSidePosition()` ed `Monitor()` senza modificare la logica del controller.
 3. **`ManDownPhone`:** interazione con i telefoni esistenti e chiamata simulata tramite `Call112()`.
 4. **`ManDownCpr`:** rilevamento fisico del movimento dei controller nella zona torace, due soglie, riarmo al rilascio, ampiezza/frequenza; produce `ManDownCprResult` grezzi senza calcolare punteggi.
 5. **`ManDownAed`:** recupero, attivazione, elettrodi provvisori con snap, analisi simulata, defibrillazione e ripresa RCP tramite le API del controller.
@@ -120,10 +131,14 @@
 | `Code/Scripts/ManDown/ManDownScenario.cs` (+ `.meta`) | Creato: controller `SI81.ManDown.ManDownScenario` derivato da `ScenarioController` | TASK 02 |
 | `Code/Scripts/ManDown/ManDownScenarioTypes.cs` (+ `.meta`) | Creato: enum di condizioni/fasi, record azione, risultato RCP e risultato scenario | TASK 02 |
 | `Level/Scenes/SCN_ManDown.unity` | Aggiornato: `MNG_Scenario` usa `ManDownScenario` invece del componente base; missione e spawn point preservati | TASK 02 |
+| `Code/Scripts/ManDown/ManDownScenario.cs` | Modificato: costanti `CONSCIOUSNESS_CHECK` / `NPC incosciente`, registrazione della verifica, rimozione di `StartTimer`/`StopTimer` duplicati | TASK 03 |
+| `Code/Scripts/ManDown/ManDownNpc.cs` (+ `.meta`) | Creato: componente della sola coscienza, collegato all'`Interactable` della spalla e al controller | TASK 03 |
+| `Level/Scenes/SCN_ManDown.unity` | Aggiornato: figlio `MESH_ShoulderGrip` con `BoxCollider`, `Interactable` e `LabelAnchor` condivisi; aggiunto e collegato `ManDownNpc` | TASK 03 |
+| `Docs/Man_Down/Man_Down_Specifiche.md` | Aggiornata la riga della verifica coscienza con GRIP su spalla, `LabelAnchor` comune e risultato `NPC incosciente` | TASK 03 |
 
 **Modifiche globali autorizzate:** solo `ProjectSettings/EditorBuildSettings.asset`. `SO_Mission_ManDown.asset` è stato riutilizzato senza modificarlo.
-**Non modificati in TASK 02:** `Shared`, `Home`, altri gruppi, `Packages`, configurazioni globali, `SO_Mission_ManDown.asset` e `.gitignore`. Nessun commit o push. I documenti `!LLM_Migrazione_Rig_UI.md` e `SharedPlayerRig.md` (con i relativi `.meta`) restano intenzionalmente untracked.
-**Nota:** `git status` mostra ancora modifiche auto-generate da Unity su due materiali condivisi (`MAT_CabinetBody.mat`, `MAT_CoffeeTableBody.mat`): non sono state introdotte da TASK 02 e vanno verificate/ripristinate prima di un eventuale commit.
+**Non modificati in TASK 02/TASK 03:** `Shared`, `Home`, altri gruppi, `Packages`, configurazioni globali, `SO_Mission_ManDown.asset` e `.gitignore`. Nessun commit o push. I documenti `!LLM_Migrazione_Rig_UI.md` e `SharedPlayerRig.md` (con i relativi `.meta`) restano intenzionalmente untracked.
+**Nota risolta:** Unity aveva riscritto automaticamente `Assets/_Project/Shared/Art/Materials/MAT_CabinetBody.mat` e `MAT_CoffeeTableBody.mat` durante il salvataggio; le modifiche non appartenevano al task e sono state ripristinate con `git checkout --` prima della chiusura. Nessuna modifica condivisa resta in `git status`.
 
 ---
 
@@ -134,8 +149,8 @@
 Obiettivo: flusso completo e verificabile senza UI specifica, senza XRI alternativo, senza rig locale e senza input locale. La logica resta testabile da Inspector e da UnityEvent, anche senza visore; il player condiviso resta l'unico sistema di camera, locomozione e interazione.
 
 ```text
-MNG_Scenario  →  ManDownScenario   (stato, random, tempi, validazione, esiti, ID, eventi)
-                   ├─ ManDownNpc    (rappresentazione NPC, zone torace/elettrodi, respiro e posa via transform)
+MNG_Scenario  →  ManDownScenario   (stato, random, validazione, esiti, ID, eventi; timer solo comune)
+                   ├─ ManDownNpc    (TASK 03: sola coscienza via GRIP su spalla; respiro/posa e zone torace/elettrodi nel task dedicato)
                    ├─ ManDownPhone  (chiamata 112 simulata)
                    ├─ ManDownCpr    (solo rilevamento fisico delle compressioni)
                    └─ ManDownAed    (procedura DAE con elettrodi provvisori)
@@ -144,7 +159,7 @@ MNG_Scenario  →  ManDownScenario   (stato, random, tempi, validazione, esiti, 
 | Classe | Responsabilità | Non fa |
 |---|---|---|
 | `ManDownScenario` | Stato autorevole: coscienza, respirazione, disponibilità DAE, 112 chiamato, fasi RCP/DAE, tempi, cinque dimensioni grezze, ID di errore/fallimento, esito unico. Valida posizione/ampiezza/frequenza/rilascio e conteggi 20/20/30. | UI, input, fisica, animazioni complesse, rilevamento dei controller. |
-| `ManDownNpc` | Rappresentazione: respiro visivo e posa laterale via transform; espone transform/zone configurabili per torace e due elettrodi. | Decidere esito clinico, punteggio o validazione. |
+| `ManDownNpc` | TASK 03: verifica della coscienza tramite GRIP su una spalla con `Interactable`/`LabelAnchor` condivisi. Da implementare: respiro visivo e posa laterale via transform; zone configurabili per torace e due elettrodi. | Decidere esito clinico, punteggio o validazione. |
 | `ManDownPhone` | Rappresenta il telefono e chiama `Call112()` quando avviene l'interazione. | Aprire UI telefonica (inesistente) o chiamare i soccorsi da sé. |
 | `ManDownCpr` | Rilevamento fisico: zona torace, due soglie compressione/rilascio, riarmo, ampiezza virtuale e intervalli; emite valori grezzi/eventi. | Calcolare punteggio, qualità, esito o mostrare feedback. |
 | `ManDownAed` | Recupero, attivazione, elettrodi con snap, analisi simulata, defibrillazione e ripresa RCP; usa zone/transform configurabili e primitive provvisorie. | Dipendere dalla mesh specifica, simulare cavi o bloccare il ramo senza DAE. |
@@ -166,7 +181,7 @@ La scena è collegata tramite `MNG_Scenario` a `ManDownScenario`, che eredita da
 
 ### Regole ora fissate
 
-- Niente Canvas/HUD/etichette/`LabelAnchor` né UI provvisoria prima del task dedicato.
+- Niente Canvas/HUD/etichette/`LabelAnchor` né UI provvisoria prima del task dedicato. Eccezione autorizzata in TASK 03: solo il `LabelAnchor` comune di tipo `Interaction` su `MESH_ShoulderGrip`, con testi `Persona a terra` / `Verifica la coscienza` e chiavi predefinite `GRIP` / `Afferra`.
 - Niente pericolo ambientale, pozzanghera, panno, danni o penalità Safety: Safety resta neutrale 5/5.
 - Niente ragdoll: posa laterale e respiro visivo via transform.
 - Solo modalità Realistica, 180 s; Guidata e Stress non implementate, parametri configurabili.
@@ -205,6 +220,17 @@ Sintesi in cima a questo file; elenco completo in `AGENTS.md` §0.1, §0.2 e §0
 - Scadenza forzata del timer condiviso (`HUDService.RaiseTimerExpired`): `timedOut=True`, `outcome=Negative`, `failureCauses=[TIMEOUT,CPR_OMITTED,LOW_SCORE]`, `penalties=[EMERGENCY_NOT_CALLED]`, `hudTimerRunning=False`; una seconda chiamata produce lo stesso risultato (conclusione unica).
 - Console runtime dopo Play Mode: `cursor:262`, **0 errori**. Play Mode fermato; `editor save_all` eseguito e scena con `isDirty:false`.
 - Scena riletta su disco dopo la sostituzione del componente: `Assembly-CSharp::SI81.ManDown.ManDownScenario`, `editorLevel: 1`, `loadCoreInEditor: 0`, un solo componente derivato da `ScenarioController`.
+- **Nota TASK 03:** il timer attivo a 180 s e le due righe su `StartTimer`/`StopTimer` descrivono lo stato storico di TASK 02. In TASK 03 quei due avvii/fermi duplicati sono stati rimossi: resta solo il timer comune, con `SO_Mission_ManDown` invariato.
+
+### TASK 03 — verifiche eseguite
+
+- Ricompilazione Unity: `status=completed`, `failed=false`, `compilationFailed=false`, 0 errori e 4 warning `CS0414` preesistenti.
+- Validatore scenario SI81: **0 errori, 9 avvisi** di naming preesistente; console dopo validazione `entries=[]`, `cursor=314`, `groundTruth.consoleErrors=0`.
+- Play Mode da `SCN_ManDown` con harness temporaneo `si81_task03_playmode_test.cs`: **35/35 PASS**. Confermati un solo `ManDownScenario`, `ManDownNpc`, `Interactable`, `LabelAnchor` e `HUDRoot`; zero Canvas; etichetta e flag `Interactable` corretti; Scenario inizializzato e attivo.
+- Azione unica `CONSCIOUSNESS_CHECK @ 35,63s` con `Completed=true`, `Success=true` e `Note="NPC incosciente"`. Duplicati ignorati; reset ripristina `IsConsciousnessChecked=false`, svuota le azioni e consente una nuova verifica.
+- NPC invariato: 12 `SkinnedMeshRenderer`, world position `(-14,500; 0,321; 23,500)`, rotazione `270°` sull'asse X e bounds invariati. `MissionFlow.CurrentPhaseKey=hud.phase.scan`; obiettivo e contatore invariati, nessun `CompleteObjective()`.
+- Console dopo Play Mode: `entries=[]`, `cursor=340`, `groundTruth.consoleErrors=0`. Play Mode fermato; `editor save_all` e `AssetDatabase.SaveAssets()` eseguiti.
+- Timer comune in diagnostica direct Play Mode: `GetTimeLimit=0`, `timerRunning=False`, `countdown=False`, `remaining=0`, `elapsed=0`. È stato verificato solo che lo scenario non riavvii il timer, non l'avvio tramite Home.
 
 **Non eseguiti / ancora da effettuare:**
 
@@ -222,11 +248,11 @@ Sintesi in cima a questo file; elenco completo in `AGENTS.md` §0.1, §0.2 e §0
 1. Nessuna validazione hardware del rig: Editor riporta `No XR device is available ... Running without VR`, quindi movimento, rotazione, pose controller, haptics e presa/selezione reali richiedono la prova su Quest 3.
 2. Nove avvisi di naming preesistente nel validatore di scenario: non bloccano il rig e non sono stati rinominati in questo task per evitare modifiche non richieste.
 3. Warning ambientali MetaXR/Unity AI/UI all'avvio: presenti anche senza il nuovo contenuto di scena; non sono errori e non dipendono da Man Down.
-4. Il controller logico è pronto, ma NPC, telefoni e DAE non hanno ancora componenti interattivi: `ManDownNpc`, `ManDownPhone`, `ManDownCpr` e `ManDownAed` useranno `Interactable`/`RayInteractor` condivisi nei task dedicati.
+4. `ManDownNpc` ha solo la coscienza (TASK 03); telefoni, RCP e DAE non hanno ancora componenti interattivi: `ManDownPhone`, `ManDownCpr` e `ManDownAed` useranno `Interactable`/`RayInteractor` condivisi nei task dedicati.
 5. Nessun audio per 112/DAE/feedback; la presentazione avverrà solo nel task UI.
 6. NPC senza Animator/clip: il respiro visivo resta transform-based, come già deciso.
 7. Il punteggio di TASK 02 è **provvisorio**: calcolato dalle azioni registrate, con la dimensione Time ancora a 0 in attesa dello scoring definitivo; `FinishMission(int)` esiste solo per test e per il futuro calcolo.
-8. Modifiche auto-generate da Unity su due materiali condivisi (`MAT_CabinetBody.mat`, `MAT_CoffeeTableBody.mat`) risultano ancora in `git status`: non appartengono a TASK 02 e vanno ripristinate prima di un commit.
+8. Modifiche auto-generate da Unity su due materiali condivisi (`MAT_CabinetBody.mat`, `MAT_CoffeeTableBody.mat`) sono state ripristinate con `git checkout --` prima della chiusura di TASK 03: non restano modifiche condivise in `git status`.
 
 ### Dati ancora necessari prima del collaudo didattico (non ancora forniti)
 
@@ -243,11 +269,11 @@ Sintesi in cima a questo file; elenco completo in `AGENTS.md` §0.1, §0.2 e §0
 
 ## Prossimo passaggio
 
-- **Attendere approvazione esplicita prima del task successivo.** TASK 02 è completato in Editor/Play Mode; non avviare autonomamente `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`, UI o scoring definitivo.
+- **Attendere approvazione esplicita prima del task successivo.** TASK 03 è completato in Editor/Play Mode; `ManDownNpc` contiene solo la coscienza. Non avviare autonomamente respirazione, telefono/112, RCP, DAE, UI dedicata o scoring definitivo; la prossima meccanica prevista è la respirazione (TASK 05).
 - Completare la procedura manuale su Meta Quest 3 riportata sotto e segnalare l'esito prima di considerare validata l'integrazione hardware del rig (TASK 01).
 - Quando richiesto, implementare un solo componente alla volta, collegandolo alle API già esistenti del controller senza modificarne la logica di stato; verificare compilazione, riferimenti e test prima di aggiornare i documenti.
 - I dati didattici mancanti elencati sopra restano configurabili e non vanno inventati.
-- **Nessun commit/push** e **nessuna modifica a `.gitignore` senza nuova autorizzazione**; verificare e ripristinare le modifiche auto-generate da Unity sui due materiali condivisi prima di un eventuale commit.
+- **Nessun commit/push/merge** e **nessuna modifica a `.gitignore` senza nuova autorizzazione**; le modifiche auto-generate da Unity sui due materiali condivisi sono già state ripristinate.
 
 ### Procedura manuale su Meta Quest 3 (non ancora eseguita)
 
@@ -260,5 +286,6 @@ Sintesi in cima a questo file; elenco completo in `AGENTS.md` §0.1, §0.2 e §0
 7. Provare trigger e grip: selezione UI senza selezionare l'oggetto di mondo dietro; presa/selezione degli oggetti solo tramite `Interactable` e `RayInteractor` condivisi.
 8. Verificare haptics su menu, avvisi e interazioni, inclusa disattivazione dalle impostazioni comuni.
 9. Raccogliere i log Meta Quest Developer Hub / logcat: nessun errore, nessun duplicato di `InputService`/`RigRegistration`/`MNG_UI`, nessun bridge mancante; verificare che i log `[SI81 Input]` riportino controller, pose del raggio e oggetto colpito.
-10. Registrare esito, eventuali anomalie e data della prova in questo file: finché non viene eseguita, il rig risulta validato **solo in Editor/Play Mode**, non su hardware.
-11. Il seriale `2G0YC5ZG1402NV` citato nei documenti è solo riferimento di connessione del dispositivo, **non** prova di avvenuta validazione.
+10. Verificare la coscienza (TASK 03): avvicinare il controller a una spalla dell'NPC, controllare l'etichetta comune `Persona a terra` / `Verifica la coscienza` con `GRIP` / `Afferra`, premere GRIP e confermare che l'azione `CONSCIOUSNESS_CHECK` venga registrata una sola volta con `NPC incosciente`, senza avanzare obiettivo o fase HUD. Ripetere il GRIP: non deve registrare duplicati. Dopo un reset, la verifica deve essere di nuovo disponibile.
+11. Registrare esito, eventuali anomalie e data della prova in questo file: finché non viene eseguita, il rig e la coscienza risultano validati **solo in Editor/Play Mode**, non su hardware.
+12. Il seriale `2G0YC5ZG1402NV` citato nei documenti è solo riferimento di connessione del dispositivo, **non** prova di avvenuta validazione.

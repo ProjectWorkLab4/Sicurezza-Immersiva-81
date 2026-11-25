@@ -1199,6 +1199,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e8e3eba9f4cfa5a4695ebf453e1746d2, type: 3}
   m_PrefabInstance: {fileID: 714496095}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &916148887 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3605039293660023951, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+  m_PrefabInstance: {fileID: 977116454}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &921028120
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1635,14 +1640,34 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4128811915124020789, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1960924877}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3605039293660023951, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 977116456}
   m_SourcePrefab: {fileID: 100100000, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
 --- !u!4 &977116455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4128811915124020789, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
   m_PrefabInstance: {fileID: 977116454}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &977116456
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 916148887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8316edbb6f8f5d44b2f23ca3b1c66e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownNpc
+  scenario: {fileID: 184011056}
+  shoulderGrip: {fileID: 1960924880}
 --- !u!1001 &982803225
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3423,6 +3448,116 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5806105538797722481, guid: 32a991d41e772924fb54e307b2360186, type: 3}
   m_PrefabInstance: {fileID: 1929360280}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1960924876
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1960924877}
+  - component: {fileID: 1960924878}
+  - component: {fileID: 1960924880}
+  - component: {fileID: 1960924879}
+  m_Layer: 0
+  m_Name: MESH_ShoulderGrip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1960924877
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960924876}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.7, y: 0.38, z: -0.45}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 977116455}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &1960924878
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960924876}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.32, y: 0.24, z: 0.34}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1960924879
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960924876}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Persona a terra
+  titleKey: 
+  detail: Verifica la coscienza
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.25, z: 0}
+  icon: {fileID: 0}
+--- !u!114 &1960924880
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1960924876}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 1
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &1994165337
 PrefabInstance:
   m_ObjectHideFlags: 0

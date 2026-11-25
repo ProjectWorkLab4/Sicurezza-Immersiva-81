@@ -9,7 +9,7 @@
 - **Scenario:** Man Down (ID 3)
 - **Cartella autorizzata:** `Assets/_Project/Groups/G_Marius/`
 - **Ultimo aggiornamento:** 2026-11-25
-- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati; ufficio open space 14×10 ricostruito e rifinito (Task 16–18). Documentazione aggiornata in TASK 00/00b/00c/00d/01 e Task 00e: le otto decisioni aperte e le decisioni integrative sono state **approvate e registrate**. TASK 01 (rig condiviso) e **TASK 02 (`ManDownScenario`)** sono completati e verificati in Editor/Play Mode: nessun rig locale, nessuna UI specifica e nessun input/interazione XR duplicati. Il controller registra stato, condizioni iniziali, azioni, risultati RCP grezzi, timeout 180 s, esiti e ID approvati; `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`, UI e scoring definitivo restano da implementare. La validazione fisica su Meta Quest 3 resta manuale. Nessun commit o push.
+- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati; ufficio open space 14×10 ricostruito e rifinito (Task 16–18). Documentazione aggiornata in TASK 00/00b/00c/00d/01 e Task 00e: le otto decisioni aperte e le decisioni integrative sono state **approvate e registrate**. TASK 01 (rig condiviso), **TASK 02 (`ManDownScenario`)** e **TASK 03 (sola verifica della coscienza dell'NPC)** sono completati e verificati in Editor/Play Mode: nessun rig locale, nessuna UI Canvas/TMP specifica e nessun input/raycast/grab duplicati. Il controller registra stato, condizioni iniziali, azioni, risultati RCP grezzi, esiti e ID approvati; il timer resta solo quello comune (`SO_Mission_ManDown` invariato, Operational 600 s) e la verifica della coscienza resta sottoazione dell'obiettivo 2 senza `CompleteObjective()` né avanzamento da `PHASE_SCAN`. `ManDownPhone`, `ManDownCpr`, `ManDownAed`, respirazione, scoring definitivo e UI dedicata restano da implementare. La validazione fisica su Meta Quest 3 resta manuale. Nessun commit o push.
 
 ---
 
@@ -69,7 +69,7 @@ Questa sezione aggiorna le formulazioni di §0/§0.1 che davano rig, kit UI o Bu
 4. **Caricamento del core.** `RigDirectPlay` carica già `SCN_Core` in Play Mode quando trova `MNG_SpawnPoint`: per questo `loadCoreInEditor` resta `false`. Con `true` comparivano due `SCN_Core`, due `RigRegistration` e due `MNG_UI`.
 5. **Verifiche reali.** Compilazione completata; scena riletta su disco con i marker persistiti; validatore scenario `0 errori, 9 avvisi` di naming preesistente; Play Mode con una sola `SCN_Core`, un solo `RigRegistration`, una camera abilitata (`CenterEyeAnchor`), un solo `EventSystem`, due `RayInteractor`, un solo `RigUIBridge`, un solo `InputService`; console runtime con `0 errori`; test PlayMode `SI81.Rig.Tests` **23/23 superati**.
 6. **Limite della validazione.** L'Editor riporta `No XR device is available ... Running without VR`: movimento/rotazione reali, pose controller, haptics e presa/selezione su Meta Quest 3 restano **test manuali** e non vanno dichiarati eseguiti.
-7. **Prossimo task.** TASK 02 è completato; non avviare i componenti dedicati (`ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`), l'UI o lo scoring definitivo senza approvazione esplicita; non eseguire commit/push senza nuova autorizzazione.
+7. **Prossimo task.** TASK 02 e TASK 03 sono completati; `ManDownNpc` esiste solo per la coscienza e usa `Interactable`/`LabelAnchor` condivisi. Non avviare telefono, respirazione, RCP, DAE, UI dedicata o scoring definitivo senza approvazione esplicita; non eseguire commit/push senza nuova autorizzazione.
 
 ---
 
@@ -177,7 +177,8 @@ Nota: esistono file `.csproj` residui di sample XRI nella root del repository, m
 
 **Aggiornamento TASK 02 (2026-11-25):** `Assets/_Project/Groups/G_Marius/Code/Scripts/ManDown/` contiene `ManDownScenario.cs` e `ManDownScenarioTypes.cs` (namespace `SI81.ManDown`). Il controller possiede lo stato dello scenario, le condizioni iniziali configurabili/forzabili, il registro azioni con timestamp, la ricezione dei risultati RCP grezzi, il punteggio provvisorio, gli esiti e gli ID approvati. Non implementa input, camera, mani, interazioni o UI specifica: usa sessione, spawn, timer condiviso e chiusura missione della classe base `SI81.UI.ScenarioController`.
 
-- Non esistono ancora `ManDownNpc`, `ManDownPhone`, `ManDownCpr` o `ManDownAed`: la logica è pronta, ma i componenti che la richiamano e il rilevamento fisico vanno creati nei task dedicati.
+- **Aggiornamento TASK 03 (2026-11-25):** `Code/Scripts/ManDown/` contiene anche `ManDownNpc.cs`, collegato su `MESH_RiggedEmployee` in scena. Si limita alla coscienza: GRIP su `MESH_ShoulderGrip` → `ManDownScenario.VerifyConsciousness()`, con azione `CONSCIOUSNESS_CHECK`, timestamp e risultato `NPC incosciente`. Non conserva stato locale: il reset è quello del controller. Non implementa respiro, posa, telefono, RCP, DAE o punteggio.
+- `ManDownPhone`, `ManDownCpr` e `ManDownAed` non esistono ancora: la logica è pronta, ma i componenti che la richiamano e il rilevamento fisico vanno creati nei task dedicati.
 - Nessun sistema locale duplica input, rig, interazione, HUD o UI comune. Lo scoring è solo provvisorio (Time ancora a 0) e sarà sostituito dal calcolo definitivo delle cinque dimensioni.
 
 ### 3.3 Scene
@@ -188,7 +189,7 @@ Nota: esistono file `.csproj` residui di sample XRI nella root del repository, m
 - Sotto il root si trovano la struttura `MESH_OfficeStructure` (14×10×3 m con soffitto), l'ufficio arredato, il NPC `MESH_RiggedEmployee`, tre telefoni, il DAE, il resto dei prop e i due marker `MNG_SpawnPoint` e `MNG_Scenario` aggiunti in TASK 01.
 - La scena di scenario **non contiene** Camera, AudioListener, Canvas, HUD, EventSystem, XR Origin/rig, input locale, `OVRInput`, XRI, InputActionAsset, script di interazione o raycast duplicati. In Play Mode la camera attiva è `CenterEyeAnchor` di `SCN_Core` e l'EventSystem è quello condiviso.
 - `MNG_SpawnPoint` usa `SI81.Rig.SpawnPoint` a `(-17.240, 0.253, 26.600)`, yaw `138`. `MNG_Scenario` usa `SI81.ManDown.ManDownScenario` con `SO_Mission_ManDown`, spawn point collegato, `editorLevel=1` (`Guided`) e `loadCoreInEditor=0`; il componente è stato riletto su disco come `Assembly-CSharp::SI81.ManDown.ManDownScenario` dopo il salvataggio di TASK 02, con un solo componente derivato da `ScenarioController`.
-- Collider presenti **solo** su `MESH_OfficeStructure`: `Floor` con MeshCollider e pareti/soffitto con BoxCollider. NPC, telefoni, DAE, scrivanie, sedie e prop **non hanno collider** (nessuno è stato aggiunto in TASK 01).
+- Collider su `MESH_OfficeStructure`: `Floor` con MeshCollider e pareti/soffitto con BoxCollider. In TASK 03 è stato aggiunto **solo** un `BoxCollider` sul figlio `MESH_ShoulderGrip` dell'NPC, con `Interactable` (`canSelect=false`, `canGrab=true`, `followsHand=false`) e `LabelAnchor` di tipo `Interaction`; modello, materiali e posa dell'NPC restano invariati. Telefoni, DAE, scrivanie, sedie e prop non hanno collider di gameplay.
 - Build Settings verificate su disco: `SCN_Core.unity` indice 0, `SCN_MockScenario.unity` indice 1, `SCN_ManDown.unity` indice 2.
 
 Lo snapshot del 2026-11-24 (`SCN_Man_Down.unity`, nessuna scena nelle Build Settings) è storico e superato. La vecchia descrizione di `prefab_scena.prefab` come blocco con `Main Camera`, `Directional Light` e `Cube` è parimenti storica dei primi task.
@@ -317,7 +318,7 @@ Dettaglio per cartella:
 ### 3.8 Altro contenuto del gruppo (aggiornato 2026-11-24)
 
 - `Audio/Music/` e `Audio/Sound/`: **vuote** (solo `PLACEHOLDER.txt`). Nessun audio per 112, DAE o feedback.
-- `Code/Scripts/ManDown/`: contiene i due script del controller logico TASK 02; `Code/Shaders/` resta **vuota**. Nessuno script di interazione XR o UI specifica.
+- `Code/Scripts/ManDown/`: contiene `ManDownScenario.cs`, `ManDownScenarioTypes.cs` e `ManDownNpc.cs` (solo coscienza); `Code/Shaders/` resta **vuota**. Nessun input XR, raycast o UI Canvas/TMP propria.
 - `UI/`: **vuota**.
 - `Art/Models/Man_Down/` contiene i modelli storici elencati sopra **e** il modello del DAE (`MESH_AED.obj`, texture `TEX_AED/AED2.png`) usato dal prefab `MESH_AED.prefab`.
 - **Il DAE esiste già** in scena e tra i prefab del gruppo: la vecchia riga "non esistono asset per DAE" è superata.
@@ -338,14 +339,15 @@ Dettaglio per cartella:
 - `Assets/_Project/Home/Level/Scenes/SCN_Core.unity` contiene l'unico rig/camera/UI condivisi; `RigDirectPlay` lo carica automaticamente in Play Mode quando la scena di scenario ha uno spawn point. `SO_Mission_ManDown.asset` esiste ed è riutilizzato senza duplicazione.
 - Non esiste un rig locale in Man Down: non creare un'altra camera, un altro EventSystem, un altro `InputService` o un altro sistema di raycast/selezione/grab.
 
-**Implementato in TASK 02 ma ancora da collegare ai componenti dedicati:**
+**Implementato in TASK 02/TASK 03:**
 
-- Controller logico `ManDownScenario`: condizioni iniziali, fasi non rigide, registro azioni con timestamp, API/eventi per le classi future, ricezione di risultati RCP grezzi, timeout 180 s, esiti e ID approvati. Non crea UI, input o interazioni.
+- Controller logico `ManDownScenario`: condizioni iniziali, fasi non rigide, registro azioni con timestamp, API/eventi per le classi future, ricezione di risultati RCP grezzi, esiti e ID approvati. Non crea UI, input o interazioni.
+- **TASK 03:** `ManDownNpc` collega la sola verifica della coscienza al controller tramite `Interactable`/`LabelAnchor` condivisi; non conserva stato locale e non tocca respiro, posa, telefono, RCP o DAE.
 - Punteggio e debriefing: il controller produce un risultato provvisorio e congela l'esito una sola volta; il calcolo definitivo delle cinque dimensioni e lo SPI comune restano da integrare.
 
 **Non ancora implementato per Man Down:**
 
-- `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed` e il rilevamento fisico di compressioni/elettrodi: useranno `Interactable` + `RayInteractor` condivisi e le API già esposte dal controller.
+- `ManDownPhone`, `ManDownCpr`, `ManDownAed` e il rilevamento fisico di compressioni/elettrodi: useranno `Interactable` + `RayInteractor` condivisi e le API già esposte dal controller. La respirazione e la posa laterale di `ManDownNpc` restano da implementare nel task dedicato.
 - UI specifica della missione e chiamate UI dedicate: il task UI resta separato; la UI comune è già presente ma non è stata personalizzata.
 - Pozzanghera e panno: **esclusi** per direttiva TASK 00, non da implementare.
 - Audio (musica, ambience, SFX, istruzioni DAE, chiamata 112) e interfaccia telefonica per la chiamata simulata al 112.
@@ -417,7 +419,7 @@ Regole aggiuntive:
 ## 6. Stato XR e regole di integrazione
 
 - OpenXR e Meta XR Core SDK sono installati e il **player condiviso è presente in `SCN_Core`**: non crearne uno locale.
-- La scena Man Down contiene solo contenuto di scenario più i marker `MNG_SpawnPoint` e `MNG_Scenario`; rig, camera XR, locomozione, EventSystem, input e interazioni arrivano dal sistema comune.
+- La scena Man Down contiene solo contenuto di scenario, i marker `MNG_SpawnPoint` e `MNG_Scenario` e la zona di presa `MESH_ShoulderGrip` con componenti condivisi; rig, camera XR, locomozione, EventSystem, input, raycast, grab e interazioni arrivano dal sistema comune. Nessun Canvas, TMP o HUD locale.
 - Tutta l'input XR futura deve passare da `SI81.Input.InputService` e dalle interazioni condivise: niente `OVRInput`, Input Actions locali, XRI o raycast/selezione/grab duplicati.
 - In Play Mode la camera abilitata è `CenterEyeAnchor` di `SCN_Core`; Man Down non ha una `Main Camera` XR propria.
 - Il caricamento del core in Editor è gestito da `RigDirectPlay` e `loadCoreInEditor` resta `false`: con `true` si generano due `SCN_Core`, due `RigRegistration` e due `MNG_UI`.
@@ -466,7 +468,7 @@ Non risolvere queste ambiguità da soli.
 ### 7.4 Decisioni già prese dal gruppo
 
 1. **Pozzanghera / pericolo ambientale: escluso del tutto** (aggiornamento TASK 00, 2026-11-24). Niente pozzanghera, panno, rischio di scivolamento, danno, penalità Safety o Bad Ending dedicato. La precedente decisione "solo penalizzante e opzionale" è superata; Safety resta 5/5.
-2. **Unica modalità implementata: Realistica, 180 s.** Il precedente punteggio GDD 30/10/0 è superato dalle soglie approvate 80/50. Guidata e Stress non si implementano ora, ma i parametri restano configurabili per future estensioni.
+2. **Unica modalità implementata: Realistica, 180 s.** Il precedente punteggio GDD 30/10/0 è superato dalle soglie approvate 80/50. Guidata e Stress non si implementano ora, ma i parametri restano configurabili per future estensioni. **Decisione operativa TASK 03:** in questa migrazione `SO_Mission_ManDown` resta invariato e il timer è solo quello comune; `HUDRoot.BeginFromSession()` usa `mission.GetTimeLimit()` (Operational 600 s, override 0) e `ManDownScenario` non avvia né riavvia timer. I 180 s restano la durata di gameplay approvata, da applicare solo con una decisione esplicita sull'asset missione.
 3. **Ulteriori decisioni approvate:** elenco completo nel §0.2 e in `TASK_PROGRESS.md`; in caso di conflitto, prevalgono sul GDD specifico e sul flowchart.
 
 ---
@@ -502,7 +504,7 @@ Non risolvere queste ambiguità da soli.
 
 > Aggiornare **solo** con file realmente creati/modificati, comportamento implementato, verifiche eseguite e problemi aperti.
 > Non segnare come completato ciò che non è stato testato.
-> I record storici descrivono lo stato **al momento di quel task**; per lo stato attuale vedere l'header e il record TASK 02.
+> I record storici descrivono lo stato **al momento di quel task**; per lo stato attuale vedere l'header e il record TASK 03.
 
 ### Task 0 — Analisi iniziale e creazione di AGENTS.md
 
@@ -1102,4 +1104,23 @@ Non risolvere queste ambiguità da soli.
 - **Verifiche eseguite:** ricompilazione Unity `completed`, `failed=false`, `compilationFailed=false`, console 0 errori; harness temporaneo isolato **49/49 verifiche superate, `TOTALE FAIL=0`** (A1–A28, B1–B5, C1–C3, D1–D6, E1–E3, F1–F4); Play Mode con `scenarioCount=1`, `hudRootCount=1`, `initialized/running/accepts/sessionActive=True`, `duration=180`, `hudTimerRunning/countdown=True`, `timerSubscribers=1`; scadenza forzata con `timedOut=True`, `outcome=Negative`, `failureCauses=[TIMEOUT,CPR_OMITTED,LOW_SCORE]`, `penalties=[EMERGENCY_NOT_CALLED]`, timer fermo e conclusione unica; console runtime `cursor:262`, 0 errori; Play Mode fermato e `editor save_all` con scena `isDirty:false`.
 - **Non verificato / non eseguito:** prova su Meta Quest 3 (movimento e rotazione reali, pose controller, haptics, presa/selezione); rilevamento fisico RCP/DAE; UI specifica; scoring definitivo e SPI; conferma visiva dell'inquadratura sul visore.
 - **Problemi aperti:** dati didattici RCP/Time non ancora forniti (campi configurabili, non inventati); applicazione finale delle soglie al punteggio ponderato o allo SPI comune; `git status` mostra modifiche auto-generate da Unity su `MAT_CabinetBody.mat` e `MAT_CoffeeTableBody.mat`, estranee a TASK 02 e da verificare prima di un commit.
-- **Stato:** TASK 02 completato e verificato in Editor/Play Mode. Nessun commit o push. **Attendere approvazione esplicita prima del task successivo.**
+- **Stato (al momento di TASK 02):** TASK 02 completato e verificato in Editor/Play Mode. Nessun commit o push. **Attendere approvazione esplicita prima del task successivo.**
+- **Nota TASK 03:** le frasi di questo record su `HUDService.StartTimer(180)` e sul timer attivo a 180 s descrivono lo stato storico di TASK 02 e sono superate: in TASK 03 `ManDownScenario` non avvia né riavvia il timer. Vedi il record TASK 03 e §7.4 punto 2.
+
+### TASK 03 — Sola verifica della coscienza dell'NPC (2026-11-25)
+
+- **Richiesta utente:** completare esclusivamente la verifica della coscienza del NPC a terra con interazione e UI comuni SI81; verificare la compatibilità di TASK 02 con la UI comune senza estendere ad altre meccaniche. Niente respirazione, telefono/112, RCP, DAE, rischi ambientali, primo soccorso aziendale, scoring definitivo o avanzamento HUD. Nessun commit/push/merge.
+- **File creati:**
+  - `Code/Scripts/ManDown/ManDownNpc.cs` (+ `.meta`): componente `[DisallowMultipleComponent]` su `MESH_RiggedEmployee`, con riferimenti serializzati a `ManDownScenario` e a `Interactable`; sottoscrive `GrabEntered` in `OnEnable()` e la rimuove in `OnDisable()`; `AssessConsciousness()` filtra duplicati, riferimenti nulli e missione non attiva, poi chiama `VerifyConsciousness()`.
+  - `C:/Users/GravinaKristian/AppData/Local/Temp/opencode/si81_task03_playmode_test.cs` (harness temporaneo, non in repository): 35 verifiche in Play Mode.
+- **File modificati:**
+  - `Code/Scripts/ManDown/ManDownScenario.cs`: aggiunti `ACTION_CONSCIOUSNESS_CHECK = "CONSCIOUSNESS_CHECK"` e `CONSCIOUSNESS_RESULT = "NPC incosciente"`; `VerifyConsciousness()` registra una sola azione con timestamp e risultato e passa alla fase interna `BreathingAssessment`. Rimosse le chiamate `HUDService.StartTimer(...)` da `InitializeScenario()` e `HUDService.StopTimer()` da `ResetScenario()`.
+  - `Level/Scenes/SCN_ManDown.unity`: aggiunto `MESH_ShoulderGrip` come figlio di `MESH_RiggedEmployee`, con `BoxCollider` non trigger, `Interactable` (`canSelect=false`, `canGrab=true`, `followsHand=false`) e `LabelAnchor` (`kind=Interaction`, titolo `Persona a terra`, dettaglio `Verifica la coscienza`, chiavi vuote → predefiniti comuni `GRIP` / `Afferra`, offset `(0; 0,250; 0)`); aggiunto `ManDownNpc` con riferimenti collegati. Modello, materiali e posa dell'NPC invariati.
+  - `Docs/Man_Down/AGENTS.md`, `Docs/Man_Down/TASK_PROGRESS.md`, `Docs/Man_Down/Man_Down_Specifiche.md`: verbale, stato e specifica del gesto aggiornati.
+- **Comportamento implementato:** il giocatore avvicina il controller a una spalla e preme GRIP; non c'è spostamento fisico, scuotimento o presa che segua la mano. `VerifyConsciousness()` registra `CONSCIOUSNESS_CHECK` con `Completed=true`, `Success=true` e `Note="NPC incosciente"`; il risultato è costante in ogni partita. Il controller è l'unica fonte autorevole di `IsConsciousnessChecked`: `ManDownNpc` non ha campo `assessed` locale e `ResetScenario()` ripristina verifica, azioni e disponibilità della presa. Non vengono chiamati `CompleteObjective()` né avanzano fase HUD/obiettivo: `PhaseKeyFor(BreathingAssessment)` resta `PHASE_SCAN`. Non vengono creati input, raycast, Canvas, TMP, HUD o timer propri; non sono modificati `SO_Mission_ManDown.asset` né asset condivisi.
+- **API e compatibilità:** usati solo `SI81.Interaction.Interactable`, `SI81.UI.LabelAnchor`, `SI81.Input.Hand`, `RayInteractor`/`InputService` comuni e le API già esposte da `ManDownScenario`. L'alias `ManDownNpc.CONSCIOUSNESS_RESULT` punta alla costante del controller. Nessuna penalità numerica, `RecordChoice()` o calcolo definitivo; i soli dati Awareness sono predisposti come registrazione dell'azione.
+- **Timer:** TASK 02 è stato compatibilizzato con il timer comune rimuovendo i due avvii/fermi duplicati. `HUDRoot.BeginFromSession()` usa `mission.GetTimeLimit(...)`; `SO_Mission_ManDown` resta invariato (Operational 600 s, override 0) e i 180 s approvati restano una decisione di gameplay da applicare solo con una modifica esplicita all'asset missione. In diagnostica direct Play Mode `GetTimeLimit=0`, `timerRunning=False`, `countdown=False`, `remaining=0`, `elapsed=0`: il test eseguito ha verificato solo l'assenza di riavvio del timer, non l'avvio tramite Home. Codice condiviso non modificato.
+- **Verifiche eseguite:** ricompilazione Unity `status=completed`, `failed=false`, `compilationFailed=false`, 0 errori e 4 warning `CS0414` preesistenti; validatore scenario `0 errori, 9 avvisi` di naming preesistente; console dopo validazione `entries=[]`, `cursor=314`, `groundTruth.consoleErrors=0`. Play Mode da `SCN_ManDown` con test `si81_task03_playmode_test.cs`: **35/35 PASS**. Confermati: un solo `ManDownScenario`, `ManDownNpc`, `Interactable`, `LabelAnchor` e `HUDRoot`; zero Canvas; etichetta e flag `Interactable` corretti; Scenario inizializzato e attivo; azione unica `CONSCIOUSNESS_CHECK @ 35,63s` con nota `NPC incosciente`; duplicati ignorati; reset ripristina `IsConsciousnessChecked=false`, svuota azioni e consente una nuova verifica; transform e bounds dell'NPC invariati; `MissionFlow.CurrentPhaseKey=hud.phase.scan`, obiettivo e contatore invariati. Console dopo Play Mode `entries=[]`, `cursor=340`, `groundTruth.consoleErrors=0`; Play Mode fermato, `editor save_all` e `AssetDatabase.SaveAssets()` eseguiti.
+- **Non verificato:** prova fisica su Meta Quest 3: avvicinamento reale del controller alla spalla, GRIP, pose/haptics, inquadratura dell'etichetta e presa/selezione con il rig condiviso. L'Editor riporta `No XR device is available ... Running without VR`. Non sono stati avviati respirazione, telefono, RCP, DAE, UI dedicata o scoring definitivo.
+- **Problemi aperti:** timer comune senza countdown nella diagnostica direct Play Mode (limite osservato, non corretto in questo task); parametri didattici RCP/Time ancora da validare; possibile deallocazione automatica dei materiali condivisi da parte di Unity, ripristinata prima della chiusura.
+- **Stato:** TASK 03 completato e verificato in Editor/Play Mode; nessun avanzamento dell'obiettivo 2, nessun commit o push. La prossima meccanica (respirazione, TASK 05) richiede approvazione esplicita.

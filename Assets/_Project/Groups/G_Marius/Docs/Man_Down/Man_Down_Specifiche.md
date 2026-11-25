@@ -118,7 +118,7 @@ Il diagramma rappresenta il percorso corretto e le conclusioni approvate. Il tim
 
 | Interazione | Comportamento atteso | Vincoli |
 |---|---|---|
-| Verifica coscienza | Metodo pubblico ed evento; feedback affidato ai componenti intermedi | Nessun ragdoll obbligatorio |
+| Verifica coscienza | TASK 03 implementato: GRIP su `MESH_ShoulderGrip` con `Interactable`/`LabelAnchor` comuni (`Persona a terra` / `Verifica la coscienza`, `GRIP` / `Afferra`); `ManDownNpc` chiama `VerifyConsciousness()`, che registra una sola azione `CONSCIOUSNESS_CHECK` con `NPC incosciente`. Metodo pubblico ed evento disponibili; nessun avanzamento dell'obiettivo 2 o della fase HUD | Nessun ragdoll, scuotimento o spostamento fisico; reset ripristina la disponibilità |
 | Chiamata 112 | Chiamata simulata tramite telefono; omissione registrata | Nessuna digitazione, nessun primo soccorso aziendale |
 | Verifica respirazione | Esito coerente con la variabile iniziale; indicio visivo transform-based | 70/30 configurabile e forzabile |
 | Posizione laterale | Cambio posa semplificato | Solo nel ramo normale |

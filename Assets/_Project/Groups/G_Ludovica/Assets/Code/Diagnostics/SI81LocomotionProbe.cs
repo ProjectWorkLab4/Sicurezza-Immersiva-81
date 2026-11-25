@@ -72,6 +72,28 @@ namespace G_Ludovica.ForkliftChaos
             sb.Append(" grounded=").Append(cc != null && cc.isGrounded);
             if (rig != null) sb.Append(" rigPos=").Append(Fmt(rig.transform.position));
 
+            if (loco != null)
+            {
+                System.Reflection.BindingFlags bf = System.Reflection.BindingFlags.NonPublic
+                                                    | System.Reflection.BindingFlags.Instance;
+                System.Reflection.FieldInfo fSpeed = typeof(RigLocomotion).GetField("moveSpeed", bf);
+                System.Reflection.FieldInfo fDead = typeof(RigLocomotion).GetField("deadzone", bf);
+                System.Reflection.FieldInfo fRig = typeof(RigLocomotion).GetField("rig", bf);
+                System.Reflection.FieldInfo fVv = typeof(RigLocomotion).GetField("verticalVelocity", bf);
+
+                sb.Append(" locoOn=").Append(loco.enabled);
+                if (fSpeed != null) sb.Append(" speed=").Append(fSpeed.GetValue(loco));
+                if (fDead != null) sb.Append(" dead=").Append(fDead.GetValue(loco));
+                RigRegistration rigField = fRig != null ? fRig.GetValue(loco) as RigRegistration : null;
+                sb.Append(" rigEq=").Append(rigField != null && rigField == RigRegistration.Instance);
+                if (fVv != null) sb.Append(" vv=").Append(fVv.GetValue(loco));
+
+                System.Reflection.MethodInfo metodo = typeof(RigLocomotion).GetMethod("ComputeMoveVelocity", bf);
+                if (metodo != null && input != null)
+                    sb.Append(" vel=").Append(Fmt((Vector3)metodo.Invoke(loco, new object[] { input.ReadMove() })));
+            }
+            if (cc != null) sb.Append(" ccVel=").Append(Fmt(cc.velocity));
+
             sb.Append(" || input=").Append(input != null ? "yes" : "NULL");
             if (input != null)
             {

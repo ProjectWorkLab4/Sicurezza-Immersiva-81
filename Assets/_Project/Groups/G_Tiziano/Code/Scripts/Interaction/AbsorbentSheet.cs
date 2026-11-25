@@ -15,8 +15,11 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         private Transform initialParent;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
+        private bool initialKinematic;
+        private bool initialUseGravity;
         private bool placed;
         private bool absorbed;
+        private bool initialized;
         private Renderer[] renderers = new Renderer[0];
         private MaterialPropertyBlock colorPropertyBlock;
 
@@ -27,13 +30,32 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
         private void Awake()
         {
+            EnsureInitialized();
+        }
+
+        /// <summary>
+        /// Captures the scene home state. Reset can run before Awake on prefab instances, so initialize
+        /// lazily to avoid restoring a zero transform and making the sheet impossible to reach.
+        /// </summary>
+        private void EnsureInitialized()
+        {
+            if (initialized)
+                return;
+
             if (interactable == null)
                 interactable = GetComponent<ScenarioInteractable>();
 
             initialParent = transform.parent;
             initialPosition = transform.position;
             initialRotation = transform.rotation;
+            Rigidbody body = GetComponent<Rigidbody>();
+            if (body != null)
+            {
+                initialKinematic = body.isKinematic;
+                initialUseGravity = body.useGravity;
+            }
             renderers = GetComponentsInChildren<Renderer>(true);
+            initialized = true;
         }
 
         private void OnEnable()
@@ -111,6 +133,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// <summary>Restores this sheet to its original kit position.</summary>
         public void ResetState()
         {
+            EnsureInitialized();
             placed = false;
             absorbed = false;
             ResetVisualColor();
@@ -126,7 +149,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.isKinematic = false;
+                body.isKinematic = initialKinematic;
+                body.useGravity = initialUseGravity;
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }

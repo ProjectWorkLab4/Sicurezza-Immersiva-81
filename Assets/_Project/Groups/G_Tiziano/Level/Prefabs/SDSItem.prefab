@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2236375972816806331}
   - component: {fileID: 2411453441886045696}
   - component: {fileID: 5980097945817734072}
+  - component: {fileID: 362019495833877199}
   m_Layer: 0
   m_Name: SDSItem
   m_TagString: Untagged
@@ -79,8 +80,8 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
+  m_UseGravity: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
@@ -99,6 +100,7 @@ MonoBehaviour:
   grabbable: 1
   activatable: 1
   inspectable: 1
+  interactionEnabled: 1
   onGrabbed:
     m_PersistentCalls:
       m_Calls: []
@@ -134,6 +136,39 @@ MonoBehaviour:
   director: {fileID: 0}
   resetAnchor: {fileID: 0}
   currentVariant: {fileID: 11400000, guid: 1574a64395e3f534692b46bda9047232, type: 2}
+--- !u!114 &362019495833877199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3494400440522336957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 1
+  canGrab: 1
+  followsHand: 1
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &5678101750765868650
 GameObject:
   m_ObjectHideFlags: 0

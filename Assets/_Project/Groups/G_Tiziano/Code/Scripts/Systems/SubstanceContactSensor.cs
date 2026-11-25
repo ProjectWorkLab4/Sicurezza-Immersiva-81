@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using SI81.Rig;
 using SI81.Tiziano.ChemicalAlert.Core;
 
 namespace SI81.Tiziano.ChemicalAlert.Systems
@@ -101,7 +102,11 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             if (other == null)
                 return false;
 
-            if (other.GetComponentInParent<Interaction.ScenarioHandInteractor>() != null)
+            RigRegistration rig = RigRegistration.Instance;
+            if (rig != null &&
+                ((rig.LeftHand != null && other.transform.IsChildOf(rig.LeftHand)) ||
+                 (rig.RightHand != null && other.transform.IsChildOf(rig.RightHand)) ||
+                 (rig.Head != null && other.transform.IsChildOf(rig.Head))))
                 return true;
 
             return other.CompareTag("Player") ||

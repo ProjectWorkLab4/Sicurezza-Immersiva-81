@@ -31,6 +31,17 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public int DisposedCount => CountAbsorbed();
         /// <summary>Gets the current required sheet count.</summary>
         public int RequiredSheetCount => CalculateRequiredSheetCount();
+        /// <summary>Gets the duration used to shrink the puddle for each placed sheet.</summary>
+        public float ShrinkDurationSeconds
+        {
+            get
+            {
+                float configured = director == null || director.CurrentConfig == null
+                    ? 2f
+                    : director.CurrentConfig.AbsorptionDurationSeconds;
+                return Mathf.Max(0.1f, configured);
+            }
+        }
 
         private void Awake()
         {
@@ -100,6 +111,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             Vector3 localPosition = new Vector3((PlacedCount - 1) * 0.18f, 0.08f, 0f);
             sheet.AttachToPuddle(puddle.transform, localPosition);
             UnityEngine.Debug.Log($"[CA] Absorbent sheet placed: {PlacedCount}/{RequiredSheetCount}");
+            ApplyPlacementVisual(ShrinkDurationSeconds);
             EvaluateCoverage();
             return true;
         }
@@ -112,8 +124,13 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
             if (sheets != null)
             {
+                int required = RequiredSheetCount;
                 foreach (AbsorbentSheet sheet in sheets)
+                {
+                    if (PlacedCount >= required)
+                        break;
                     if (sheet != null) TryPlaceSheetDebug(sheet);
+                }
             }
 
             EvaluateCoverage();
@@ -124,7 +141,10 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         /// <summary>Advances the absorption timer without waiting for real time.</summary>
         public void AdvanceDebugTime(float seconds)
         {
-            if (puddle != null && absorptionStarted)
+            if (puddle == null || seconds <= 0f)
+                return;
+            puddle.AdvanceSheetCoverageDebugTime(seconds);
+            if (absorptionStarted)
                 puddle.AdvanceAbsorptionDebugTime(seconds);
         }
 
@@ -144,7 +164,17 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 foreach (AbsorbentSheet sheet in sheets)
                     if (sheet != null) sheet.ResetState();
             if (puddle != null)
+            {
                 puddle.ResetState();
+                ApplyPlacementVisual();
+            }
+        }
+
+        /// <summary>Updates the puddle scale from the number of sheets actually placed.</summary>
+        private void ApplyPlacementVisual(float durationSeconds = 0f)
+        {
+            if (puddle != null)
+                puddle.SetSheetCoverage(PlacedCount, RequiredSheetCount, durationSeconds);
         }
 
         private void TryPlaceSheetDebug(AbsorbentSheet sheet)
@@ -177,7 +207,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             if (total == 0)
                 return 0;
             int configured = director == null || director.CurrentConfig == null
-                ? 3
+                ? 2
                 : director.CurrentConfig.RequiredAbsorbentSheetCount;
             return Mathf.Clamp(configured, 1, total);
         }

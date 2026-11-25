@@ -3,7 +3,7 @@
 Scenario VR **Chemical Alert** per *Sicurezza Immersiva 81* (Unity 6000.3, URP, OpenXR, Meta XR Core SDK, target Meta Quest 3).
 Tutti i file del gruppo risiedono in `Assets/_Project/Groups/G_Tiziano/` (`GROUP/`).
 
-**Ultimo aggiornamento:** 2026-11-24 (regole a ordine libero, 3 DPI × 2 copie, anello singolo, 3 fogli, esito automatico).
+**Ultimo aggiornamento:** 2026-11-25 (regole a ordine libero, 3 DPI × 1 copia sul ripiano centrale, anello singolo, 2 fogli, esito automatico, obiettivi con check reali, hint Guided 3D, oggetti a sola attivazione, ventole code-driven, auto-posa salsicciotto).
 
 ---
 
@@ -117,7 +117,7 @@ Nel codice non ci sono stringhe utente italiane: vengono emesse solo chiavi stab
 
 ```mermaid
 flowchart TD
-    Start([Avvio / ResetScenario]) --> Replay[ScenarioReplayController\nseed random o fisso F8/F9\nvariante A/B/C\nvalidazione armadietto 3 tipi x 2 copie\nprogrammazione seconda perdita 20-40s]
+    Start([Avvio / ResetScenario]) --> Replay[ScenarioReplayController\nseed random o fisso F8/F9\nvariante A/B/C\nvalidazione armadietto 3 tipi x 1 copia\nprogrammazione seconda perdita 20-40s]
     Replay --> Action[Phase.Action\nTimer 180s\nescalation ventilazione avviata]
 
     Action --> Objectives{Obiettivi, in qualsiasi ordine}
@@ -125,8 +125,8 @@ flowchart TD
     Objectives --> SDS[SDS ispezionata\nsds.inspect + pannello]
     Objectives --> PPE[3 DPI acquisiti: guanti, maschera, occhi\nppe.acquire.*]
     Objectives --> Ring[Anello singolo sulla pozzanghera\nspill.contain]
-    Ring --> Sheets[3 fogli assorbenti\nsheet.place]
-    Sheets --> Absorb[Assorbimento 4.5s\nraggio a 0 + copertura]
+    Ring --> Sheets[2 fogli assorbenti\nsheet.place\nscala pozza 100% → 50% → 0%]
+    Sheets --> Absorb[Assorbimento 2s\nraggio a 0 + copertura]
     Absorb --> Cleanup[CleanupComplete]
 
     Vent --> Done{ventilazione + SDS + DPI\n+ contenuta + copertura?}
@@ -157,7 +157,7 @@ flowchart TD
 ## 4. Regole di Gameplay
 
 ### 4.1 DPI e armadietto
-- L'armadietto `PPECabinet` contiene **3 tipi obbligatori × 2 copie interagibili** (`PPE_Gloves_A/B`, `PPE_Mask_A/B`, `PPE_EyeProtection_A/B`), tutti corretti e senza decoy.
+- L'armadietto `PPECabinet` contiene **3 tipi obbligatori × 1 copia interagibile** (`PPE_Gloves_A`, `PPE_Mask_A`, `PPE_EyeProtection_A`), tutte sul ripiano centrale, corrette e senza decoy.
 - L'acquisizione avviene **al Grab** (`PPEItemObject.HandleGrabbed` → `PlayerPPEState.TryAcquire`): la copia raccolta viene nascosta/disabilitata, la copia gemella resta visibile ma non più interagibile, e viene registrata `ppe.acquire.<ItemId>`.
 - I tre tipi richiesti da tutte le varianti sono: `chemical.gloves`, `respirator`, `face.shield`.
 - `PlayerPPEState.HasRequiredSet(variant)` verifica gli asset richiesti; `HasAllRequiredProtection` verifica i tre tipi dello scenario.
@@ -172,13 +172,14 @@ flowchart TD
 
 ### 4.3 Ventilazione
 - All'inizio di `Action`, se la ventilazione è spenta parte l'escalation nascosta in tutte le difficoltà: `40 s ± jitter` → tosse, `+20 s` → fase tossica progressiva, `+20 s` → `LossStarted` e quindi `Failure`. In Guided è disattivata solo la sconfitta per **timeout** (`defeatOnTimeout = false`): la ventilazione va attivata comunque.
-- Attivare `VentilationButton` registra `ventilation.activate`, ferma l'escalation e riporta il pericolo a `Down`.
+- `VentilationButton` è **solo attivabile** (Trigger): `grabbable=false`, `canGrab=false`, `canSelect=true`.
+- Attivare `VentilationButton` registra `ventilation.activate`, ferma l'escalation, riporta il pericolo a `Down` e avvia la rotazione delle ventole: `VentilationFan` ruota le pale a `180°/s` finché `VentTerminal.IsOn` è true, senza Animator/clip/tween; al reset le pale tornano all'orientamento iniziale.
 - Jitter deterministico per replay tramite `VentilationEscalation.SetRandomSeed(seed ^ 0x4A31)`.
 
 ### 4.4 Contenimento e bonifica
 - Perimetro: **1 `PerimeterSlot_0` + 1 `SpillSausage_0`**; al rilascio entro `0.35 m` lo slot si riempie, registra `spill.contain` e chiama `Puddle.SetContained(true)`.
 - Fogli: **3 `AbsorbentSheet`**; al rilascio entro `0.75 m` dalla pozzanghera vengono posizionati (`sheet.place`) e diventano non interagibili.
-- Con pozzanghera contenuta e 3 fogli posati parte l'assorbimento (`4.5 s`): il raggio scende a `0`, il foglio si macchia progressivamente e la pozzanghera viene coperta (`Puddle.SetCovered(true)`).
+- Ogni foglio posato riduce gradualmente la scala della pozza in ~2 s (`Puddle.SetSheetCoverage`): 1 foglio → 50%, 2 fogli → 0%. Con pozzanghera contenuta e 2 fogli posati parte l'assorbimento (`2 s`): il raggio scende a `0`, i fogli si macchiano progressivamente e la pozzanghera viene coperta (`Puddle.SetCovered(true)`).
 - `CleanupSystem.CleanupComplete` viene emesso a fine assorbimento; il Director programma l'esito dopo `SuccessDelaySeconds` (`2 s`).
 - La seconda perdita (T16) aumenta la crescita (`×2`) solo se la pozzanghera non è già contenuta; se è contenuta non si espande.
 
@@ -191,7 +192,7 @@ flowchart TD
 ### 4.6 Replay
 - Seed casuale (`Guid.NewGuid().GetHashCode()`) o fisso (`F8`, default `81081`).
 - Seed fisso ⇒ stessa variante, stesso istante della seconda perdita, stesso jitter ventilazione; il seed casuale evita varianti consecutive uguali.
-- L'armadietto non viene rimescolato: `ScenarioReplayController.ValidateCabinet` verifica solo la coerenza `3 tipi × 2 copie` e l'assenza di decoy.
+- L'armadietto non viene rimescolato: `ScenarioReplayController.ValidateCabinet` verifica solo la coerenza `3 tipi × 1 copia` e l'assenza di decoy.
 - `PpeShufflePool` nei config elenca i 3 tipi usati (guanti, respiratore, visiera).
 
 ### 4.7 Difficoltà (config reali)
@@ -218,7 +219,7 @@ Namespace radice `SI81.Tiziano.ChemicalAlert`, senza `.asmdef`, per compilare ne
 - **`Dimension.cs`** — Enum `Safety`, `Awareness`, `Decision`, `Execution`, `Time`.
 - **`ActionLog.cs`** — `ActionLogEntry` (`Timestamp`, `ActionId`, `IsCorrect`, `Dimension`, `ConsequenceKey`) e `ActionLog` (`Add`, `Clear`, `Entries`, `Count`).
 - **`ScenarioResult.cs`** — Risultato immutabile (`Outcome`, `ActionLog`, `SubScores`, `GetSubScore`).
-- **`OutcomeEvaluator.cs`** — Regole pure (`Evaluate`) + `SelfCheck` a 9 casi deterministici (comando `O`).
+- **`OutcomeEvaluator.cs`** — Regole pure (`Evaluate`) + `SelfCheck` a 10 casi deterministici (comando `O`). Con `evaluateHearts:false` (Guided) l'esito e il punteggio Safety non considerano gli HP: il profilo Guided ha `hearts=0` perché non prevede danni.
 
 ### 5.2 `Data/`
 - **`ChemicalAlertConfig.cs`** — Config per difficoltà: durata, soglie/jitter ventilazione, cuori, dolore, hint, highlight, distrattori, disturbo, varianti, `PpeShufflePool`, seconda perdita (finestra, moltiplicatore, audio), `RequiredAbsorbentSheetCount`, `AbsorptionDurationSeconds`, `SuccessDelaySeconds`, `DefeatOnTimeout`, punti.
@@ -231,6 +232,7 @@ Namespace radice `SI81.Tiziano.ChemicalAlert`, senza `.asmdef`, per compilare ne
 - **`ScenarioHandInteractor.cs`** — Interattore near-controller su `LeftControllerAnchor` / `RightControllerAnchor`: hover `0.12 m`, grab/release con parenting e velocità, activate con Trigger, inspect a `0.35 m` davanti a `CenterEyeAnchor` (`dot >= 0.5`).
 - **`ScenarioInteractable.cs`** — Superficie `Grabbable` / `Activatable` / `Inspectable`, eventi C# + `UnityEvent`, highlight emissivo pulsante `#E69F00` (`SetGuidedHighlight`) solo in Guided.
 - **`VentTerminal.cs`** — Terminale ventilazione; `TurnOn()` → `TurnedOn` + `OnTurnedOn`.
+- **`VentilationFan.cs`** — Rotazione code-driven delle pale delle due ventole finché il terminale è acceso; nessun Animator/clip.
 - **`SdsItem.cs`** — SDS afferrabile/ispezionabile; prima ispezione → `SdsRead` + `sds.inspect`; seconda attivazione → `ToggleSdsPanel`.
 - **`PPECabinet.cs`** — Armadietto (`Open`/`Close`/`Toggle`/`ResetCabinet`) con `OnOpened`/`OnClosed`.
 - **`PPEItemObject.cs`** — Copia fisica DPI; **acquisizione al Grab**, nasconde la copia, disabilita il duplicato, `ResetState()` la ripristina; `SetItemData` disponibile per tooling.
@@ -248,7 +250,7 @@ Namespace radice `SI81.Tiziano.ChemicalAlert`, senza `.asmdef`, per compilare ne
 - **`SubstanceContactSensor.cs`** — Trigger sulla perdita: senza maschera avviso+tosse, senza guanti danno, con guanti contatto sicuro.
 - **`PlayerHealth.cs`** — Cuori, invulnerabilità `1 s`, danno/morte in Operational/Crisis, solo `DangerDetected` in Guided.
 - **`PerimeterSlot.cs` & `PerimeterSlots.cs`** — Anello singolo: snap `0.35 m`, errore d'ordine una volta, `SetContained(true)` a perimetro completo.
-- **`CleanupSystem.cs`** — 3 fogli, posizionamento `0.75 m`, avvio assorbimento, `CleanupComplete`; stato `PlacedCount`, `DisposedCount`, `RequiredSheetCount`.
+- **`CleanupSystem.cs`** — 2 fogli richiesti (terzo disattivato come ricambio), posizionamento `0.75 m`, avvio assorbimento, `CleanupComplete`; stato `PlacedCount`, `DisposedCount`, `RequiredSheetCount`.
 - **`DisturbanceController.cs`** — Flicker luci Crisis (`≤ 3 Hz`, `2.5 Hz` default, `1.25 Hz` con `ReducedEffects`) e audio loop opzionale.
 - **`ScenarioReplayController.cs`** — Seed, variante, validazione armadietto 3×2, jitter, seconda perdita (`SetFixedSeed` / `ClearFixedSeed` / `AdvanceDebugTime`).
 
@@ -260,15 +262,18 @@ Namespace radice `SI81.Tiziano.ChemicalAlert`, senza `.asmdef`, per compilare ne
 ## 6. Scena, Prefab, Trigger e Asset
 
 ### 6.1 Scena e Prefab (`GROUP/Level/`)
-- **Scena:** `Level/Scenes/SCN_ChemicalAlert.unity` (20 root, 566 GameObject).
+- **Scena:** `Level/Scenes/SCN_ChemicalAlert.unity` (25 root; il rig condiviso viene caricato da `SCN_Core`).
 - **Prefab manager:** `Level/Prefabs/MNG_ChemicalAlertDirector.prefab` con `ChemicalAlertDirector`, `VentilationEscalation`, `VentilationSystem`, `PlayerHealth`, `DisturbanceController`, `ScenarioReplayController`.
-- **Prefab in scena:** tutti i root sono istanze di prefab (`Connected`), nessun prefab rotto.
+- **Prefab in scena:** tutti i 25 root sono istanze di prefab (`Connected`), nessun prefab rotto. I quattro root precedentemente liberi (`MNG_Scenario`, `SDSPanel3D`, `OBJ_HintButton3D`, `MNG_ChemicalAlertFeedback`) sono stati salvati in `Level/Prefabs/`; `MNG_Scenario` è stato prima scollegato da `Packages/com.meta.xr.sdk.core/Prefabs/OVRCameraRig.prefab`. I riferimenti tra oggetti di scena sono override delle istanze, non riferimenti nei prefab.
 
 ### 6.2 Root di Scena
 | Oggetto | Componenti / Ruolo |
 |---|---|
-| `OVRCameraRig` | `OVRCameraRig`, `OVRManager`, `OVRHeadsetEmulator`, `ScenarioInputBindings`, `DebugCommands`, `PlayerPPEState`; figli `LeftControllerAnchor`/`RightControllerAnchor` con `ScenarioHandInteractor`, `CenterEyeAnchor` con UI |
+| `MNG_Scenario` | `ChemicalAlertScenarioController`, `DebugCommands`, `PlayerPPEState` |
+| `MNG_SpawnPoint` | `SI81.Rig.SpawnPoint`; marker di spawn sotto `ScenarioMarkers`, ora a `(3.753, 0, -1.000)` con yaw `284.91°` (punto medio tra `SDSItem` e `VentilationButton`, non più davanti alla pozza) |
 | `MNG_ChemicalAlertDirector` | Director + sistemi di scenario |
+| `MNG_ChemicalAlertFeedback` | `ChemicalAlertPanelUI` + `AudioSource`; scheda SDS 3D e cue tosse |
+| `OBJ_HintButton3D` | `ChemicalAlertHintButton` + `SI81.Interaction.Interactable` |
 | `Directional Light` | Luce direzionale (target del disturbo Crisis) |
 | `Floor` | Stanza, pareti, lucernari, ventole |
 | `Truck` | Camion con SDS a bordo |
@@ -286,9 +291,9 @@ Namespace radice `SI81.Tiziano.ChemicalAlert`, senza `.asmdef`, per compilare ne
 | `ScenarioMarkers` | 10 marker: `SPAWN_Player`, `DebugSpawnMarker`, `POS_Barrel`, `POS_Puddle`, `POS_VentButton`, `POS_Truck`, `POS_SDS`, `POS_PPECabinet`, `POS_SpillKit`, `ZONE_SpillArea` |
 
 ### 6.3 UI in scena
-- `OVRCameraRig/TrackingSpace/CenterEyeAnchor/ChemicalAlertUI` — Canvas World Space con `ChemicalAlertPanelUI` (pannello SDS, popup errore).
-- `OVRCameraRig/TrackingSpace/CenterEyeAnchor/ToxicVignetteCanvas` — Canvas World Space per la vignetta tossica.
-- Entrambe le canvas sono head-locked sul visore: da rivalutare in punto 4 (comfort/layout).
+- `MNG_ChemicalAlertFeedback` ospita `ChemicalAlertPanelUI`; la scheda SDS è 3D e world-anchored, con cue audio, senza Canvas locale.
+- La vignetta tossica non è salvata nella scena: `ChemicalAlertPanelUI` la genera soltanto durante Chemical Alert come overlay temporaneo figlio dell’istanza `MNG_HUD` di `SCN_Core`; viene rimossa quando lo scenario si disabilita. L’overlay non blocca i raggi UI e usa un’opacità massima contenuta.
+- La scena del gruppo non contiene `OVRCameraRig`, `OVRManager`, `OVRHeadsetEmulator`, Canvas, EventSystem o listener audio della camera; questi restano di proprietà di `SCN_Core`.
 
 ### 6.4 Asset ScriptableObject (`GROUP/Code/Scripts/Data/Assets/`)
 - **Config:**

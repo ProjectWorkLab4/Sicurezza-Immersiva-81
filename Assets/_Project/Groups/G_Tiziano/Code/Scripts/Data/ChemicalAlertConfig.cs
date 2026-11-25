@@ -30,7 +30,7 @@ namespace SI81.Tiziano.ChemicalAlert.Data
         [SerializeField, Min(0f)] private float secondSpillWindowEndSeconds = 40f;
         [SerializeField, Min(1f)] private float secondSpillGrowthMultiplier = 2f;
         [SerializeField] private AudioClip secondSpillAudio;
-        [SerializeField, Min(1)] private int requiredAbsorbentSheetCount = 3;
+        [SerializeField, Min(1)] private int requiredAbsorbentSheetCount = 2;
         [SerializeField, Min(0.1f)] private float absorptionDurationSeconds = 4.5f;
         [SerializeField, Min(0f)] private float successDelaySeconds = 2f;
         [SerializeField] private bool defeatOnTimeout = true;

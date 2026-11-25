@@ -138,8 +138,9 @@ namespace SI81.UI
             yield return null;
             LevelConfig cfg = UIServices.Catalog != null ? UIServices.Catalog.GetLevelConfig(MissionSession.Level) : null;
             if (HUDService.IsReady && cfg != null) HUDService.ApplyLevel(cfg);
+            MissionFlow.EnsureObjectiveState(ObjectiveCount);
             currentObjective = 0;
-            objectivesCompleted = 0;
+            objectivesCompleted = MissionFlow.CompletedObjectiveCount;
             if (ObjectiveCount > 0) SetObjective(0);
             SetPhase(PHASE_SCAN);
 
@@ -243,8 +244,29 @@ namespace SI81.UI
         public void CompleteObjective()
         {
             if (!IsRunning) return;
-            objectivesCompleted = Mathf.Min(objectivesCompleted + 1, ObjectiveCount);
+            if (MissionFlow.HasObjectiveCompletionState)
+                MissionFlow.SetObjectiveCompleted(currentObjective, true);
+            objectivesCompleted = MissionFlow.HasObjectiveCompletionState
+                ? MissionFlow.CompletedObjectiveCount
+                : Mathf.Min(objectivesCompleted + 1, ObjectiveCount);
             if (currentObjective + 1 < ObjectiveCount) SetObjective(currentObjective + 1);
+        }
+
+        /// <summary>
+        /// Segna completato un obiettivo specifico e porta il polso al primo obiettivo ancora da fare.
+        /// Utile negli scenari in cui le azioni possono avvenire in ordine libero.
+        /// </summary>
+        /// <param name="index">Indice 0-based in MissionDefinition.Objectives.</param>
+        public void SetObjectiveCompleted(int index)
+        {
+            if (!IsRunning || index < 0 || index >= ObjectiveCount)
+                return;
+
+            MissionFlow.EnsureObjectiveState(ObjectiveCount);
+            MissionFlow.SetObjectiveCompleted(index, true);
+            objectivesCompleted = MissionFlow.CompletedObjectiveCount;
+            int next = MissionFlow.FirstIncompleteObjectiveIndex();
+            SetObjective(next >= 0 ? next : ObjectiveCount - 1);
         }
 
         /// <summary>

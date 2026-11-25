@@ -120,7 +120,9 @@ namespace SI81.UI
                 var rect = (RectTransform)item.transform;
                 // Larghezza prima del testo: ObjectiveItem calcola l'altezza da essa.
                 PanelLayout.SetRect(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -y - rect.rect.height), new Vector2(objectivesWidth, -y));
-                ObjectiveState state = i < current ? ObjectiveState.Done : (i == current ? ObjectiveState.Current : ObjectiveState.Todo);
+                ObjectiveState state = MissionFlow.HasObjectiveCompletionState && MissionFlow.IsObjectiveCompleted(i)
+                    ? ObjectiveState.Done
+                    : (i == current ? ObjectiveState.Current : ObjectiveState.Todo);
                 item.SetObjective(mission.Objectives[i], state);
                 PanelLayout.SetRect(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -y - rect.rect.height), new Vector2(objectivesWidth, -y));
                 y += rect.rect.height + objectivesGap;

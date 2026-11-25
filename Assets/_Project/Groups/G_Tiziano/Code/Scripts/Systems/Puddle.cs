@@ -25,6 +25,12 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private float absorptionElapsedSeconds;
         private float absorptionDurationSeconds;
         private float absorptionStartRadius;
+        private float sheetCoverageMultiplier = 1f;
+        private float sheetCoverageStart = 1f;
+        private float sheetCoverageTarget = 1f;
+        private float sheetCoverageElapsed;
+        private float sheetCoverageDuration;
+        private bool sheetCoverageAnimating;
         private Collider puddleCollider;
         private Renderer visualRenderer;
         private MaterialPropertyBlock colorPropertyBlock;
@@ -49,6 +55,10 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public bool SecondSpillActive => secondSpillActive;
         /// <summary>Gets whether the puddle is currently shrinking during absorption.</summary>
         public bool IsAbsorbing => absorbing;
+        /// <summary>Gets the current sheet-coverage scale multiplier.</summary>
+        public float SheetCoverageMultiplier => sheetCoverageMultiplier;
+        /// <summary>Gets whether the sheet-coverage scale is animating.</summary>
+        public bool IsSheetCoverageAnimating => sheetCoverageAnimating;
         /// <summary>Gets the current normalized absorption progress.</summary>
         public float AbsorptionProgress => covered
             ? 1f
@@ -79,6 +89,9 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
         private void Update()
         {
+            if (sheetCoverageAnimating)
+                AdvanceSheetCoverage(Time.deltaTime);
+
             if (absorbing)
             {
                 AdvanceAbsorption(Time.deltaTime);
@@ -187,6 +200,45 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             UnityEngine.Debug.Log($"[CA] Puddle covered={covered}; radius={currentRadius:0.00}");
         }
 
+        /// <summary>
+        /// Animates the puddle scale from placed absorbent sheets: each sheet covers an equal share,
+        /// and reaching the required count brings the scale to zero. A non-positive duration applies
+        /// the target immediately (used by resets and deterministic debug checks).
+        /// </summary>
+        public void SetSheetCoverage(int placedSheets, int requiredSheets, float durationSeconds = 0f)
+        {
+            float target = requiredSheets <= 0
+                ? 1f
+                : Mathf.Clamp01(1f - Mathf.Clamp01((float)Mathf.Max(0, placedSheets) / requiredSheets));
+
+            if (durationSeconds <= 0f)
+            {
+                sheetCoverageMultiplier = target;
+                sheetCoverageAnimating = false;
+                sheetCoverageElapsed = 0f;
+                sheetCoverageDuration = 0f;
+                ApplyScale();
+                return;
+            }
+
+            if (Mathf.Approximately(target, sheetCoverageMultiplier))
+                return;
+
+            sheetCoverageStart = sheetCoverageMultiplier;
+            sheetCoverageTarget = target;
+            sheetCoverageElapsed = 0f;
+            sheetCoverageDuration = Mathf.Max(0.1f, durationSeconds);
+            sheetCoverageAnimating = true;
+            UnityEngine.Debug.Log($"[CA] Puddle sheet coverage shrinking: {sheetCoverageStart:0.00} -> {target:0.00} in {sheetCoverageDuration:0.00}s.");
+        }
+
+        /// <summary>Advances the sheet-coverage animation without waiting for real time in debug checks.</summary>
+        public void AdvanceSheetCoverageDebugTime(float seconds)
+        {
+            if (seconds > 0f)
+                AdvanceSheetCoverage(seconds);
+        }
+
         /// <summary>Resets radius, growth and containment state.</summary>
         public void ResetState()
         {
@@ -199,6 +251,12 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             absorptionElapsedSeconds = 0f;
             absorptionDurationSeconds = 0f;
             absorptionStartRadius = 0f;
+            sheetCoverageMultiplier = 1f;
+            sheetCoverageStart = 1f;
+            sheetCoverageTarget = 1f;
+            sheetCoverageElapsed = 0f;
+            sheetCoverageDuration = 0f;
+            sheetCoverageAnimating = false;
             currentRadius = Mathf.Max(0.01f, MaxRadius * initialRadiusFraction);
             if (puddleCollider != null)
                 puddleCollider.enabled = true;
@@ -206,6 +264,27 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 visualRenderer.enabled = true;
             ApplyScale();
             ApplyVariantColor();
+        }
+
+        private void AdvanceSheetCoverage(float seconds)
+        {
+            if (!sheetCoverageAnimating || seconds <= 0f)
+                return;
+
+            sheetCoverageElapsed = Mathf.Min(sheetCoverageDuration, sheetCoverageElapsed + seconds);
+            float progress = sheetCoverageDuration <= 0f
+                ? 1f
+                : Mathf.Clamp01(sheetCoverageElapsed / sheetCoverageDuration);
+            float eased = progress * progress * (3f - 2f * progress);
+            sheetCoverageMultiplier = Mathf.Lerp(sheetCoverageStart, sheetCoverageTarget, eased);
+            ApplyScale();
+
+            if (progress < 1f)
+                return;
+
+            sheetCoverageMultiplier = sheetCoverageTarget;
+            sheetCoverageAnimating = false;
+            ApplyScale();
         }
 
         private void AdvanceAbsorption(float seconds)
@@ -242,10 +321,11 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private void ApplyScale()
         {
             float factor = MaxRadius <= 0f ? 1f : Mathf.Clamp01(currentRadius / MaxRadius);
+            float sheetFactor = Mathf.Clamp01(sheetCoverageMultiplier);
             transform.localScale = new Vector3(
-                initialRootScale.x * factor,
+                initialRootScale.x * factor * sheetFactor,
                 initialRootScale.y,
-                initialRootScale.z * factor);
+                initialRootScale.z * factor * sheetFactor);
             if (visual != null)
                 visual.localScale = Vector3.one;
         }

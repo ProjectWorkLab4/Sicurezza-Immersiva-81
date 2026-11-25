@@ -1,39 +1,38 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SI81.UI;
+using SI81.Tiziano.ChemicalAlert.Core;
 using SI81.Tiziano.ChemicalAlert.Data;
 using SI81.Tiziano.ChemicalAlert.Systems;
 
 namespace SI81.Tiziano.ChemicalAlert.Interaction
 {
     /// <summary>
-    /// Presents the approved SDS, transient procedural warnings, and toxic-air vignette.
-    /// This component intentionally has no success or victory presentation.
+    /// Presenta la scheda SDS 3D e il cue audio della tosse; la vignetta vive temporaneamente nell'istanza HUD comune.
     /// </summary>
     public sealed class ChemicalAlertPanelUI : MonoBehaviour
     {
         [SerializeField] private ChemicalAlertDirector director;
-        [SerializeField] private ScenarioInputBindings inputBindings;
-        [SerializeField] private CanvasGroup sdsPanel;
-        [SerializeField] private TMP_Text sdsText;
-        [SerializeField] private Image[] sdsPictograms = new Image[0];
+        [SerializeField] private Sprite[] sdsPictogramAssets = new Sprite[0];
         [SerializeField] private GameObject sdsWorldPanel;
         [SerializeField] private TMP_Text sdsWorldText;
         [SerializeField] private SpriteRenderer[] sdsWorldPictograms = new SpriteRenderer[0];
         [SerializeField] private TextAsset formicAcidSds;
         [SerializeField, TextArea(10, 24)] private string sdsDisplayText;
-        [SerializeField] private CanvasGroup errorPanel;
-        [SerializeField] private TMP_Text errorText;
-        [SerializeField] private Image toxicVignette;
-        [SerializeField, Range(0f, 1f)] private float vignetteMaxAlpha = 0.72f;
-        [SerializeField, Min(0.1f)] private float errorDisplaySeconds = 4.5f;
         [SerializeField] private AudioSource coughAudioSource;
         [SerializeField] private AudioClip coughAudioClip;
+        [SerializeField, Range(0f, 0.4f)] private float maxToxicVignetteOpacity = 0.22f;
+        [SerializeField, Min(0.1f)] private float toxicVignetteFadeSpeed = 0.8f;
 
-        private float errorRemaining;
         private AudioClip generatedCoughClip;
-        private Texture2D generatedVignetteTexture;
-        private Sprite generatedVignetteSprite;
+        private Canvas toxicVignetteCanvas;
+        private Image toxicVignetteImage;
+        private Texture2D toxicVignetteTexture;
+        private Sprite toxicVignetteSprite;
+        private float targetVignetteIntensity;
+        private float shownVignetteIntensity;
+        private Color vignetteHazardColor = Color.yellow;
 
         private void OnEnable()
         {
@@ -42,45 +41,34 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
             director.SdsRead += HandleSdsRead;
             director.SdsPanelDismissRequested += HideSds;
-            director.ErrorReported += ShowError;
-            director.ToxicVignetteChanged += SetToxicVignette;
             director.CoughRequested += PlayCough;
+            director.ToxicVignetteChanged += HandleToxicVignetteChanged;
+            director.ResultReady += HandleResultReady;
+            HUDService.Ready += HandleHudReady;
         }
 
         private void OnDisable()
         {
-            if (director == null)
-                return;
+            if (director != null)
+            {
+                director.SdsRead -= HandleSdsRead;
+                director.SdsPanelDismissRequested -= HideSds;
+                director.CoughRequested -= PlayCough;
+                director.ToxicVignetteChanged -= HandleToxicVignetteChanged;
+                director.ResultReady -= HandleResultReady;
+            }
 
-            director.SdsRead -= HandleSdsRead;
-            director.SdsPanelDismissRequested -= HideSds;
-            director.ErrorReported -= ShowError;
-            director.ToxicVignetteChanged -= SetToxicVignette;
-            director.CoughRequested -= PlayCough;
+            HUDService.Ready -= HandleHudReady;
+            DestroyToxicVignetteOverlay();
         }
 
         private void Start()
         {
-            // SDS is presented by the scenario-owned 3D card, not the legacy head-locked Canvas.
-            SetVisible(sdsPanel, false);
             SetSdsWorldVisible(director != null && director.IsSdsPanelOpen);
-            SetVisible(errorPanel, false);
             if (coughAudioSource == null)
                 coughAudioSource = GetComponent<AudioSource>();
             if (coughAudioClip == null)
                 generatedCoughClip = CreateSoftCoughCue();
-            if (toxicVignette != null && toxicVignette.sprite == null)
-            {
-                generatedVignetteSprite = CreateVignetteSprite(out generatedVignetteTexture);
-                toxicVignette.sprite = generatedVignetteSprite;
-                toxicVignette.type = Image.Type.Simple;
-                toxicVignette.preserveAspect = false;
-            }
-            if (sdsPictograms != null)
-                foreach (Image pictogram in sdsPictograms)
-                    if (pictogram != null) pictogram.preserveAspect = true;
-            if (toxicVignette != null)
-                SetToxicVignette(0f, new Color32(150, 195, 90, 255));
 
             SetSdsText();
             SyncSdsPictograms();
@@ -88,24 +76,31 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
         private void Update()
         {
-            if (director != null && director.IsSdsPanelOpen &&
-                inputBindings != null &&
-                inputBindings.GetDismissDown(OVRInput.Controller.RTouch))
-                director.DismissSdsPanel();
+            if (toxicVignetteImage == null && targetVignetteIntensity > 0f && HUDService.IsReady)
+                CreateToxicVignetteOverlay();
 
-            if (errorRemaining <= 0f)
+            if (toxicVignetteImage == null)
                 return;
 
-            errorRemaining = Mathf.Max(0f, errorRemaining - Time.unscaledDeltaTime);
-            if (errorRemaining <= 0f)
-                SetVisible(errorPanel, false);
+            shownVignetteIntensity = Mathf.MoveTowards(
+                shownVignetteIntensity,
+                targetVignetteIntensity,
+                toxicVignetteFadeSpeed * Time.unscaledDeltaTime);
+
+            Color tint = Color.Lerp(Color.black, vignetteHazardColor, 0.45f);
+            tint.a = maxToxicVignetteOpacity * shownVignetteIntensity;
+            toxicVignetteImage.color = tint;
+
+            if (!toxicVignetteCanvas.gameObject.activeSelf && tint.a > 0.001f)
+                toxicVignetteCanvas.gameObject.SetActive(true);
+            else if (toxicVignetteCanvas.gameObject.activeSelf && tint.a <= 0.001f)
+                toxicVignetteCanvas.gameObject.SetActive(false);
         }
 
         private void HandleSdsRead(SubstanceVariant variant)
         {
             SetSdsText();
             SyncSdsPictograms();
-            SetVisible(sdsPanel, false);
             SetSdsWorldVisible(true);
         }
 
@@ -115,28 +110,28 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 ? sdsDisplayText
                 : formicAcidSds != null ? formicAcidSds.text : string.Empty;
 
-            if (sdsText != null)
-                sdsText.text = content;
             if (sdsWorldText != null)
                 sdsWorldText.text = content;
         }
 
         private void SyncSdsPictograms()
         {
-            if (sdsPictograms == null || sdsWorldPictograms == null)
+            if (sdsPictogramAssets == null || sdsWorldPictograms == null)
                 return;
 
-            int count = Mathf.Min(sdsPictograms.Length, sdsWorldPictograms.Length);
+            int count = Mathf.Min(sdsPictogramAssets.Length, sdsWorldPictograms.Length);
             for (int i = 0; i < count; i++)
             {
-                if (sdsPictograms[i] != null && sdsWorldPictograms[i] != null)
-                    sdsWorldPictograms[i].sprite = sdsPictograms[i].sprite;
+                if (sdsWorldPictograms[i] == null)
+                    continue;
+
+                sdsWorldPictograms[i].sprite = sdsPictogramAssets[i];
+                sdsWorldPictograms[i].enabled = sdsPictogramAssets[i] != null;
             }
         }
 
         private void HideSds()
         {
-            SetVisible(sdsPanel, false);
             SetSdsWorldVisible(false);
         }
 
@@ -146,24 +141,6 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 sdsWorldPanel.SetActive(visible);
         }
 
-        private void ShowError(string localizationKey)
-        {
-            if (errorText != null)
-                errorText.text = ResolveErrorMessage(localizationKey);
-
-            errorRemaining = Mathf.Max(0.1f, errorDisplaySeconds);
-            SetVisible(errorPanel, true);
-        }
-
-        private void SetToxicVignette(float intensity, Color tint)
-        {
-            if (toxicVignette == null)
-                return;
-
-            tint.a = Mathf.Clamp01(intensity) * vignetteMaxAlpha;
-            toxicVignette.color = tint;
-        }
-
         private void PlayCough()
         {
             AudioClip clip = coughAudioClip == null ? generatedCoughClip : coughAudioClip;
@@ -171,12 +148,122 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 coughAudioSource.PlayOneShot(clip);
         }
 
+        private void HandleToxicVignetteChanged(float intensity, Color hazardColor)
+        {
+            targetVignetteIntensity = Mathf.Clamp01(intensity);
+            vignetteHazardColor = hazardColor;
+            if (targetVignetteIntensity > 0f && HUDService.IsReady)
+                CreateToxicVignetteOverlay();
+        }
+
+        private void HandleResultReady(ScenarioResult result)
+        {
+            targetVignetteIntensity = 0f;
+        }
+
+        private void HandleHudReady()
+        {
+            if (targetVignetteIntensity > 0f)
+                CreateToxicVignetteOverlay();
+        }
+
+        /// <summary>
+        /// Crea l'effetto soltanto dentro l'istanza HUD condivisa durante Chemical Alert;
+        /// non aggiunge Canvas o UI persistenti alla scena né modifica prefab condivisi.
+        /// </summary>
+        private void CreateToxicVignetteOverlay()
+        {
+            if (toxicVignetteImage != null)
+                return;
+
+            HUDRoot hudRoot = FindFirstObjectByType<HUDRoot>(FindObjectsInactive.Include);
+            if (hudRoot == null)
+                return;
+
+            GameObject overlay = new GameObject(
+                "HUD_ChemicalAlertToxicVignette",
+                typeof(RectTransform),
+                typeof(Canvas),
+                typeof(CanvasGroup));
+            overlay.transform.SetParent(hudRoot.transform, false);
+
+            RectTransform rect = (RectTransform)overlay.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localScale = Vector3.one;
+
+            toxicVignetteCanvas = overlay.GetComponent<Canvas>();
+            toxicVignetteCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            toxicVignetteCanvas.overrideSorting = true;
+            toxicVignetteCanvas.sortingOrder = 100;
+
+            CanvasGroup group = overlay.GetComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            toxicVignetteImage = overlay.AddComponent<Image>();
+            toxicVignetteImage.sprite = CreateToxicVignetteSprite();
+            toxicVignetteImage.raycastTarget = false;
+            toxicVignetteImage.color = Color.clear;
+            overlay.SetActive(false);
+        }
+
+        private Sprite CreateToxicVignetteSprite()
+        {
+            const int resolution = 128;
+            const float cornerRadius = 0.70710678f;
+            toxicVignetteTexture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false, true)
+            {
+                name = "TEX_ChemicalAlertToxicVignette_Runtime",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            Color[] pixels = new Color[resolution * resolution];
+            for (int y = 0; y < resolution; y++)
+            {
+                for (int x = 0; x < resolution; x++)
+                {
+                    float u = (x + 0.5f) / resolution - 0.5f;
+                    float v = (y + 0.5f) / resolution - 0.5f;
+                    float radius = new Vector2(u, v).magnitude / cornerRadius;
+                    float alpha = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.48f, 0.98f, radius));
+                    pixels[y * resolution + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            toxicVignetteTexture.SetPixels(pixels);
+            toxicVignetteTexture.Apply(false, true);
+            toxicVignetteSprite = Sprite.Create(
+                toxicVignetteTexture,
+                new Rect(0f, 0f, resolution, resolution),
+                new Vector2(0.5f, 0.5f),
+                resolution);
+            toxicVignetteSprite.name = "SPR_ChemicalAlertToxicVignette_Runtime";
+            return toxicVignetteSprite;
+        }
+
+        private void DestroyToxicVignetteOverlay()
+        {
+            if (toxicVignetteCanvas != null)
+                Destroy(toxicVignetteCanvas.gameObject);
+            if (toxicVignetteSprite != null)
+                Destroy(toxicVignetteSprite);
+            if (toxicVignetteTexture != null)
+                Destroy(toxicVignetteTexture);
+
+            toxicVignetteCanvas = null;
+            toxicVignetteImage = null;
+            toxicVignetteSprite = null;
+            toxicVignetteTexture = null;
+            targetVignetteIntensity = 0f;
+            shownVignetteIntensity = 0f;
+        }
+
         private void OnDestroy()
         {
-            if (generatedVignetteSprite != null)
-                Destroy(generatedVignetteSprite);
-            if (generatedVignetteTexture != null)
-                Destroy(generatedVignetteTexture);
             if (generatedCoughClip != null)
                 Destroy(generatedCoughClip);
         }
@@ -217,58 +304,5 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             return attack * release;
         }
 
-        private static Sprite CreateVignetteSprite(out Texture2D texture)
-        {
-            const int size = 128;
-            texture = new Texture2D(size, size, TextureFormat.RGBA32, false, true)
-            {
-                name = "CA_ToxicVignetteTexture",
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear
-            };
-            Color32[] pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float nx = (x + 0.5f) / size * 2f - 1f;
-                    float ny = (y + 0.5f) / size * 2f - 1f;
-                    float radius = Mathf.Sqrt(nx * nx * 0.72f + ny * ny);
-                    float edge = Mathf.SmoothStep(0.42f, 1.15f, radius);
-                    byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01(edge) * 255f);
-                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, true);
-            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
-        }
-
-        private static void SetVisible(CanvasGroup group, bool visible)
-        {
-            if (group == null)
-                return;
-
-            group.alpha = visible ? 1f : 0f;
-            group.interactable = visible;
-            group.blocksRaycasts = visible;
-        }
-
-        private static string ResolveErrorMessage(string key)
-        {
-            switch (key)
-            {
-                case "chemical.error.gloves":
-                    return "ERRORE — Indossa i guanti chimici prima di usare gli strumenti. Ogni tentativo senza guanti costa una vita.";
-                case "chemical.error.no_mask":
-                    return "ATTENZIONE — Avvicinarsi alla perdita senza mascherina provoca tosse.";
-                case "chemical.error.eye_protection":
-                    return "PERICOLO — L'aria è tossica: proteggi gli occhi con occhiali a tenuta o visiera.";
-                case "chemical.error.procedure_order":
-                    return "PROCEDURA NON RISPETTATA — Puoi continuare, ma l'esito potrebbe essere Parziale.";
-                default:
-                    return "ATTENZIONE — Procedura non corretta. Puoi continuare, ma l'esito potrebbe essere Parziale.";
-            }
-        }
     }
 }

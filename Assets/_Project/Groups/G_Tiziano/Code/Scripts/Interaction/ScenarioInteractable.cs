@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
+using SI81.Input;
+using SI81.Interaction;
+using SI81.Rig;
 using UnityEngine;
 using UnityEngine.Events;
 
 namespace SI81.Tiziano.ChemicalAlert.Interaction
 {
     /// <summary>
-    /// Minimal event-driven interaction surface for scenario objects.
+    /// Scenario adapter that forwards shared RayInteractor events to Chemical Alert object behavior.
     /// </summary>
+    [RequireComponent(typeof(Interactable))]
     public sealed class ScenarioInteractable : MonoBehaviour
     {
         [SerializeField] private bool grabbable = true;
@@ -26,6 +30,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             new Dictionary<Renderer, MaterialPropertyBlock>();
         private Renderer[] highlightRenderers;
         private bool guidedHighlightEnabled;
+        private Interactable sharedInteractable;
+        private bool inspectedThisGrab;
 
         /// <summary>Raised when this object is grabbed.</summary>
         public event Action<ScenarioInteractable> Grabbed;
@@ -47,16 +53,97 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         /// <summary>Gets whether the object can be inspected.</summary>
         public bool Inspectable => interactionEnabled && inspectable;
 
+        private void Awake()
+        {
+            ResolveSharedInteractable();
+        }
+
+        private void OnEnable()
+        {
+            ResolveSharedInteractable();
+            if (sharedInteractable == null)
+                return;
+
+            sharedInteractable.HoverEntered += HandleHoverEntered;
+            sharedInteractable.HoverExited += HandleHoverExited;
+            sharedInteractable.SelectEntered += HandleSelectEntered;
+            sharedInteractable.GrabEntered += HandleGrabEntered;
+            sharedInteractable.GrabExited += HandleGrabExited;
+        }
+
+        private void OnDisable()
+        {
+            if (sharedInteractable == null)
+                return;
+
+            sharedInteractable.HoverEntered -= HandleHoverEntered;
+            sharedInteractable.HoverExited -= HandleHoverExited;
+            sharedInteractable.SelectEntered -= HandleSelectEntered;
+            sharedInteractable.GrabEntered -= HandleGrabEntered;
+            sharedInteractable.GrabExited -= HandleGrabExited;
+            inspectedThisGrab = false;
+        }
+
         /// <summary>Enables or disables player input on this interaction surface.</summary>
         public void SetInteractionEnabled(bool enabled)
         {
             interactionEnabled = enabled;
+            ApplySharedInteractionFlags();
         }
 
         private void Update()
         {
             if (guidedHighlightEnabled)
                 ApplyGuidedHighlight();
+
+            if (!interactionEnabled || !inspectable || inspectedThisGrab ||
+                sharedInteractable == null || !sharedInteractable.IsGrabbed)
+                return;
+
+            RigRegistration rig = RigRegistration.Instance;
+            Transform head = rig != null ? rig.Head : null;
+            if (head == null)
+                return;
+
+            Vector3 toObject = transform.position - head.position;
+            if (toObject.magnitude > 0.35f ||
+                Vector3.Dot(head.forward, toObject.normalized) < 0.5f)
+                return;
+
+            inspectedThisGrab = true;
+            RaiseInspected();
+        }
+
+        private void ResolveSharedInteractable()
+        {
+            if (sharedInteractable == null)
+                sharedInteractable = GetComponent<Interactable>();
+            ApplySharedInteractionFlags();
+        }
+
+        private void ApplySharedInteractionFlags()
+        {
+            if (sharedInteractable == null)
+                return;
+
+            sharedInteractable.Grabbable = interactionEnabled && grabbable;
+            sharedInteractable.Selectable = interactionEnabled && activatable;
+        }
+
+        private void HandleHoverEntered(Hand hand) => RaiseHoverEnter();
+        private void HandleHoverExited(Hand hand) => RaiseHoverExit();
+        private void HandleSelectEntered(Hand hand) => RaiseActivated();
+
+        private void HandleGrabEntered(Hand hand)
+        {
+            inspectedThisGrab = false;
+            RaiseGrabbed();
+        }
+
+        private void HandleGrabExited(Hand hand)
+        {
+            inspectedThisGrab = false;
+            RaiseReleased();
         }
 
         /// <summary>Enables or restores this interactable's Guided emission highlight.</summary>

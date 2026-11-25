@@ -227,9 +227,9 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private void ValidateCabinet(PPEItem[] configuredPool, SubstanceVariant variant)
         {
             if (configuredPool == null || cabinetItems == null ||
-                configuredPool.Length != 3 || cabinetItems.Length != 6)
+                configuredPool.Length != 3 || cabinetItems.Length != 3)
             {
-                UnityEngine.Debug.LogError($"[CA] ReplayController: expected 3 PPE types and 6 physical copies; pool={(configuredPool == null ? 0 : configuredPool.Length)}, copies={(cabinetItems == null ? 0 : cabinetItems.Length)}.", this);
+                UnityEngine.Debug.LogError($"[CA] ReplayController: expected 3 PPE types and 3 physical copies; pool={(configuredPool == null ? 0 : configuredPool.Length)}, copies={(cabinetItems == null ? 0 : cabinetItems.Length)}.", this);
                 return;
             }
 
@@ -256,9 +256,9 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
 
             foreach (KeyValuePair<PPEItem, int> count in cabinetCounts)
             {
-                if (count.Value != 2)
+                if (count.Value != 1)
                 {
-                    UnityEngine.Debug.LogError($"[CA] ReplayController: expected two cabinet copies of '{count.Key.ItemId}', found {count.Value}.", this);
+                    UnityEngine.Debug.LogError($"[CA] ReplayController: expected one cabinet copy of '{count.Key.ItemId}', found {count.Value}.", this);
                     return;
                 }
             }
@@ -269,7 +269,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                     UnityEngine.Debug.LogError($"[CA] ReplayController: required PPE '{required.ItemId}' is missing from the 3-item cabinet.", this);
             }
 
-            UnityEngine.Debug.Log("[CA] PPE cabinet validated: 3 required types, 2 interactive copies each; no decoys.");
+            UnityEngine.Debug.Log("[CA] PPE cabinet validated: 3 required types, 1 interactive copy each on the middle shelf; no decoys.");
         }
 
         private float ChooseSecondSpillTime(ChemicalAlertConfig config)

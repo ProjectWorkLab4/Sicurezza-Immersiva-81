@@ -1,13 +1,19 @@
 # HANDOFF — Chemical Alert
 
 ## Stato corrente (riscrivere a ogni task, max 15 righe)
-- Ultima verifica completata: punto 2 di `TASK_PROGRESS.md` — Play Mode, smoke test, replay e seconda perdita T16.
-- Scena `SCN_ChemicalAlert`: reload da disco, 20 root / 566 GameObject, 0 missing script, 0 prefab rotti; riferimenti Director e `PlayerPPEState` assegnati.
-- `RunSmokeTest` eseguito 3 volte dopo reset: ogni run `7/7 PASS`, `Outcome=Success`, 3 cuori, 3 DPI, pozzanghera contenuta/coperta e cleanup completo.
-- Replay: seed fisso `81081` riproduce `variantB` e seconda perdita a `29.85 s`; seed casuali distinti e varianti diverse.
-- T16: perdita attivata a 30 s, `event.second_spill` registrato, crescita x2, anello singolo `1/1` ferma la crescita; bonifica ed esito `Success` verificati.
-- Aggiornati `00_BRIEF.md`, `Docs/TECHNICAL_DOCS.md`, `Docs/TEST_COMMANDS_MANUAL.md`, `HANDOFF.md` e `TASK_PROGRESS.md`.
-- Prossimo: punto 3 Simulator/headset (bloccato finché XR Simulator 2.0 non è avviato); poi restano i punti 4, 5 e 7.
+- Obiettivi missione ora collegati al gameplay: ventilazione, SDS, DPI, contenimento/bonifica; Pausa e polso avanzano con check reali anche in ordine libero.
+- Aggiunti `MissionFlow` objective-mask, `ScenarioController.SetObjectiveCompleted(int)` e uso della mask in `PauseScreen`.
+- Pulsante hint 3D: bool `showHintButton`, visibile/selezionabile solo in Guided; `TXT_HintMessage` rimosso dalla scena e il prossimo obiettivo è mostrato dal popup evento della HUD condivisa.
+- Fogli assorbenti richiesti portati da 3 a 2 in tutte le config; `AbsorbentSheet_2` disabilitato come ricambio; il debrief ora si apre dopo la posa reale di 2 fogli.
+- Feedback pozza: ogni foglio riduce la scala gradualmente in ~2 s; primo foglio → 50%, secondo foglio → 0% poi assorbimento, debrief e punteggio.
+- `AbsorbentSheet` ora inizializza la posa home in modo lazy: un reset prima dell'Awake non riporta più `AbsorbentSheet_0` nell'origine.
+- Causa reale dei fogli non afferrabili: `AbsorbentSheet_2` (ricambio non afferrabile) era attivo con collider e, da altezza visore, intercettava il raggio davanti agli altri due; ora è disattivato nella scena.
+- SDS e `SDSPanel3D` lasciati nella posizione manuale scelta dall'utente; `resetAnchor` svuotato e Rigidbody SDS reso kinematico senza gravità per evitare salti dopo reset.
+- `MNG_SpawnPoint` spostato da `(0,0,0)` (davanti alla pozza) a `(3.753, 0, -1.000)`, punto medio tra SDS e pulsante ventilazione, con yaw `284.91°` verso la pozza; rig in Play Mode confermato alla nuova posizione.
+- Tutti i 25 root della scena sono ora istanze di prefab: creati `MNG_Scenario`, `SDSPanel3D`, `OBJ_HintButton3D`, `MNG_ChemicalAlertFeedback`; `MNG_Scenario` era collegato per errore a `OVRCameraRig.prefab` del pacchetto Meta e ora è un prefab locale. Riferimenti di scena ripristinati come override, prefab senza riferimenti a oggetti di scena.
+- Verifica Editor: compilazione OK, 0 errori; Play Mode → Pausa `Done/Done/Current/Todo`, hint dinamico, debrief dopo fogli reali.
+- Guided: la valutazione ignora completamente gli HP (`OutcomeEvaluator.Evaluate(..., evaluateHearts:false)`), coerentemente con `hearts=0`; smoke `7/7 PASS`, `Outcome=Success`, SelfCheck `10/10 PASS`.
+- Simulator/headset ancora da verificare per obiettivi, hint 3D e debrief con fogli reali.
 
 ## Log (solo append, max 8 righe per task)
 ### Txx — titolo — data
@@ -262,3 +268,19 @@
 - Test: smoke `7/7 PASS` ×3; seed `81081` deterministico (`variantB`, `29.85 s`); seed casuali diversi; T16 a 30 s, crescita fermata da contenimento `1/1`, esito `Success`.
 - Console: nessun errore/warning di gameplay; alla chiusura Play Mode restano messaggi OVR/XR di teardown.
 - Problemi aperti: Simulator/headset non verificati; punti 3–7 ancora aperti in `TASK_PROGRESS.md`.
+
+### FIX ACCESSIBILITÀ INTERAZIONI — 2026-11-25
+- Fatto: cabinet/kit/SDS non afferrabili; collider cabinet/kit disabilitati (i DPI e i fogli non sono più occlusi); 3 DPI (una copia per tipo) sul ripiano centrale; salsicciotto auto-posa al contatto collider con la pozzanghera e scala posata 9 → 4,5.
+- File: `Level/Scenes/SCN_ChemicalAlert.unity`; `Code/Scripts/Interaction/{SpillSausage,AbsorbentSheet}.cs`; `Code/Scripts/Systems/{PerimeterSlots,ScenarioReplayController}.cs`; `Code/Scripts/Debug/DebugCommands.cs`; `Docs/Agent/Chemical_Alert/{00_BRIEF.md,HANDOFF.md}`; `Docs/{TEST_COMMANDS_MANUAL.md,TECHNICAL_DOCS.md}`.
+- Decisioni/deviazioni dal brief: una copia DPI per tipo invece di due (richiesta esplicita dell'utente); SDS a sola attivazione (Trigger) invece di grab+inspect.
+- Comandi di test: `5` → auto-posa `True` con slot `PerimeterSlot_0`; `7` → `6/7 PASS` (step 7 FAIL: `SO_ChemicalAlertConfig_Guided.hearts=0`, preesistente). Si raccomanda di riportare `hearts` a 3 per riottenere `7/7 PASS`.
+- Test Simulator: da eseguire — verificare presa DPI/fogli/salsicciotto, Trigger su SDS e auto-posa avvicinando il salsicciotto alla pozzanghera.
+- Problemi aperti: `hearts=0` nel config Guided; warning preesistenti "Setting linear/angular velocity of a kinematic body" sui DPI.
+
+### FIX PULSANTE VENTILAZIONE E VENTOLE — 2026-11-25
+- Fatto: `VentilationButton` solo attivabile (`grabbable=false`, `canGrab=false`, `canSelect=true`); le due ventole ruotano le pale a 180°/s finché il terminale è ON e si fermano/ripristinano al reset.
+- File: `Level/Scenes/SCN_ChemicalAlert.unity`; `Code/Scripts/Interaction/VentilationFan.cs` (nuovo); `Code/Scripts/Debug/DebugCommands.cs`; `Docs/TEST_COMMANDS_MANUAL.md`; `Docs/TECHNICAL_DOCS.md`; `Docs/Agent/Chemical_Alert/HANDOFF.md`.
+- Decisioni/deviazioni dal brief: rotazione code-driven invece di Animator/clip/tween, coerentemente con il divieto "niente animazioni" del gruppo; richiesta esplicita dell'utente sulle ventole.
+- Comandi di test: `V` → `[CA] Ventilation turned on`, `[CA] Ventilation fan started: MESH_VENTOLA_*`; `F7` → `spinning=True; terminalOn=True; speed=180 deg/s`; `R` → `[CA] Ventilation fan stopped` e pale all'orientamento iniziale.
+- Test Simulator: da eseguire — puntare il pulsante e premere Trigger, verificare rotazione delle due ventole e arresto dopo reset.
+- Problemi aperti: nessuno per questo fix; `hearts=0` nel config Guided resta fuori scope.

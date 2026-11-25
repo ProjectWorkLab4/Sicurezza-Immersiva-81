@@ -25,14 +25,14 @@ Un barile è caduto dal camion nella zona di scarico e perde una sostanza chimic
 
 ### Procedura corretta [DA VALIDARE]
 Le quattro macro-azioni (ventilazione, SDS, DPI, contenimento) possono essere affrontate in **qualsiasi ordine**. Non esiste un ordine obbligatorio; l'ordine consigliato genera solo un errore non bloccante (`chemical.error.procedure_order`).
-1. Attivare la ventilazione.
-2. Prendere la SDS dal camion e leggerla (pannello a schermo).
+1. Attivare la ventilazione con il Trigger sul pulsante (non afferrabile): si ferma l'escalation e partono le due ventole (rotazione code-driven, 180°/s, senza Animator).
+2. Attivare la SDS sul camion con il Trigger per leggerla (pannello a schermo); non è più afferrabile.
 3. Acquisire i **tre DPI obbligatori** dall'armadietto: guanti chimici, maschera/respiratore, protezione occhi (occhiali a tenuta o visiera).
-4. Kit antisversamento: posizionare l'**unico anello contenitivo** attorno alla pozzanghera, poi posare **tre fogli assorbenti** sopra la perdita.
-5. Il successo si risolve automaticamente dopo l'assorbimento (4,5 s) e un delay di 2 s.
+4. Kit antisversamento: posizionare l'**unico anello contenitivo** attorno alla pozzanghera, poi posare **due fogli assorbenti** sopra la perdita (versione aggiornata su richiesta dell'utente).
+5. Il successo si risolve automaticamente dopo l'assorbimento (2 s) e un delay di 2 s; la scala della pozza scende gradualmente a ogni foglio.
 
 ### Armadietto DPI
-- **Due copie interagibili per tipo** (6 oggetti totali): `PPE_Gloves_A/B`, `PPE_Mask_A/B`, `PPE_EyeProtection_A/B`.
+- **Una copia interagibile per tipo** (3 oggetti totali), tutti sul ripiano centrale (il più raggiungibile): `PPE_Gloves_A`, `PPE_Mask_A`, `PPE_EyeProtection_A`. Modifica richiesta dall'utente per accessibilità; le vecchie copie `_B` non sono in scena.
 - Acquisire una copia la nasconde e disabilita l'interazione dell'altra copia dello stesso tipo.
 - Nessun DPI decoy: tutte le copie sono corrette.
 
@@ -66,5 +66,5 @@ Tutto in `SO_ChemicalAlertConfig_<Livello>`; mai hardcoded.
 Etichetta ogni azione con una dimensione; calcola sotto-punteggi 0–100. Il Safety Performance Index finale lo calcolerà il Game System comune. Mappatura [PROPOSTA]: Safety = DPI prima del contatto, danni subiti · Awareness = SDS letta, ventilazione prima della tosse · Decision = DPI coerenti con la SDS, contenere invece di andarsene, ordine azioni · Execution = anello, copertura, bonifica · Time = tempo totale, assenza di azioni impulsive.
 
 ## Requisiti di design da rispettare
-≥3 decision point [PROPOSTA]: ventilazione vs avvicinarsi al barile · quali DPI · contenere vs andarsene · ordine libero delle azioni. ≥3 interazioni (activate pulsante, grab+inspect SDS, grab DPI, grab+place kit). Rischio visibile (pozzanghera) e nascosto (aria viziata). Errore critico con conseguenza leggibile. Evento dinamico [PROPOSTA]: seconda perdita in istante casuale (finestra 20–40 s). Replay [PROPOSTA]: sostanza casuale tra 3 varianti (SDS e titolo diversi, stessi 3 DPI richiesti); armadietto sempre con 3 tipi × 2 copie. Stessa categoria di interazione = stesso comportamento ovunque.
+≥3 decision point [PROPOSTA]: ventilazione vs avvicinarsi al barile · quali DPI · contenere vs andarsene · ordine libero delle azioni. ≥3 interazioni (activate pulsante, activate SDS, grab DPI, grab+place kit). Rischio visibile (pozzanghera) e nascosto (aria viziata). Errore critico con conseguenza leggibile. Evento dinamico [PROPOSTA]: seconda perdita in istante casuale (finestra 20–40 s). Replay [PROPOSTA]: sostanza casuale tra 3 varianti (SDS e titolo diversi, stessi 3 DPI richiesti); armadietto sempre con 3 tipi × 1 copia sul ripiano centrale. Stessa categoria di interazione = stesso comportamento ovunque.
 Testi per l'utente (SDS, hint, recap): solo **chiavi stabili** (es. `chemical.sds.variantA.title`), mai stringhe italiane nel codice; il pannello SDS mostra il testo statico acido formico da `Docs/SDS/`.

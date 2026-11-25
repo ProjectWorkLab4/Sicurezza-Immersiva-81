@@ -58,6 +58,57 @@ namespace SI81.UI
         /// </summary>
         public static int ObjectiveIndex { get; set; }
 
+        // Stato facoltativo dei singoli obiettivi: quando è inizializzato, la Pausa mostra i check veri
+        // anche per obiettivi completati fuori ordine. I vecchi scenari senza questo stato cadono
+        // sul comportamento storico basato solo su ObjectiveIndex.
+        private static bool[] objectiveCompleted = new bool[0];
+
+        /// <summary>True se lo scenario ha inizializzato lo stato dettagliato degli obiettivi.</summary>
+        public static bool HasObjectiveCompletionState => objectiveCompleted != null && objectiveCompleted.Length > 0;
+        /// <summary>Numero di obiettivi segnati come completati.</summary>
+        public static int CompletedObjectiveCount
+        {
+            get
+            {
+                if (objectiveCompleted == null) return 0;
+                int count = 0;
+                foreach (bool done in objectiveCompleted)
+                    if (done) count++;
+                return count;
+            }
+        }
+
+        /// <summary>Prepara lo stato dettagliato degli obiettivi senza azzerare quelli già completati.</summary>
+        public static void EnsureObjectiveState(int count)
+        {
+            int length = Mathf.Max(0, count);
+            if (objectiveCompleted == null || objectiveCompleted.Length != length)
+                objectiveCompleted = new bool[length];
+        }
+
+        /// <summary>Segna un obiettivo come completato (o lo ripristina).</summary>
+        public static void SetObjectiveCompleted(int index, bool value)
+        {
+            if (objectiveCompleted == null || index < 0 || index >= objectiveCompleted.Length)
+                return;
+            objectiveCompleted[index] = value;
+        }
+
+        /// <summary>True se l'obiettivo indicato è stato completato.</summary>
+        public static bool IsObjectiveCompleted(int index)
+        {
+            return objectiveCompleted != null && index >= 0 && index < objectiveCompleted.Length && objectiveCompleted[index];
+        }
+
+        /// <summary>Indice del primo obiettivo non ancora completato; -1 se tutti sono fatti.</summary>
+        public static int FirstIncompleteObjectiveIndex()
+        {
+            if (objectiveCompleted == null) return 0;
+            for (int i = 0; i < objectiveCompleted.Length; i++)
+                if (!objectiveCompleted[i]) return i;
+            return -1;
+        }
+
         /// <summary>Lanciato quando si entra (true) o si esce (false) dalla pausa.</summary>
         public static event Action<bool> PausedChanged;
 
@@ -73,6 +124,7 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            objectiveCompleted = new bool[0];
             PausedChanged = null;
         }
 
@@ -164,6 +216,9 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            EnsureObjectiveState(MissionSession.Current != null && MissionSession.Current.Objectives != null
+                ? MissionSession.Current.Objectives.Count
+                : 0);
             CaptureBadgeSnapshot();
             SetHudVisible(true);
         }

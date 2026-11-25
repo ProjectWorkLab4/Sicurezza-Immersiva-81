@@ -431,5 +431,77 @@ namespace SI81.Rig.Tests
             Object.Destroy(duplicateHost);
             yield return null;
         }
+
+        /// <summary>
+        /// MovementLock blocca movimento/rotazione a scatti e disabilita le InputAction Move e Turn.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator MovementLock_BlocksLocomotionAndDisablesMoveAndTurnActions()
+        {
+            InputAction moveAction = service.WorldMap.FindAction(InputBindings.Move, true);
+            InputAction turnAction = service.WorldMap.FindAction(InputBindings.Turn, true);
+
+            yield return null;
+            Assert.That(locomotion.MovementLock, Is.False);
+            Assert.That(service.IsLocomotionEnabled, Is.True);
+            Assert.That(moveAction.enabled, Is.True);
+            Assert.That(turnAction.enabled, Is.True);
+
+            locomotion.MovementLock = true;
+            Assert.That(service.IsLocomotionEnabled, Is.False);
+            Assert.That(moveAction.enabled, Is.False);
+            Assert.That(turnAction.enabled, Is.False);
+
+            Vector3 startPos = root.transform.position;
+            Quaternion startRot = root.transform.rotation;
+            Set(leftController, "primary2DAxis", new Vector2(0f, 1f));
+            Set(rightController, "primary2DAxis", new Vector2(1f, 0f));
+            yield return null;
+            yield return null;
+            Assert.That(service.ReadMove(), Is.EqualTo(Vector2.zero));
+            Assert.That(service.ReadTurn(), Is.EqualTo(Vector2.zero));
+            Assert.That(root.transform.position, Is.EqualTo(startPos));
+            Assert.That(root.transform.rotation, Is.EqualTo(startRot));
+
+            Set(leftController, "primary2DAxis", Vector2.zero);
+            Set(rightController, "primary2DAxis", Vector2.zero);
+            yield return null;
+
+            locomotion.MovementLock = false;
+            Assert.That(service.IsLocomotionEnabled, Is.True);
+            Assert.That(moveAction.enabled, Is.True);
+            Assert.That(turnAction.enabled, Is.True);
+
+            Set(rightController, "primary2DAxis", new Vector2(1f, 0f));
+            yield return null;
+            Assert.That(Quaternion.Angle(startRot, root.transform.rotation), Is.EqualTo(45f).Within(1f));
+        }
+
+        /// <summary>
+        /// SpawnPoint sblocca MovementLock all'attivazione e lo ripristina alla disattivazione.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SpawnPoint_UnlocksMovementOnEnable_AndRestoresOnDisable()
+        {
+            locomotion.MovementLock = true;
+            yield return null;
+            Assert.That(service.IsLocomotionEnabled, Is.False);
+
+            GameObject spawnObject = new GameObject("MNG_SpawnPoint");
+            spawnObject.transform.position = new Vector3(2f, 0f, -3f);
+            spawnObject.AddComponent<SpawnPoint>();
+            yield return null;
+
+            Assert.That(locomotion.MovementLock, Is.False);
+            Assert.That(service.IsLocomotionEnabled, Is.True);
+            Assert.That(Vector3.Distance(root.transform.position, spawnObject.transform.position), Is.LessThan(0.01f));
+
+            spawnObject.SetActive(false);
+            yield return null;
+            Assert.That(locomotion.MovementLock, Is.True);
+            Assert.That(service.IsLocomotionEnabled, Is.False);
+
+            Object.DestroyImmediate(spawnObject);
+        }
     }
 }

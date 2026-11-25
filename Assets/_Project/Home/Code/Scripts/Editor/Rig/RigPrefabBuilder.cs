@@ -106,6 +106,8 @@ namespace SI81.Rig.EditorTools
                     throw new System.InvalidOperationException("Radice incompleta: servono CharacterController, RigRegistration, RigLocomotion e RigUIPointerFeed.");
                 if (!registration.Handoff.IsComplete)
                     throw new System.InvalidOperationException("RigRegistration non ha testa, origine e due mani.");
+                if (locomotion.MovementLock)
+                    throw new System.InvalidOperationException("RigLocomotion nel prefab deve avere Movement Lock disattivato di default.");
 
                 Transform trackingSpace = instance.transform.Find("OVRCameraRig/TrackingSpace");
                 if (trackingSpace == null)

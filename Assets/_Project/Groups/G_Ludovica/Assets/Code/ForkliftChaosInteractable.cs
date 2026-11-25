@@ -31,7 +31,12 @@ namespace G_Ludovica.ForkliftChaos
         StartCPR,
         UseAED,
         MoveMarco,
-        StopForklift2
+        StopForklift2,
+
+        // Azioni raggruppate: meno oggetti puntabili accanto a Marco, stessi effetti della sequenza clinica.
+        AssessMarco,
+        TreatWound,
+        Resuscitate
     }
 
     /// <summary>
@@ -122,6 +127,7 @@ namespace G_Ludovica.ForkliftChaos
             if (interactable == null) return;
             interactable.SelectEntered += HandleSelectEntered;
             interactable.GrabEntered += HandleGrabEntered;
+            interactable.GrabExited += HandleGrabExited;
             interactable.HoverEntered += HandleHoverEntered;
             interactable.HoverExited += HandleHoverExited;
         }
@@ -131,6 +137,7 @@ namespace G_Ludovica.ForkliftChaos
             if (interactable == null) return;
             interactable.SelectEntered -= HandleSelectEntered;
             interactable.GrabEntered -= HandleGrabEntered;
+            interactable.GrabExited -= HandleGrabExited;
             interactable.HoverEntered -= HandleHoverEntered;
             interactable.HoverExited -= HandleHoverExited;
             hovered = false;
@@ -174,6 +181,19 @@ namespace G_Ludovica.ForkliftChaos
             Fire();
         }
 
+        /// <summary>
+        /// Quando il giocatore rilascia l'impugnatura, radio e barriera restano dove sono state lasciate:
+        /// la barriera vicino alla linea BL-01 viene posata automaticamente, la radio resta puntabile coi pulsanti.
+        /// </summary>
+        private void HandleGrabExited(Hand hand)
+        {
+            if (lookOnly || !useGrab) return;
+            if (scenario == null) scenario = FindFirstObjectByType<ForkliftChaosScenario>();
+            if (scenario == null) return;
+            if (action == ForkliftChaosAction.PickupRadio || action == ForkliftChaosAction.PickupBarrier)
+                scenario.HandleCarriedReleased(action);
+        }
+
         private void HandleHoverEntered(Hand hand)
         {
             if (lookOnly) hovered = true;
@@ -214,15 +234,14 @@ namespace G_Ludovica.ForkliftChaos
             bool active = !(once && used);
             if (lookOnly)
             {
-                interactable.Selectable = false;
-                interactable.Grabbable = false;
+                // Non toccare i flag condivisi: su uno stesso oggetto convivono spesso un adapter "guarda"
+                // e un adapter "usa" (es. Muletto 1). Disattivarli qui renderebbe l'oggetto non cliccabile.
+                // L'adapter lookOnly ignora comunque select e grab nei relativi gestori.
+                return;
             }
-            else
-            {
-                interactable.Selectable = active && !useGrab;
-                interactable.Grabbable = active && useGrab;
-                interactable.FollowsHand = useGrab;
-            }
+            interactable.Selectable = active && !useGrab;
+            interactable.Grabbable = active && useGrab;
+            interactable.FollowsHand = useGrab;
         }
 
         /// <summary>Solo Editor: controlla che la testa stia puntando questo oggetto (senza controller tracciati).</summary>

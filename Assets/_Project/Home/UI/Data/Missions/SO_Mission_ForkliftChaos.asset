@@ -24,10 +24,10 @@ MonoBehaviour:
   Complexity: 3
   SceneName: SCN_ForkliftChaos
   Objectives:
-  - Resta fuori dalla corsia
-  - Segnala il carico instabile
-  - Fai fermare il mezzo
-  - Delimita la zona di rischio
+  - Chiama il 112 e il capo turno
+  - Posiziona la barriera BL-01
+  - Posiziona i coni
+  - Assisti Marco senza spostarlo
   Criteria:
   - Outcome: 0
     Text: Mezzo fermo e zona delimitata

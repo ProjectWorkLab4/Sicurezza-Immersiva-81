@@ -49,6 +49,12 @@ namespace G_Ludovica.ForkliftChaos
         [SerializeField] private Transform zoneSlippery;
         [SerializeField] private Transform blindCorner;
         [SerializeField] private Transform accessLine;
+        [Tooltip("Cartello 'Posa barriera BL-01': se il giocatore rilascia la barriera qui vicino, la posa automaticamente.")]
+        [SerializeField] private Transform barrierPlacement;
+        [Tooltip("Pulsante 'Sposta Marco': puntabile solo quando esiste un pericolo immediato.")]
+        [SerializeField] private GameObject emergencyMoveCue;
+        [Tooltip("Pulsante RIANIMA: compare solo in caso di apnea (Operational/Crisis; mai in Guided).")]
+        [SerializeField] private GameObject resuscitateCue;
         [SerializeField] private Transform[] m2Path = new Transform[0];
 
         [Header("Zone e soglie")]
@@ -57,6 +63,8 @@ namespace G_Ludovica.ForkliftChaos
         [SerializeField] private float slipperyRadius = 1.5f;
         [SerializeField] private float blindCornerRadius = 3f;
         [SerializeField] private float runningSpeed = 2.1f;
+        [Tooltip("Quota a terra del pallet PA01: il pallet parte in bilico sul rack e cade fino a qui.")]
+        [SerializeField] private float pallet1GroundY = -0.068722f;
 
         [Header("Replay")]
         [SerializeField] private ForkliftChaosReplayConfig replay;
@@ -103,6 +111,16 @@ namespace G_Ludovica.ForkliftChaos
         private int colleagueCount = 2;
         private bool pa02High;
 
+        // Posizione originale degli oggetti trasportabili: ripristinata a ogni reset/replay.
+        private Transform radioSavedParent;
+        private Vector3 radioSavedPosition;
+        private Quaternion radioSavedRotation;
+        private bool radioSaved;
+        private Transform barrierSavedParent;
+        private Vector3 barrierSavedPosition;
+        private Quaternion barrierSavedRotation;
+        private bool barrierSaved;
+
         // Rilevamento zone e velocità.
         private Vector3 lastHeadPosition;
         private float lastHeadTime;
@@ -113,6 +131,19 @@ namespace G_Ludovica.ForkliftChaos
         private float lzcEntered;
         private bool lzbWarned;
         private bool lzcWarned;
+
+        // Caduta del pallet: annullabile se il giocatore lascia la zona di pericolo in tempo.
+        private Coroutine pallet1FallRoutine;
+        private Coroutine pallet2FallRoutine;
+
+        // Posizione iniziale del pallet sul rack, ripristinata a ogni replay.
+        private Vector3 pallet1SavedPosition;
+        private Quaternion pallet1SavedRotation;
+        private bool pallet1Saved;
+
+        // Suggerimenti guidati in sequenza: uno alla volta, max ~60 caratteri.
+        private int lastHintStep = -1;
+        private int lastRescueCountdown = -1;
 
         private readonly List<ChoiceRecord> records = new List<ChoiceRecord>();
         private readonly List<Coroutine> routines = new List<Coroutine>();
@@ -126,6 +157,12 @@ namespace G_Ludovica.ForkliftChaos
 
         protected override void OnScenarioStarted()
         {
+            if (!pallet1Saved && pallet1 != null)
+            {
+                pallet1SavedPosition = pallet1.transform.position;
+                pallet1SavedRotation = pallet1.transform.rotation;
+                pallet1Saved = true;
+            }
             ResetState();
             ApplyReplay();
             ResolveHead();
@@ -138,7 +175,7 @@ namespace G_Ludovica.ForkliftChaos
 
             SetPhase(PHASE_SCAN);
             SetObjective(0);
-            SetHint("Osserva: Marco, Muletto 1, pallet in bilico, angolo cieco.");
+            UpdateHints();
             HUDService.StartTimer(300);
 
             StartTracked(IntroRoutine());
@@ -159,8 +196,19 @@ namespace G_Ludovica.ForkliftChaos
             rescueExtraDelay = extraExecutionPenalty = 0f;
             insideLzb = insideLzc = lzbWarned = lzcWarned = false;
             lzbEntered = lzcEntered = 0f;
+            pallet1FallRoutine = pallet2FallRoutine = null;
+            lastHintStep = -1;
+            lastRescueCountdown = -1;
+            if (pallet1Saved && pallet1 != null)
+            {
+                pallet1.transform.SetPositionAndRotation(pallet1SavedPosition, pallet1SavedRotation);
+            }
+            if (emergencyMoveCue != null) emergencyMoveCue.SetActive(false);
+            if (resuscitateCue != null) resuscitateCue.SetActive(false);
             if (marcoAnimator != null) marcoAnimator.speed = 1f;
             if (rescueTeam != null) rescueTeam.SetActive(false);
+            RestoreCarriedItem(radioPickup, ref radioSaved, ref radioSavedParent, ref radioSavedPosition, ref radioSavedRotation);
+            RestoreCarriedItem(barrierPickup, ref barrierSaved, ref barrierSavedParent, ref barrierSavedPosition, ref barrierSavedRotation);
             records.Clear();
         }
 
@@ -195,6 +243,47 @@ namespace G_Ludovica.ForkliftChaos
             if (head == null && Camera.main != null) head = Camera.main.transform;
         }
 
+        // =====================================================================
+        // Audio di scena (clip CC0 / generati localmente, in Resources/Audio)
+        // =====================================================================
+
+        private AudioSource sfxSource;
+        private readonly HashSet<string> sfxClipLogged = new HashSet<string>();
+
+        private void EnsureSfx()
+        {
+            if (sfxSource != null) return;
+
+            // SCN_Core non contiene un AudioListener serializzato: senza di esso Unity non riproduce
+            // alcun suono. Lo creiamo solo se manca, così non se ne ha mai più di uno attivo.
+            if (FindFirstObjectByType<AudioListener>() == null)
+            {
+                Transform listenerParent = head != null ? head : (Camera.main != null ? Camera.main.transform : transform);
+                listenerParent.gameObject.AddComponent<AudioListener>();
+                Debug.Log("[FKC] AudioListener creato su " + listenerParent.name);
+            }
+
+            sfxSource = gameObject.GetComponent<AudioSource>();
+            if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
+            sfxSource.playOnAwake = false;
+            sfxSource.spatialBlend = 0f;
+            sfxSource.volume = 0.85f;
+        }
+
+        private void PlaySfx(string clipName, float volume = 1f)
+        {
+            EnsureSfx();
+            AudioClip clip = Resources.Load<AudioClip>("Audio/" + clipName);
+            if (clip == null)
+            {
+                Debug.LogWarning("[FKC] AudioClip mancante in Resources/Audio: " + clipName);
+                return;
+            }
+            if (!sfxClipLogged.Add(clipName))
+                Debug.Log("[FKC] SFX caricato: " + clipName + " (" + clip.length.ToString("0.0") + " s)");
+            sfxSource.PlayOneShot(clip, volume);
+        }
+
         private Coroutine StartTracked(IEnumerator routine)
         {
             Coroutine c = StartCoroutine(routine);
@@ -218,11 +307,12 @@ namespace G_Ludovica.ForkliftChaos
             Alert("Aiuto!\nMarco è a terra nella corsia 3", "ICN_Warning_Filled");
             Subtitle("Marco", "Aiuto! Il carrello... non spostarmi.", 5f);
             HUDService.ShowSoundEvent("Urlo da terra", true);
+            PlaySfx("SFX_FKC_Scream", 0.9f);
             HUDService.Pulse(0.6f, 0.25f);
             Record("EV-01", "Urlo udito, timer avviato.", ChoiceKind.Correct, "Awareness");
 
             yield return new WaitForSeconds(2.5f);
-            SetHint("Cammina e guarda: Marco, Muletto 1, pallet, angolo cieco.");
+            SetHint("Osserva Marco e il muletto.");
         }
 
         // =====================================================================
@@ -241,7 +331,7 @@ namespace G_Ludovica.ForkliftChaos
                         observed = true;
                         Record("LG-01", "Marco a terra: visto sanguinamento e stato di coscienza.", ChoiceKind.Correct, "Awareness");
                         Feedback("Marco è a terra e sanguina. Non spostarlo.", FeedbackKind.Positive);
-                        SetHint("Vai al rack RK-01: prendi radio e barriera.");
+                        SetHint("Rack RK-01: grip su radio e barriera.");
                         UpdateObjectives();
                     }
                     break;
@@ -277,10 +367,35 @@ namespace G_Ludovica.ForkliftChaos
             }
         }
 
+        /// <summary>Salva la posa di scena di un oggetto trasportabile, una sola volta, prima del primo spostamento.</summary>
+        private static void SaveOriginal(GameObject item, ref bool saved, ref Transform parent,
+            ref Vector3 position, ref Quaternion rotation)
+        {
+            if (item == null || saved) return;
+            saved = true;
+            parent = item.transform.parent;
+            position = item.transform.localPosition;
+            rotation = item.transform.localRotation;
+        }
+
+        /// <summary>Riporta un oggetto trasportabile alla posa di scena (reset e replay).</summary>
+        private static void RestoreCarriedItem(GameObject item, ref bool saved, ref Transform parent,
+            ref Vector3 position, ref Quaternion rotation)
+        {
+            if (item == null || !saved) return;
+            item.SetActive(true);
+            item.transform.SetParent(parent, false);
+            item.transform.localPosition = position;
+            item.transform.localRotation = rotation;
+            saved = false;
+            parent = null;
+        }
+
         /// <summary>La radio resta in mano: i due pulsanti (112 / capo turno) sono oggetti fisici figli della radio.</summary>
         private void AttachRadioToHead()
         {
             if (radioPickup == null) return;
+            SaveOriginal(radioPickup, ref radioSaved, ref radioSavedParent, ref radioSavedPosition, ref radioSavedRotation);
             radioPickup.SetActive(true);
             Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
             if (h == null) return;
@@ -292,12 +407,34 @@ namespace G_Ludovica.ForkliftChaos
         private void AttachBarrierToHead()
         {
             if (barrierPickup == null) return;
+            SaveOriginal(barrierPickup, ref barrierSaved, ref barrierSavedParent, ref barrierSavedPosition, ref barrierSavedRotation);
             barrierPickup.SetActive(true);
             Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
             if (h == null) return;
             barrierPickup.transform.SetParent(h, true);
             barrierPickup.transform.localPosition = new Vector3(-0.38f, -0.38f, 0.75f);
             barrierPickup.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+        }
+
+        /// <summary>
+        /// Il giocatore ha rilasciato il grip: l'oggetto resta dove è stato lasciato (non più agganciato alla testa).
+        /// Se la barriera è stata lasciata vicino alla linea BL-01, la posa automaticamente; altrimenti spiega come fare.
+        /// </summary>
+        public void HandleCarriedReleased(ForkliftChaosAction action)
+        {
+            if (!IsRunning || finished) return;
+            if (action == ForkliftChaosAction.PickupRadio && radioPicked)
+            {
+                Feedback("Radio posata: punta i pulsanti 112 e CAPO con l'altro controller.", FeedbackKind.Neutral);
+            }
+            else if (action == ForkliftChaosAction.PickupBarrier && barrierPicked && !barrierPlaced)
+            {
+                if (barrierPlacement != null && barrierPickup != null &&
+                    Vector3.Distance(barrierPickup.transform.position, barrierPlacement.position) < 1.2f)
+                    HandleInteraction(ForkliftChaosAction.PlaceBarrier);
+                else
+                    Feedback("Rilascia la barriera vicino alla linea BL-01, oppure premi il grilletto sul cartello 'Posa barriera'.", FeedbackKind.Neutral);
+            }
         }
 
         // =====================================================================
@@ -391,6 +528,43 @@ namespace G_Ludovica.ForkliftChaos
                     }
                     break;
 
+                case ForkliftChaosAction.AssessMarco:
+                    if (!spoken || !breathingChecked)
+                    {
+                        spoken = true;
+                        breathingChecked = true;
+                        Record("LG-13", "Marco valutato: coscienza e respiro controllati.", ChoiceKind.Correct, "Execution");
+                        Subtitle("Marco", "Ho male qui... non mi muovere.", 4f);
+                        Feedback("Marco valutato: non spostarlo.", FeedbackKind.Positive);
+                        UpdateObjectives();
+                    }
+                    break;
+
+                case ForkliftChaosAction.TreatWound:
+                    if (!woundPressed || !covered)
+                    {
+                        woundPressed = true;
+                        covered = true;
+                        Feedback("Ferita compressa e Marco coperto.", FeedbackKind.Positive);
+                        Alert("Ferita trattata\nMarco coperto", "ICN_CheckCircle");
+                        Subtitle("Ambiente", "[Compressione e copertura completate]", 4f);
+                        HUDService.Pulse(0.5f, 0.25f);
+                        CheckWoundAndCover();
+                        UpdateObjectives();
+                    }
+                    break;
+
+                case ForkliftChaosAction.Resuscitate:
+                    if (!cprStarted || !aedUsed)
+                    {
+                        cprStarted = true;
+                        aedUsed = true;
+                        Feedback("Massaggio cardiaco e DAE avviati.", FeedbackKind.Positive);
+                        CheckCPR();
+                        UpdateObjectives();
+                    }
+                    break;
+
                 case ForkliftChaosAction.TalkToMarco:
                     if (!spoken)
                     {
@@ -406,7 +580,7 @@ namespace G_Ludovica.ForkliftChaos
                         breathingChecked = true;
                         Record("LG-13", "Respiro controllato: scegli il soccorso corretto.", ChoiceKind.Correct, "Execution");
                         Feedback("Respiro verificato.", FeedbackKind.Positive);
-                        SetHint("Ora parla con Marco, comprimi e coprilo con gli oggetti accanto a lui.");
+                        SetHint("Ora usa VALUTA e TRATTA su Marco.");
                     }
                     break;
 
@@ -487,7 +661,8 @@ namespace G_Ludovica.ForkliftChaos
             if (immediateDanger)
             {
                 marcoMovedSafely = true;
-                if (marco != null) marco.transform.position += new Vector3(0f, 0f, -2f);
+                // Spostamento verso ovest: a sud c'è il muletto 1, a nord il rack del pallet.
+                if (marco != null) marco.transform.position += new Vector3(-2.2f, 0f, 0f);
                 Record("LG-12", "Spostato il minimo indispensabile per pericolo immediato (eccezione).",
                     ChoiceKind.Correct, "Decision");
                 Feedback("Spostamento di emergenza: testa sostenuta, max 3 m.", FeedbackKind.Positive);
@@ -512,7 +687,7 @@ namespace G_Ludovica.ForkliftChaos
         {
             if (!cprStarted) return;
             if (aedUsed || Time.time - hornTime > 2f)
-                Record("LG-15", "RCP e DAE sostenuti fino all'arrivo dei soccorsi.", ChoiceKind.Correct, "Execution");
+                Record("LG-15", "Massaggio cardiaco e DAE sostenuti fino all'arrivo dei soccorsi.", ChoiceKind.Correct, "Execution");
         }
 
         private void Call112()
@@ -527,7 +702,9 @@ namespace G_Ludovica.ForkliftChaos
 
             Alert("112 chiamato\nResta vicino a Marco", "ICN_CheckCircle");
             Subtitle("Capo turno", "Ho avvisato il 112. Tieni libera la corsia.", 5f);
-            rescueAt = ElapsedSeconds + Random.Range(120f, 210f);
+            // Arrivo dei soccorsi ~2 minuti dopo la chiamata: abbastanza per completare il soccorso
+            // senza trasformare l'attesa in un tempo morto di 5 minuti.
+            rescueAt = ElapsedSeconds + Random.Range(110f, 130f);
             StartTracked(M2Routine(RandomM2Delay()));
             StartTracked(RescueRoutine());
             UpdateObjectives();
@@ -595,7 +772,7 @@ namespace G_Ludovica.ForkliftChaos
                 if (t > 20f && head != null && marco != null &&
                     Vector3.Distance(head.position, marco.transform.position) < 3.2f && !spoken && !breathingChecked)
                 {
-                    SetHint("Sei vicino a Marco: parla, controlla il respiro, comprimi e copri.");
+                    SetHint("Vicino a Marco: usa VALUTA e TRATTA.");
                     break;
                 }
                 yield return new WaitForSeconds(1f);
@@ -627,13 +804,14 @@ namespace G_Ludovica.ForkliftChaos
             Alert("Clacson!\nMuletto in arrivo dall'angolo cieco", "ICN_Warning_Filled");
             Subtitle("Ambiente", "[Clacson: muletto in arrivo]", 4f);
             HUDService.ShowSoundEvent("Clacson: muletto in arrivo", true);
+            PlaySfx("SFX_FKC_Horn", 0.95f);
             HUDService.Pulse(0.8f, 0.4f, false);
             if (Level != DifficultyLevel.Crisis) SetM2Warning(true);
             if (Level == DifficultyLevel.Guided)
                 Feedback("Preavviso 6 s: barriera F5 o radio F11.", FeedbackKind.Neutral);
             Record("EV-02", "Clacson e avvisi percepiti.", ChoiceKind.Correct, "Awareness");
 
-            SetHint("Clacson: posa la barriera BL-01 o usa il tasto capo turno sulla radio.");
+            SetHint("Clacson: ferma M2 col grilletto o col tasto CAPO.");
             if (calledForeman && !barrierPlaced)
             {
                 m2Stopped = true;
@@ -651,7 +829,12 @@ namespace G_Ludovica.ForkliftChaos
             if (forklift2 == null) yield break;
             Vector3 start = forklift2.transform.position;
             Transform[] path = m2Path != null && m2Path.Length > 1 ? m2Path : new Transform[] { null, null };
-            int stopIndex = barrierPlaced ? Mathf.Min(2, path.Length - 1) : -1;
+
+            // Punto di arresto: il penultimo nodo del percorso, spostato prima della linea BL-01.
+            // Viene ricalcolato a ogni frame: se il giocatore posa la barriera mentre il muletto
+            // è già in corsia, il mezzo si ferma comunque davanti alla barriera.
+            int stopSegment = Mathf.Min(1, path.Length - 2);
+            Vector3 barrierStop = path.Length > 2 && path[2] != null ? path[2].position : start;
             float segmentDuration = 8f / Mathf.Max(1, path.Length - 1);
 
             for (int i = 0; i < path.Length - 1; i++)
@@ -665,20 +848,29 @@ namespace G_Ludovica.ForkliftChaos
                 {
                     elapsed += Time.deltaTime;
                     float k = Mathf.Clamp01(elapsed / segmentDuration);
-                    forklift2.transform.position = Vector3.Lerp(from, to, k);
+                    Vector3 nextPos = Vector3.Lerp(from, to, k);
+
+                    if (m2Stopped)
+                    {
+                        SetM2Warning(false);
+                        yield break;
+                    }
+                    if (barrierPlaced && i >= stopSegment &&
+                        (Vector3.Distance(nextPos, barrierStop) < 0.35f || k >= 1f))
+                    {
+                        StopM2WithBarrier(barrierStop);
+                        yield break;
+                    }
+
+                    forklift2.transform.position = nextPos;
                     Vector3 dir = to - from;
                     if (dir.sqrMagnitude > 0.01f)
                         forklift2.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
                     yield return null;
                 }
-                if (m2Stopped || (stopIndex >= 0 && i >= stopIndex - 1))
+                if (barrierPlaced && i >= stopSegment)
                 {
-                    if (!m2Stopped)
-                    {
-                        m2Stopped = true;
-                        Record("LG-09", "Muletto fermato dalla barriera prima dell'accesso.", ChoiceKind.Correct, "Decision");
-                    }
-                    SetM2Warning(false);
+                    StopM2WithBarrier(barrierStop);
                     yield break;
                 }
             }
@@ -693,6 +885,18 @@ namespace G_Ludovica.ForkliftChaos
             Record("LG-10", "Muletto 2 non fermato: investimento.", ChoiceKind.Critical, "Safety");
             Alert("Investimento!\nMuletto non fermato", "ICN_Warning_Filled");
             Finish();
+        }
+
+        /// <summary>Il muletto si arresta davanti alla linea BL-01, senza passarci sopra.</summary>
+        private void StopM2WithBarrier(Vector3 stopPoint)
+        {
+            if (m2Stopped) return;
+            m2Stopped = true;
+            if (forklift2 != null) forklift2.transform.position = stopPoint;
+            SetM2Warning(false);
+            Record("LG-09", "Muletto 2 fermato dalla barriera BL-01 prima dell'accesso.", ChoiceKind.Correct, "Decision");
+            Feedback("Muletto fermato davanti alla barriera.", FeedbackKind.Positive);
+            Alert("Muletto fermato\nDavanti alla barriera", "ICN_CheckCircle");
         }
 
         private IEnumerator ColleaguesRoutine()
@@ -760,9 +964,10 @@ namespace G_Ludovica.ForkliftChaos
             if (!should) yield break;
 
             apnea = true;
-            Alert("Marco non respira\nInizia RCP 30:2 e usa il DAE", "ICN_Warning_Filled");
+            if (resuscitateCue != null) resuscitateCue.SetActive(true);
+            Alert("Marco non respira\nPremi RIANIMA: massaggio e DAE", "ICN_Warning_Filled");
             Subtitle("Capo turno", "Se il respiro è dubbio, agisci come se fosse assente.", 6f);
-            SetHint("Marco non respira: RCP 30:2 e DAE con gli oggetti accanto a lui.");
+            SetHint("Marco non respira: premi RIANIMA.");
             yield return new WaitForSeconds(replay != null ? replay.cprDeadlineSeconds : 120f);
             if (finished || cprStarted) yield break;
             Record("LG-16", "Apnea senza RCP entro 120 s: livello fallito.", ChoiceKind.Critical, "Execution");
@@ -786,6 +991,7 @@ namespace G_Ludovica.ForkliftChaos
             if (rescueTeam != null) rescueTeam.SetActive(true);
             Alert("Soccorsi arrivati\nFine scenario", "ICN_CheckCircle");
             HUDService.ShowSoundEvent("Sirena dei soccorsi", true);
+            PlaySfx("SFX_FKC_Siren", 0.85f);
             Finish();
         }
 
@@ -800,6 +1006,75 @@ namespace G_Ludovica.ForkliftChaos
             CheckZone(zoneLzB, lzBRadius, ref insideLzb, ref lzbEntered, ref lzbWarned, true);
             CheckZone(zoneLzC, lzCRadius, ref insideLzc, ref lzcEntered, ref lzcWarned, false);
             CheckSlippery();
+            UpdateEmergencyCue();
+            UpdateHints();
+            UpdateRescueCountdown();
+        }
+
+        /// <summary>Il pulsante di spostamento di Marco compare solo se c'è un pericolo immediato.</summary>
+        private void UpdateEmergencyCue()
+        {
+            if (emergencyMoveCue == null) return;
+            bool danger = (lzbWarned && insideLzb) || (m2Horn && !m2Stopped && m2Started) || pallet1Fallen;
+            bool show = danger && !marcoMoved && !finished;
+            if (emergencyMoveCue.activeSelf != show) emergencyMoveCue.SetActive(show);
+        }
+
+        // =====================================================================
+        // Suggerimenti guidati: un passo alla volta, in ordine
+        // =====================================================================
+
+        private static readonly string[] HintTexts =
+        {
+            "Osserva Marco e il muletto",
+            "Spegni il muletto 1",
+            "Prendi radio e barriera",
+            "Chiama il 112 e il capo turno",
+            "Posiziona la barriera",
+            "Posiziona i coni",
+            "Valuta Marco",
+            "Tratta la ferita",
+            "Rianima Marco (massaggio e DAE)",
+            "Ferma il muletto 2",
+            "Attendi i soccorsi vicino a Marco"
+        };
+
+        private int HintStep()
+        {
+            if (!observed) return 0;
+            if (!m1Stopped) return 1;
+            if (!radioPicked) return 2;
+            if (!called112) return 3;
+            if (!barrierPlaced) return 4;
+            if (!conesPlaced) return 5;
+            if (!spoken || !breathingChecked) return 6;
+            if (!woundPressed || !covered) return 7;
+            if (apnea && (!cprStarted || !aedUsed)) return 8;
+            if (m2Horn && !m2Stopped) return 9;
+            return 10;
+        }
+
+        private void UpdateHints()
+        {
+            if (!IsRunning || finished) return;
+            // Dopo la chiamata al 112 il polso mostra il conto alla rovescia dei soccorsi.
+            if (rescueAt > 0f && !rescueArrived) return;
+            int step = HintStep();
+            if (step == lastHintStep) return;
+            lastHintStep = step;
+            SetHint(HintTexts[step]);
+        }
+
+        /// <summary>Conto alla rovescia dei soccorsi sul polso, aggiornato una volta al secondo.</summary>
+        private void UpdateRescueCountdown()
+        {
+            if (rescueAt <= 0f || rescueArrived || finished) return;
+            float remaining = Mathf.Max(0f, rescueAt + rescueExtraDelay - ElapsedSeconds);
+            int seconds = Mathf.CeilToInt(remaining);
+            if (seconds == lastRescueCountdown) return;
+            lastRescueCountdown = seconds;
+            string next = HintTexts[HintStep()];
+            SetHint("Soccorsi " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + " · " + next);
         }
 
         private void UpdateHeadSpeed()
@@ -825,6 +1100,18 @@ namespace G_Ludovica.ForkliftChaos
             else if (!now && inside)
             {
                 inside = false;
+                if (warned)
+                {
+                    // Uscire in tempo annulla la caduta: l'avviso "Allontanati" deve avere un effetto reale.
+                    Coroutine pending = isPallet1 ? pallet1FallRoutine : pallet2FallRoutine;
+                    if (pending != null) StopCoroutine(pending);
+                    if (isPallet1) pallet1FallRoutine = null;
+                    else pallet2FallRoutine = null;
+                    warned = false;
+                    entered = 0f;
+                    if (isPallet1 || Level == DifficultyLevel.Guided)
+                        Feedback("Pallet rimasto in bilico: sei uscito in tempo.", FeedbackKind.Positive);
+                }
             }
 
             if (!inside || warned) return;
@@ -843,7 +1130,9 @@ namespace G_Ludovica.ForkliftChaos
                 Subtitle("Ambiente", "[Pallet instabile: allontanati]", 4f);
                 Alert("Secondo pallet instabile\nEsci da LZ-C", "ICN_Warning_Filled");
             }
-            StartTracked(PalletFallRoutine(isPallet1));
+            Coroutine fall = StartTracked(PalletFallRoutine(isPallet1));
+            if (isPallet1) pallet1FallRoutine = fall;
+            else pallet2FallRoutine = fall;
         }
 
         private IEnumerator PalletFallRoutine(bool isPallet1)
@@ -853,17 +1142,51 @@ namespace G_Ludovica.ForkliftChaos
             GameObject target = isPallet1 ? pallet1 : pallet2;
             if (target != null)
                 target.transform.Rotate(isPallet1 ? 24f : -20f, 0f, 0f);
-            if (isPallet1) TriggerPallet1Fall(false);
-            else TriggerPallet2Fall(false);
+            if (isPallet1)
+            {
+                pallet1FallRoutine = null;
+                TriggerPallet1Fall(false);
+            }
+            else
+            {
+                pallet2FallRoutine = null;
+                TriggerPallet2Fall(false);
+            }
         }
 
         private void TriggerPallet1Fall(bool ontoMarco)
         {
             if (pallet1Fallen) return;
             pallet1Fallen = true;
-            if (pallet1 != null) pallet1.transform.Rotate(30f, 0f, 0f);
+
+            if (pallet1 == null) return;
+
+            // Il pallet è già in bilico sul rack MDL_Rack_PA01: non viene teletrasportato in aria.
+            Vector3 start = pallet1.transform.position;
+            Vector3 landing = new Vector3(start.x, pallet1GroundY, start.z);
             bool hitsMarco = ontoMarco || (marco != null && !marcoMoved &&
-                                           Vector3.Distance(pallet1.transform.position, marco.transform.position) < 3f);
+                                           Vector3.Distance(landing, marco.transform.position) < 3f);
+            StartTracked(PalletDropRoutine(pallet1, start, landing, hitsMarco));
+        }
+
+        /// <summary>Animazione di caduta del carico: 0,7 s di discesa e ribaltamento, poi esito e debrief.</summary>
+        private IEnumerator PalletDropRoutine(GameObject pallet, Vector3 start, Vector3 landing, bool hitsMarco)
+        {
+            Quaternion startRotation = pallet.transform.rotation;
+            Quaternion endRotation = startRotation * Quaternion.Euler(38f, 0f, 0f);
+            float t = 0f;
+            while (t < 0.7f && !finished)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / 0.7f);
+                pallet.transform.position = Vector3.Lerp(start, landing, k * k);
+                pallet.transform.rotation = Quaternion.Slerp(startRotation, endRotation, k);
+                yield return null;
+            }
+            if (finished) yield break;
+            pallet.transform.position = landing;
+            pallet.transform.rotation = endRotation;
+            PlaySfx("SFX_FKC_PalletImpact", 1f);
             if (hitsMarco)
             {
                 Record("LG-19", "Pallet caduto su Marco: nuovo ferimento, livello fallito.", ChoiceKind.Critical, "Safety");
@@ -911,7 +1234,11 @@ namespace G_Ludovica.ForkliftChaos
             if (observed && CurrentObjectiveIndex == 0) CompleteObjective();
             if ((called112 || calledForeman) && m1Stopped && CurrentObjectiveIndex == 1) CompleteObjective();
             if ((m1Stopped || m2Stopped) && CurrentObjectiveIndex == 2) CompleteObjective();
-            if (barrierPlaced && conesPlaced && CurrentObjectiveIndex == 3) CompleteObjective();
+            if (barrierPlaced && conesPlaced && CurrentObjectiveIndex == 3)
+            {
+                CompleteObjective();
+                SetHint("Resta vicino a Marco: arriva la sirena.");
+            }
         }
 
         // =====================================================================

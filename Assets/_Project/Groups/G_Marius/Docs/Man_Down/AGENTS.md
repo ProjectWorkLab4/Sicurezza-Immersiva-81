@@ -9,18 +9,18 @@
 - **Scenario:** Man Down (ID 3)
 - **Cartella autorizzata:** `Assets/_Project/Groups/G_Marius/`
 - **Ultimo aggiornamento:** 2026-11-25
-- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati; ufficio open space 14×10 ricostruito e rifinito (Task 16–18); nessun gameplay implementato. Documentazione aggiornata in TASK 00/00b/00c/00d/01 e Task 00e: le otto decisioni aperte e le decisioni integrative sono state **approvate e registrate**. Rig temporaneo **rinviato**: l'utente lo inserirà a breve; OpenCode non lo ha creato. Nessuna scena, prefab o script di gameplay modificati in queste fasi.
+- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati; ufficio open space 14×10 ricostruito e rifinito (Task 16–18). Documentazione aggiornata in TASK 00/00b/00c/00d/01 e Task 00e: le otto decisioni aperte e le decisioni integrative sono state **approvate e registrate**. TASK 01 (rig condiviso) e **TASK 02 (`ManDownScenario`)** sono completati e verificati in Editor/Play Mode: nessun rig locale, nessuna UI specifica e nessun input/interazione XR duplicati. Il controller registra stato, condizioni iniziali, azioni, risultati RCP grezzi, timeout 180 s, esiti e ID approvati; `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`, UI e scoring definitivo restano da implementare. La validazione fisica su Meta Quest 3 resta manuale. Nessun commit o push.
 
 ---
 
 ## 0. Direttive TASK 00 — priorità massima (2026-11-24)
 
-Queste regole **prevalgono** su qualsiasi istruzione precedente incompatibile, in particolare sui punti §1.2 nn. 3–5, sul §6 e sul §7.4.
+Queste sono le regole storiche di TASK 00 e **prevalgono sulle istruzioni precedenti**, ma sui punti rig/UI/Build Settings sono aggiornate dal §0.3 (integrazione del rig condiviso, 2026-11-25), che ha priorità massima.
 
 1. **Logica prima, UI dopo, ma vincoli UI fin da ora.** Completare e verificare l'intero flusso di gioco Man Down senza UI; integrare la UI comune SI81 solo alla fine. I vincoli di architettura, naming e API di `Docs/GUIDA_INTEGRAZIONE_SCENARIO.md` e `Docs/UI_INTEGRATION_FOR_AI.md` vanno però rispettati fin dal primo script, per evitare riscritture. Il percorso reale dei due file è la cartella del gruppo, **non** `Assets/_Project/Docs/` come scritto nella guida.
-2. **Nessuna UI ora.** Non creare UI provvisoria né definitiva: niente Canvas, HUD, pannelli, EventSystem, etichette o `LabelAnchor`. Non scrivere chiamate a `ScenarioController`, `HUDService` o ad altre API SI81.UI finché il kit non sarà effettivamente disponibile.
-3. **Nessun nuovo sistema XR.** Non aggiungere XR Interaction Toolkit, rig, player, controller, locomozione, Input Actions, Raycaster o collider/interactable locali. Un rig locale temporaneo potrà essere creato **solo su richiesta esplicita** e **non** dovrà entrare nella scena finale né nel repository.
-4. **Controller stabile.** Oggi `ManDownScenario` è un `MonoBehaviour` con API pubblica stabile e senza parametri. In integrazione cambierà solo la classe base in `ScenarioController` e le chiamate UI verranno aggiunte dentro di esso: i componenti di interazione non dovranno essere riscritti.
+2. **Nessuna UI specifica Man Down ora.** Il kit `SI81.UI` è disponibile e `MNG_Scenario` usa `SI81.ManDown.ManDownScenario`, derivato dal `ScenarioController` condiviso, per sessione, spawn e timer; non creare Canvas, HUD, pannelli, etichette o `LabelAnchor` propri, né chiamate UI specifiche, fino al task dedicato. L'EventSystem resta quello di `SCN_Core`.
+3. **Nessun nuovo sistema XR.** Non aggiungere XR Interaction Toolkit, rig, player, controller, locomozione, Input Actions, Raycaster o collider/interactable locali. Il player condiviso di `SCN_Core` è già integrato: non creare un rig locale, nemmeno temporaneo, salvo una nuova autorizzazione esplicita che non duplichi il sistema comune.
+4. **Controller stabile.** `ManDownScenario` è stato implementato in TASK 02 come `MonoBehaviour` derivato da `ScenarioController`, con API pubblica stabile, metodi senza parametri e wrapper per gli elettrodi. Non duplica sessione, spawn o timer; le chiamate UI verranno aggiunte una sola volta nel task dedicato e i componenti di interazione dovranno usare solo i metodi/eventi già esposti, senza riscrivere la logica di stato.
 5. **Esclusione totale di pericolo ambientale e pozzanghera.** Non implementare pozzanghera, panno, rischio di scivolamento, danni all'operatore o penalità Safety collegate. Questa decisione **sostituisce** il §7.4 punto 1 e il Bad Ending "esposizione al pericolo" del flowchart. Safety resta neutra (5/5).
 6. **Nessuna modifica in TASK 00.** Il task corrente è solo analisi e documentazione: non toccare `SCN_Man_Down.unity`, prefab, materiali, script o Build Settings. Ogni lavoro successivo resta dentro `Assets/_Project/Groups/G_Marius/`.
 7. **Stato documentale.** Inventario, architettura proposta, impedimenti e decisioni aperte sono in `Docs/Man_Down/TASK_PROGRESS.md`.
@@ -32,9 +32,9 @@ Queste regole **prevalgono** su qualsiasi istruzione precedente incompatibile, i
 2. Leggere **solo** le sezioni della documentazione pertinenti al task assegnato: non ripetere analisi complete del progetto.
 3. Eseguire **esclusivamente** il task richiesto; non iniziare autonomamente quelli successivi.
 4. Modificare esclusivamente i file autorizzati del gruppo `G_Marius`; riutilizzare script, modelli e componenti già esistenti.
-5. Non modificare `Shared`, `Home`, altri gruppi, `Packages` o `ProjectSettings`.
+5. Non modificare `Shared`, `Home`, altri gruppi, `Packages` o `ProjectSettings`, salvo autorizzazione esplicita: in TASK 01 è stata autorizzata solo la modifica di `ProjectSettings/EditorBuildSettings.asset`.
 6. Non creare UI, Canvas o pannelli personalizzati: la UI comune SI81 si integra solo nel task dedicato.
-7. Mantenere la logica indipendente dal player rig e dalla rappresentazione grafica; non creare né modificare sistemi XR, salvo esplicita autorizzazione nel task dedicato al rig temporaneo.
+7. Mantenere la logica indipendente dal player rig e dalla rappresentazione grafica; non creare né modificare sistemi XR. Il rig ora è quello condiviso di `SCN_Core`, non un rig temporaneo locale.
 8. Non implementare il pericolo ambientale.
 9. Rispettare le convenzioni di naming e documentazione C# della guida SI81; privilegiare soluzioni semplici e compatibili con Meta Quest 3.
 10. Non modificare materiali, illuminazione o disposizione dell'ambiente se non strettamente necessario al task.
@@ -56,8 +56,20 @@ Queste decisioni dell'utente prevalgono su GDD specifico, flowchart, GDD general
 4. **Timeout e soccorsi:** solo modalità Realistica, 180 s; Guidata e Stress non implementate ma configurabili. Arrivo simulato dopo procedure fondamentali e breve assistenza finale, solo se il 112 è stato chiamato. Timeout = fallimento `TIMEOUT` con valutazione di tutte le azioni. Mancata chiamata non blocca la conclusione: nessun arrivo attribuito a una chiamata mai fatta, nessuna dichiarazione di fuori pericolo, esito massimo successo parziale.
 5. **Scoring ed esiti:** successo `>= 80`, parziale `>= 50` e `< 80`, fallimento `< 50` (`LOW_SCORE`). Fallimenti automatici solo `CPR_OMITTED` e `TIMEOUT`. Penalizzazioni: `EMERGENCY_NOT_CALLED`, `AED_OMITTED`, `CPR_POOR_QUALITY`, `AED_INCORRECT_USE`. Cinque dimensioni invariate (Safety 5%, Awareness 10%, Decision 30%, Execution 30%, Time 25%); Safety resta 5/5. Non modificare scoring condiviso o SPI comune; applicazione finale delle soglie da concordare in integrazione.
 6. **Primo soccorso aziendale:** escluso del tutto. Solo chiamata simulata al 112; nessuna chiamata aggiuntiva, attivazione automatica, NPC dedicato o penalità relativa.
-7. **Trigger:** logica indipendente da rig e interazione VR; metodi pubblici ed eventi per componenti intermedi; separazione tra rilevamento fisico, logica scenario, validazione, scoring e UI; testabile senza visore; nessuna dipendenza permanente dal rig temporaneo.
+7. **Trigger:** logica indipendente da rig e interazione VR; metodi pubblici ed eventi per componenti intermedi; separazione tra rilevamento fisico, logica scenario, validazione, scoring e UI; testabile senza visore; nessuna dipendenza da un rig locale: l'integrazione usa il rig condiviso di `SCN_Core` e le API `SI81.*`.
 8. **ID interni:** `CPR_OMITTED`, `TIMEOUT`, `LOW_SCORE` per il fallimento; `EMERGENCY_NOT_CALLED`, `AED_OMITTED`, `CPR_POOR_QUALITY`, `AED_INCORRECT_USE` per penalizzazioni. Registrare tutte le cause, concludere la missione una sola volta; descrizioni italiane demandate alla UI.
+
+### 0.3 Integrazione del player rig condiviso (2026-11-25) — priorità massima
+
+Questa sezione aggiorna le formulazioni di §0/§0.1 che davano rig, kit UI o Build Settings come non ancora disponibili.
+
+1. **Usare solo il player condiviso.** Man Down non contiene rig, camera, EventSystem, `InputService`, `OVRInput`, XRI, Input Actions, raycast/selezione/grab o UI propri. Tutto arriva da `SCN_Core` e dal kit `SI81.*` condiviso.
+2. **Scene e Build Settings autorizzate.** `SCN_Man_Down.unity` è stata rinominata `SCN_ManDown.unity` preservando il GUID `3b4441978213bad42a806f3c23963e12`. Le Build Settings sono `SCN_Core` indice 0, `SCN_MockScenario` indice 1, `SCN_ManDown` indice 2. Nessuna altra modifica globale è stata conservata.
+3. **Marker nella scena.** `MNG_SpawnPoint` (`SI81.Rig.SpawnPoint`) e `MNG_Scenario` (`SI81.ManDown.ManDownScenario`, derivato da `SI81.UI.ScenarioController`) sono figli di `prefab_scena`; la scena conserva un solo root. Lo spawn è `(-17.240, 0.253, 26.600)`, yaw `138`; la missione è `SO_Mission_ManDown` riutilizzata, con `editorLevel=Guided` e `loadCoreInEditor=false`. In TASK 02 il componente base su `MNG_Scenario` è stato **sostituito**, non affiancato: la classe base ha `[DisallowMultipleComponent]`.
+4. **Caricamento del core.** `RigDirectPlay` carica già `SCN_Core` in Play Mode quando trova `MNG_SpawnPoint`: per questo `loadCoreInEditor` resta `false`. Con `true` comparivano due `SCN_Core`, due `RigRegistration` e due `MNG_UI`.
+5. **Verifiche reali.** Compilazione completata; scena riletta su disco con i marker persistiti; validatore scenario `0 errori, 9 avvisi` di naming preesistente; Play Mode con una sola `SCN_Core`, un solo `RigRegistration`, una camera abilitata (`CenterEyeAnchor`), un solo `EventSystem`, due `RayInteractor`, un solo `RigUIBridge`, un solo `InputService`; console runtime con `0 errori`; test PlayMode `SI81.Rig.Tests` **23/23 superati**.
+6. **Limite della validazione.** L'Editor riporta `No XR device is available ... Running without VR`: movimento/rotazione reali, pose controller, haptics e presa/selezione su Meta Quest 3 restano **test manuali** e non vanno dichiarati eseguiti.
+7. **Prossimo task.** TASK 02 è completato; non avviare i componenti dedicati (`ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`), l'UI o lo scoring definitivo senza approvazione esplicita; non eseguire commit/push senza nuova autorizzazione.
 
 ---
 
@@ -85,16 +97,15 @@ Le altre aree si possono **leggere** per capire le dipendenze, ma non modificare
 
 1. Non modificare `Shared`, altri gruppi, `ProjectSettings`, `Packages`, configurazioni XR o scene globali.
 2. Non aggiungere pacchetti, dipendenze o sistemi complessi.
-3. Non creare un XR Origin, un rig, un player, controller, locomozione, input actions o UI.
-   Il player condiviso **non esiste ancora** e sarà integrato in seguito: non va duplicato.
+3. Non creare un XR Origin, un rig, un player, controller, locomozione, input actions o UI: il player condiviso di `SCN_Core` è già integrato e **non va duplicato**.
 4. Non duplicare UI, HUD, scoring, difficoltà, timer o salvataggi: sono sistemi comuni.
 5. Non creare Canvas/HUD locali. La guida comune `Guida_HUD_comune_SI81.pdf` li vieta.
 6. Non modificare i prefab condivisi. È consentito **istanziarli** nelle scene del gruppo.
 7. Non rinominare automaticamente asset importati (FBX, OBJ, texture): si rischiano riferimenti rotti.
-8. Non aggiungere `SCN_Man_Down` alle Build Settings: l'unica scena in build è `SCN_Placeholder`.
+8. Non modificare le Build Settings senza autorizzazione esplicita. `SCN_ManDown` è stata aggiunta come indice 2 in TASK 01 con autorizzazione; `SCN_Placeholder` non è più l'unica scena in build.
 9. Non dichiarare completato o testato ciò che non è stato provato in Unity / sul visore.
 10. Non inventare regole di gameplay dove i documenti sono ambigui: segnala e chiedi conferma.
-11. **Ogni nuovo oggetto inserito nella scena va messo come figlio di `prefab_scena`** (con `SetParent(scena.transform, true)` per preservare la posizione world). La scena deve avere un solo root, così da poter essere usata interamente come prefab. Non lasciare nuovi root in `SCN_Man_Down.unity`. Regola comunicata dall'utente il 2026-11-22 e già applicata a `MESH_OfficeStructure`.
+11. **Ogni nuovo oggetto inserito nella scena va messo come figlio di `prefab_scena`** (con `SetParent(scena.transform, true)` per preservare la posizione world). La scena deve avere un solo root, così da poter essere usata interamente come prefab. Non lasciare nuovi root in `SCN_ManDown.unity`. Regola comunicata dall'utente il 2026-11-22 e applicata anche a `MNG_SpawnPoint` e `MNG_Scenario` in TASK 01.
 
 ### 1.3 Flusso di lavoro richiesto
 
@@ -125,7 +136,7 @@ Le altre aree si possono **leggere** per capire le dipendenze, ma non modificare
 | `Docs/Man_Down/FlowChart_ManDown.pdf` | Riferimento di flusso, pericolo ambientale e Bad Ending. |
 | `Docs/Project Work VR - GDD.pdf` | GDD generale: difficoltà, interazioni VR, punteggi, accessibilità, sistemi comuni. |
 | `Docs/Man_Down/Man_Down_Specifiche.md` | Sintesi operativa dei tre documenti. **Non è prova** che una funzionalità esista. |
-| `Docs/Man_Down/Man_Down_Scoring_System.md` | Proposta di scoring a 5 dimensioni, non approvata: pesi, malus e formula vanno conservati come dati grezzi, non come punteggio UI. |
+| `Docs/Man_Down/Man_Down_Scoring_System.md` | Pesi delle cinque dimensioni, ID di fallimento/penalità e soglie 80/50 approvati; la formula finale e l'eventuale passaggio allo SPI comune vanno concordati in integrazione. |
 | `Docs/UI_INTEGRATION_FOR_AI.md` (cartella del gruppo) | Istruzioni API per l'integrazione UI finale. Il percorso citato nella guida (`Assets/_Project/Docs/UI_INTEGRAZIONE_FOR_AI.md`) non corrisponde al progetto reale. |
 | `Docs/GUIDA_INTEGRAZIONE_SCENARIO.md` | Guida operativa UI comune v0.6; casi 2/3/6 rilevanti per portare la scena esistente nel kit e scrivere lo script finale. |
 | `Assets/_Project/Docs/Guida_HUD_comune_SI81.pdf` | Regole HUD comune; vieta Canvas/HUD locali. |
@@ -154,28 +165,33 @@ Verifica effettuata il **2026-11-22** con ispezione dei file e dell'Editor Unity
 | Input System | `1.19.0` installato |
 | XR Interaction Toolkit | **NON installato** |
 | Input Actions XR | **assenti** |
-| Player / XR Origin condiviso | **assente** (previsto in integrazione futura) |
-| Locomozione / interazione / grab | **assenti** |
+| Kit `SI81.UI` / `SI81.Input` / `SI81.Interaction` | **disponibili** e verificati in TASK 01 |
+| Player / XR Origin condiviso | **presente in `SCN_Core`** (`RigRegistration`, camera abilitata `CenterEyeAnchor`) |
+| Locomozione / interazione / grab | **condivisi** (`InputService`, `RayInteractor`, `Interactable`); nessun sistema locale in Man Down |
 
-Nota: esistono file `.csproj` residui di sample XRI nella root del repository, ma **non** sono contenuto del progetto Unity e non implicano che XRI sia installato.
+Nota: esistono file `.csproj` residui di sample XRI nella root del repository, ma **non** sono contenuto del progetto Unity e non implicano che XRI sia installato. Le righe storiche che davano player e interazione come assenti sono superate dall'integrazione del 2026-11-25 (§0.3).
 
 ### 3.2 Script
 
-- Nessun `MonoScript` sotto `Assets/_Project/`.
-- Unico script presente: `Assets/Editor/MetaQuestVRSetup.cs` (helper editor per il setup Meta Quest, fuori dal perimetro del gruppo).
-- Nessun sistema di scoring, difficoltà, timer, HUD, salvataggi o stato scenario implementato.
+**Aggiornamento TASK 01 (2026-11-25):** dopo il merge con `origin/main` esistono gli script condivisi in `Assets/_Project/Home/` (`SI81.Input.InputService`, `SI81.Rig.SpawnPoint`, `RigRegistration`, `RigLocomotion`, `SI81.Interaction.Interactable`, `RayInteractor`, `SI81.UI.ScenarioController`, `RigUIBridge`, `MissionDefinition`, `MissionCatalog`, `UIScreenManager`). La verifica del 2026-11-22 riportata di seguito è storica e superata.
+
+**Aggiornamento TASK 02 (2026-11-25):** `Assets/_Project/Groups/G_Marius/Code/Scripts/ManDown/` contiene `ManDownScenario.cs` e `ManDownScenarioTypes.cs` (namespace `SI81.ManDown`). Il controller possiede lo stato dello scenario, le condizioni iniziali configurabili/forzabili, il registro azioni con timestamp, la ricezione dei risultati RCP grezzi, il punteggio provvisorio, gli esiti e gli ID approvati. Non implementa input, camera, mani, interazioni o UI specifica: usa sessione, spawn, timer condiviso e chiusura missione della classe base `SI81.UI.ScenarioController`.
+
+- Non esistono ancora `ManDownNpc`, `ManDownPhone`, `ManDownCpr` o `ManDownAed`: la logica è pronta, ma i componenti che la richiamano e il rilevamento fisico vanno creati nei task dedicati.
+- Nessun sistema locale duplica input, rig, interazione, HUD o UI comune. Lo scoring è solo provvisorio (Time ancora a 0) e sarà sostituito dal calcolo definitivo delle cinque dimensioni.
 
 ### 3.3 Scene
 
-**`Level/Scenes/SCN_Man_Down.unity` — snapshot verificato il 2026-11-24 con Unity MCP**
+**`Level/Scenes/SCN_ManDown.unity` — snapshot verificato il 2026-11-25 su disco e in Play Mode**
 
-- Scena attiva in Editor, `isDirty: false` al momento della lettura. `SceneRoots` contiene **un solo root**: `/prefab_scena`.
-- Sotto il root si trovano la struttura `MESH_OfficeStructure` (14×10×3 m con soffitto), l'ufficio arredato, il NPC `MESH_RiggedEmployee`, tre telefoni, il DAE e il resto dei prop.
-- **Non ci sono** Camera, AudioListener, Canvas, EventSystem, XR Origin/rig, componenti XR, Rigidbody, Animator, AudioSource, InputActionAsset, AnimationClip, AnimatorController, AudioClip o script di interazione.
-- Collider presenti **solo** su `MESH_OfficeStructure`: `Floor` con MeshCollider e pareti/soffitto con BoxCollider. NPC, telefoni, DAE, scrivanie, sedie e prop **non hanno collider**.
-- **Non è nelle Build Settings.** L'unica scena in build è `Assets/_Project/SCN_Placeholder.unity`.
+- La scena è stata rinominata da `SCN_Man_Down.unity` preservando il GUID `3b4441978213bad42a806f3c23963e12`. `SceneRoots` contiene **un solo root**: `/prefab_scena`.
+- Sotto il root si trovano la struttura `MESH_OfficeStructure` (14×10×3 m con soffitto), l'ufficio arredato, il NPC `MESH_RiggedEmployee`, tre telefoni, il DAE, il resto dei prop e i due marker `MNG_SpawnPoint` e `MNG_Scenario` aggiunti in TASK 01.
+- La scena di scenario **non contiene** Camera, AudioListener, Canvas, HUD, EventSystem, XR Origin/rig, input locale, `OVRInput`, XRI, InputActionAsset, script di interazione o raycast duplicati. In Play Mode la camera attiva è `CenterEyeAnchor` di `SCN_Core` e l'EventSystem è quello condiviso.
+- `MNG_SpawnPoint` usa `SI81.Rig.SpawnPoint` a `(-17.240, 0.253, 26.600)`, yaw `138`. `MNG_Scenario` usa `SI81.ManDown.ManDownScenario` con `SO_Mission_ManDown`, spawn point collegato, `editorLevel=1` (`Guided`) e `loadCoreInEditor=0`; il componente è stato riletto su disco come `Assembly-CSharp::SI81.ManDown.ManDownScenario` dopo il salvataggio di TASK 02, con un solo componente derivato da `ScenarioController`.
+- Collider presenti **solo** su `MESH_OfficeStructure`: `Floor` con MeshCollider e pareti/soffitto con BoxCollider. NPC, telefoni, DAE, scrivanie, sedie e prop **non hanno collider** (nessuno è stato aggiunto in TASK 01).
+- Build Settings verificate su disco: `SCN_Core.unity` indice 0, `SCN_MockScenario.unity` indice 1, `SCN_ManDown.unity` indice 2.
 
-La vecchia descrizione di `prefab_scena.prefab` come blocco con `Main Camera`, `Directional Light` e `Cube` è storica dei primi task: lo stato corrente è quello qui sopra e prevale in caso di conflitto.
+Lo snapshot del 2026-11-24 (`SCN_Man_Down.unity`, nessuna scena nelle Build Settings) è storico e superato. La vecchia descrizione di `prefab_scena.prefab` come blocco con `Main Camera`, `Directional Light` e `Cube` è parimenti storica dei primi task.
 
 ### 3.4 Prefab esistenti
 
@@ -301,7 +317,7 @@ Dettaglio per cartella:
 ### 3.8 Altro contenuto del gruppo (aggiornato 2026-11-24)
 
 - `Audio/Music/` e `Audio/Sound/`: **vuote** (solo `PLACEHOLDER.txt`). Nessun audio per 112, DAE o feedback.
-- `Code/Scripts/` e `Code/Shaders/`: **vuote**; nessuno script di gameplay o interazione.
+- `Code/Scripts/ManDown/`: contiene i due script del controller logico TASK 02; `Code/Shaders/` resta **vuota**. Nessuno script di interazione XR o UI specifica.
 - `UI/`: **vuota**.
 - `Art/Models/Man_Down/` contiene i modelli storici elencati sopra **e** il modello del DAE (`MESH_AED.obj`, texture `TEX_AED/AED2.png`) usato dal prefab `MESH_AED.prefab`.
 - **Il DAE esiste già** in scena e tra i prefab del gruppo: la vecchia riga "non esistono asset per DAE" è superata.
@@ -316,16 +332,26 @@ Dettaglio per cartella:
 - Moduli stanza per Chemical Alert (pareti, pavimento, soffitto, porte, finestre).
 - Varie casse, barili, camion, ventola, soda caustica.
 
-**Mancante / non ancora disponibile (verificato 2026-11-24):**
+**Disponibile e verificato nel progetto reale (aggiornamento TASK 01, 2026-11-25):**
 
-- Kit `SI81.UI`: `ScenarioController`, `ScenarioTrigger`, `LabelAnchor`, `HUDService`, `SCN_Core`, `SO_MissionCatalog`, `SO_Mission_Template` e `Assets/_Project/Shared/Level/ScenarioTemplate/` **non sono presenti**, benché documentati.
-- XR Origin / player / rig / controller / locomozione / input actions. `Docs/SharedPlayerRig.md` descrive il rig finale comune, ma prefab, script/assembly e `SharedInteraction.md` **non sono presenti** (verificato nel TASK 01, 2026-11-24). L'utente ha chiarito che inserirà a breve un rig temporaneo: OpenCode non lo crea autonomamente e non deve introdurre dipendenze permanenti da esso.
-- UI e HUD comuni implementate (esistono solo le guide nella cartella del gruppo).
-- Scoring, esiti, difficoltà, timer, debriefing, salvataggi.
-- Sistema di interazione approvato (grab, poke, ray) e interattabili.
+- Kit condiviso: `SI81.Input.InputService`, `SI81.Rig.SpawnPoint`, `RigRegistration`, `RigLocomotion`, `SI81.Interaction.Interactable`, `RayInteractor`, `SI81.UI.ScenarioController`, `RigUIBridge`, `MissionDefinition`, `MissionCatalog` e `UIScreenManager` sono presenti e risolvono in compilazione.
+- `Assets/_Project/Home/Level/Scenes/SCN_Core.unity` contiene l'unico rig/camera/UI condivisi; `RigDirectPlay` lo carica automaticamente in Play Mode quando la scena di scenario ha uno spawn point. `SO_Mission_ManDown.asset` esiste ed è riutilizzato senza duplicazione.
+- Non esiste un rig locale in Man Down: non creare un'altra camera, un altro EventSystem, un altro `InputService` o un altro sistema di raycast/selezione/grab.
+
+**Implementato in TASK 02 ma ancora da collegare ai componenti dedicati:**
+
+- Controller logico `ManDownScenario`: condizioni iniziali, fasi non rigide, registro azioni con timestamp, API/eventi per le classi future, ricezione di risultati RCP grezzi, timeout 180 s, esiti e ID approvati. Non crea UI, input o interazioni.
+- Punteggio e debriefing: il controller produce un risultato provvisorio e congela l'esito una sola volta; il calcolo definitivo delle cinque dimensioni e lo SPI comune restano da integrare.
+
+**Non ancora implementato per Man Down:**
+
+- `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed` e il rilevamento fisico di compressioni/elettrodi: useranno `Interactable` + `RayInteractor` condivisi e le API già esposte dal controller.
+- UI specifica della missione e chiamate UI dedicate: il task UI resta separato; la UI comune è già presente ma non è stata personalizzata.
 - Pozzanghera e panno: **esclusi** per direttiva TASK 00, non da implementare.
-- Audio (musica, ambience, SFX, istruzioni DAE, chiamata 112).
-- Interfaccia telefonica per la chiamata simulata al 112.
+- Audio (musica, ambience, SFX, istruzioni DAE, chiamata 112) e interfaccia telefonica per la chiamata simulata al 112.
+- Parametri didattici configurabili (ampiezza/soglie RCP, fase finale, `T_target`/`T_max`): da validare, non da inventare.
+
+Le vecchie righe del 2026-11-24 che indicavano kit `SI81.UI`, rig, interazione e `SCN_Core` come assenti sono superate: il documento `Docs/SharedPlayerRig.md` resta un riferimento storico, ma il sistema reale è ora verificato nel codice condiviso.
 
 ---
 
@@ -372,7 +398,7 @@ Dettaglio per cartella:
 | Materiale | `MAT_NomeOggetto_Materiale` | `MAT_OfficeChair_Fabric` |
 | Prefab | `MESH_NomeOggetto` | `MESH_ManDown_DAE` |
 | Texture nuova | `TEX_NomeOggetto_Tipo` | `TEX_OfficeDoor_BaseColor` |
-| Scena | `SCN_NomeScena` | `SCN_Man_Down` |
+| Scena | `SCN_NomeScena` | `SCN_ManDown` (rinominata in TASK 01, GUID preservato) |
 | Script / classi C# | `PascalCase` | `ManDownScenarioController` |
 | Metodi / proprietà pubbliche | `PascalCase` | `StartScenario()` |
 | Campi privati/protetti | `camelCase` | `private float elapsedTime;` |
@@ -390,11 +416,12 @@ Regole aggiuntive:
 
 ## 6. Stato XR e regole di integrazione
 
-- OpenXR e Meta XR Core SDK sono installati, ma **non esiste ancora un player condiviso**.
-- Non creare XR Origin, rig, controller, locomozione o input: saranno forniti dal sistema comune.
-- Le scene del gruppo possono contenere solo contenuto di scenario (ambiente, NPC, props) e, quando arriverà, un'**istanza** del player condiviso.
-- Qualsiasi necessità di input XR va prima verificata contro il player comune; non introdurre Input Actions locali.
-- La `Main Camera` di `prefab_scena` non è una camera XR e non va spacciata per tale.
+- OpenXR e Meta XR Core SDK sono installati e il **player condiviso è presente in `SCN_Core`**: non crearne uno locale.
+- La scena Man Down contiene solo contenuto di scenario più i marker `MNG_SpawnPoint` e `MNG_Scenario`; rig, camera XR, locomozione, EventSystem, input e interazioni arrivano dal sistema comune.
+- Tutta l'input XR futura deve passare da `SI81.Input.InputService` e dalle interazioni condivise: niente `OVRInput`, Input Actions locali, XRI o raycast/selezione/grab duplicati.
+- In Play Mode la camera abilitata è `CenterEyeAnchor` di `SCN_Core`; Man Down non ha una `Main Camera` XR propria.
+- Il caricamento del core in Editor è gestito da `RigDirectPlay` e `loadCoreInEditor` resta `false`: con `true` si generano due `SCN_Core`, due `RigRegistration` e due `MNG_UI`.
+- La validazione fisica su Meta Quest 3 non è stata eseguita: movimento, rotazione, pose controller, haptics e presa/selezione reali restano test manuali (§0.3 e procedura in `TASK_PROGRESS.md`).
 
 ---
 
@@ -458,9 +485,9 @@ Non risolvere queste ambiguità da soli.
 
 ## 9. Checklist prima di chiudere un task
 
-- [ ] Ho lavorato solo in `Assets/_Project/Groups/G_Marius/`.
-- [ ] Non ho modificato `Shared`, altri gruppi, `ProjectSettings`, `Packages`, XR o scene globali.
-- [ ] Non ho creato player/XR Origin/input/UI/scoring duplicati.
+- [ ] Ho lavorato solo in `Assets/_Project/Groups/G_Marius/`, salvo autorizzazioni esplicite registrate (TASK 01: `ProjectSettings/EditorBuildSettings.asset`).
+- [ ] Non ho modificato `Shared`, altri gruppi, `Packages`, XR o scene globali; ogni modifica auto-generata non intenzionale è stata ripristinata.
+- [ ] Non ho creato player/XR Origin/input/UI/scoring duplicati: uso solo il sistema condiviso di `SCN_Core`.
 - [ ] I nomi rispettano le convenzioni.
 - [ ] I materiali usano URP Lit e la smoothness è nello slot corretto.
 - [ ] Non ho indovinato slot di texture incerti.
@@ -475,6 +502,7 @@ Non risolvere queste ambiguità da soli.
 
 > Aggiornare **solo** con file realmente creati/modificati, comportamento implementato, verifiche eseguite e problemi aperti.
 > Non segnare come completato ciò che non è stato testato.
+> I record storici descrivono lo stato **al momento di quel task**; per lo stato attuale vedere l'header e il record TASK 02.
 
 ### Task 0 — Analisi iniziale e creazione di AGENTS.md
 
@@ -1011,7 +1039,9 @@ Non risolvere queste ambiguità da soli.
 - **Verifiche ancora da effettuare:** compilazione, riferimenti Inspector, Play Mode e prova su Quest nei task di gameplay.
 - **Stato:** documento riorganizzato; roadmap e decisioni aperte registrate; nessun gameplay implementato e nessun task successivo avviato.
 
-### TASK 01 — Player rig temporaneo per i test (rinviato)
+### TASK 01 — Registrazione iniziale (storica, superata il 2026-11-25)
+
+> **Nota:** questo verbale descrive la situazione precedente al merge con `origin/main`. Le verifiche e i file effettivi sono registrati nel record "TASK 01 — Integrazione del player rig condiviso" più sotto, che ha priorità.
 
 - **Data:** 2026-11-24
 - **Richiesta utente:** creare un rig temporaneo seguendo `Docs/SharedPlayerRig.md`, con movimento, rotazione, controller e interazione; senza nuovi pacchetti, senza modifiche globali, senza XRI, isolato dalla scena finale e senza dipendenze permanenti.
@@ -1025,7 +1055,7 @@ Non risolvere queste ambiguità da soli.
 - **Risultato:** rig **non creato**. I componenti indispensabili descritti dalla documentazione non esistono nel progetto; non è stato inventato un sistema alternativo né usato XRI.
 - **Verifiche non eseguite:** Play Mode, Test Runner, compilazione di script del rig, prova su Meta Quest 3. La procedura di test manuale è documentata in `TASK_PROGRESS.md`.
 - **Problemi aperti:** mancano prefab/script/assembly del rig, `SharedInteraction.md`, `SCN_Core` e adattatore `IRigUIBridge`; serve decisione o conferimento dei componenti da parte del team/utente.
-- **Stato:** TASK 01 rinviato su indicazione dell'utente: il rig temporaneo sarà inserito dall'utente a breve; OpenCode non lo ha creato. Nessun task successivo avviato.
+- **Stato (storico, superato il 2026-11-25):** TASK 01 era stato rinviato su indicazione dell'utente: il rig temporaneo sarebbe stato inserito dall'utente a breve; OpenCode non lo ha creato. Ora il rig condiviso è integrato; vedere il record finale del TASK 01 e §0.3.
 
 ### Task 00e — Decisioni gameplay approvate
 
@@ -1039,5 +1069,37 @@ Non risolvere queste ambiguità da soli.
 - **Nessuna modifica a:** scena, prefab, materiali, texture, script, Build Settings, `Shared`, `Home`, altri gruppi, `Packages`, `ProjectSettings`, XR, `.gitignore`.
 - **Verifiche eseguite:** rilettura integrale dei quattro file, ricerca delle residue indicazioni incompatibili dopo l'aggiornamento. Nessun Test Runner o Play Mode: nessuno script creato.
 - **Risultato:** tutte le decisioni di gameplay risultano approvate e documentate; il piano delle cinque classi è aggiornato con separazione tra rilevamento fisico RCP e validazione. Nessun gameplay implementato.
-- **Problemi aperti:** rig temporaneo inserito dall'utente; kit `SI81.UI` e sistema di interazione condiviso assenti; parametri didattici RCP/Time non ancora forniti (campi configurabili, nessun valore inventato); applicazione finale delle soglie al punteggio ponderato o allo SPI comune rinviata all'integrazione.
+- **Problemi aperti (aggiornati il 2026-11-25):** rig condiviso integrato in Editor/Play Mode ma non validato su Meta Quest 3; parametri didattici RCP/Time non ancora forniti (campi configurabili, nessun valore inventato); applicazione finale delle soglie al punteggio ponderato o allo SPI comune rinviata all'integrazione.
 - **Stato:** documentazione aggiornata; attendere il prossimo task. Nessun commit o push.
+
+### TASK 01 — Integrazione del player rig condiviso (migrazione, 2026-11-25)
+
+- **Data:** 2026-11-25
+- **Richiesta utente:** seguire `Docs/!LLM_Migrazione_Rig_UI.md` §B.2, integrare il rig di `SCN_Core` in Man Down senza rig locale, senza gameplay e senza UI specifica; autorizzazione esplicita per merge/branch, Build Settings e rename della scena.
+- **File creati o modificati:**
+  - `Level/Scenes/SCN_ManDown.unity` (+ `.meta`): rinominata da `SCN_Man_Down.unity` con GUID preservato; aggiunti `MNG_SpawnPoint` e `MNG_Scenario` come figli di `prefab_scena`.
+  - `Level/Scenes/SCN_Man_Down.unity` (+ `.meta`): vecchio percorso risultato `D` dopo il rename.
+  - `ProjectSettings/EditorBuildSettings.asset`: `SCN_Core` indice 0, `SCN_MockScenario` indice 1, `SCN_ManDown` indice 2.
+  - `Docs/Man_Down/TASK_PROGRESS.md` e `Docs/Man_Down/AGENTS.md`: aggiornati con stato, verifiche, limiti e procedura manuale.
+  - `Docs/Man_Down/Man_Down_Specifiche.md` e `Docs/Man_Down/Man_Down_Scoring_System.md`: allineate sul rig condiviso, eliminando il riferimento al rig temporaneo dell'utente.
+- **Non modificati:** prefab, materiali, texture, script di gameplay, `SO_Mission_ManDown.asset`, altri asset `Shared`/`Home`, altri gruppi, `Packages`, configurazioni XR e `.gitignore`. `MAT_CabinetBody.mat`, `MAT_CoffeeTableBody.mat` e `ProjectSettings/ShaderGraphSettings.asset`, riscritti automaticamente da Unity, sono stati ripristinati.
+- **Comportamento verificato:** un solo root `prefab_scena`; un solo `RigRegistration`; una camera abilitata (`CenterEyeAnchor`); un solo `EventSystem`, `RigUIBridge` e `InputService`; due `RayInteractor` condivisi; sessione attiva con `SO_Mission_ManDown`; spawn/tracking origin a `(-17.240, 0.253, 26.600)`, yaw `138`; rig stabile dopo circa 65 s; console runtime con `0 errori`.
+- **Verifiche eseguite:** compilazione completata; scena e Build Settings riletti su disco con `editorLevel: 1` e `loadCoreInEditor: 0`; validatore scenario `0 errori, 9 avvisi` di naming preesistente; Play Mode dalla scena salvata; test PlayMode `unity command test run --mode playmode --async-tests true --filter SI81.Rig.Tests --timeout 600` → **23/23 superati, 0 falliti**.
+- **Non verificato:** prova fisica su Meta Quest 3 (movimento/rotazione reali, pose controller, haptics, presa/selezione e inquadratura). L'Editor riporta `No XR device is available ... Running without VR`; la procedura manuale è in `TASK_PROGRESS.md`.
+- **Stato:** TASK 01 completato in Editor/Play Mode. Nessun gameplay o UI specifica implementata in quel task; nessun commit o push. La frase storica "Attendere approvazione esplicita prima del Task 02" è **superata**: TASK 02 è stato approvato e completato, come registrato sotto.
+
+### TASK 02 — Controller logico `ManDownScenario` (2026-11-25)
+
+- **Richiesta utente:** completare esclusivamente il controller logico compatibile con `ScenarioController`: inizializzazione all'inizio effettivo, condizioni indipendenti configurabili/forzabili, azzeramento stato precedente, init idempotente, fasi non rigide, chiamata al 112 indipendente, DAE prima delle 20 compressioni, registrazione di timestamp e azioni tentate/completate, ricezione di risultati RCP grezzi senza rilettura/validazione delle compressioni, timeout 180 s con esito `TIMEOUT`, punteggio provvisorio con Time a 0, esiti 80/50, ID approvati e conclusione una sola volta. Nessun `ManDownNpc`, `ManDownPhone`, `ManDownCpr`, `ManDownAed`, UI, input XR, interazione o scoring definitivo.
+- **File creati:**
+  - `Code/Scripts/ManDown/ManDownScenario.cs` (+ `.meta`)
+  - `Code/Scripts/ManDown/ManDownScenarioTypes.cs` (+ `.meta`)
+- **File modificati:**
+  - `Level/Scenes/SCN_ManDown.unity`: su `MNG_Scenario` il componente `SI81.UI.ScenarioController` è stato sostituito da `SI81.ManDown.ManDownScenario` (la base ha `[DisallowMultipleComponent]`); missione `SO_Mission_ManDown` e spawn point preservati.
+  - `Docs/Man_Down/TASK_PROGRESS.md` e `Docs/Man_Down/AGENTS.md`: verbale, API reale, verifiche eseguite/non eseguite e limiti.
+- **Comportamento implementato:** `ManDownScenario` eredita da `ScenarioController`; `OnScenarioStarted()` richiama un'`InitializeScenario()` idempotente che azzera condizioni, azioni, risultati, cause, penalità e flag e riavvia il timer condiviso a 180 s. Probabilità 70/30 respirazione e 75/25 DAE configurabili e forzabili in modo indipendente; fasi non rigide; duplicati delle azioni uniche ignorati; `ReportCprResult(ManDownCprResult)` registra solo dati grezzi e soglie 20/20/30; penalità e fallimenti multipli registrabili; senza 112 nessun arrivo simulato, nessuna dichiarazione di fuori pericolo ed esito massimo parziale; una sola conclusione per istanza. `ResetScenario()` non azzera più gli eventi: `ClearEvents()` resta solo in `OnDestroy()` per preservare le sottoscrizioni future.
+- **API eventi e proprietà pubbliche:** metodi `InitializeScenario()`, `ResetScenario()`, `VerifyConsciousness()`, `VerifyBreathing()`, `Call112()`, `StartCpr()`, `ReportCprResult(ManDownCprResult)`, `ReportCprPoorQuality()`, `ActivateAed()`, `PlaceElectrode(int)`, `PlaceLeftElectrode()`, `PlaceRightElectrode()`, `ConfirmAedInstruction()`, `ReportAedIncorrectUse()`, `ResumeCpr()`, `PlaceSidePosition()`, `Monitor()`, `BeginFinalAssistance()`, `CompleteFinalAssistance()`, `FinishMission()`, `FinishMission(int)`, `GetRequiredCprCompressions(ManDownCprPhase)`; eventi e proprietà di stato elencati in `TASK_PROGRESS.md`, disponibili per i componenti futuri senza dipendere da camera, controller, mani o input.
+- **Verifiche eseguite:** ricompilazione Unity `completed`, `failed=false`, `compilationFailed=false`, console 0 errori; harness temporaneo isolato **49/49 verifiche superate, `TOTALE FAIL=0`** (A1–A28, B1–B5, C1–C3, D1–D6, E1–E3, F1–F4); Play Mode con `scenarioCount=1`, `hudRootCount=1`, `initialized/running/accepts/sessionActive=True`, `duration=180`, `hudTimerRunning/countdown=True`, `timerSubscribers=1`; scadenza forzata con `timedOut=True`, `outcome=Negative`, `failureCauses=[TIMEOUT,CPR_OMITTED,LOW_SCORE]`, `penalties=[EMERGENCY_NOT_CALLED]`, timer fermo e conclusione unica; console runtime `cursor:262`, 0 errori; Play Mode fermato e `editor save_all` con scena `isDirty:false`.
+- **Non verificato / non eseguito:** prova su Meta Quest 3 (movimento e rotazione reali, pose controller, haptics, presa/selezione); rilevamento fisico RCP/DAE; UI specifica; scoring definitivo e SPI; conferma visiva dell'inquadratura sul visore.
+- **Problemi aperti:** dati didattici RCP/Time non ancora forniti (campi configurabili, non inventati); applicazione finale delle soglie al punteggio ponderato o allo SPI comune; `git status` mostra modifiche auto-generate da Unity su `MAT_CabinetBody.mat` e `MAT_CoffeeTableBody.mat`, estranee a TASK 02 e da verificare prima di un commit.
+- **Stato:** TASK 02 completato e verificato in Editor/Play Mode. Nessun commit o push. **Attendere approvazione esplicita prima del task successivo.**

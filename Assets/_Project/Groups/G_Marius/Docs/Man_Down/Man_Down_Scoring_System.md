@@ -162,6 +162,6 @@ Verificare:
 - reset completo e assenza di malus per azioni non applicabili;
 - valori dimensionali sempre entro 0–100 ed eventi duplicati senza incrementi di punteggio o malus.
 
-Il rig temporaneo sarà inserito dall'utente a partire dalla documentazione di riferimento; OpenCode non lo crea autonomamente e non introduce dipendenze permanenti. Un rig di test non deve entrare nella scena definitiva né nel repository. La logica di scoring va testata anche senza visore.
+Il rig condiviso di `SCN_Core` è integrato nella scena (2026-11-25): non creare un rig locale né dipendenze da un rig di test. La vecchia indicazione di un rig temporaneo inserito dall'utente è superata. La logica di scoring va testata anche senza visore.
 
 Fonti di progetto: `scoring_system.pdf` (modello strutturale), `Man_Down_GDD.pdf`, `FlowChart_ManDown.pdf`, `Project Work VR - GDD.pdf` e `GUIDA_INTEGRAZIONE_SCENARIO.pdf` (v0.6, sezioni 4, 6 e 10). Le decisioni approvate dall'utente prevalgono sulle fonti in caso di conflitto.

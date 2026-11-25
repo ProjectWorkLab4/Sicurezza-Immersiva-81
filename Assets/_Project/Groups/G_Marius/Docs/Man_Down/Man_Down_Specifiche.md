@@ -188,7 +188,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 6. Non introdurre nuovi pacchetti, sistemi complessi o dipendenze non necessarie.
 7. Mantenere separati: rilevamento fisico, logica dello scenario, validazione, scoring, presentazione UI.
 8. La logica deve funzionare e poter essere testata anche senza visore, via Inspector/UnityEvent.
-9. Il rig temporaneo sarà inserito dall'utente: OpenCode non lo crea autonomamente e non introduce dipendenze permanenti da esso.
+9. Il rig è quello condiviso di `SCN_Core` (integrato nel 2026-11-25): non creare un rig locale, un altro input o un'altra interazione. La vecchia indicazione di un rig temporaneo inserito dall'utente è superata.
 10. Alla fine di ogni task, registrare in `AGENTS.md` **solo** file realmente creati/modificati, comportamento implementato, verifiche eseguite e problemi aperti. **Non segnare come completato ciò che non è stato testato.**
 11. Per ogni task indicare prima file e prefab coinvolti; chiedere conferma per modifiche con impatto esterno alla directory autorizzata.
 
@@ -236,7 +236,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 5. `ManDownCpr` come rilevamento fisico e validazione nel controller.
 6. `ManDownAed` con elettrodi provvisori e ripresa RCP.
 7. Scoring, ID ed esito unico.
-8. Play Mode senza visore, poi integrazione con il rig inserito dall'utente.
+8. Play Mode senza visore, poi integrazione con il rig condiviso di `SCN_Core` (già collegato alla scena; resta da validare su visore).
 9. Integrazione UI SI81 e validazione finale su visore.
 
 ---

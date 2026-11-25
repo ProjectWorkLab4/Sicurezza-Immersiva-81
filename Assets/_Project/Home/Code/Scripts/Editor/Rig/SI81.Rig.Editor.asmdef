@@ -1,0 +1,21 @@
+{
+    "name": "SI81.Rig.Editor",
+    "rootNamespace": "SI81.Rig.EditorTools",
+    "references": [
+        "SI81.Input",
+        "SI81.Rig",
+        "SI81.Interaction",
+        "Oculus.VR"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

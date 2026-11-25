@@ -1,0 +1,13 @@
+Icone ICN_ — sorgenti SVG (SI81, Team UI)
+
+Origine:  Material Symbols Rounded, Google (https://fonts.google.com/icons)
+Licenza:  Apache License 2.0 — https://www.apache.org/licenses/LICENSE-2.0
+          Repository e testo della licenza: https://github.com/google/material-design-icons
+Formato:  48px, viewBox "0 -960 960 960", un solo <path> per file, peso 400, grade 0.
+URL:      https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/<nome_material>/<variante>/48px.svg
+          <variante> = "default" (contorno, file ICN_<Nome>.svg) oppure "fill1" (pieno, file ICN_<Nome>_Filled.svg).
+Elenco:   manifest.json (file, nome Material, variante, URL, note).
+
+I file non sono stati modificati (solo rinominati con il prefisso ICN_).
+I PNG in Assets/_Project/Home/Art/Textures/Icons/ sono generati da questi SVG con il menu SI81/UI/Build Icons.
+La cartella termina con "~": Unity la ignora, quindi gli SVG non diventano asset del progetto.

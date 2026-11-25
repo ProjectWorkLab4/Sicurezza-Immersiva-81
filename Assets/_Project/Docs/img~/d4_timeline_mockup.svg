@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" font-family="Segoe UI, Arial" font-size="14">
+<rect width="760" height="250" rx="18" fill="#1B5E48"/>
+<text x="28" y="40" fill="#fff" font-size="20" font-weight="700">Debrief · Timeline delle scelte</text>
+<text x="600" y="40" fill="#cfe" font-size="12">MOCK-UP · in arrivo</text>
+<rect x="24" y="58" width="712" height="172" rx="12" fill="#fff"/>
+<circle cx="54" cy="90" r="9" fill="#2563EB"/><text x="54" y="94" fill="#fff" font-size="11" text-anchor="middle">✓</text><text x="74" y="95" font-weight="700">0:20</text><text x="120" y="95">Hai dato l'allarme subito</text><text x="420" y="95" fill="#555">→ Conseguenza: colleghi evacuati</text>
+<circle cx="54" cy="128" r="9" fill="#D55E00"/><text x="54" y="132" fill="#fff" font-size="11" text-anchor="middle">✕</text><text x="74" y="133" font-weight="700">0:45</text><text x="120" y="133">Hai aperto la porta senza toccare la maniglia</text><text x="460" y="133" fill="#555">→ Conseguenza: flashover / ustione</text>
+<path d="M54 160 l9 16 h-18 z" fill="#D55E00"/><text x="74" y="175" font-weight="700">1:30</text><text x="120" y="175">Critico · Ti sei avvicinato al fumo in piedi</text><text x="460" y="175" fill="#555">→ Conseguenza: esposizione al fumo</text>
+<circle cx="54" cy="208" r="9" fill="#2563EB"/><text x="54" y="212" fill="#fff" font-size="11" text-anchor="middle">✓</text><text x="74" y="213" font-weight="700">2:05</text><text x="120" y="213">Hai usato l'estintore CO2</text><text x="420" y="213" fill="#555">→ Conseguenza: nessun rischio elettrico</text>
+</svg>

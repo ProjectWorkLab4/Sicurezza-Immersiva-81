@@ -46,9 +46,9 @@ public class QuadroElettricoInterattivo : MonoBehaviour
     [SerializeField] VRMessageDisplay display;
     [SerializeField] string titoloMessaggi = "QUADRO ELETTRICO";
     [TextArea(2, 4)]
-    [SerializeField] string messaggioAcceso = "Quadro elettrico acceso: l'impianto e' alimentato.";
+    [SerializeField] string messaggioAcceso = "Quadro elettrico acceso: l’impianto è alimentato.";
     [TextArea(2, 4)]
-    [SerializeField] string messaggioSpento = "Quadro elettrico spento: l'impianto e' disalimentato.";
+    [SerializeField] string messaggioSpento = "Quadro elettrico spento: l’impianto è disalimentato.";
     [SerializeField] float durataMessaggio = 4f;
 
     [Header("Audio")]

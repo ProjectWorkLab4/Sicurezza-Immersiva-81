@@ -23,7 +23,7 @@ public class ImpostazioniDifficolta
     public string nome = "Realistico";
 
     [Header("Tempo della missione (secondi)")]
-    [Tooltip("Durata del timer di livello. Allo scadere il livello e' perso.")]
+    [Tooltip("Durata del timer di livello. Allo scadere il livello è perso.")]
     [Min(10f)] public float durataMissione = 180f;
 
     [Header("Monossido di carbonio (CO)")]
@@ -57,7 +57,7 @@ public class ImpostazioniDifficolta
     public bool mostraSuggerimenti;
     [Tooltip("Mostra i cuori nell'HUD. Se disattivo compare il feedback pollice.")]
     public bool mostraCuori = true;
-    [Tooltip("Mostra il feedback pollice su / intermedio / giu' invece dei cuori.")]
+    [Tooltip("Mostra il feedback pollice su / intermedio / giù invece dei cuori.")]
     public bool mostraFeedbackPollice;
     [Tooltip("Colore dell'evidenziazione degli oggetti (GGD: #E69F00).")]
     public Color coloreEvidenziazione = new Color(0.902f, 0.624f, 0f, 1f);

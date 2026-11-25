@@ -10,7 +10,7 @@ using UnityEngine.Events;
 ///
 /// The component lives on the same GameObject as the <see cref="Interactable"/> (or on a parent)
 /// and forwards hover, select and grab to the existing callbacks. It does not read input, cast
-/// rays or implement grabbing: the rig's <c>RayInteractor</c> owns all of that.
+/// raggi o l'afferraggio: il <c>RayInteractor</c> del rig gestisce tutto.
 /// </summary>
 [DisallowMultipleComponent]
 public class VRInteractableButton : MonoBehaviour
@@ -26,11 +26,11 @@ public class VRInteractableButton : MonoBehaviour
     [SerializeField] UnityEvent onDeselected = new UnityEvent();
 
     [Header("Comportamento")]
-    [Tooltip("Se disattivato l'oggetto resta visibile ma non risponde piu' all'interazione.")]
+    [Tooltip("Se disattivato l’oggetto resta visibile ma non risponde più all’interazione.")]
     [SerializeField] bool available = true;
     [Tooltip("Tempo minimo tra due pressioni, per evitare doppie attivazioni select+grab.")]
     [SerializeField] float selectCooldown = 0.3f;
-    [Tooltip("Se la lista e' vuota vengono raccolti gli Interactable del GameObject e dei figli.")]
+    [Tooltip("Se la lista è vuota vengono raccolti gli Interactable del GameObject e dei figli.")]
     [SerializeField] List<Interactable> interactables = new List<Interactable>();
 
     [Header("Feedback (opzionale)")]

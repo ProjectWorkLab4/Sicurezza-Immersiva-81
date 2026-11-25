@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Exit door of the office (GGD: "Porta d'uscita - Apertura (fine livello)").
+/// Exit door of the office (GGD: "Porta d’uscita - Apertura (fine livello)").
 ///
 /// The player opens it with the handle (poke / ray through the Meta XR Interaction SDK)
 /// and walks through the <see cref="AreaUscita"/> trigger placed behind it.

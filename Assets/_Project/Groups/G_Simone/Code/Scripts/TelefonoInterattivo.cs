@@ -58,7 +58,7 @@ public class TelefonoInterattivo : MonoBehaviour
     };
 
     [Header("Elenco chiamanti")]
-    [Tooltip("Mostra sul display l'elenco dei numeri disponibili.")]
+    [Tooltip("Mostra sul display l’elenco dei numeri disponibili.")]
     [SerializeField] bool mostraElencoChiamanti = true;
     [SerializeField] string intestazioneElenco = "CHIAMANTI DISPONIBILI";
     [Tooltip("Mostra la sequenza di cifre composta con il tastierino.")]

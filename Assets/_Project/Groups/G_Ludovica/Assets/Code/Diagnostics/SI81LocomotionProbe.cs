@@ -6,12 +6,15 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace G_Ludovica.ForkliftChaos
 {
     /// <summary>
     /// DIAGNOSTICA TEMPORANEA della locomozione. Si crea da sola a runtime: nessuna scena condivisa viene modificata.
-    /// Logga ogni secondo con il prefisso [SI81-PROBE], sia nel mock sia nella missione 07.
+    /// In Editor: logga nella Console e mostra un overlay nella Game view. Menu SI81/Debug per dump e toggle.
     /// DA RIMUOVERE dopo la diagnosi.
     /// </summary>
     public sealed class SI81LocomotionProbe : MonoBehaviour
@@ -20,6 +23,8 @@ namespace G_Ludovica.ForkliftChaos
         private const float INTERVALLO = 1f;
 
         private float prossimoLog;
+        private string ultimaRiga = "in attesa...";
+        private bool mostraOverlay = true;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreaSonda()
@@ -28,16 +33,28 @@ namespace G_Ludovica.ForkliftChaos
             GameObject go = new GameObject("DIAG_SI81_LocomotionProbe");
             go.AddComponent<SI81LocomotionProbe>();
             Object.DontDestroyOnLoad(go);
+            Debug.Log(PREFIX + " sonda attiva. LEGENDA: lock=MovementLock | supp=World sospeso | "
+                            + "locoEn=action abilitate | rawMove=action grezza | readMove=valore usato dal rig | "
+                            + "devL/devR=stick letti dal dispositivo | rigPos=posizione radice rig");
         }
 
         private void Update()
         {
             if (Time.unscaledTime < prossimoLog) return;
             prossimoLog = Time.unscaledTime + INTERVALLO;
-            LogStato();
+            DumpOra();
         }
 
-        private static void LogStato()
+        /// <summary>Stampa subito lo stato corrente (usabile anche dal menu SI81/Debug).</summary>
+        public static void DumpOra()
+        {
+            SI81LocomotionProbe sonda = Object.FindFirstObjectByType<SI81LocomotionProbe>();
+            if (sonda == null) return;
+            sonda.ultimaRiga = sonda.CostruisciRiga();
+            Debug.Log(sonda.ultimaRiga);
+        }
+
+        private string CostruisciRiga()
         {
             StringBuilder sb = new StringBuilder(768);
             sb.Append(PREFIX).Append(" scene=").Append(NomiScene());
@@ -75,7 +92,7 @@ namespace G_Ludovica.ForkliftChaos
             }
 
             sb.Append(" || ").Append(StickDispositivi());
-            Debug.Log(sb.ToString());
+            return sb.ToString();
         }
 
         /// <summary>Valore grezzo dei due stick letto direttamente dai dispositivi XR.</summary>
@@ -87,6 +104,13 @@ namespace G_Ludovica.ForkliftChaos
             Vector2Control rs = right != null ? right.TryGetChildControl<Vector2Control>("primary2DAxis") : null;
             return "devL=" + (ls != null ? Fmt(ls.ReadValue()) : "NONE")
                  + " devR=" + (rs != null ? Fmt(rs.ReadValue()) : "NONE");
+        }
+
+        private void OnGUI()
+        {
+            if (!mostraOverlay) return;
+            GUI.Box(new Rect(8f, 8f, 1180f, 58f), GUIContent.none);
+            GUI.Label(new Rect(18f, 14f, 1160f, 46f), ultimaRiga);
         }
 
         private static string NomiScene()
@@ -111,5 +135,20 @@ namespace G_Ludovica.ForkliftChaos
         {
             return "(" + v.x.ToString("F2") + "," + v.y.ToString("F2") + "," + v.z.ToString("F2") + ")";
         }
+
+#if UNITY_EDITOR
+        [MenuItem("SI81/Debug/Log locomozione ora")]
+        private static void MenuDump()
+        {
+            DumpOra();
+        }
+
+        [MenuItem("SI81/Debug/Probe overlay: on/off")]
+        private static void MenuOverlay()
+        {
+            SI81LocomotionProbe sonda = Object.FindFirstObjectByType<SI81LocomotionProbe>();
+            if (sonda != null) sonda.mostraOverlay = !sonda.mostraOverlay;
+        }
+#endif
     }
 }

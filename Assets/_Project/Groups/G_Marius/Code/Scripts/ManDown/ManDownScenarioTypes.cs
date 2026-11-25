@@ -57,6 +57,21 @@ namespace SI81.ManDown
         ForceAbnormal
     }
 
+    /// <summary>
+    /// Ramo della respirazione dopo la valutazione. Non duplica lo stato del controller: descrive solo
+    /// la distinzione tra respirazione normale e respirazione assente o anomala, già presente in
+    /// <see cref="ManDownScenario.IsBreathingAbnormal"/>. Prima della verifica il ramo è NotAssessed.
+    /// </summary>
+    public enum ManDownBreathingBranch
+    {
+        /// <summary>Respirazione non ancora valutata.</summary>
+        NotAssessed,
+        /// <summary>Ramo con respirazione normale (monitoraggio e posizione laterale).</summary>
+        Normal,
+        /// <summary>Ramo con respirazione assente o anomala (RCP).</summary>
+        AbsentOrAbnormal
+    }
+
     /// <summary>Come determinare la disponibilità iniziale del DAE.</summary>
     public enum ManDownAedAvailabilityMode
     {

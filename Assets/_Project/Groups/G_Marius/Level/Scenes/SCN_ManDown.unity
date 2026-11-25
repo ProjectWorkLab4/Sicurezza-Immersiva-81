@@ -891,6 +891,74 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2f71661e76db1a7468c846db53d6b876, type: 3}
   m_PrefabInstance: {fileID: 441457238}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &495204261
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 495204262}
+  - component: {fileID: 495204264}
+  - component: {fileID: 495204263}
+  m_Layer: 0
+  m_Name: MESH_MouthZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &495204262
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495204261}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0.14}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 977116457}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &495204263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495204261}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84d8c96fcf3839345b691eda8e5a9d40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownBreathingZone
+  npc: {fileID: 977116456}
+  requiredDwellSeconds: 2.5
+--- !u!65 &495204264
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495204261}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.14, y: 0.12, z: 0.14}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &516794127
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1042,33 +1110,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 516794136}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: SuppressLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
   grabExited:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 516794136}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: ShowLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!65 &516794132
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1146,9 +1190,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
   kind: 1
   requiresHighlight: 0
-  title: Telefono
+  title: 'Telefono: Chiama i soccorsi'
   titleKey: 
-  detail: Chiama il 112
+  detail: Chiama i soccorsi
   detailKey: 
   buttonKey: 
   actionKey: 
@@ -2007,6 +2051,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4128811915124020789, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1960924877}
+    - targetCorrespondingSourceObject: {fileID: 1342065481848776972, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 495204262}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 3605039293660023951, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
       insertIndex: -1
@@ -2031,6 +2078,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownNpc
   scenario: {fileID: 184011056}
   shoulderGrip: {fileID: 1960924880}
+  shoulderLabel: {fileID: 1960924879}
+--- !u!4 &977116457 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1342065481848776972, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+  m_PrefabInstance: {fileID: 977116454}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &982803225
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2619,33 +2672,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1226418510}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: SuppressLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
   grabExited:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1226418510}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: ShowLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!65 &1226418506
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2723,9 +2752,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
   kind: 1
   requiresHighlight: 0
-  title: Telefono
+  title: 'Telefono: Chiama i soccorsi'
   titleKey: 
-  detail: Chiama il 112
+  detail: Chiama i soccorsi
   detailKey: 
   buttonKey: 
   actionKey: 
@@ -3223,33 +3252,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1402183225}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: SuppressLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
   grabExited:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1402183225}
-        m_TargetAssemblyTypeName: SI81.ManDown.ManDownPhoneUi, Assembly-CSharp
-        m_MethodName: ShowLabel
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!65 &1402183221
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3327,9 +3332,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
   kind: 1
   requiresHighlight: 0
-  title: Telefono
+  title: 'Telefono: Chiama i soccorsi'
   titleKey: 
-  detail: Chiama il 112
+  detail: Chiama i soccorsi
   detailKey: 
   buttonKey: 
   actionKey: 

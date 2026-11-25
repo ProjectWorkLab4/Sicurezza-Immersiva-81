@@ -63,7 +63,7 @@ L'ambiente è considerato sicuro per direttiva approvata: non esistono pericoli 
 
 ### 5.2 Coscienza e soccorsi
 
-1. Il giocatore interagisce con l'NPC per verificarne lo stato di coscienza.
+1. Il giocatore interagisce con l'NPC per verificarne lo stato di coscienza con GRIP su una spalla. TASK 05.2: l'etichetta `GRIP` / `Afferra` resta visibile fino alla prima verifica valida, poi viene nascosta e compare il popup informativo condiviso "La persona è incosciente." con un solo pulsante "OK". Il messaggio non suggerisce di controllare la respirazione.
 2. Deve attivare i soccorsi con la **chiamata simulata al 112**. Interagendo con il telefono si apre il **popup decisionale comune** tramite `AskDecision("Chiami il 112?", new[] { "Sì", "No" }, callback, 0f)`: `Sì` (indice 0) chiama `Call112()` ed è l'unica scelta che registra la decisione; `No` (indice 1) chiude il popup **senza registrare alcuna azione** e lascia il telefono interagibile per un nuovo tentativo. Non è previsto un timeout del popup. Se la chiamata non viene mai effettuata, la penalità `EMERGENCY_NOT_CALLED` resta applicabile alla conclusione. **Nessun tastierino numerico, Canvas aggiuntivo o sistema UI personalizzato**: si usa solo `HUD_DecisionPanel` del kit condiviso, compatibile con Operational.
 3. Il **primo soccorso aziendale è escluso completamente**: nessuna chiamata aggiuntiva, nessuna attivazione automatica, nessun NPC dedicato, nessuna penalità relativa.
 4. La mancata chiamata è registrata come `EMERGENCY_NOT_CALLED`: comporta la penalizzazione prevista e impedisce il successo completo, ma **non impedisce la conclusione della missione**. In quel caso non si simula l'arrivo dei soccorsi e non si dichiara che l'NPC sia fuori pericolo; l'esito massimo è successo parziale.
@@ -71,14 +71,14 @@ L'ambiente è considerato sicuro per direttiva approvata: non esistono pericoli 
 
 ### 5.3 Percorso A — respirazione normale
 
-1. Il sistema comunica l'esito della verifica della respirazione tramite feedback appropriato.
+1. TASK 05.2: avvicinando un controller davanti alla bocca e mantenendolo fermo per **2,5 s** (durata configurabile) si completa la verifica; il sistema comunica l'esito con il popup informativo condiviso "La persona respira normalmente." (un solo pulsante "OK"). Non compaiono etichette o indicatori di avanzamento per la zona.
 2. Il giocatore monitora l'NPC e, se appropriato, può metterlo in posizione laterale: sostituzione/cambio posa semplificato, senza ragdoll.
 3. Dopo le procedure fondamentali si svolge una **breve fase finale di assistenza**, senza attesa passiva prolungata; la durata è configurabile e va validata.
 4. **Se il 112 è stato chiamato**, arriva simulato il soccorso e si valuta l'esito. **Se non è stato chiamato**, si applica la conclusione alternativa del §5.2: nessun arrivo, nessuna dichiarazione di fuori pericolo, esito massimo successo parziale.
 
 ### 5.4 Percorso B — respirazione anormale
 
-1. Il giocatore avvia la RCP tramite movimento fisico dei controller nella zona torace dedicata.
+1. TASK 05.2: il sistema comunica l'esito con il popup informativo condiviso "La respirazione è assente o anomala." (un solo pulsante "OK"), senza suggerire l'intervento. Il giocatore avvia poi la RCP tramite movimento fisico dei controller nella zona torace dedicata.
 2. La progressione usa compressioni valide distinte e frequenza adeguata:
    - con DAE disponibile: **20** compressioni valide prima dell'eventuale DAE;
    - dopo la defibrillazione: **20** compressioni valide;
@@ -118,9 +118,9 @@ Il diagramma rappresenta il percorso corretto e le conclusioni approvate. Il tim
 
 | Interazione | Comportamento atteso | Vincoli |
 |---|---|---|
-| Verifica coscienza | TASK 03 implementato: GRIP su `MESH_ShoulderGrip` con `Interactable`/`LabelAnchor` comuni (`Persona a terra` / `Verifica la coscienza`, `GRIP` / `Afferra`); `ManDownNpc` chiama `VerifyConsciousness()`, che registra una sola azione `CONSCIOUSNESS_CHECK` con `NPC incosciente`. Metodo pubblico ed evento disponibili; nessun avanzamento dell'obiettivo 2 o della fase HUD | Nessun ragdoll, scuotimento o spostamento fisico; reset ripristina la disponibilità |
-| Chiamata 112 | Interazione col telefono → popup comune `AskDecision("Chiami il 112?", ["Sì", "No"])`; `Sì` → `Call112()` e registrazione della decisione; `No` → popup chiuso, nessuna registrazione, telefono riutilizzabile | Nessuna digitazione, tastierino numerico, Canvas o UI personalizzata; nessun primo soccorso aziendale; popup disponibile anche in Operational; penalità `EMERGENCY_NOT_CALLED` solo se la chiamata non avviene mai |
-| Verifica respirazione | Esito coerente con la variabile iniziale; indicio visivo transform-based | 70/30 configurabile e forzabile |
+| Verifica coscienza | TASK 03: GRIP su `MESH_ShoulderGrip` con `Interactable`/`LabelAnchor` comuni (`Persona a terra` / `Verifica la coscienza`, `GRIP` / `Afferra`); `VerifyConsciousness()` registra una sola `CONSCIOUSNESS_CHECK` con `NPC incosciente`. TASK 05.2: etichetta iniziale mantenuta e nascosta dopo la verifica, popup "La persona è incosciente." con solo "OK", obiettivo "Verifica coscienza e respiro" aggiornato quando anche la respirazione è valutata | Nessun ragdoll, scuotimento o spostamento fisico; nessun suggerimento sulla respirazione; reset ripristina etichetta e popup |
+| Chiamata 112 | Targhetta Interaction di prossimità "Telefono: Chiama i soccorsi" con GRIP/Afferra (come l'NPC), rimossa su tutti i telefoni dopo il Sì; interazione → popup comune `AskDecision("Chiami il 112?", ["Sì", "No"])`; `Sì` → `Call112()` e registrazione della decisione; `No` → popup chiuso, nessuna registrazione, telefono riutilizzabile | Nessuna digitazione, tastierino numerico, Canvas o UI personalizzata; nessun primo soccorso aziendale; popup disponibile anche in Operational; penalità `EMERGENCY_NOT_CALLED` solo se la chiamata non avviene mai |
+| Verifica respirazione | TASK 05.1: `ManDownScenario.VerifyBreathing()` applica l'esito iniziale e conserva registro/timestamp della prima valutazione. TASK 05.2: `ManDownBreathingZone` rileva la presenza fisica di una sola ancora controller davanti alla bocca per 2,5 s configurabili e richiama `ManDownNpc.AssessBreathing()`; popup condiviso sull'esito, ripetibile senza duplicati. Indicio visivo transform-based ancora da implementare | 70/30 configurabile e forzabile; la randomizzazione resta solo nel controller; nessun pulsante, raycast, etichetta o indicatore di avanzamento per la zona; la coscienza non è obbligatoria prima della respirazione |
 | Posizione laterale | Cambio posa semplificato | Solo nel ramo normale |
 | RCP | Movimento fisico dei controller su zona torace; due soglie, riarmo, ampiezza, frequenza | Rilevamento separato dalla valutazione; nessuna forza simulata; nessuna ventilazione |
 | DAE | Recupero, attivazione, elettrodi provvisori con snap, analisi simulata, defibrillazione, ripresa RCP | Nessun cavo fisico; errori recuperabili ma registrati |
@@ -173,7 +173,7 @@ Tutte le cause di fallimento presenti vanno registrate, garantendo una sola conc
 
 - **Visivo:** indizio di respirazione transform-based; indicatore della zona torace per la RCP; cambio posa; snap degli elettrodi; feedback su azioni corrette/errate; schermate di esito nella UI finale.
 - **Audio:** non ci sono asset audio nel gruppo: ambiente, chiamata simulata, istruzioni DAE e conferme non sono ancora disponibili. Non inventarli in questo task.
-- **Testo:** istruzioni essenziali e riepilogo finale saranno aggiunti con la UI comune; per ora la logica può esporre eventi e ID. La domanda sul 112 usa il pannello decisionale comune `HUD_DecisionPanel` (`AskDecision`), non una UI del gruppo.
+- **Testo:** istruzioni essenziali e riepilogo finale saranno aggiunti con la UI comune; la logica espone eventi e ID. La domanda sul 112 usa il pannello decisionale comune `HUD_DecisionPanel` (`AskDecision`), non una UI del gruppo. TASK 05.2 usa lo stesso pannello per tre messaggi informativi con una sola opzione "OK": "La persona è incosciente.", "La persona respira normalmente." e "La respirazione è assente o anomala.". L'uso con una sola opzione è tecnicamente supportato ma non previsto dal contratto documentato (2–4 opzioni), in attesa di conferma del team UI; senza pannello si ripiega su `Alert`.
 - **Accessibilità:** non affidare informazioni critiche solo al colore o solo all'audio; mantenere leggibilità in VR.
 
 ## 11. Integrazione tecnica e confini del gruppo
@@ -191,7 +191,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 9. Il rig è quello condiviso di `SCN_Core` (integrato nel 2026-11-25): non creare un rig locale, un altro input o un'altra interazione. La vecchia indicazione di un rig temporaneo inserito dall'utente è superata.
 10. Alla fine di ogni task, registrare in `AGENTS.md` **solo** file realmente creati/modificati, comportamento implementato, verifiche eseguite e problemi aperti. **Non segnare come completato ciò che non è stato testato.**
 11. Per ogni task indicare prima file e prefab coinvolti; chiedere conferma per modifiche con impatto esterno alla directory autorizzata.
-12. Per la chiamata al 112 usare `AskDecision` della classe base: il pannello comune è disponibile in tutti i livelli, **Operational incluso** (nessun filtro per livello nel codice di `ScenarioController`/`DecisionPanel`). Per Man Down si usa `timeoutSeconds=0`: nessun limite e nessuna barra; solo `Sì` registra tramite `Call112()`, mentre `No` chiude il popup senza registrare e consente una nuova interazione col telefono. Un eventuale timeout futuro (`-1`) andrebbe trattato come `No`. Il timer del pannello è distinto dal timer della missione, che continua a scorrere. Non creare tastierini numerici, Canvas o UI personalizzata.
+12. Per la chiamata al 112 usare `AskDecision` della classe base: il pannello comune è disponibile in tutti i livelli, **Operational incluso** (nessun filtro per livello nel codice di `ScenarioController`/`DecisionPanel`). Per Man Down si usa `timeoutSeconds=0`: nessun limite e nessuna barra; solo `Sì` registra tramite `Call112()`, mentre `No` chiude il popup senza registrare e consente una nuova interazione col telefono. Un eventuale timeout futuro (`-1`) andrebbe trattato come `No`. Il timer del pannello è distinto dal timer della missione, che continua a scorrere. Non creare tastierini numerici, Canvas o UI personalizzata. Per i tre popup informativi dell'NPC (TASK 05.2) si usa lo stesso `AskDecision` con una sola opzione "OK", senza modifiche condivise: uso tecnicamente supportato dal pannello reale ma non previsto dal contratto documentato (2–4 opzioni), in attesa di conferma del team UI; se il pannello manca si ripiega su `Alert`. La zona di respirazione usa il BoxCollider trigger e le sole ancore controller del rig condiviso, senza raycast, pulsanti o etichette aggiuntive.
 
 ### Nomenclatura richiesta dal gruppo
 

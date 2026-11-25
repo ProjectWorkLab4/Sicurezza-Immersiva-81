@@ -54,6 +54,10 @@ namespace SI81.ManDown
         public const string CONSCIOUSNESS_RESULT = "NPC incosciente";
         /// <summary>Azione: verifica della respirazione.</summary>
         public const string ACTION_BREATHING_CHECK = "BREATHING_CHECK";
+        /// <summary>Risultato registrato della verifica della respirazione: normale.</summary>
+        public const string BREATHING_RESULT_NORMAL = "normal";
+        /// <summary>Risultato registrato della verifica della respirazione: assente o anomala.</summary>
+        public const string BREATHING_RESULT_ABNORMAL = "abnormal";
         /// <summary>Azione: chiamata simulata al 112.</summary>
         public const string ACTION_CALL_112 = "CALL_112";
         /// <summary>Azione: avvio della RCP.</summary>
@@ -146,6 +150,7 @@ namespace SI81.ManDown
         private bool aedAvailable;
         private bool consciousnessChecked;
         private bool breathingChecked;
+        private float breathingAssessedAt = -1f;
         private bool call112Made;
         private bool cprStarted;
         private bool aedActivated;
@@ -222,6 +227,22 @@ namespace SI81.ManDown
         public bool IsConsciousnessChecked => consciousnessChecked;
         /// <summary>Respirazione verificata.</summary>
         public bool IsBreathingChecked => breathingChecked;
+        /// <summary>
+        /// Secondi dall'inizio della missione della prima valutazione valida della respirazione; -1 se non ancora effettuata.
+        /// Il valore non cambia se la valutazione viene ripetuta.
+        /// </summary>
+        public float BreathingAssessedAt => breathingAssessedAt;
+        /// <summary>Risultato rilevato della respirazione; vuoto finché la verifica non è stata effettuata.</summary>
+        public string BreathingResult => IsBreathingChecked
+            ? (breathingAbnormal ? BREATHING_RESULT_ABNORMAL : BREATHING_RESULT_NORMAL)
+            : string.Empty;
+        /// <summary>
+        /// Ramo della respirazione dopo la valutazione: normale oppure assente/anomala. Deriva dallo stato
+        /// autorevole del controller e non introduce una seconda fonte di verità.
+        /// </summary>
+        public ManDownBreathingBranch BreathingBranch => !breathingChecked
+            ? ManDownBreathingBranch.NotAssessed
+            : breathingAbnormal ? ManDownBreathingBranch.AbsentOrAbnormal : ManDownBreathingBranch.Normal;
         /// <summary>112 chiamato.</summary>
         public bool IsCall112Made => call112Made;
         /// <summary>RCP avviata o risultato RCP ricevuto.</summary>
@@ -354,22 +375,30 @@ namespace SI81.ManDown
 
         /// <summary>
         /// Verifica della respirazione: applica il risultato iniziale (casuale o forzato) e passa al ramo corretto.
-        /// La verifica non cambia il risultato: le condizioni restano stabili per tutta la partita.
+        /// La verifica non cambia il risultato: le condizioni restano stabili per tutta la partita. La prima
+        /// valutazione valida registra BREATHING_CHECK con il suo timestamp; le successive non duplicano il
+        /// registro né spostano il timestamp, ma riemettono BreathingAssessed così che la valutazione possa
+        /// essere ripetuta dalla futura interazione VR. Non è un passaggio obbligatorio per le altre azioni.
         /// </summary>
         public void VerifyBreathing()
         {
-            if (!AcceptsActions || breathingChecked) return;
+            if (!AcceptsActions) return;
 
-            breathingChecked = true;
-            RecordAction(ACTION_BREATHING_CHECK, true, true, breathingAbnormal ? "abnormal" : "normal");
+            if (!breathingChecked)
+            {
+                breathingChecked = true;
+                breathingAssessedAt = Time.time - missionStartTime;
+                RecordAction(ACTION_BREATHING_CHECK, true, true, breathingAbnormal ? BREATHING_RESULT_ABNORMAL : BREATHING_RESULT_NORMAL);
 
-            if (breathingAbnormal && (sidePositionPlaced || monitoringCompleted)) incompatibleProcedure = true;
-            if (!breathingAbnormal && cprStarted) incompatibleProcedure = true;
+                if (breathingAbnormal && (sidePositionPlaced || monitoringCompleted)) incompatibleProcedure = true;
+                if (!breathingAbnormal && cprStarted) incompatibleProcedure = true;
 
-            if (phase == ManDownPhase.Initialization || phase == ManDownPhase.ConsciousnessAssessment ||
-                phase == ManDownPhase.BreathingAssessment || phase == ManDownPhase.Assistance || phase == ManDownPhase.Cpr)
-                ChangePhase(breathingAbnormal ? ManDownPhase.Cpr : ManDownPhase.Assistance);
+                if (phase == ManDownPhase.Initialization || phase == ManDownPhase.ConsciousnessAssessment ||
+                    phase == ManDownPhase.BreathingAssessment || phase == ManDownPhase.Assistance || phase == ManDownPhase.Cpr)
+                    ChangePhase(breathingAbnormal ? ManDownPhase.Cpr : ManDownPhase.Assistance);
+            }
 
+            // Ripetizione consentita: stesso risultato e stesso timestamp, senza una seconda voce nel registro.
             BreathingAssessed?.Invoke(breathingAbnormal);
         }
 
@@ -893,6 +922,7 @@ namespace SI81.ManDown
             aedAvailable = false;
             consciousnessChecked = false;
             breathingChecked = false;
+            breathingAssessedAt = -1f;
             call112Made = false;
             cprStarted = false;
             aedActivated = false;

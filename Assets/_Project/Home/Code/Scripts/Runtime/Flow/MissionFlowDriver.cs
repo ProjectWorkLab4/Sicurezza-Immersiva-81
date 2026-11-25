@@ -1,4 +1,5 @@
 using System.Collections;
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.UI
@@ -23,12 +24,8 @@ namespace SI81.UI
         [Tooltip("Attesa prima di PANEL_TrainingComplete (il Training non ha esito), in secondi.")]
         [SerializeField] private float trainingEndDelay = 0.5f;
 
-        [Header("Pausa")]
-        [Tooltip("Abilita anche il tasto P (solo Editor e Development Build).")]
-        [SerializeField] private bool keyboardPause = true;
-
-        // Ingresso della pausa.
-        private PauseInput pauseInput;
+        // Input Service da cui arriva il tasto Menu (pausa).
+        private InputService inputService;
         // Sequenza di fine missione in corso (null se nessuna).
         private Coroutine endRoutine;
         // Gestore a cui siamo iscritti.
@@ -41,9 +38,8 @@ namespace SI81.UI
         /// </summary>
         private void OnEnable()
         {
-            pauseInput = new PauseInput(keyboardPause);
-            pauseInput.Pressed += HandlePausePressed;
-            pauseInput.Enable();
+            inputService = InputService.EnsureInstance();
+            inputService.MenuPerformed += HandleMenuPerformed;
             MissionSession.Ended += HandleEnded;
             MissionSession.Started += HandleStarted;
         }
@@ -62,11 +58,10 @@ namespace SI81.UI
         /// </summary>
         private void OnDisable()
         {
-            if (pauseInput != null)
+            if (inputService != null)
             {
-                pauseInput.Pressed -= HandlePausePressed;
-                pauseInput.Dispose();
-                pauseInput = null;
+                inputService.MenuPerformed -= HandleMenuPerformed;
+                inputService = null;
             }
             MissionSession.Ended -= HandleEnded;
             MissionSession.Started -= HandleStarted;
@@ -90,9 +85,10 @@ namespace SI81.UI
         }
 
         /// <summary>
-        /// Tasto di pausa premuto: alterna la pausa (ignorato fuori missione o durante l'esito).
+        /// Tasto Menu premuto: alterna la pausa (ignorato fuori missione o durante l'esito).
         /// </summary>
-        private void HandlePausePressed()
+        /// <param name="hand">Mano che ha premuto Menu.</param>
+        private void HandleMenuPerformed(Hand hand)
         {
             MissionFlow.TogglePause();
         }

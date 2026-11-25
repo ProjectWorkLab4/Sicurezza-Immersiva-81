@@ -1,0 +1,17 @@
+{
+    "name": "SI81.Rig",
+    "rootNamespace": "SI81.Rig",
+    "references": [
+        "SI81.Input",
+        "Oculus.VR"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -14,7 +14,7 @@ namespace SI81.UI
     /// </summary>
     public static class XRHandDevices
     {
-        /// <summary>Nome del controllo della posizione "aim" sui controller OpenXR (stesso dei binding di UIInputActions).</summary>
+        /// <summary>Nome del controllo della posizione "aim" sui controller OpenXR (stesso dei binding di InputBindings).</summary>
         public const string POINTER_POSITION = "pointerPosition";
         /// <summary>Nome del controllo della rotazione "aim" sui controller OpenXR.</summary>
         public const string POINTER_ROTATION = "pointerRotation";

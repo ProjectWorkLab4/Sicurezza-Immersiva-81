@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Linq;
 using NUnit.Framework;
+using SI81.Input;
 using SI81.UI;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -29,7 +30,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         public IEnumerator TearDown()
         {
             Time.timeScale = 1f;
-            if (d.Rig != null) d.Rig.RightHand.Release();
+            d.Unload();
             yield return null;
         }
 
@@ -49,15 +50,17 @@ namespace SI81.Ludovica.ElectricShock.Tests
             Assert.IsTrue(d.Get<FireSource>("fire").IsBurning, "La pozza deve accendersi 2 s dopo l'arresto");
             yield return d.SprayFire(powder, 2f, 6f);
             Assert.IsTrue(d.Get<FireSource>("fire").WasExtinguished);
-            d.Rig.RightHand.Release();
+            d.Release(powder);
 
             var victim = d.Get<InjuredPerson>("victim");
             d.Teleport(16f, 6.6f, 0f);
-            victim.CheckConsciousness();
-            victim.PlaceInPosition();
+            victim.BeginSelect(Hand.Right);
+            victim.BeginSelect(Hand.Right);
+            Assert.IsTrue(victim.ConsciousnessChecked && victim.Positioned, "Grilletto: prima coscienza e respiro, poi posizione");
             yield return new WaitForSeconds(11f);
-            d.Get<ParamedicInShock>("paramedicInShock").FollowTarget(d.Rig.Head);
-            d.Rig.TeleportTo(d.Get<Transform>("safePoint").position, 0f);
+            d.Get<ParamedicInShock>("paramedicInShock").FollowTarget(d.Head);
+            var safe = d.Get<Transform>("safePoint").position;
+            d.Teleport(safe.x, safe.z, 0f);
             yield return new WaitForSeconds(12f);
             Assert.IsTrue(d.Get<ParamedicInShock>("paramedicInShock").IsSafe, "PM-1 deve arrivare al punto sicuro");
 
@@ -73,7 +76,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         [UnityTest]
         public IEnumerator TouchVictimWithPowerOn_IsNegative()
         {
-            d.Get<InjuredPerson>("victim").OnContact(d.Rig.RightHand);
+            d.Get<InjuredPerson>("victim").BeginSelect(Hand.Right);
             yield return null;
             Assert.AreEqual(OutcomeType.Negative, d.Outcome);
             Assert.IsTrue(d.Logged("LG-08"));
@@ -84,7 +87,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         public IEnumerator TouchCable_OnlyDangerousWithPower()
         {
             d.Get<EmergencyStopButton>("emergencyStop").Press();
-            d.Get<LiveCable>("cable").OnContact(d.Rig.RightHand);
+            d.Get<LiveCable>("cable").BeginSelect(Hand.Right);
             yield return null;
             Assert.IsTrue(d.Scenario.IsRunning, "Senza corrente il cavo non è pericoloso");
             Assert.IsFalse(d.Logged("LG-24"));
@@ -158,7 +161,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
             d.Get<EmergencyStopButton>("emergencyStop").Press();
             yield return new WaitForSeconds(2.5f);
             yield return d.SprayFire(powder, 2f, 6f);
-            d.Rig.RightHand.Release();
+            d.Release(powder);
             d.Teleport(10f, 12f, 0f);
 
             float maxOpen = 0f;
@@ -213,11 +216,10 @@ namespace SI81.Ludovica.ElectricShock.Tests
             yield return new WaitForSeconds(2f);
             d.Teleport(14.8f, 6.6f, 270f);
             yield return null;
-            d.Rig.Head.localRotation = Quaternion.identity;
             var victim = d.Get<InjuredPerson>("victim");
-            victim.OnUseStart(d.Rig.RightHand);
+            victim.BeginGrab(Hand.Right);
             yield return new WaitForSeconds(4f);
-            victim.OnUseEnd(d.Rig.RightHand);
+            victim.EndGrab(Hand.Right);
             Assert.IsTrue(victim.WasMoved);
             yield return d.WaitEnd(20f);
             Assert.AreEqual(OutcomeType.Partial, d.Outcome);
@@ -235,7 +237,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
             var generatorBounds = d.Get<GeneratorUnit>("generator").GetComponent<BoxCollider>().bounds;
             generatorBounds = new Bounds(new Vector3(generatorBounds.center.x, 0.5f, generatorBounds.center.z), new Vector3(generatorBounds.size.x, 2f, generatorBounds.size.z));
             d.Teleport(20f, 12.5f, 180f);
-            pm1.FollowTarget(d.Rig.Head);
+            pm1.FollowTarget(d.Head);
             bool crossed = false;
             float until = Time.time + 20f;
             while (Time.time < until)
@@ -246,6 +248,99 @@ namespace SI81.Ludovica.ElectricShock.Tests
             }
             Assert.IsFalse(crossed, "PM-1 ha attraversato il generatore");
             Assert.Less(Vector3.Distance(pm1.transform.position, new Vector3(20f, 0f, 12.5f)), 2.5f, "PM-1 deve raggiungere il giocatore");
+        }
+
+        /// <summary>Grilletto sull'estintore al rack legge l'etichetta; afferrato va in mano con l'ugello in avanti.</summary>
+        [UnityTest]
+        public IEnumerator Extinguisher_SelectReadsLabel_GrabPutsItInHand()
+        {
+            var co2 = d.Extinguisher(ExtinguisherAgent.CO2);
+            co2.BeginSelect(Hand.Right);
+            Assert.IsTrue(co2.LabelRead, "Il grilletto sull'estintore deve leggere l'etichetta");
+            d.Grab(co2);
+            yield return null;
+            Assert.IsTrue(co2.IsHeld);
+            Assert.AreEqual(d.RightHand, co2.transform.parent, "Afferrato deve stare nella mano");
+            Assert.Greater(Vector3.Dot(co2.transform.forward, d.Head.forward), 0.9f, "L'ugello deve puntare dove guarda il giocatore");
+            d.Release(co2);
+            Assert.IsFalse(co2.IsHeld);
+            Assert.AreEqual(0f, co2.transform.position.y, 0.01f, "Lasciato deve tornare dritto a terra");
+        }
+
+        /// <summary>Grilletto su un collega = il giocatore parla: i colleghi escono.</summary>
+        [UnityTest]
+        public IEnumerator SelectOnColleague_Shouts()
+        {
+            var by = d.Get<Bystander[]>("bystanders");
+            d.Teleport(14f, 5f, 90f);
+            by[0].GetComponent<ShoutTarget>().BeginSelect(Hand.Right);
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(d.Logged("LG-14"));
+            Assert.AreEqual(Bystander.State.Evacuating, by[0].Current);
+        }
+
+        /// <summary>Simula il RayInteractor condiviso: chiama i metodi interni di Interactable come fa il raggio.</summary>
+        private static void Ray(Component target, string method, Hand hand)
+        {
+            var interactable = target.GetComponent<SI81.Interaction.Interactable>();
+            Assert.IsNotNull(interactable, target.name + " senza Interactable");
+            typeof(SI81.Interaction.Interactable).GetMethod(method, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(interactable, new object[] { hand });
+        }
+
+        /// <summary>
+        /// Catena completa raggio condiviso -> Interactable -> oggetti dello scenario: grilletto sulla chiave ferma il generatore,
+        /// grip sull'estintore lo mette in mano, permessi Select/Grab corretti per ogni oggetto.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SharedInteractable_EventsReachScenarioObjects()
+        {
+            var key = d.Get<EmergencyStopButton>("emergencyStop");
+            var keyI = key.GetComponent<SI81.Interaction.Interactable>();
+            Assert.IsTrue(keyI.CanSelect(Hand.Right));
+            Assert.IsFalse(keyI.CanGrab(Hand.Right), "La chiave non si afferra");
+            Assert.IsFalse(keyI.FollowsHand);
+
+            var barrier = Object.FindObjectsByType<BarrierPanel>(FindObjectsSortMode.None)[0].GetComponent<SI81.Interaction.Interactable>();
+            Assert.IsFalse(barrier.CanSelect(Hand.Right), "Il grilletto non fa nulla sulla barriera");
+            Assert.IsTrue(barrier.CanGrab(Hand.Right));
+
+            var ext = d.Extinguisher(ExtinguisherAgent.Powder);
+            Ray(ext, "GrabEnter", Hand.Right);
+            yield return null;
+            Assert.IsTrue(ext.IsHeld, "Grip dal raggio: estintore in mano");
+            Ray(ext, "GrabExit", Hand.Right);
+            Assert.IsFalse(ext.IsHeld);
+
+            Ray(key, "SelectEnter", Hand.Right);
+            Ray(key, "SelectExit", Hand.Right);
+            yield return null;
+            Assert.IsFalse(d.Get<GeneratorUnit>("generator").IsRunning, "Grilletto dal raggio sulla chiave: generatore fermo");
+        }
+
+        /// <summary>
+        /// Primo avvio: un solo rig, una sola camera attiva, un solo EventSystem, ponte UI registrato,
+        /// rig portato su MNG_SpawnPoint e fermo (non cade).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FirstRun_SharedRigIsSetUpOnce()
+        {
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(1, Object.FindObjectsByType<SI81.Rig.RigRegistration>(FindObjectsSortMode.None).Length, "Un solo rig");
+            var rig = SI81.Rig.RigRegistration.Instance;
+            Assert.IsNotNull(rig);
+            Assert.IsNotNull(rig.Bridge, "Ponte rig-UI non registrato");
+            Assert.AreEqual(1, Object.FindObjectsByType<Camera>(FindObjectsSortMode.None).Count(c => c.isActiveAndEnabled), "Una sola camera attiva");
+            Assert.AreEqual(1, Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsSortMode.None).Length, "Un solo EventSystem");
+            var spawn = Object.FindFirstObjectByType<SI81.Rig.SpawnPoint>();
+            Assert.IsNotNull(spawn, "Manca SpawnPoint");
+            Assert.AreEqual("MNG_SpawnPoint", spawn.name);
+            Vector3 origin = rig.TrackingOrigin.position;
+            Vector2 d2 = new Vector2(origin.x - spawn.transform.position.x, origin.z - spawn.transform.position.z);
+            Assert.Less(d2.magnitude, 0.5f, "Rig non portato sullo spawn");
+            yield return new WaitForSeconds(1f);
+            Assert.Less(Mathf.Abs(rig.TrackingOrigin.position.y - origin.y), 0.05f, "Il rig sta cadendo");
+            Assert.Greater(rig.TrackingOrigin.position.y, -0.1f, "Rig sotto il pavimento");
         }
     }
 }

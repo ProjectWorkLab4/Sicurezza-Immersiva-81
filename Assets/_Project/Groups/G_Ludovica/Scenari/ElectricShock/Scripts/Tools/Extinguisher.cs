@@ -1,5 +1,5 @@
 using System;
-using SI81.Ludovica.TempCore;
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock
@@ -16,9 +16,9 @@ namespace SI81.Ludovica.ElectricShock
     }
 
     /// <summary>
-    /// EXT-1/2/3: estintore con etichetta. Grip = afferra, A/X = leggi l'etichetta, grilletto = spruzza davanti all'ugello.
+    /// EXT-1/2/3: estintore con etichetta. Grilletto sul rack = leggi l'etichetta, grip = afferra, grilletto in mano = spruzza davanti all'ugello.
     /// </summary>
-    public class Extinguisher : TempInteractable
+    public class Extinguisher : ScenarioInteractable
     {
         [Tooltip("Agente estinguente.")]
         [SerializeField] private ExtinguisherAgent agent = ExtinguisherAgent.Powder;
@@ -70,44 +70,91 @@ namespace SI81.Ludovica.ElectricShock
             _ => "CO2"
         };
 
+        private Hand sprayHand;
+        private bool listening;
+
         /// <summary>true: si può afferrare.</summary>
         public override bool IsGrabbable => true;
 
         /// <summary>Carica piena all'avvio.</summary>
-        private void Awake() => charge = capacitySeconds;
-
-        /// <summary>Afferrato: in Guided legge l'etichetta da solo.</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnGrab(TempHand hand)
+        protected override void Awake()
         {
-            base.OnGrab(hand);
+            base.Awake();
+            charge = capacitySeconds;
+        }
+
+        /// <summary>Si disiscrive dall'input.</summary>
+        protected override void OnDestroy()
+        {
+            StopListening();
+            base.OnDestroy();
+        }
+
+        /// <summary>Grilletto puntando l'estintore sul rack: legge l'etichetta.</summary>
+        /// <param name="hand">Mano.</param>
+        protected override void OnSelectStart(Hand hand)
+        {
+            if (!IsHeld) ReadLabel();
+        }
+
+        /// <summary>Afferrato (grip): in Guided legge l'etichetta da solo; il grilletto di quella mano spruzza.</summary>
+        /// <param name="hand">Mano.</param>
+        protected override void OnGrabStart(Hand hand)
+        {
             Grabbed?.Invoke(this);
             if (AutoReadLabel) ReadLabel();
+            sprayHand = hand;
+            var input = InputService.Instance;
+            if (input != null && !listening)
+            {
+                input.SelectPerformed += HandleSelectPerformed;
+                input.SelectCanceled += HandleSelectCanceled;
+                listening = true;
+            }
         }
 
         /// <summary>Lasciato: smette di spruzzare e si appoggia a terra.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnRelease(TempHand hand)
+        protected override void OnGrabEnd(Hand hand)
         {
-            base.OnRelease(hand);
+            StopListening();
             SetSpraying(false);
             DropUpright();
         }
 
-        /// <summary>A/X: legge l'etichetta.</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnInspect(TempHand hand) => ReadLabel();
-
-        /// <summary>Grilletto premuto: spruzza (solo se tenuto in mano).</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnUseStart(TempHand hand)
+        /// <summary>Grilletto premuto con la mano che tiene l'estintore.</summary>
+        private void HandleSelectPerformed(Hand hand)
         {
-            if (HeldBy != null) SetSpraying(true);
+            if (IsHeld && hand == sprayHand) StartSpray();
         }
 
-        /// <summary>Grilletto rilasciato: smette di spruzzare.</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnUseEnd(TempHand hand) => SetSpraying(false);
+        /// <summary>Grilletto rilasciato con la mano che tiene l'estintore.</summary>
+        private void HandleSelectCanceled(Hand hand)
+        {
+            if (hand == sprayHand) StopSpray();
+        }
+
+        /// <summary>Smette di ascoltare il grilletto.</summary>
+        private void StopListening()
+        {
+            if (!listening) return;
+            var input = InputService.Instance;
+            if (input != null)
+            {
+                input.SelectPerformed -= HandleSelectPerformed;
+                input.SelectCanceled -= HandleSelectCanceled;
+            }
+            listening = false;
+        }
+
+        /// <summary>Inizia a spruzzare (solo se tenuto in mano). Pubblico anche per i test.</summary>
+        public void StartSpray()
+        {
+            if (IsHeld) SetSpraying(true);
+        }
+
+        /// <summary>Smette di spruzzare.</summary>
+        public void StopSpray() => SetSpraying(false);
 
         /// <summary>Posa nella mano: ugello in avanti.</summary>
         public override void GetHoldPose(out Vector3 localPosition, out Quaternion localRotation)

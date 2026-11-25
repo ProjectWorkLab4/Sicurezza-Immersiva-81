@@ -2,7 +2,7 @@
 
 Gruppo **G_Ludovica**. Implementazione della specifica `10_Electric_Shock_LITE_specifica_IT.md` (consegna 27/11/2026).
 Stato: logica completa, **collegato alla UI comune** (missione 10 nel catalogo, Home → Mission Brief → scenario → Debrief),
-**modelli segnaposto**, interazioni VR in attesa del VR Interaction System.
+**rig e controlli condivisi** del `main` (`SI81.Input`, `SI81.Rig`, `SI81.Interaction`), alcuni modelli ancora segnaposto.
 
 ## Cartelle
 
@@ -16,9 +16,8 @@ Stato: logica completa, **collegato alla UI comune** (missione 10 nel catalogo, 
 | `Data/ElectricShock_DebriefPhrases.json` | Frasi del debrief LG-01…26 e percorso corretto (si modificano senza toccare il codice) |
 | `Data/NAV_ElectricShock.asset` | NavMesh della scena (agente di default, nessuna modifica a ProjectSettings) |
 | `Art/Materials/` | Materiali segnaposto `MAT_Placeholder*`, `MAT_VFX_Placeholder*` |
-| `Temp/` | **[TEMP]** rig e interazioni temporanee (`TempRig`, `TempHand`, `TempInteractable`): oggi usati solo dai test, da sostituire con il VR Interaction System |
 | `Tests/EditMode`, `Tests/PlayMode` | Test automatici (Window → General → Test Runner) |
-| `*.asmdef` | Assembly propri: `SI81.Ludovica.TempCore`, `SI81.Ludovica.ElectricShock`, `.Editor`, `.Tests.*` (riferiscono `SI81.UI`) |
+| `*.asmdef` | Assembly propri: `SI81.Ludovica.ElectricShock`, `.Editor`, `.Tests.*` (riferiscono `SI81.UI`, `SI81.Input`, `SI81.Interaction`, `SI81.Rig`) |
 
 > Attenzione: rieseguire il menu del builder **riscrive** la scena. Le modifiche fatte a mano nella scena vanno perse.
 
@@ -32,27 +31,33 @@ esito e Debrief sono quelli della UI comune.
 
 **Quest:** build normale del progetto (Build Settings: `SCN_Core` all'indice 0, poi gli scenari).
 
-**Interazioni:** il rig di `SCN_Core` per ora non ha camminata né afferrare (arrivano con il VR Interaction System, sul `main`).
-Finché non c'è, nello scenario si guarda la scena e gli eventi (colleghi, accensione, PM-2, esplosione) procedono da soli;
-le azioni del giocatore sono verificate dai test Play Mode con il rig temporaneo di prova.
+**Interazioni:** si usa il rig condiviso di `SCN_Core` (raggio dalla mano, 5 m). Ogni oggetto dello scenario ha un `Interactable`
+condiviso più un componente dello scenario derivato da `ScenarioInteractable`, che riceve gli eventi Select/Grab del raggio.
+Il giocatore parte da `MNG_SpawnPoint` (`SI81.Rig.SpawnPoint`). Nell'Editor senza visore: WASD per camminare, Q/E per girare,
+tasto sinistro del mouse = grilletto, tasto destro = grip.
 
-## Interazioni previste (oggi nel rig temporaneo, poi nel VR Interaction System)
+## Controlli (rig condiviso)
 
 | Oggetto | Azione |
 | --- | --- |
-| PB-01 arresto di emergenza | grilletto toccandolo |
-| Estintori (rack RK-02) | grip = prendi · A/X = leggi etichetta · grilletto = spruzza |
-| Barriere (rack RK-01) | grip = prendi · lasciale vicino ai segni gialli sul varco DR-03 (si agganciano) |
-| Radio RD-01 | grilletto = chiama il 112 |
-| Collega VT-01 | A/X = coscienza e respiro · grilletto breve = posizione · grilletto tenuto = trascina · restare entro 2 m per 10 s = "resta con lui" |
-| PM-1 | grilletto tenuto 3 s = ti segue; portalo al cerchio verde SAFE-01 |
-| Colleghi, PM-2 | B/Y (parla) entro 15 m |
+Levetta sinistra = cammina (verso lo sguardo) · levetta destra = gira di 45° · tutti i comandi si fanno **puntando il raggio**.
 
-Toccare cavo o collega con la corrente presente = folgorazione (errore critico). Il tasto Menu sinistro è la Pausa della UI: lo scenario non lo usa.
+| Oggetto | Azione |
+| --- | --- |
+| PB-01 chiave del generatore | grilletto = gira la chiave, il generatore si ferma |
+| Estintori (rack RK-02) | grilletto = leggi l'etichetta · grip tenuto = in mano · con l'estintore in mano, grilletto tenuto = spruzza · lascia il grip = lo posa |
+| Barriere (rack RK-01) | grip tenuto = in mano · lasciale vicino ai segni gialli sul varco DR-03 (si agganciano) |
+| Radio RD-01 | grilletto = chiama il 112 |
+| Collega VT-01 | grilletto la 1ª volta = coscienza e respiro · grilletto la 2ª volta = posizione · grip tenuto = trascina verso di te · restare entro 2 m per 10 s = "resta con lui" |
+| PM-1 | grilletto tenuto 3 s = ti segue; portalo al cerchio verde SAFE-01 |
+| Colleghi BY-01/02/03, PM-2 | grilletto puntando una persona = "Fermi! Allontanatevi!" (vale per tutti entro 15 m) |
+
+Toccare cavo o collega (grilletto o grip) con la corrente presente = folgorazione (errore critico).
+Menu sinistro = Pausa della UI, B/Y = indietro nella UI: lo scenario non li usa. A/X non sono usati (scelta del rig condiviso).
 
 ## Test automatici
 
-Test Runner → **EditMode** (8 test, meno di 1 s) e **PlayMode** (12 test, circa 75 s, con `SCN_Core` e la UI comune caricate; il tempo di gioco scorre 3 volte più veloce).
+Test Runner → **EditMode** (8 test, meno di 1 s) e **PlayMode** (16 test, circa 80 s, con `SCN_Core` e la UI comune caricate; il tempo di gioco scorre 3 volte più veloce).
 Da riga di comando: `unity command test run --mode editor --filter SI81.Ludovica.ElectricShock.Tests.EditMode --filter-type Assembly`
 e `unity command test run --mode playmode --async-tests true --filter SI81.Ludovica.ElectricShock.Tests.PlayMode --filter-type Assembly`.
 
@@ -64,7 +69,10 @@ e `unity command test run --mode playmode --async-tests true --filter SI81.Ludov
   acqua → Negativo (LG-11); spruzzo da vicino; colleghi ignorati → Negativo (LG-15); grido → i colleghi escono (LG-14);
   PM-2 alla barriera chiusa → entra quando è sicuro, barriere che si aprono e richiudono, PM-1 portato via da PM-2;
   varco aperto e zona non sicura → Negativo (LG-23); giocatore nella vampata → Negativo (LG-17); collega trascinato fuori → Parziale (LG-16);
-  PM-1 gira attorno al generatore (NavMesh).
+  PM-1 gira attorno al generatore (NavMesh); grilletto sull'estintore legge l'etichetta e grip lo mette in mano; grilletto su un collega = grido;
+  catena raggio condiviso → `Interactable` → oggetti dello scenario (permessi Select/Grab, chiave, estintore);
+  primo avvio: un solo rig, una sola camera, un solo EventSystem, ponte rig-UI registrato, rig sullo spawn e fermo.
+  Il giocatore di prova sostituisce testa e mani tramite `PlayerLocator.SetOverride`.
 
 ## Cosa è verificato
 
@@ -117,7 +125,6 @@ Elenco completo con priorità: [ElectricShock_AssetCheck.pdf](ElectricShock_Asse
 
 | Sostituto temporaneo | Sistema definitivo | Come |
 | --- | --- | --- |
-| `TempRig`, `TempHand`, `TempInteractable` (base di estintori, barriere, radio, PB-01, vittima, PM-1, cavo) | VR Interaction System sul rig di `SCN_Core` | Ricollegare grab / use / inspect agli stessi metodi; la logica dello scenario ascolta solo gli eventi C# degli oggetti. `PlayerLocator` è l'unico punto che sa dov'è il giocatore |
 | `BarrierPanel` / `BarrierSnapLine`, `EmergencyRadio`, `InjuredPerson` | prefab barriera + snap zone, radio + dialogo 112, sistema "ferito" dello scenario 07 | Stessi eventi (`ClosedChanged`, `Called`, `Checked`…) |
 | `ChoiceLog` + `DebriefPhraseTable` | `RecordChoice` della UI comune (previsto, non ancora implementato) + Registro delle scelte dello Score Manager | Stesso formato dati; oggi le righe vanno a `EndMission` con prefisso `+ ` / `- ` / `! ` |
 | Pesi delle dimensioni (base 60, +20/−20/−25/−60) | Game System comune | Valori provvisori in `ChoiceLog.ComputeDimensions`; il punteggio sicurezza è la media delle 5 dimensioni (`EndMission(..., -1, ...)`) |

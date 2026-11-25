@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using SI81.Ludovica.TempCore; // rig e interazioni temporanee (finché non arriva il VR Interaction System)
 using SI81.UI;
 using UnityEngine;
 
@@ -182,13 +181,12 @@ namespace SI81.Ludovica.ElectricShock
         }
 
         /// <summary>
-        /// [TEMP rig] Il corpo del giocatore non urta persone, collega a terra, barriere (le attraversa: specifica §6),
+        /// Il corpo del giocatore (CharacterController del rig condiviso) non urta persone, collega a terra, barriere (le attraversa: specifica §6),
         /// attrezzature e cavo: così nessun NPC lo spinge o lo blocca e può stare accanto alla vittima.
         /// </summary>
         private void IgnorePlayerCollisions()
         {
-            var rig = TempRig.Instance;
-            var body = rig != null ? rig.GetComponent<CharacterController>() : null;
+            var body = PlayerLocator.Body;
             if (body == null) return;
             var roots = new List<Component> { victim, paramedicInShock, arrivingParamedic, cable, radio };
             roots.AddRange(bystanders);
@@ -222,14 +220,14 @@ namespace SI81.Ludovica.ElectricShock
                 e.FirstUseOnFire += OnExtinguisherFirstUse;
             }
             foreach (var b in AllBystanders()) b.ReachedVictim += OnBystanderReachedVictim;
-            TempRig.Shout += OnShout;
+            ShoutTarget.Shouted += OnShout;
         }
 
         /// <summary>Si disiscrive dagli eventi statici.</summary>
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            TempRig.Shout -= OnShout;
+            ShoutTarget.Shouted -= OnShout;
         }
 
         // =====================================================================
@@ -823,7 +821,7 @@ namespace SI81.Ludovica.ElectricShock
         private float LastObservedAt() => observables.Where(o => o != null && (o.HazardId == "cable" || o.HazardId == "pool")).Max(o => o.ObservedAt);
 
         /// <summary>Estintore tenuto in mano dal giocatore (null se nessuno).</summary>
-        private Extinguisher CurrentlyHeldExtinguisher() => extinguishers.FirstOrDefault(e => e.HeldBy != null);
+        private Extinguisher CurrentlyHeldExtinguisher() => extinguishers.FirstOrDefault(e => e.IsHeld);
 
         /// <summary>Colleghi attivi nella scena.</summary>
         private IEnumerable<Bystander> AllBystanders()

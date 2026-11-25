@@ -1,16 +1,16 @@
 using System;
 using System.Collections;
-using SI81.Ludovica.TempCore;
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock
 {
     /// <summary>
     /// PB-01: arresto di emergenza del generatore. Nel modello MESH_Folgorazione_Generatore è la "Chiave (Interagibile)":
-    /// col grilletto la chiave gira di 90° (come la sua animazione) e il generatore si ferma.
+    /// col grilletto puntando la chiave, la chiave gira di 90° (come la sua animazione) e il generatore si ferma.
     /// Senza chiave (segnaposto) la parte <see cref="cap"/> si abbassa come un pulsante.
     /// </summary>
-    public class EmergencyStopButton : TempInteractable
+    public class EmergencyStopButton : ScenarioInteractable
     {
         [Tooltip("Parte che si muove: la chiave del generatore o il fungo del pulsante segnaposto.")]
         [SerializeField] private Transform cap;
@@ -28,9 +28,13 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>true dopo la pressione.</summary>
         public bool IsPressed => pressed;
 
-        /// <summary>Grilletto sulla chiave o sul pulsante: arresto di emergenza.</summary>
+        /// <summary>Grilletto sulla chiave: arresto di emergenza.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnUseStart(TempHand hand) => Press();
+        protected override void OnSelectStart(Hand hand)
+        {
+            if (!pressed) PlayerLocator.Pulse(hand, 0.7f, 0.15f);
+            Press();
+        }
 
         /// <summary>Gira la chiave o preme il pulsante (anche da script o test).</summary>
         public void Press()
@@ -43,7 +47,6 @@ namespace SI81.Ludovica.ElectricShock
                 else if (turnKey) cap.localRotation = Quaternion.Euler(keyTurnedEuler);
                 else cap.localPosition += Vector3.down * 0.02f;
             }
-            ElectricShockHud.Pulse(0.7f, 0.15f);
             Pressed?.Invoke();
         }
 

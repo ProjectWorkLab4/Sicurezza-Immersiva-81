@@ -1,5 +1,5 @@
 using System;
-using SI81.Ludovica.TempCore;
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock
@@ -9,7 +9,7 @@ namespace SI81.Ludovica.ElectricShock
     /// tenendo il grilletto su di lui per 3 s (poi lo segue); in alternativa lo porta via PM-2.
     /// </summary>
     [RequireComponent(typeof(NpcMover))]
-    public class ParamedicInShock : TempInteractable
+    public class ParamedicInShock : ScenarioInteractable
     {
         [Tooltip("Secondi di grilletto per convincerlo a seguirti.")]
         [SerializeField] private float holdToEscort = 3f;
@@ -19,7 +19,7 @@ namespace SI81.Ludovica.ElectricShock
         [SerializeField] private Transform body;
 
         private NpcMover mover;
-        private TempHand holdingHand;
+        private bool holding;
         private float holdStart;
 
         /// <summary>true mentre segue qualcuno.</summary>
@@ -32,21 +32,25 @@ namespace SI81.Ludovica.ElectricShock
         public event Action EscortStarted;
 
         /// <summary>Riferimento al movimento.</summary>
-        private void Awake() => mover = GetComponent<NpcMover>();
+        protected override void Awake()
+        {
+            base.Awake();
+            mover = GetComponent<NpcMover>();
+        }
 
         /// <summary>Grilletto premuto su PM-1.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnUseStart(TempHand hand)
+        protected override void OnSelectStart(Hand hand)
         {
             if (IsSafe || IsEscorted) return;
-            holdingHand = hand;
+            holding = true;
             holdStart = Time.time;
             ElectricShockHud.Line("Tu", "Vieni con me, ti porto al sicuro.");
         }
 
         /// <summary>Grilletto rilasciato prima dei 3 s: annulla.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnUseEnd(TempHand hand) => holdingHand = null;
+        protected override void OnSelectEnd(Hand hand) => holding = false;
 
         /// <summary>Inizia a seguire il bersaglio (giocatore o PM-2).</summary>
         /// <param name="target">Chi seguire.</param>
@@ -74,8 +78,8 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Dopo 3 s di grilletto inizia a seguire il giocatore.</summary>
         private void Update()
         {
-            if (holdingHand == null || Time.time - holdStart < holdToEscort) return;
-            holdingHand = null;
+            if (!holding || Time.time - holdStart < holdToEscort) return;
+            holding = false;
             var head = PlayerLocator.Head;
             if (head == null) return;
             FollowTarget(head);

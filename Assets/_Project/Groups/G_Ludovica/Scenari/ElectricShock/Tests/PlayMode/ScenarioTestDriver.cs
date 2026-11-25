@@ -2,7 +2,7 @@ using System.Collections;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
-using SI81.Ludovica.TempCore;
+using SI81.Input;
 using SI81.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -10,8 +10,9 @@ using UnityEngine.SceneManagement;
 namespace SI81.Ludovica.ElectricShock.Tests
 {
     /// <summary>
-    /// Pilota dello scenario per i test Play Mode: carica la scena (che carica da sola SCN_Core con la UI comune),
-    /// crea un rig di prova senza camera (solo per simulare le azioni del giocatore) e legge i campi privati dello scenario.
+    /// Pilota dello scenario per i test Play Mode: carica la scena (che carica da sola SCN_Core con UI e rig condiviso),
+    /// sostituisce testa e mano del giocatore con trasform di prova (PlayerLocator) e simula grilletto / grip chiamando
+    /// gli stessi metodi che usa il raggio condiviso (BeginSelect / BeginGrab).
     /// </summary>
     public class ScenarioTestDriver
     {
@@ -20,20 +21,24 @@ namespace SI81.Ludovica.ElectricShock.Tests
         private const BindingFlags NP = BindingFlags.NonPublic | BindingFlags.Instance;
 
         private ElectricShockScenario scenario;
+        private Transform body;
 
         /// <summary>Scenario caricato (resta leggibile anche dopo lo scaricamento della scena).</summary>
         public ElectricShockScenario Scenario => scenario;
-        /// <summary>Rig di prova.</summary>
-        public TempRig Rig => TempRig.Instance;
+        /// <summary>Testa di prova del giocatore.</summary>
+        public Transform Head { get; private set; }
+        /// <summary>Mano destra di prova (davanti alla testa, segue lo sguardo).</summary>
+        public Transform RightHand { get; private set; }
 
-        /// <summary>Carica la scena da zero (Guided), aspetta lo scenario e crea il rig di prova.</summary>
+        /// <summary>Carica la scena da zero (Guided), aspetta lo scenario e crea il giocatore di prova.</summary>
         public IEnumerator Load()
         {
 #if UNITY_EDITOR
             MissionSession.Clear();
+            PlayerLocator.SetOverride(null, null, null);
             var op = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(SCENE, new LoadSceneParameters(LoadSceneMode.Single));
             while (!op.isDone) yield return null;
-            CreateTestRig();
+            CreateTestPlayer();
             float until = Time.realtimeSinceStartup + 20f;
             while (Time.realtimeSinceStartup < until)
             {
@@ -48,29 +53,28 @@ namespace SI81.Ludovica.ElectricShock.Tests
 #endif
         }
 
-        /// <summary>
-        /// Crea il rig temporaneo senza camera né AudioListener (la camera è quella di SCN_Core): serve solo come "corpo"
-        /// del giocatore per osservare, afferrare e parlare nei test.
-        /// </summary>
-        private static void CreateTestRig()
+        /// <summary>Toglie il giocatore di prova.</summary>
+        public void Unload()
         {
-            if (TempRig.Instance != null) return;
-            var go = new GameObject("TEST_TempRig");
-            go.SetActive(false);
-            go.transform.position = new Vector3(8f, 0f, 8f);
-            go.AddComponent<CharacterController>();
-            var head = new GameObject("Head").transform;
-            head.SetParent(go.transform, false);
-            var left = new GameObject("LeftHand").AddComponent<TempHand>();
-            left.transform.SetParent(go.transform, false);
-            typeof(TempHand).GetField("isLeft", NP).SetValue(left, true);
-            var right = new GameObject("RightHand").AddComponent<TempHand>();
-            right.transform.SetParent(go.transform, false);
-            var rig = go.AddComponent<TempRig>();
-            typeof(TempRig).GetField("head", NP).SetValue(rig, head);
-            typeof(TempRig).GetField("leftHand", NP).SetValue(rig, left);
-            typeof(TempRig).GetField("rightHand", NP).SetValue(rig, right);
-            go.SetActive(true);
+            PlayerLocator.SetOverride(null, null, null);
+            if (body != null) Object.Destroy(body.gameObject);
+        }
+
+        /// <summary>Corpo, testa (1,65 m) e mani di prova, senza camera: la camera è quella del rig di SCN_Core.</summary>
+        private void CreateTestPlayer()
+        {
+            body = new GameObject("TEST_Player").transform;
+            body.position = new Vector3(8f, 0f, 8f);
+            Head = new GameObject("Head").transform;
+            Head.SetParent(body, false);
+            Head.localPosition = new Vector3(0f, 1.65f, 0f);
+            RightHand = new GameObject("RightHand").transform;
+            RightHand.SetParent(Head, false);
+            RightHand.localPosition = new Vector3(0.2f, -0.2f, 0.55f);
+            var left = new GameObject("LeftHand").transform;
+            left.SetParent(Head, false);
+            left.localPosition = new Vector3(-0.2f, -0.2f, 0.55f);
+            PlayerLocator.SetOverride(Head, left, RightHand);
         }
 
         /// <summary>Aspetta la fine della missione (max secondi di gioco).</summary>
@@ -86,30 +90,37 @@ namespace SI81.Ludovica.ElectricShock.Tests
         /// <summary>Scrive un campo privato dello scenario.</summary>
         public void Set(string field, object value) => typeof(ElectricShockScenario).GetField(field, NP).SetValue(scenario, value);
 
-        /// <summary>Il giocatore parla (B/Y o Q).</summary>
-        public void Shout() => typeof(ElectricShockScenario).GetMethod("OnShout", NP).Invoke(scenario, new object[] { Rig.Head.position, Rig.Head.forward });
+        /// <summary>Il giocatore parla (come il grilletto su un collega).</summary>
+        public void Shout() => ShoutTarget.RaiseShout(Head.position, Head.forward);
 
-        /// <summary>La mano destra afferra l'oggetto.</summary>
-        public void Grab(TempInteractable item) => typeof(TempHand).GetMethod("TryGrab", NP).Invoke(Rig.RightHand, new object[] { item });
+        /// <summary>La mano destra afferra l'oggetto (grip).</summary>
+        public void Grab(ScenarioInteractable item) => item.BeginGrab(Hand.Right);
+
+        /// <summary>La mano destra lascia l'oggetto.</summary>
+        public void Release(ScenarioInteractable item) => item.EndGrab(Hand.Right);
 
         /// <summary>Estintore del tipo indicato.</summary>
         public Extinguisher Extinguisher(ExtinguisherAgent agent) => Get<Extinguisher[]>("extinguishers").First(e => e.Agent == agent);
 
         /// <summary>Porta il giocatore in un punto della mappa (x, y) guardando verso yaw.</summary>
-        public void Teleport(float x, float y, float yaw) => Rig.TeleportTo(new Vector3(x, 0f, y), yaw);
+        public void Teleport(float x, float y, float yaw)
+        {
+            body.SetPositionAndRotation(new Vector3(x, 0f, y), Quaternion.Euler(0f, yaw, 0f));
+            Head.localRotation = Quaternion.identity;
+        }
 
         /// <summary>Guarda cavo e pozza abbastanza a lungo da osservarli (LG-01).</summary>
         public IEnumerator ObserveScene()
         {
             Teleport(17f, 6f, 90f);
             yield return null;
-            Rig.Head.LookAt(Get<LiveCable>("cable").transform.position);
+            Head.LookAt(Get<LiveCable>("cable").transform.position);
             yield return new WaitForSeconds(1.2f);
-            Rig.Head.LookAt(Get<Transform>("fuelPool").position);
+            Head.LookAt(Get<Transform>("fuelPool").position);
             yield return new WaitForSeconds(1.2f);
         }
 
-        /// <summary>Chiude il varco con le due barriere.</summary>
+        /// <summary>Chiude il varco con le barriere.</summary>
         public void CloseBarriers()
         {
             var line = Get<BarrierSnapLine>("barrierLine");
@@ -121,12 +132,12 @@ namespace SI81.Ludovica.ElectricShock.Tests
         public IEnumerator SprayFire(Extinguisher ext, float distance, float seconds)
         {
             var fire = Get<FireSource>("fire").transform.position;
-            Rig.TeleportTo(new Vector3(fire.x - distance, 0f, fire.z - 0.3f), 90f);
+            Teleport(fire.x - distance, fire.z - 0.3f, 90f);
             yield return null;
-            Rig.Head.LookAt(fire + Vector3.up * 0.3f);
-            ext.OnUseStart(Rig.RightHand);
+            Head.LookAt(fire + Vector3.up * 0.3f);
+            ext.StartSpray();
             yield return new WaitForSeconds(seconds);
-            ext.OnUseEnd(Rig.RightHand);
+            ext.StopSpray();
         }
 
         /// <summary>Esito dell'ultima missione chiusa (dalla sessione della UI comune).</summary>

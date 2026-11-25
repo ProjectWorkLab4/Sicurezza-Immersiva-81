@@ -1,5 +1,5 @@
 using System;
-using SI81.Ludovica.TempCore;
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Ludovica.ElectricShock
@@ -7,10 +7,11 @@ namespace SI81.Ludovica.ElectricShock
     /// <summary>
     /// [TEMP] VT-01, il collega folgorato (sostituto del sistema "ferito" dello scenario 07, con respiro sempre regolare:
     /// niente RCP né DAE nello scenario 10). Cosciente ma stordito.
-    /// A/X = controlla coscienza e respiro; grilletto breve = posizione (supino, gambe sollevate);
-    /// grilletto tenuto = trascinarlo (solo con pericolo imminente). Toccarlo con la corrente presente folgora il giocatore.
+    /// Grilletto puntando il collega: la prima volta controlla coscienza e respiro, la seconda lo mette in posizione
+    /// (supino, gambe sollevate). Grip tenuto: lo trascina verso di sé (solo con pericolo imminente).
+    /// Toccarlo (grilletto o grip) con la corrente presente folgora il giocatore.
     /// </summary>
-    public class InjuredPerson : TempInteractable
+    public class InjuredPerson : ScenarioInteractable
     {
         [Tooltip("Cavo che lo tiene sotto tensione.")]
         [SerializeField] private LiveCable cable;
@@ -18,11 +19,9 @@ namespace SI81.Ludovica.ElectricShock
         [SerializeField] private Transform legs;
         [Tooltip("Velocità massima di trascinamento (m/s).")]
         [SerializeField] private float dragSpeed = 0.8f;
-        [Tooltip("Secondi di grilletto oltre i quali si trascina invece di posizionare.")]
-        [SerializeField] private float dragHoldThreshold = 0.5f;
+        [Tooltip("Distanza a cui il collega trascinato resta dalla mano (m).")]
+        [SerializeField] private float dragDistance = 0.6f;
 
-        private TempHand dragHand;
-        private float useStart;
         private Vector3 startPosition;
 
         /// <summary>Sempre true: il collega è cosciente (stordito).</summary>
@@ -47,37 +46,34 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Messo in posizione.</summary>
         public event Action PositionedChanged;
 
+        /// <summary>Si può afferrare (per trascinarlo).</summary>
+        public override bool IsGrabbable => true;
+        /// <summary>Afferrato non va in mano: viene trascinato a terra.</summary>
+        protected override bool AttachToHand => false;
+
         /// <summary>Memorizza la posizione iniziale.</summary>
-        private void Awake() => startPosition = transform.position;
+        protected override void Awake()
+        {
+            base.Awake();
+            startPosition = transform.position;
+        }
 
         /// <summary>Contatto: folgorazione se la corrente è presente.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnContact(TempHand hand)
+        protected override void OnContact(Hand hand)
         {
-            if (IsLive) TouchedWhileLive?.Invoke();
+            if (!IsLive) return;
+            PlayerLocator.Pulse(hand, 1f, 0.5f);
+            TouchedWhileLive?.Invoke();
         }
 
-        /// <summary>A/X: controlla coscienza e respiro.</summary>
+        /// <summary>Grilletto: prima coscienza e respiro, poi posizione.</summary>
         /// <param name="hand">Mano.</param>
-        public override void OnInspect(TempHand hand) => CheckConsciousness();
-
-        /// <summary>Grilletto premuto: inizio di posizione o trascinamento.</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnUseStart(TempHand hand)
+        protected override void OnSelectStart(Hand hand)
         {
             if (IsLive) return;
-            dragHand = hand;
-            useStart = Time.time;
-        }
-
-        /// <summary>Grilletto rilasciato: se breve, mette in posizione.</summary>
-        /// <param name="hand">Mano.</param>
-        public override void OnUseEnd(TempHand hand)
-        {
-            if (dragHand == null) return;
-            bool shortPress = Time.time - useStart < dragHoldThreshold;
-            dragHand = null;
-            if (shortPress) PlaceInPosition();
+            if (!ConsciousnessChecked) CheckConsciousness();
+            else PlaceInPosition();
         }
 
         /// <summary>Controlla coscienza e respiro (anche da script o test).</summary>
@@ -104,14 +100,16 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Segna il collega come peggiorato (vampata).</summary>
         public void MarkWorsened() => IsWorsened = true;
 
-        /// <summary>Trascinamento mentre il grilletto è tenuto.</summary>
+        /// <summary>Trascinamento mentre il grip è tenuto: il collega segue la mano a terra.</summary>
         private void Update()
         {
-            if (dragHand == null || IsLive || Time.time - useStart < dragHoldThreshold) return;
-            Vector3 target = Flat(dragHand.transform.position);
+            if (!IsHeld || IsLive) return;
+            var hand = PlayerLocator.HandAnchor(HeldHand);
+            if (hand == null) return;
+            Vector3 target = Flat(hand.position);
             Vector3 pos = transform.position;
             Vector3 to = target - Flat(pos);
-            if (to.magnitude < 0.6f) return;
+            if (to.magnitude < dragDistance) return;
             Vector3 step = Vector3.ClampMagnitude(to, dragSpeed * Time.deltaTime);
             transform.position = pos + step;
         }

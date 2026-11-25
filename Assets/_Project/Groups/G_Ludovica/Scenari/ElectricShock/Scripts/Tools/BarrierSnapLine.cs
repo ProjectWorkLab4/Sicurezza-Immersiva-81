@@ -157,7 +157,7 @@ namespace SI81.Ludovica.ElectricShock
             for (int i = 0; i < slots.Length; i++)
             {
                 var b = occupants[i];
-                if (b == null || b.HeldBy != null) continue;
+                if (b == null || b.IsHeld) continue;
                 Vector3 center = slots[i].position;
                 Vector3 end = center + slots[i].right * panelHalfWidth;
                 Vector3 other = center - slots[i].right * panelHalfWidth;

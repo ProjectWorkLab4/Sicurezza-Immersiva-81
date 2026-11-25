@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using SI81.Ludovica.TempCore;
 using SI81.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -212,6 +211,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
 
             var spawn = new GameObject("MNG_SpawnPoint").transform;
             spawn.SetPositionAndRotation(P(8f, 8f), Quaternion.Euler(0f, 90f, 0f));
+            // Spawn del rig condiviso (guida migrazione rig/UI B.2.3): porta MNG_CoreRig qui e lo ripristina allo scaricamento.
+            spawn.gameObject.AddComponent<SI81.Rig.SpawnPoint>();
 
             var points = new GameObject("PTS_Points").transform;
             var safe = Marker("SAFE01_SafePoint", points, 14.5f, 4f, 3f, 3f, "SafeZone", true);
@@ -354,7 +355,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var rackHelp = new GameObject("LBL_ExtinguisherRack").transform;
             rackHelp.SetParent(tools, false);
             rackHelp.position = P(7f, 12f, 1.2f);
-            Label(rackHelp.gameObject, LabelKind.ContextHelp, "Estintori", "Leggi l'etichetta prima di usarli", Vector3.zero);
+            Label(rackHelp.gameObject, LabelKind.ContextHelp, "Estintori", "Grilletto: leggi l'etichetta. Grip: prendi", Vector3.zero);
             slotRoot.SetParent(tools, false);
             var slots = new Transform[3];
             for (int i = 0; i < 3; i++)
@@ -389,6 +390,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             SetArray(line, "slots", lineSlots);
             SetArray(line, "barriers", barriers);
             SetArray(line, "slotMarkers", markers);
+            Label(lineRoot.gameObject, LabelKind.ContextHelp, "Varco DR-03", "Grip: porta le barriere sui segni gialli", new Vector3(0f, 1.2f, 0f));
 
             // Persone
             var people = new GameObject("CHR_People").transform;
@@ -406,7 +408,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             victimObstacle.center = new Vector3(0f, 0.17f, 0f);
             victimObstacle.size = new Vector3(1.8f, 0.35f, 0.5f);
             victimObstacle.carving = true;
-            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente, poi controlla coscienza e respiro", new Vector3(0f, 0.6f, 0f));
+            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente. Grilletto: coscienza e respiro, poi posizione", new Vector3(0f, 0.6f, 0f));
 
             var by1 = MakeBystander(people, "BY01_Colleague", 14.1f, 4f);
             var by2 = MakeBystander(people, "BY02_Colleague", 15.4f, 4.2f);
@@ -428,6 +430,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var pm2 = pm2Root.gameObject.AddComponent<NpcMover>();
             AddCharacter(pm2Root, pm2, true, "Idle", "", 0f);
             AddCapsuleCollider(pm2Root.gameObject);
+            SetInteractable(pm2Root.gameObject.AddComponent<ShoutTarget>(), "Paramedico", null);
+            Label(pm2Root.gameObject, LabelKind.Interaction, "Paramedico", "Grilletto: digli di fermarsi", new Vector3(0f, 2.0f, 0f));
             pm2Root.gameObject.SetActive(false);
 
             // MNG_Scenario
@@ -652,9 +656,12 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             root.position = pos;
             // Modello alto 0,57 m: scalato in scena (circa 0,22 m, una radio portatile).
             var model = PlaceModel("MESH_Magazzino_Radio", root, pos, 0f, 0.385f, true);
-            AddBoundsCollider(root.gameObject, model);
+            // La radio è piccola (7 x 22 x 4 cm): collider allargato a 15 cm per lato, più facile da puntare col raggio sul visore.
+            var radioCollider = AddBoundsCollider(root.gameObject, model);
+            radioCollider.size = Vector3.Max(radioCollider.size, new Vector3(0.15f, 0.22f, 0.15f));
             var r = root.gameObject.AddComponent<EmergencyRadio>();
             SetInteractable(r, "Radio 112", null);
+            Label(root.gameObject, LabelKind.Interaction, "Radio", "Grilletto: chiama il 112", new Vector3(0f, 0.35f, 0f));
             return r;
         }
 
@@ -666,6 +673,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Collega al lavoro (clip Worker_Work); quando si muove corre, quando si ferma resta in piedi.
             AddCharacter(root, mover, false, "Work", "", 0f);
             AddCapsuleCollider(root.gameObject);
+            // Grilletto puntando il collega = "Fermi! Allontanatevi!" (A/X e B/Y non sono disponibili nell'input condiviso).
+            SetInteractable(root.gameObject.AddComponent<ShoutTarget>(), "Collega", null);
+            Label(root.gameObject, LabelKind.Interaction, "Collega", "Grilletto: Fermi! Allontanatevi!", new Vector3(0f, 2.0f, 0f));
             return root.gameObject.AddComponent<Bystander>();
         }
 
@@ -1048,8 +1058,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        /// <summary>Imposta nome e renderer evidenziabili di un TempInteractable.</summary>
-        private static void SetInteractable(TempInteractable it, string displayName, Renderer highlight)
+        /// <summary>Imposta nome e renderer evidenziabili di un oggetto interattivo dello scenario.</summary>
+        private static void SetInteractable(ScenarioInteractable it, string displayName, Renderer highlight)
         {
             var so = new SerializedObject(it);
             so.FindProperty("displayName").stringValue = displayName;

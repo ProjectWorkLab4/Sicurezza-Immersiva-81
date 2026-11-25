@@ -43,12 +43,17 @@ namespace SI81.Ludovica.ElectricShock
         [SerializeField] private float moveClipSpeed = 0.6f;
         [Tooltip("Clip forzata all'avvio (vuoto = segue il movimento).")]
         [SerializeField] private string startKey = "";
+        [Tooltip("Durata della dissolvenza tra una clip e la successiva (s).")]
+        [SerializeField] private float blendSeconds = 0.2f;
         [Tooltip("Distanza tra l'osso più basso e il pavimento (spessore di suola o schiena), in metri.")]
         [SerializeField] private float groundClearance = 0.06f;
 
         private PlayableGraph graph;
         private AnimationClipPlayable playable;
+        private AnimationClipPlayable fromPlayable;
+        private AnimationMixerPlayable mixer;
         private AnimationPlayableOutput output;
+        private float blend = 1f;
         private Entry current;
         private string forcedKey;
         private string afterOnceKey;
@@ -72,6 +77,8 @@ namespace SI81.Ludovica.ElectricShock
             graph = PlayableGraph.Create(name + "_Anim");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
             output = AnimationPlayableOutput.Create(graph, "Anim", animator);
+            mixer = AnimationMixerPlayable.Create(graph, 2);
+            output.SetSourcePlayable(mixer);
             if (!string.IsNullOrEmpty(startKey)) Force(startKey);
             else PlayInternal(idleKey);
         }
@@ -117,6 +124,7 @@ namespace SI81.Ludovica.ElectricShock
         private void Update()
         {
             if (!graph.IsValid() || current == null) return;
+            UpdateBlend();
             double length = current.Clip != null ? current.Clip.length : 0d;
             bool finished = length > 0d && playable.GetTime() >= length;
 
@@ -160,6 +168,20 @@ namespace SI81.Ludovica.ElectricShock
             model.position += new Vector3(rootPos.x - h.x, rootPos.y + groundClearance - minY, rootPos.z - h.z);
         }
 
+        /// <summary>Dissolvenza dalla clip precedente (ingresso 0) alla nuova (ingresso 1).</summary>
+        private void UpdateBlend()
+        {
+            if (blend >= 1f) return;
+            blend = blendSeconds > 0f ? Mathf.Min(1f, blend + Time.deltaTime / blendSeconds) : 1f;
+            mixer.SetInputWeight(0, 1f - blend);
+            mixer.SetInputWeight(1, blend);
+            if (blend >= 1f && fromPlayable.IsValid())
+            {
+                graph.Disconnect(mixer, 0);
+                fromPlayable.Destroy();
+            }
+        }
+
         /// <summary>Clip di riposo o di corsa secondo il movimento dell'NPC.</summary>
         private string LocomotionKey() => mover != null && mover.IsMoving ? moveKey : idleKey;
 
@@ -168,11 +190,25 @@ namespace SI81.Ludovica.ElectricShock
         {
             var entry = Array.Find(entries, e => e.Key == key);
             if (entry == null || entry.Clip == null || !graph.IsValid()) return;
-            if (playable.IsValid()) playable.Destroy();
+            // La clip corrente diventa quella "da cui" sfumare; quella ancora più vecchia si elimina.
+            if (fromPlayable.IsValid())
+            {
+                graph.Disconnect(mixer, 0);
+                fromPlayable.Destroy();
+            }
+            if (playable.IsValid())
+            {
+                graph.Disconnect(mixer, 1);
+                fromPlayable = playable;
+                graph.Connect(fromPlayable, 0, mixer, 0);
+            }
             playable = AnimationClipPlayable.Create(graph, entry.Clip);
             playable.SetApplyFootIK(false);
             playable.SetSpeed(key == moveKey ? moveClipSpeed : 1d);
-            output.SetSourcePlayable(playable);
+            graph.Connect(playable, 0, mixer, 1);
+            blend = fromPlayable.IsValid() ? 0f : 1f;
+            mixer.SetInputWeight(0, 1f - blend);
+            mixer.SetInputWeight(1, blend);
             graph.Play();
             current = entry;
             if (model != null) model.localPosition = entry.ModelOffset;

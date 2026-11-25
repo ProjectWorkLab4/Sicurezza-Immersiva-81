@@ -16,15 +16,19 @@ Log in parallelo (Meta Quest Developer Hub o `adb logcat -s Unity | findstr "SI8
 - [ ] Suoni 3D: ronzio del generatore e crepitio del cavo si sentono avvicinandosi.
 - [ ] Fiamme, fumo, scintille visibili (non rosa né quadrati); prestazioni fluide.
 
-## Interazioni (quando arriva il VR Interaction System)
+## Controlli e interazioni (rig condiviso)
 
-- [ ] PB-01 con il grilletto ferma il generatore; dopo circa 2 s la pozza prende fuoco.
-- [ ] Estintore: grip prende, A/X legge l'etichetta, grilletto spruzza; il fuoco si spegne in circa 4 s anche da vicino.
-- [ ] Barriere agganciate al varco: "Varco chiuso".
-- [ ] Radio: grilletto = chiamata al 112.
-- [ ] B/Y: "Fermi! Allontanatevi!" e i colleghi escono verso il punto di raccolta.
-- [ ] Collega: A/X coscienza e respiro, grilletto breve posizione, grilletto tenuto trascina.
+- [ ] Il rig parte a terra su `MNG_SpawnPoint` e non cade; levetta sinistra cammina, levetta destra gira di 45°.
+- [ ] Il raggio dalla mano evidenzia gli oggetti (chiave, estintori, barriere, radio, collega, PM-1, colleghi) fino a 5 m.
+- [ ] Chiave del generatore (PB-01): grilletto → la chiave gira, il generatore si ferma; dopo circa 2 s la pozza prende fuoco.
+- [ ] Estintore: grilletto legge l'etichetta; grip tenuto lo mette in mano; grilletto tenuto spruzza; il fuoco si spegne in circa 4 s anche da vicino; lasciato il grip resta dritto a terra.
+- [ ] Barriere: grip le prende, lasciate vicino ai segni gialli si agganciano; con tutte e 5 "Varco chiuso". Il giocatore le attraversa.
+- [ ] Radio: grilletto = chiamata al 112 (facile da puntare anche se piccola).
+- [ ] Grilletto su un collega in piedi: "Fermi! Allontanatevi!" e i colleghi escono verso il punto di raccolta.
+- [ ] Collega a terra: grilletto 1ª volta coscienza e respiro, 2ª volta posizione; grip tenuto lo trascina.
+- [ ] Collega o cavo toccati con la corrente presente: vibrazione forte e folgorazione.
 - [ ] PM-1: grilletto tenuto 3 s, poi ti segue fino al cerchio verde.
+- [ ] Puntando un pannello della UI il raggio clicca la UI e non l'oggetto dietro.
 
 ## Percorsi completi (uno per livello, con le interazioni)
 

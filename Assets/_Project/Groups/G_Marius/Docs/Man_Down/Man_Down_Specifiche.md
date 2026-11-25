@@ -64,7 +64,7 @@ L'ambiente è considerato sicuro per direttiva approvata: non esistono pericoli 
 ### 5.2 Coscienza e soccorsi
 
 1. Il giocatore interagisce con l'NPC per verificarne lo stato di coscienza.
-2. Deve attivare i soccorsi con la **chiamata simulata al 112**.
+2. Deve attivare i soccorsi con la **chiamata simulata al 112**. Interagendo con il telefono si apre il **popup decisionale comune** tramite `AskDecision("Chiami il 112?", new[] { "Sì", "No" }, callback, 0f)`: `Sì` (indice 0) chiama `Call112()` ed è l'unica scelta che registra la decisione; `No` (indice 1) chiude il popup **senza registrare alcuna azione** e lascia il telefono interagibile per un nuovo tentativo. Non è previsto un timeout del popup. Se la chiamata non viene mai effettuata, la penalità `EMERGENCY_NOT_CALLED` resta applicabile alla conclusione. **Nessun tastierino numerico, Canvas aggiuntivo o sistema UI personalizzato**: si usa solo `HUD_DecisionPanel` del kit condiviso, compatibile con Operational.
 3. Il **primo soccorso aziendale è escluso completamente**: nessuna chiamata aggiuntiva, nessuna attivazione automatica, nessun NPC dedicato, nessuna penalità relativa.
 4. La mancata chiamata è registrata come `EMERGENCY_NOT_CALLED`: comporta la penalizzazione prevista e impedisce il successo completo, ma **non impedisce la conclusione della missione**. In quel caso non si simula l'arrivo dei soccorsi e non si dichiara che l'NPC sia fuori pericolo; l'esito massimo è successo parziale.
 5. Il giocatore controlla la respirazione dell'NPC.
@@ -119,7 +119,7 @@ Il diagramma rappresenta il percorso corretto e le conclusioni approvate. Il tim
 | Interazione | Comportamento atteso | Vincoli |
 |---|---|---|
 | Verifica coscienza | TASK 03 implementato: GRIP su `MESH_ShoulderGrip` con `Interactable`/`LabelAnchor` comuni (`Persona a terra` / `Verifica la coscienza`, `GRIP` / `Afferra`); `ManDownNpc` chiama `VerifyConsciousness()`, che registra una sola azione `CONSCIOUSNESS_CHECK` con `NPC incosciente`. Metodo pubblico ed evento disponibili; nessun avanzamento dell'obiettivo 2 o della fase HUD | Nessun ragdoll, scuotimento o spostamento fisico; reset ripristina la disponibilità |
-| Chiamata 112 | Chiamata simulata tramite telefono; omissione registrata | Nessuna digitazione, nessun primo soccorso aziendale |
+| Chiamata 112 | Interazione col telefono → popup comune `AskDecision("Chiami il 112?", ["Sì", "No"])`; `Sì` → `Call112()` e registrazione della decisione; `No` → popup chiuso, nessuna registrazione, telefono riutilizzabile | Nessuna digitazione, tastierino numerico, Canvas o UI personalizzata; nessun primo soccorso aziendale; popup disponibile anche in Operational; penalità `EMERGENCY_NOT_CALLED` solo se la chiamata non avviene mai |
 | Verifica respirazione | Esito coerente con la variabile iniziale; indicio visivo transform-based | 70/30 configurabile e forzabile |
 | Posizione laterale | Cambio posa semplificato | Solo nel ramo normale |
 | RCP | Movimento fisico dei controller su zona torace; due soglie, riarmo, ampiezza, frequenza | Rilevamento separato dalla valutazione; nessuna forza simulata; nessuna ventilazione |
@@ -173,7 +173,7 @@ Tutte le cause di fallimento presenti vanno registrate, garantendo una sola conc
 
 - **Visivo:** indizio di respirazione transform-based; indicatore della zona torace per la RCP; cambio posa; snap degli elettrodi; feedback su azioni corrette/errate; schermate di esito nella UI finale.
 - **Audio:** non ci sono asset audio nel gruppo: ambiente, chiamata simulata, istruzioni DAE e conferme non sono ancora disponibili. Non inventarli in questo task.
-- **Testo:** istruzioni essenziali e riepilogo finale saranno aggiunti con la UI comune; per ora la logica può esporre eventi e ID.
+- **Testo:** istruzioni essenziali e riepilogo finale saranno aggiunti con la UI comune; per ora la logica può esporre eventi e ID. La domanda sul 112 usa il pannello decisionale comune `HUD_DecisionPanel` (`AskDecision`), non una UI del gruppo.
 - **Accessibilità:** non affidare informazioni critiche solo al colore o solo all'audio; mantenere leggibilità in VR.
 
 ## 11. Integrazione tecnica e confini del gruppo
@@ -191,6 +191,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 9. Il rig è quello condiviso di `SCN_Core` (integrato nel 2026-11-25): non creare un rig locale, un altro input o un'altra interazione. La vecchia indicazione di un rig temporaneo inserito dall'utente è superata.
 10. Alla fine di ogni task, registrare in `AGENTS.md` **solo** file realmente creati/modificati, comportamento implementato, verifiche eseguite e problemi aperti. **Non segnare come completato ciò che non è stato testato.**
 11. Per ogni task indicare prima file e prefab coinvolti; chiedere conferma per modifiche con impatto esterno alla directory autorizzata.
+12. Per la chiamata al 112 usare `AskDecision` della classe base: il pannello comune è disponibile in tutti i livelli, **Operational incluso** (nessun filtro per livello nel codice di `ScenarioController`/`DecisionPanel`). Per Man Down si usa `timeoutSeconds=0`: nessun limite e nessuna barra; solo `Sì` registra tramite `Call112()`, mentre `No` chiude il popup senza registrare e consente una nuova interazione col telefono. Un eventuale timeout futuro (`-1`) andrebbe trattato come `No`. Il timer del pannello è distinto dal timer della missione, che continua a scorrere. Non creare tastierini numerici, Canvas o UI personalizzata.
 
 ### Nomenclatura richiesta dal gruppo
 
@@ -206,7 +207,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 - [ ] All'avvio sono selezionati respirazione (70/30) e disponibilità DAE (75/25) in modo indipendente, stabili per tutta la partita.
 - [ ] Le due condizioni possono essere forzate manualmente per coprire tutte le combinazioni.
 - [ ] Si può verificare lo stato di coscienza dell'NPC.
-- [ ] È possibile effettuare la chiamata simulata al 112; l'omissione è registrata senza bloccare la conclusione.
+- [ ] È possibile effettuare la chiamata simulata al 112 tramite il popup comune `AskDecision` ("Chiami il 112?" / "Sì" / "No"); l'omissione è registrata senza bloccare la conclusione.
 - [ ] La verifica della respirazione porta al ramo corretto.
 - [ ] Nel ramo normale funzionano monitoraggio, posizione laterale se appropriata e breve assistenza finale.
 - [ ] Nel ramo anormale la RCP usa movimento fisico dei controller, due soglie, riarmo e 20 / 20 / 30 compressioni valide a 100–120 cpm; nessuna ventilazione.
@@ -223,7 +224,7 @@ Queste sono **direttive operative per OpenCode**, non descrizioni di sistemi gi�
 
 ## 13. Decisioni risolte e priorità
 
-**Risolte:** probabilità iniziali, meccanica RCP, meccanica DAE, timeout e arrivo soccorsi, soglie ed esiti, primo soccorso aziendale, sorgente dei trigger, identificativi interni, modalità da implementare e limiti alla mancata chiamata. Vedi `TASK_PROGRESS.md`.
+**Risolte:** probabilità iniziali, meccanica RCP, meccanica DAE, timeout e arrivo soccorsi, soglie ed esiti, primo soccorso aziendale, sorgente dei trigger, identificativi interni, modalità da implementare, limiti alla mancata chiamata e utilizzo del popup decisionale comune per la chiamata al 112 (indicazione del team UI del 2026-11-25). Vedi `TASK_PROGRESS.md`.
 
 **Ancora necessari per la validazione, non per la struttura del codice:** valori didattici delle soglie RCP (ampiezza, rilascio, tolleranza di frequenza), durata della fase finale di assistenza, `T_target`/`T_max` di Time, scelta finale tra punteggio ponderato e SPI comune in integrazione. I campi saranno configurabili: non inventare valori clinici.
 

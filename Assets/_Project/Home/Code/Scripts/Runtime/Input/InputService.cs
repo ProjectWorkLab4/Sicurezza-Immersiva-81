@@ -85,6 +85,7 @@ namespace SI81.Input
         private int menuPressedFrame = -1;
         private int backPressedFrame = -1;
         private bool backEnabled;
+        private bool locomotionEnabled = true;
 
         // =====================================================================
         // Posa aim (cache dei controlli, nessuna ricerca per frame)
@@ -173,6 +174,7 @@ namespace SI81.Input
             if (Application.isPlaying) DontDestroyOnLoad(gameObject);
             BuildActions();
             RefreshBackAction();
+            RefreshLocomotionActions();
         }
 
         /// <summary>
@@ -184,6 +186,7 @@ namespace SI81.Input
             worldMap.Enable();
             uiMap.Enable();
             RefreshBackAction();
+            RefreshLocomotionActions();
             if (!deviceEventsSubscribed)
             {
                 InputSystem.onDeviceChange += HandleDeviceChange;
@@ -244,7 +247,7 @@ namespace SI81.Input
         private void Update()
         {
             if (moveAction == null || turnAction == null) return;
-            bool suppressed = IsSuppressed(InputChannel.World);
+            bool suppressed = IsSuppressed(InputChannel.World) || !locomotionEnabled;
             Vector2 nextMove = suppressed ? Vector2.zero : moveAction.ReadValue<Vector2>();
             Vector2 nextTurn = suppressed ? Vector2.zero : turnAction.ReadValue<Vector2>();
             if (nextMove != moveValue)
@@ -606,6 +609,60 @@ namespace SI81.Input
             if (backAction == null) return;
             if (backEnabled && isActiveAndEnabled) backAction.Enable();
             else backAction.Disable();
+        }
+
+        /// <summary>true se le azioni Input System di locomozione (<c>Move</c> e <c>Turn</c>) sono abilitate.</summary>
+        public bool IsLocomotionEnabled => locomotionEnabled;
+
+        /// <summary>
+        /// Abilita o disabilita le azioni Input System di locomozione (<c>Move</c> e <c>Turn</c>).
+        /// </summary>
+        /// <param name="value">true per abilitarle, false per bloccarle.</param>
+        public void SetLocomotionEnabled(bool value)
+        {
+            if (locomotionEnabled == value)
+            {
+                RefreshLocomotionActions();
+                return;
+            }
+            locomotionEnabled = value;
+            RefreshLocomotionActions();
+            if (!locomotionEnabled) ClearLocomotionValues();
+        }
+
+        /// <summary>
+        /// Allinea le azioni Move e Turn allo stato richiesto e all'attivazione del componente.
+        /// </summary>
+        private void RefreshLocomotionActions()
+        {
+            bool active = locomotionEnabled && isActiveAndEnabled;
+            if (moveAction != null)
+            {
+                if (active) moveAction.Enable();
+                else moveAction.Disable();
+            }
+            if (turnAction != null)
+            {
+                if (active) turnAction.Enable();
+                else turnAction.Disable();
+            }
+        }
+
+        /// <summary>
+        /// Azzera i valori memorizzati di Move/Turn quando la locomozione viene disabilitata.
+        /// </summary>
+        private void ClearLocomotionValues()
+        {
+            if (moveValue != Vector2.zero)
+            {
+                moveValue = default;
+                MoveChanged?.Invoke(Hand.Left, Vector2.zero);
+            }
+            if (turnValue != Vector2.zero)
+            {
+                turnValue = default;
+                TurnChanged?.Invoke(Hand.Right, Vector2.zero);
+            }
         }
 
         // =====================================================================

@@ -245,6 +245,13 @@ namespace SI81.UI.EditorTools
             }
             BuildPointer(left.gameObject, UIPointerHand.Left, theme, pointerMaterial, reticleMaterial);
             BuildPointer(right.gameObject, UIPointerHand.Right, theme, pointerMaterial, reticleMaterial);
+            RigLocomotion locomotion = rig.GetComponent<RigLocomotion>();
+            if (locomotion != null)
+            {
+                var locomotionSo = new SerializedObject(locomotion);
+                locomotionSo.FindProperty("movementLock").boolValue = true;
+                locomotionSo.ApplyModifiedPropertiesWithoutUndo();
+            }
             Transform offset = origin;
 
             // --- MNG_UI con servizi reali. ---

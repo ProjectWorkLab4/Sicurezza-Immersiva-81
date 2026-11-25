@@ -1,39 +1,64 @@
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Tiziano.ChemicalAlert.Interaction
 {
     /// <summary>
-    /// Centralized provisional controller bindings for the Chemical Alert scenario.
+    /// Adaptor over the shared InputService. Reads no device directly: the rig owns all input.
+    /// A/X are intentionally unbound in the common UI, so hint requests come from HUD/automatic aids.
     /// </summary>
     public sealed class ScenarioInputBindings : MonoBehaviour
     {
-        /// <summary>
-        /// Returns whether the grip input was pressed this frame for the specified controller.
-        /// </summary>
-        public bool GetGripDown(OVRInput.Controller controller) =>
-            OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, controller);
+        private bool previousGrabLeft;
+        private bool previousGrabRight;
 
-        /// <summary>
-        /// Returns whether the grip input was released this frame for the specified controller.
-        /// </summary>
-        public bool GetGripUp(OVRInput.Controller controller) =>
-            OVRInput.GetUp(OVRInput.Button.PrimaryHandTrigger, controller);
+        private static InputService Service => InputService.Instance;
 
-        /// <summary>
-        /// Returns whether the trigger input was pressed this frame for the specified controller.
-        /// </summary>
-        public bool GetTriggerDown(OVRInput.Controller controller) =>
-            OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, controller);
+        private void LateUpdate()
+        {
+            InputService service = Service;
+            previousGrabLeft = service != null && service.IsGrabHeld(Hand.Left);
+            previousGrabRight = service != null && service.IsGrabHeld(Hand.Right);
+        }
 
-        /// <summary>
-        /// Returns whether the hand-agnostic primary face button (A/X) was pressed.
-        /// </summary>
-        public bool GetHintDown(OVRInput.Controller controller) =>
-            OVRInput.GetDown(OVRInput.Button.One, controller);
+        /// <summary>True on the frame the grip is pressed.</summary>
+        public bool GetGripDown(Hand hand)
+        {
+            InputService service = Service;
+            if (service == null)
+                return false;
+            bool current = service.IsGrabHeld(hand);
+            return current && !(hand == Hand.Left ? previousGrabLeft : previousGrabRight);
+        }
 
-        /// <summary>Returns whether the physical B button was pressed to dismiss a modal panel.</summary>
-        public bool GetDismissDown(OVRInput.Controller controller) =>
-            OVRInput.GetDown(OVRInput.RawButton.B, controller);
+        /// <summary>True on the frame the grip is released.</summary>
+        public bool GetGripUp(Hand hand)
+        {
+            InputService service = Service;
+            if (service == null)
+                return false;
+            bool current = service.IsGrabHeld(hand);
+            return !current && (hand == Hand.Left ? previousGrabLeft : previousGrabRight);
+        }
 
+        /// <summary>True on the frame the trigger is pressed.</summary>
+        public bool GetTriggerDown(Hand hand)
+        {
+            InputService service = Service;
+            return service != null && service.WasSelectPressed(hand);
+        }
+
+        /// <summary>Unbound in the common rig: hints are automatic or requested from the HUD.</summary>
+        public bool GetHintDown(Hand hand)
+        {
+            return false;
+        }
+
+        /// <summary>B/Y back button, used only while a panel is open.</summary>
+        public bool GetDismissDown(Hand hand)
+        {
+            InputService service = Service;
+            return service != null && service.WasBackPressed();
+        }
     }
 }

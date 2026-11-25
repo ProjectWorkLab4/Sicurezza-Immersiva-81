@@ -9,7 +9,6 @@
 
 # Auto-detect and normalize all remaining text files
 * text=auto
-
 # Unity serialized assets and meta files
 *.asset       text eol=lf
 *.meta        text eol=lf
@@ -20,7 +19,6 @@
 *.controller  text eol=lf
 *.playable    text eol=lf
 *.inputactions text eol=lf
-
 # Source code and documentation
 *.cs          text eol=lf
 *.shader      text eol=lf
@@ -31,7 +29,6 @@
 *.txt         text eol=lf
 *.gitignore   text eol=lf
 *.gitattributes text eol=lf
-
 # Binaries — never normalize
 *.pdf         binary
 *.png         binary
@@ -53,3 +50,18 @@
 *.apk         binary
 *.aab         binary
 *.unitypackage binary
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.tif filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.unitypackage filter=lfs diff=lfs merge=lfs -text

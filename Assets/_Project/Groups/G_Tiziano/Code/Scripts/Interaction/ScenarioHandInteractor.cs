@@ -1,3 +1,4 @@
+using SI81.Input;
 using UnityEngine;
 
 namespace SI81.Tiziano.ChemicalAlert.Interaction
@@ -9,7 +10,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
     {
         [SerializeField] private ScenarioInputBindings inputBindings;
         [SerializeField] private Transform headAnchor;
-        [SerializeField] private OVRInput.Controller controller = OVRInput.Controller.LTouch;
+        [SerializeField] private Hand controller = Hand.Left;
         [SerializeField, Min(0.01f)] private float hoverRadius = 0.12f;
         [SerializeField, Min(0.01f)] private float inspectDistance = 0.35f;
         [SerializeField, Range(-1f, 1f)] private float inspectLookDot = 0.5f;

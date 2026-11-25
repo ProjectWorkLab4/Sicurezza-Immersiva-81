@@ -47,7 +47,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         [SerializeField] private SdsItem sdsItem;
         [SerializeField] private PlayerPPEState playerPPEState;
         [SerializeField] private ScenarioInputBindings inputBindings;
-        [SerializeField] private OVRInput.Controller hintController = OVRInput.Controller.RTouch;
+        [SerializeField] private SI81.Input.Hand hintController = SI81.Input.Hand.Right;
         [SerializeField] private ScenarioInteractable[] guidedHighlightTargets = new ScenarioInteractable[0];
         [SerializeField] private ScenarioInteractable[] operationalDistractors = new ScenarioInteractable[0];
         [SerializeField] private DisturbanceController disturbanceController;

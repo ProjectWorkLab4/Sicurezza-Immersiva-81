@@ -84,7 +84,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         {
             if (director != null && director.IsSdsPanelOpen &&
                 inputBindings != null &&
-                inputBindings.GetDismissDown(OVRInput.Controller.RTouch))
+                inputBindings.GetDismissDown(SI81.Input.Hand.Right))
                 director.DismissSdsPanel();
 
             if (errorRemaining <= 0f)

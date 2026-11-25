@@ -8,8 +8,56 @@
 - **Gruppo:** G_Marius
 - **Scenario:** Man Down (ID 3)
 - **Cartella autorizzata:** `Assets/_Project/Groups/G_Marius/`
-- **Ultimo aggiornamento:** 2026-11-23
-- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati (Lamp, Chair, FireExtinguisher, Employee, Clock, TablePrinter, OfficeDoor sostituita, FireAlarm/Sprinkler, Printer, Desk); Chair e FireAlarm/Sprinkler ottimizzati nel numero di draw call; ufficio open space 14×10 ricostruito con arredi G_Marius e modelli Shared istanziati (Task 16) e scale/rotazioni normalizzate (Task 17); aggiunto soffitto, postazioni uniformate con `MESH_OfficeDeskCovered`, divano posizionato davanti alla TV e mantenuto tavolo tondo con puf (Task 18); nessun gameplay implementato.
+- **Ultimo aggiornamento:** 2026-11-25
+- **Stato:** analisi iniziale completata; materiali e prefab dei modelli sistemati; ufficio open space 14×10 ricostruito e rifinito (Task 16–18); nessun gameplay implementato. Documentazione aggiornata in TASK 00/00b/00c/00d/01 e Task 00e: le otto decisioni aperte e le decisioni integrative sono state **approvate e registrate**. Rig temporaneo **rinviato**: l'utente lo inserirà a breve; OpenCode non lo ha creato. Nessuna scena, prefab o script di gameplay modificati in queste fasi.
+
+---
+
+## 0. Direttive TASK 00 — priorità massima (2026-11-24)
+
+Queste regole **prevalgono** su qualsiasi istruzione precedente incompatibile, in particolare sui punti §1.2 nn. 3–5, sul §6 e sul §7.4.
+
+1. **Logica prima, UI dopo, ma vincoli UI fin da ora.** Completare e verificare l'intero flusso di gioco Man Down senza UI; integrare la UI comune SI81 solo alla fine. I vincoli di architettura, naming e API di `Docs/GUIDA_INTEGRAZIONE_SCENARIO.md` e `Docs/UI_INTEGRATION_FOR_AI.md` vanno però rispettati fin dal primo script, per evitare riscritture. Il percorso reale dei due file è la cartella del gruppo, **non** `Assets/_Project/Docs/` come scritto nella guida.
+2. **Nessuna UI ora.** Non creare UI provvisoria né definitiva: niente Canvas, HUD, pannelli, EventSystem, etichette o `LabelAnchor`. Non scrivere chiamate a `ScenarioController`, `HUDService` o ad altre API SI81.UI finché il kit non sarà effettivamente disponibile.
+3. **Nessun nuovo sistema XR.** Non aggiungere XR Interaction Toolkit, rig, player, controller, locomozione, Input Actions, Raycaster o collider/interactable locali. Un rig locale temporaneo potrà essere creato **solo su richiesta esplicita** e **non** dovrà entrare nella scena finale né nel repository.
+4. **Controller stabile.** Oggi `ManDownScenario` è un `MonoBehaviour` con API pubblica stabile e senza parametri. In integrazione cambierà solo la classe base in `ScenarioController` e le chiamate UI verranno aggiunte dentro di esso: i componenti di interazione non dovranno essere riscritti.
+5. **Esclusione totale di pericolo ambientale e pozzanghera.** Non implementare pozzanghera, panno, rischio di scivolamento, danni all'operatore o penalità Safety collegate. Questa decisione **sostituisce** il §7.4 punto 1 e il Bad Ending "esposizione al pericolo" del flowchart. Safety resta neutra (5/5).
+6. **Nessuna modifica in TASK 00.** Il task corrente è solo analisi e documentazione: non toccare `SCN_Man_Down.unity`, prefab, materiali, script o Build Settings. Ogni lavoro successivo resta dentro `Assets/_Project/Groups/G_Marius/`.
+7. **Stato documentale.** Inventario, architettura proposta, impedimenti e decisioni aperte sono in `Docs/Man_Down/TASK_PROGRESS.md`.
+8. **Direttive operative.** Le regole di esecuzione riviste del 2026-11-24 sono nel §0.1 e prevalgono su qualsiasi formulazione precedente.
+
+### 0.1 Direttive operative riviste (2026-11-24)
+
+1. Prima di iniziare, leggere `AGENTS.md` e `TASK_PROGRESS.md` in `Docs/Man_Down/`, verificandone il percorso effettivo.
+2. Leggere **solo** le sezioni della documentazione pertinenti al task assegnato: non ripetere analisi complete del progetto.
+3. Eseguire **esclusivamente** il task richiesto; non iniziare autonomamente quelli successivi.
+4. Modificare esclusivamente i file autorizzati del gruppo `G_Marius`; riutilizzare script, modelli e componenti già esistenti.
+5. Non modificare `Shared`, `Home`, altri gruppi, `Packages` o `ProjectSettings`.
+6. Non creare UI, Canvas o pannelli personalizzati: la UI comune SI81 si integra solo nel task dedicato.
+7. Mantenere la logica indipendente dal player rig e dalla rappresentazione grafica; non creare né modificare sistemi XR, salvo esplicita autorizzazione nel task dedicato al rig temporaneo.
+8. Non implementare il pericolo ambientale.
+9. Rispettare le convenzioni di naming e documentazione C# della guida SI81; privilegiare soluzioni semplici e compatibili con Meta Quest 3.
+10. Non modificare materiali, illuminazione o disposizione dell'ambiente se non strettamente necessario al task.
+11. Usare Unity MCP per ispezionare e configurare la scena quando necessario.
+12. Aggiornare `TASK_PROGRESS.md` dopo ogni fase significativa, indicando modifiche effettuate, verifiche, problemi e prossimo passaggio.
+13. Al termine verificare la compilazione, controllare i riferimenti nell'Inspector e provare la funzionalità quando possibile.
+14. Aggiornare `AGENTS.md` e `TASK_PROGRESS.md` distinguendo i test **realmente eseguiti** da quelli **ancora da effettuare manualmente**.
+15. Se il contesto viene compattato o la sessione interrotta, rileggere `AGENTS.md` e `TASK_PROGRESS.md` e riprendere dalla prima operazione incompleta.
+16. Non eseguire commit o push senza autorizzazione.
+17. Fornire un riepilogo sintetico e attendere il prossimo task.
+
+### 0.2 Decisioni gameplay approvate (2026-11-24/25) — priorità massima
+
+Queste decisioni dell'utente prevalgono su GDD specifico, flowchart, GDD generale e su qualsiasi formulazione precedente incompatibile. Il dettaglio è in `Docs/Man_Down/TASK_PROGRESS.md` e nei due documenti di specifiche/scoring.
+
+1. **Probabilità:** respirazione anormale 70% / normale 30%; DAE presente 75% / assente 25%; indipendenti, configurabili dall'Inspector e forzabili manualmente per i test.
+2. **RCP:** movimento fisico dei controller nella zona torace, due soglie compressione/rilascio, riarmo al rilascio, valutazione di posizione/ampiezza virtuale/frequenza, errori e qualità registrati; rilevamento fisico separato dalla valutazione; nessuna forza simulata. Soglie: 20 compressioni iniziali con DAE, 20 dopo defibrillazione, 30 senza DAE; 100–120 cpm; nessuna ventilazione; parametri configurabili e da validare.
+3. **DAE:** recupero, attivazione, elettrodi posizionati manualmente con snap, analisi simulata, defibrillazione quando indicata, ripresa RCP. Elettrodi provvisori con primitive appiattite e materiali semplici; nessun cavo fisico né animazione complessa; futura sostituzione mesh senza cambiare logica.
+4. **Timeout e soccorsi:** solo modalità Realistica, 180 s; Guidata e Stress non implementate ma configurabili. Arrivo simulato dopo procedure fondamentali e breve assistenza finale, solo se il 112 è stato chiamato. Timeout = fallimento `TIMEOUT` con valutazione di tutte le azioni. Mancata chiamata non blocca la conclusione: nessun arrivo attribuito a una chiamata mai fatta, nessuna dichiarazione di fuori pericolo, esito massimo successo parziale.
+5. **Scoring ed esiti:** successo `>= 80`, parziale `>= 50` e `< 80`, fallimento `< 50` (`LOW_SCORE`). Fallimenti automatici solo `CPR_OMITTED` e `TIMEOUT`. Penalizzazioni: `EMERGENCY_NOT_CALLED`, `AED_OMITTED`, `CPR_POOR_QUALITY`, `AED_INCORRECT_USE`. Cinque dimensioni invariate (Safety 5%, Awareness 10%, Decision 30%, Execution 30%, Time 25%); Safety resta 5/5. Non modificare scoring condiviso o SPI comune; applicazione finale delle soglie da concordare in integrazione.
+6. **Primo soccorso aziendale:** escluso del tutto. Solo chiamata simulata al 112; nessuna chiamata aggiuntiva, attivazione automatica, NPC dedicato o penalità relativa.
+7. **Trigger:** logica indipendente da rig e interazione VR; metodi pubblici ed eventi per componenti intermedi; separazione tra rilevamento fisico, logica scenario, validazione, scoring e UI; testabile senza visore; nessuna dipendenza permanente dal rig temporaneo.
+8. **ID interni:** `CPR_OMITTED`, `TIMEOUT`, `LOW_SCORE` per il fallimento; `EMERGENCY_NOT_CALLED`, `AED_OMITTED`, `CPR_POOR_QUALITY`, `AED_INCORRECT_USE` per penalizzazioni. Registrare tutte le cause, concludere la missione una sola volta; descrizioni italiane demandate alla UI.
 
 ---
 
@@ -50,14 +98,15 @@ Le altre aree si possono **leggere** per capire le dipendenze, ma non modificare
 
 ### 1.3 Flusso di lavoro richiesto
 
-1. Leggere questo file e `Docs/Man_Down/Man_Down_Specifiche.md`.
-2. Verificare lo stato reale di scene, prefab, script, materiali e texture.
-3. Proporre **un singolo task circoscritto**, indicando file e prefab coinvolti.
+1. Leggere questo file e `TASK_PROGRESS.md` verificandone il percorso effettivo; leggere solo le sezioni dei documenti pertinenti al task, dando priorità a `Docs/GUIDA_INTEGRAZIONE_SCENARIO.md` e `Docs/UI_INTEGRATION_FOR_AI.md` per i vincoli UI.
+2. Verificare lo stato reale del solo materiale coinvolto nel task (Unity MCP per la scena quando necessario), senza ripetere l'inventario completo del progetto.
+3. Eseguire **un solo task circoscritto**, indicando file e prefab coinvolti; non passare autonomamente ai successivi.
 4. Attendere conferma se la modifica ha impatto fuori dalla cartella del gruppo o se una scelta non è definita.
-5. Implementare in modo piccolo e testabile.
+5. Implementare in modo piccolo e testabile, riutilizzando ciò che esiste già.
 6. Salvare il progetto nell'Editor (vedi §1.4) dopo ogni modifica importante e comunque alla fine del task.
-7. Verificare in Play Mode e, quando possibile, su Meta Quest 3.
-8. Aggiornare questo file nel §10 con **solo** ciò che è realmente cambiato e verificato.
+7. Verificare compilazione, riferimenti nell'Inspector e funzionalità quando possibile; distinguere i test eseguiti da quelli ancora manuali.
+8. Alla fine di **ogni micro task / fase significativa**, aggiornare questo file nel §10 e `TASK_PROGRESS.md` con modifiche effettuate, verifiche eseguite, problemi e prossimo passaggio, anche in caso di modifiche esclusivamente documentali.
+9. In caso di compattazione del contesto o interruzione, rileggere i due documenti e riprendere dalla prima operazione incompleta.
 
 ### 1.4 Salvataggio del progetto
 
@@ -76,8 +125,13 @@ Le altre aree si possono **leggere** per capire le dipendenze, ma non modificare
 | `Docs/Man_Down/FlowChart_ManDown.pdf` | Riferimento di flusso, pericolo ambientale e Bad Ending. |
 | `Docs/Project Work VR - GDD.pdf` | GDD generale: difficoltà, interazioni VR, punteggi, accessibilità, sistemi comuni. |
 | `Docs/Man_Down/Man_Down_Specifiche.md` | Sintesi operativa dei tre documenti. **Non è prova** che una funzionalità esista. |
+| `Docs/Man_Down/Man_Down_Scoring_System.md` | Proposta di scoring a 5 dimensioni, non approvata: pesi, malus e formula vanno conservati come dati grezzi, non come punteggio UI. |
+| `Docs/UI_INTEGRATION_FOR_AI.md` (cartella del gruppo) | Istruzioni API per l'integrazione UI finale. Il percorso citato nella guida (`Assets/_Project/Docs/UI_INTEGRAZIONE_FOR_AI.md`) non corrisponde al progetto reale. |
+| `Docs/GUIDA_INTEGRAZIONE_SCENARIO.md` | Guida operativa UI comune v0.6; casi 2/3/6 rilevanti per portare la scena esistente nel kit e scrivere lo script finale. |
 | `Assets/_Project/Docs/Guida_HUD_comune_SI81.pdf` | Regole HUD comune; vieta Canvas/HUD locali. |
 | `README.md` (root) | Convenzioni di progetto, ownership, workflow `Shared`, build e scene. |
+
+**Nota TASK 00:** i due file UI elencati sopra sono nella cartella `Docs/` del gruppo G_Marius, non in `Assets/_Project/Docs/`.
 
 **Regola sulle discrepanze:** non scegliere una versione e non modificare il comportamento in automatico.
 Riporta il conflitto e chiedi conferma. Per lo scenario, il GDD specifico è la base funzionale più dettagliata; il flowchart resta riferimento di flusso.
@@ -113,21 +167,15 @@ Nota: esistono file `.csproj` residui di sample XRI nella root del repository, m
 
 ### 3.3 Scene
 
-**`Level/Scenes/SCN_Man_Down.unity`**
+**`Level/Scenes/SCN_Man_Down.unity` — snapshot verificato il 2026-11-24 con Unity MCP**
 
-- Contiene **una sola istanza** del prefab `prefab_scena`, posizionata a circa `(-17.24, 0.25, 22.71)`.
-- Nessun XR Origin, nessun player, nessuna stanza costruita, nessun NPC piazzato, nessuna UI.
+- Scena attiva in Editor, `isDirty: false` al momento della lettura. `SceneRoots` contiene **un solo root**: `/prefab_scena`.
+- Sotto il root si trovano la struttura `MESH_OfficeStructure` (14×10×3 m con soffitto), l'ufficio arredato, il NPC `MESH_RiggedEmployee`, tre telefoni, il DAE e il resto dei prop.
+- **Non ci sono** Camera, AudioListener, Canvas, EventSystem, XR Origin/rig, componenti XR, Rigidbody, Animator, AudioSource, InputActionAsset, AnimationClip, AnimatorController, AudioClip o script di interazione.
+- Collider presenti **solo** su `MESH_OfficeStructure`: `Floor` con MeshCollider e pareti/soffitto con BoxCollider. NPC, telefoni, DAE, scrivanie, sedie e prop **non hanno collider**.
 - **Non è nelle Build Settings.** L'unica scena in build è `Assets/_Project/SCN_Placeholder.unity`.
 
-**`Level/Prefabs/Man_Down/prefab_scena.prefab`**
-
-- Blocco di scena con:
-  - `Main Camera`
-  - `Directional Light`
-  - `Cube`
-- La `Main Camera` è una camera classica, **non** una camera XR.
-- Il `Cube` è attivo e presente nell'istanza di scena.
-- Non contiene logica di scenario.
+La vecchia descrizione di `prefab_scena.prefab` come blocco con `Main Camera`, `Directional Light` e `Cube` è storica dei primi task: lo stato corrente è quello qui sopra e prevale in caso di conflitto.
 
 ### 3.4 Prefab esistenti
 
@@ -146,6 +194,8 @@ Nota: esistono file `.csproj` residui di sample XRI nella root del repository, m
 | `Level/Prefabs/Man_Down/prefab_scena.prefab` | Camera, Directional Light e Cube; nessuno script. |
 
 Tutti i prefab usano il prefisso `MESH_`, compresi i nuovi: decisione esplicita dell'utente del 2026-11-22 (vedi §5). I due prefab creati in questa sessione sono già stati rinominati dall'utente da `PFB_*` a `MESH_*`.
+
+**Aggiornamento TASK 00 (2026-11-24):** la tabella sopra è il registro storico dei task di materiali. Oltre a essa esistono e sono verificati `MESH_RiggedEmployee.prefab` (NPC a terra nella scena), `MESH_AED.prefab` (DAE istanziato in scena), `MESH_Phone.prefab`, `MESH_OfficeDeskCovered.prefab` e `MESH_Sofa 1.prefab`. `MESH_Employee.prefab` esiste ma **non** è istanziato in scena. Nessuno di questi prefab contiene script di gameplay.
 
 ### 3.5 Modelli disponibili nel gruppo
 
@@ -248,13 +298,14 @@ Dettaglio per cartella:
 
 **Regola:** non indovinare lo slot di una texture incerta. Se la mappatura non è verificata, fermarsi e chiedere.
 
-### 3.8 Altro contenuto del gruppo
+### 3.8 Altro contenuto del gruppo (aggiornato 2026-11-24)
 
-- `Audio/Music/` e `Audio/Sound/`: **vuote** (solo `PLACEHOLDER.txt`).
-- `Code/Scripts/` e `Code/Shaders/`: **vuote**.
+- `Audio/Music/` e `Audio/Sound/`: **vuote** (solo `PLACEHOLDER.txt`). Nessun audio per 112, DAE o feedback.
+- `Code/Scripts/` e `Code/Shaders/`: **vuote**; nessuno script di gameplay o interazione.
 - `UI/`: **vuota**.
-- `Art/Models/Man_Down/` contiene solo i modelli elencati sopra.
-- Non esistono asset per DAE, pozzanghera, panno, stanza ufficio completa, finestre o materiale audio.
+- `Art/Models/Man_Down/` contiene i modelli storici elencati sopra **e** il modello del DAE (`MESH_AED.obj`, texture `TEX_AED/AED2.png`) usato dal prefab `MESH_AED.prefab`.
+- **Il DAE esiste già** in scena e tra i prefab del gruppo: la vecchia riga "non esistono asset per DAE" è superata.
+- Non esistono asset per pozzanghera, panno, finestre dedicate o materiale audio. La pozzanghera è comunque **esclusa** per direttiva TASK 00 (§0 e §7.4).
 
 ### 3.9 Sistemi condivisi: cosa c'è e cosa manca
 
@@ -265,13 +316,14 @@ Dettaglio per cartella:
 - Moduli stanza per Chemical Alert (pareti, pavimento, soffitto, porte, finestre).
 - Varie casse, barili, camion, ventola, soda caustica.
 
-**Mancante / non ancora disponibile:**
+**Mancante / non ancora disponibile (verificato 2026-11-24):**
 
-- XR Origin / player / rig / controller / locomozione / input actions.
-- UI e HUD comuni (esiste solo la guida, non l'implementazione).
+- Kit `SI81.UI`: `ScenarioController`, `ScenarioTrigger`, `LabelAnchor`, `HUDService`, `SCN_Core`, `SO_MissionCatalog`, `SO_Mission_Template` e `Assets/_Project/Shared/Level/ScenarioTemplate/` **non sono presenti**, benché documentati.
+- XR Origin / player / rig / controller / locomozione / input actions. `Docs/SharedPlayerRig.md` descrive il rig finale comune, ma prefab, script/assembly e `SharedInteraction.md` **non sono presenti** (verificato nel TASK 01, 2026-11-24). L'utente ha chiarito che inserirà a breve un rig temporaneo: OpenCode non lo crea autonomamente e non deve introdurre dipendenze permanenti da esso.
+- UI e HUD comuni implementate (esistono solo le guide nella cartella del gruppo).
 - Scoring, esiti, difficoltà, timer, debriefing, salvataggi.
-- Sistema di interazione (grab, poke, ray) e interattabili.
-- DAE, pozzanghera, panno, stanza Man Down completa.
+- Sistema di interazione approvato (grab, poke, ray) e interattabili.
+- Pozzanghera e panno: **esclusi** per direttiva TASK 00, non da implementare.
 - Audio (musica, ambience, SFX, istruzioni DAE, chiamata 112).
 - Interfaccia telefonica per la chiamata simulata al 112.
 
@@ -361,31 +413,34 @@ Non risolvere queste ambiguità da soli.
 
 **Indicazione operativa:** usare identificatori semantici interni, non numeri; concordare la numerazione mostrata al giocatore.
 
+**Aggiornamento Task 00e:** la numerazione della tabella è storica e superata: usare gli ID del §0.2 (`EMERGENCY_NOT_CALLED`, `CPR_OMITTED`, `AED_OMITTED`, `CPR_POOR_QUALITY`, `AED_INCORRECT_USE`, `TIMEOUT`, `LOW_SCORE`). Le descrizioni italiane restano demandate all'integrazione UI.
+
+**Nota TASK 00:** la riga "avvicinamento in ambiente pericoloso" è **esclusa** da qualsiasi implementazione: non creare pozzanghera, danno o Bad Ending dedicato. Le etichette dei tre errori critici sono ora sostituite dagli ID semantici del §0.2.
+
 ### 7.2 Altre discrepanze / lacune
 
 1. `FlowChart_ManDown.pdf` contiene anche un diagramma estraneo (pressa/PPE/estintore) non pertinente al flusso Man Down.
 2. Il timer della difficoltà **Guidato** non è definito nel GDD Man Down.
 3. Il GDD generale usa `Guidato / Realistico / Stress`; la guida HUD usa `Guided / Operational / Crisis`. Mappatura da concordare.
 4. "Attivare il primo soccorso aziendale" è citato nelle specifiche ma non ha una meccanica definita.
-5. Non sono definite le probabilità di respirazione anomala, disponibilità DAE e pozzanghera.
+5. Non sono definite le probabilità di respirazione anomala e di disponibilità del DAE (la pozzanghera è esclusa in TASK 00).
 6. Non è definito quando un'omissione diventa definitiva (timeout, numero di interazioni, passaggio di fase).
-7. Non è definito se il pericolo ambientale grave causi fallimento immediato o penalizzazione.
+7. Non è definito se il pericolo ambientale grave causi fallimento immediato o penalizzazione: domanda **irrilevante** perché il pericolo ambientale è escluso in TASK 00 (§0 e §7.4).
 8. Non è definito il criterio di completamento di RCP/DAE né il punteggio per successo parziale.
 
-### 7.3 Domande aperte da risolvere prima dell'implementazione
+**Aggiornamento Task 00e (2026-11-25):** i punti 4, 5, 6 e 8 sono risolti dalle decisioni approvate nel §0.2. Il punto 7 è irrilevante perché il pericolo ambientale è escluso. Restano come riferimento storico solo i punti 1–3 (discrepanze tra PDF), da non usare come regole operative.
 
-1. Numerazione/etichette dei Bad Ending.
-2. Durata e comportamento del timer Guidato.
-3. Condizioni di timeout e momento dell'arrivo simulato dei soccorsi.
-4. Quando il DAE si considera "ignorato".
-5. Regole di successo parziale e penalità recuperabili.
-6. Meccanica del primo soccorso aziendale.
-7. Probabilità delle variabili randomiche.
+### 7.3 Domande aperte — stato
+
+**Risolte dalle decisioni approvate:** numerazione/etichette dei Bad Ending (ora ID semantici), condizioni di timeout e arrivo soccorsi, criterio DAE ignorato, regole di successo parziale e penalità recuperabili, meccanica del primo soccorso aziendale (esclusa), probabilità delle variabili randomiche, durata Realistica (180 s), conteggi RCP e limiti alla mancata chiamata.
+
+**Ancora necessari solo per la validazione didattica, non per scrivere la struttura del codice:** valori di ampiezza/soglia di rilascio/tolleranza di frequenza della RCP, durata della breve fase finale di assistenza, `T_target`/`T_max` del punteggio Time, scelta finale tra punteggio ponderato di Man Down e SPI comune durante l'integrazione. I campi saranno configurabili: non inventare valori clinici.
 
 ### 7.4 Decisioni già prese dal gruppo
 
-1. **Pozzanghera:** pericolo **solo penalizzante**, non causa di fallimento immediato; è **opzionale** e va implementata solo se resta tempo dopo il percorso principale.
-2. **Difficoltà di partenza:** quando verrà chiesto di realizzare lo scenario, si inizia dalla modalità **Realistico** (3 minuti; successo 30, parziale 10, fallimento 0). Le altre modalità non vanno anticipate.
+1. **Pozzanghera / pericolo ambientale: escluso del tutto** (aggiornamento TASK 00, 2026-11-24). Niente pozzanghera, panno, rischio di scivolamento, danno, penalità Safety o Bad Ending dedicato. La precedente decisione "solo penalizzante e opzionale" è superata; Safety resta 5/5.
+2. **Unica modalità implementata: Realistica, 180 s.** Il precedente punteggio GDD 30/10/0 è superato dalle soglie approvate 80/50. Guidata e Stress non si implementano ora, ma i parametri restano configurabili per future estensioni.
+3. **Ulteriori decisioni approvate:** elenco completo nel §0.2 e in `TASK_PROGRESS.md`; in caso di conflitto, prevalgono sul GDD specifico e sul flowchart.
 
 ---
 
@@ -460,7 +515,7 @@ Non risolvere queste ambiguità da soli.
   - Anteprime renderizzate in Editor da più angolazioni: corpo chiaro e due strisce diffusori emissive.
 - **Non verificato:** Play Mode nella scena di gioco e prova su Meta Quest 3.
 - **Problemi aperti:** invariati (§7.3). Il modello conserva 1 Camera importata, non rimossa.
-- **Decisioni registrate:** pozzanghera solo penalizzante e opzionale; scenario da realizzare partendo da Realistico (§7.4).
+- **Decisioni registrate (storiche):** pozzanghera solo penalizzante e opzionale; scenario da realizzare partendo da Realistico. **Superato il 2026-11-25:** la pozzanghera è esclusa del tutto e Realistico ha timeout 180 s con soglie 80/50 (§0.2 e §7.4).
 - **Prossimo passo (eseguito):** intervento sulla Chair, registrato nel Task 2.
 
 ### Task 2 — Materiali e prefab della Chair
@@ -903,3 +958,86 @@ Non risolvere queste ambiguità da soli.
   - `editor_save_all` + `AssetDatabase.SaveAssets()` eseguiti.
 - **Non verificato:** conferma visiva in Editor dell'utente, Play Mode, prova su Meta Quest 3.
 - **Note:** il divano usato è `MESH_Sofa 1.prefab` (candidato già individuato in precedenza; `MESH_Sofa.prefab` ha bounds anomali piccoli). La TV resta un'istanza del modello Shared read-only. Nessun asset fuori da `Assets/_Project/Groups/G_Marius/` è stato modificato intenzionalmente.
+
+### Task 00 — Analisi del gameplay e architettura (TASK 00)
+
+- **Data:** 2026-11-24
+- **Obiettivo:** leggere tutte le fonti, ispezionare la scena reale con Unity MCP, verificare risorse e impedimenti, proporre una architettura semplice e aggiornare la documentazione di gruppo.
+- **File creati:**
+  - `Docs/Man_Down/TASK_PROGRESS.md`
+- **File modificati:**
+  - `Docs/Man_Down/AGENTS.md` (nuovo §0 con direttive prioritarie e correzioni degli stati reali nei §2, §3.3, §3.4, §3.8, §3.9, §7.1 e §7.4)
+- **Nessuna modifica a:** `Level/Scenes/SCN_Man_Down.unity`, prefab, materiali, texture, script, Build Settings, `Shared`, `Home` o configurazioni globali.
+- **Verifiche eseguite:**
+  - Lettura di AGENTS, specifiche, scoring, GDD specifico e generale, flowchart, guide UI e guida interazioni; estrazione del testo dei PDF non leggibili direttamente.
+  - Ispezione MCP della scena attiva: root unico `/prefab_scena`, `isDirty: false`, inventario di componenti e collider.
+  - Verifica del NPC `MESH_RiggedEmployee` (12 SkinnedMeshRenderer, nessun Animator/clip, già a terra), dei tre telefoni `ENV_Telefono_1/2/3`, del DAE `MESH_AED` presente in scena e nei prefab.
+  - Verifica dell'assenza del kit `SI81.UI` (`ScenarioController`, `ScenarioTrigger`, `LabelAnchor`, `SCN_Core`, catalogo e template missione) e di XRI nel manifest.
+- **Risultato:** architettura proposta in `Docs/Man_Down/TASK_PROGRESS.md`: `ManDownScenario` con API stabile più `ManDownNpc`, `ManDownPhone`, `ManDownCpr` e `ManDownAed`. Nessun gameplay implementato; **in attesa di conferma** prima di creare script o toccare la scena.
+- **Problemi aperti (al momento del Task 00):** probabilità, criteri RCP/DAE, timeout, soglie di esito, primo soccorso aziendale, sorgente dei trigger ed etichette dei Bad Ending. **Risolti il 2026-11-25** nel Task 00e: vedere §0.2 e `TASK_PROGRESS.md`.
+
+### Task 00b — Regole di lavoro per i task futuri
+
+- **Data:** 2026-11-24
+- **Richiesta utente:** seguire i documenti forniti, con priorità alle guide di integrazione UI disponibili in `Docs/`; leggere `AGENTS.md` prima di ogni task principale; aggiornare `AGENTS.md` e `TASK_PROGRESS.md` alla fine di ogni micro task.
+- **File modificati:**
+  - `Docs/Man_Down/AGENTS.md` (punti §0 nn. 1 e 8, §1.3 passi 1 e 8, nuovo registro Task 00b)
+  - `Docs/Man_Down/TASK_PROGRESS.md` (nuova sezione "Regole di lavoro confermate")
+- **Nessuna modifica a:** scena, prefab, script, Build Settings o sistemi comuni.
+- **Verifiche:** solo rilettura delle sezioni modificate; nessuna prova in Play Mode prevista per una modifica documentale.
+- **Stato:** direttive registrate e operative dal prossimo task; nessun gameplay implementato.
+
+### Task 00c — Direttive operative riviste
+
+- **Data:** 2026-11-24
+- **Richiesta utente:** riscrivere le direttive di lavoro in forma più precisa; le decisioni di gameplay restano differite a quando serviranno.
+- **File modificati:**
+  - `Docs/Man_Down/AGENTS.md` (§0 punto 8, nuovo §0.1 con 17 regole, §1.3 aggiornato, nuovo registro Task 00c)
+  - `Docs/Man_Down/TASK_PROGRESS.md` (sezione "Regole di lavoro confermate" riscritta, nuovo registro fasi)
+- **Nessuna modifica a:** scena, prefab, script, materiali, Build Settings, sistemi comuni.
+- **Verifiche eseguite:** rilettura dei due file e conferma del percorso effettivo via ricerca file; nessuna compilazione o prova in Play Mode, trattandosi di modifica solo documentale.
+- **Verifiche ancora da effettuare:** batch/compilazione e controllo Inspector al primo task con codice; prove funzionali manuali a cura dell'utente.
+- **Stato:** direttive riviste e operative; nessun gameplay implementato, nessun task successivo avviato.
+
+### Task 00d — Riorganizzazione di `TASK_PROGRESS.md`
+
+- **Data:** 2026-11-24
+- **Richiesta utente:** organizzare `TASK_PROGRESS.md` nelle sezioni Roadmap dei task, Task corrente, Operazioni completate, Operazioni rimanenti, File creati o modificati, Decisioni tecniche, Test effettuati, Problemi aperti e Prossimo passaggio; la roadmap deve contenere i 13 task indicati.
+- **File modificati:**
+  - `Docs/Man_Down/TASK_PROGRESS.md` (riscritto con le nove sezioni richieste e la roadmap a 13 task; contenuto verificato precedentemente conservato)
+  - `Docs/Man_Down/AGENTS.md` (nuovo registro Task 00d)
+- **Nessuna modifica a:** scena, prefab, script, materiali, Build Settings, sistemi comuni.
+- **Verifiche eseguite:** rilettura del documento riscritto e correzione di due refusi; nessuna compilazione o prova in Play Mode per una modifica solo documentale.
+- **Verifiche ancora da effettuare:** compilazione, riferimenti Inspector, Play Mode e prova su Quest nei task di gameplay.
+- **Stato:** documento riorganizzato; roadmap e decisioni aperte registrate; nessun gameplay implementato e nessun task successivo avviato.
+
+### TASK 01 — Player rig temporaneo per i test (rinviato)
+
+- **Data:** 2026-11-24
+- **Richiesta utente:** creare un rig temporaneo seguendo `Docs/SharedPlayerRig.md`, con movimento, rotazione, controller e interazione; senza nuovi pacchetti, senza modifiche globali, senza XRI, isolato dalla scena finale e senza dipendenze permanenti.
+- **Verifiche eseguite:**
+  - Lettura di `AGENTS.md`, `TASK_PROGRESS.md` e `Docs/SharedPlayerRig.md`; il documento cita `Docs/SharedInteraction.md`, assente.
+  - `Packages/manifest.json` e Unity MCP: Meta XR Core 209.0.0, Input System 1.19.0, XR Management 4.7.0, OpenXR 1.16.1, URP 17.3.0, Test Framework 1.6.0; XRI non installato.
+  - Unity MCP e ricerca su disco: assenti `MNG_CoreRig.prefab`, `InputService`, `RigRegistration`, `Interactable`, `OVRCameraRig`; nessuna assembly definition in `Assets/` e un solo script fuori dal gruppo.
+  - Scena attiva `SCN_Man_Down.unity`: un solo root, nessuna Camera/rig, `isDirty: false`; Editor `ready`, nessuna compilazione in corso e `compilationFailed: false`.
+- **File modificati:** solo `Docs/Man_Down/TASK_PROGRESS.md` e `Docs/Man_Down/AGENTS.md` (§3.9 e questo registro).
+- **Nessuna modifica a:** scena, prefab, script, materiali, Build Settings, `Shared`, `Home`, `Packages`, `ProjectSettings`, `.gitignore`.
+- **Risultato:** rig **non creato**. I componenti indispensabili descritti dalla documentazione non esistono nel progetto; non è stato inventato un sistema alternativo né usato XRI.
+- **Verifiche non eseguite:** Play Mode, Test Runner, compilazione di script del rig, prova su Meta Quest 3. La procedura di test manuale è documentata in `TASK_PROGRESS.md`.
+- **Problemi aperti:** mancano prefab/script/assembly del rig, `SharedInteraction.md`, `SCN_Core` e adattatore `IRigUIBridge`; serve decisione o conferimento dei componenti da parte del team/utente.
+- **Stato:** TASK 01 rinviato su indicazione dell'utente: il rig temporaneo sarà inserito dall'utente a breve; OpenCode non lo ha creato. Nessun task successivo avviato.
+
+### Task 00e — Decisioni gameplay approvate
+
+- **Data:** 2026-11-25
+- **Richiesta utente:** registrare le otto decisioni approvate e le decisioni integrative definitive; aggiornare `TASK_PROGRESS.md`, specifiche, scoring e `AGENTS.md`; aggiornare il piano delle classi; non implementare ancora gli script di gameplay.
+- **File modificati:**
+  - `Docs/Man_Down/TASK_PROGRESS.md` (decisioni approvate, roadmap, piano di implementazione, problemi aperti aggiornati)
+  - `Docs/Man_Down/Man_Down_Specifiche.md` (riscritto per coerenza con le decisioni)
+  - `Docs/Man_Down/Man_Down_Scoring_System.md` (soglie 80/50, ID, RCP 20/20/30, DAE, esiti e limiti di integrazione)
+  - `Docs/Man_Down/AGENTS.md` (header, nuovo §0.2, §3.9, §7.2/§7.3/§7.4, registro Task 00e)
+- **Nessuna modifica a:** scena, prefab, materiali, texture, script, Build Settings, `Shared`, `Home`, altri gruppi, `Packages`, `ProjectSettings`, XR, `.gitignore`.
+- **Verifiche eseguite:** rilettura integrale dei quattro file, ricerca delle residue indicazioni incompatibili dopo l'aggiornamento. Nessun Test Runner o Play Mode: nessuno script creato.
+- **Risultato:** tutte le decisioni di gameplay risultano approvate e documentate; il piano delle cinque classi è aggiornato con separazione tra rilevamento fisico RCP e validazione. Nessun gameplay implementato.
+- **Problemi aperti:** rig temporaneo inserito dall'utente; kit `SI81.UI` e sistema di interazione condiviso assenti; parametri didattici RCP/Time non ancora forniti (campi configurabili, nessun valore inventato); applicazione finale delle soglie al punteggio ponderato o allo SPI comune rinviata all'integrazione.
+- **Stato:** documentazione aggiornata; attendere il prossimo task. Nessun commit o push.

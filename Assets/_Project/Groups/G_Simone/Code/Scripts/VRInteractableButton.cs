@@ -57,6 +57,9 @@ public class VRInteractableButton : MonoBehaviour
 
     public bool IsHovered { get; private set; }
 
+    /// <summary>True between an activation and its release.</summary>
+    public bool IsActive { get; private set; }
+
     readonly List<Interactable> _targets = new List<Interactable>();
     readonly Dictionary<Renderer, Color> _originalColors = new Dictionary<Renderer, Color>();
     readonly Dictionary<Interactable, bool> _selectable = new Dictionary<Interactable, bool>();
@@ -90,6 +93,7 @@ public class VRInteractableButton : MonoBehaviour
     void OnDisable()
     {
         Unsubscribe();
+        Release();
         SetHovered(false);
     }
 
@@ -107,6 +111,7 @@ public class VRInteractableButton : MonoBehaviour
 
         if (!value)
         {
+            Release();
             SetHovered(false);
         }
     }
@@ -128,6 +133,7 @@ public class VRInteractableButton : MonoBehaviour
         }
 
         _lastSelectedTime = Time.unscaledTime;
+        IsActive = true;
 
         if (audioSource != null && pressClip != null)
         {
@@ -137,6 +143,21 @@ public class VRInteractableButton : MonoBehaviour
         onSelected.Invoke();
         Selected?.Invoke(this);
         return true;
+    }
+
+    /// <summary>
+    /// Ends the current activation. Safe to call more than once and from either the shared
+    /// interactor or a scenario-specific long-range interactor.
+    /// </summary>
+    public void Release()
+    {
+        if (!IsActive)
+        {
+            return;
+        }
+
+        IsActive = false;
+        NotifyDeselected();
     }
 
     void Subscribe()
@@ -240,7 +261,7 @@ public class VRInteractableButton : MonoBehaviour
         Activate();
     }
 
-    void HandleSelectExited(SI81.Input.Hand hand) => NotifyDeselected();
+    void HandleSelectExited(SI81.Input.Hand hand) => Release();
 
     void HandleGrabEntered(SI81.Input.Hand hand)
     {
@@ -248,7 +269,7 @@ public class VRInteractableButton : MonoBehaviour
         Activate();
     }
 
-    void HandleGrabExited(SI81.Input.Hand hand) => NotifyDeselected();
+    void HandleGrabExited(SI81.Input.Hand hand) => Release();
 
     void NotifyDeselected()
     {

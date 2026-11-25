@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SI81.UI;
 using UnityEngine;
@@ -18,9 +19,19 @@ public sealed class GasLeakScenario : ScenarioController
     [Tooltip("Cervello del gameplay presente su MNG_Scenario.")]
     [SerializeField] GestoreScenarioGasLeak gestore;
 
+    [Header("Debug")]
+    [Tooltip("Se attivo, l'Inspector di MNG_Scenario mostra tutte le variabili di scenario e gameplay.")]
+    [SerializeField] bool debugMode;
+
     readonly bool[] _obiettiviCompletati = new bool[NUMERO_OBIETTIVI];
     int _sceltaIniziale = -1;
     bool _rilevatoreSegnalato;
+    bool _stufettaSegnalata;
+    int _finestreSegnalate;
+    bool _chiamata112Segnalata;
+    string _hintDecisione = "Riconosci i sintomi e usa il rilevatore CO";
+    string _hintCorrente = string.Empty;
+    readonly Dictionary<OutcomeType, string> _criteriOriginali = new Dictionary<OutcomeType, string>();
 
     /// <summary>Recupera il gameplay se il campo non è stato assegnato.</summary>
     void Awake()
@@ -29,6 +40,8 @@ public sealed class GasLeakScenario : ScenarioController
         {
             gestore = FindFirstObjectByType<GestoreScenarioGasLeak>();
         }
+
+        SalvaCriteriOriginali();
     }
 
     /// <summary>Si iscrive all'esito finale del gameplay.</summary>
@@ -60,6 +73,12 @@ public sealed class GasLeakScenario : ScenarioController
     {
         _sceltaIniziale = -1;
         _rilevatoreSegnalato = false;
+        _stufettaSegnalata = false;
+        _finestreSegnalate = 0;
+        _chiamata112Segnalata = false;
+        _hintDecisione = "Riconosci i sintomi e usa il rilevatore CO";
+        _hintCorrente = string.Empty;
+        RipristinaCriteri();
         for (int i = 0; i < _obiettiviCompletati.Length; i++)
         {
             _obiettiviCompletati[i] = false;
@@ -104,6 +123,7 @@ public sealed class GasLeakScenario : ScenarioController
 
         SincronizzaObiettivi();
         SetPhase(PHASE_RESOLUTION);
+        ImpostaTestoCriterio(esito);
 
         EndMission(ToOutcome(esito), -1, CalcolaDimensioni(esito), CostruisciDebrief(esito));
     }
@@ -122,7 +142,17 @@ public sealed class GasLeakScenario : ScenarioController
                     continue;
                 }
 
-                string prefisso = voce.corretta
+                bool corretta = voce.corretta;
+                if (voce.testo.IndexOf("sintomi del collega", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    corretta = gestore.CollegaAvvisato || _sceltaIniziale == 0;
+                }
+                else if (voce.testo.IndexOf("chiamato il 112", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    corretta = gestore.Chiamato112;
+                }
+
+                string prefisso = corretta
                     ? DebriefLinePrefix.GOOD
                     : voce.critica ? DebriefLinePrefix.CRITICAL : DebriefLinePrefix.BAD;
                 righe.Add(prefisso + FormattaVoce(voce));
@@ -155,24 +185,26 @@ public sealed class GasLeakScenario : ScenarioController
         {
             case 0:
                 Feedback("Scelta corretta: usa il rilevatore", FeedbackKind.Positive);
-                SetHint("Prendi il rilevatore sul tavolo");
+                _hintDecisione = "Prendi il rilevatore sul tavolo";
                 break;
             case 1:
                 Feedback("Aerare aiuta, ma serve confermare il CO", FeedbackKind.Neutral);
-                SetHint("Usa anche il rilevatore CO");
+                _hintDecisione = "Usa anche il rilevatore CO";
                 break;
             case 2:
                 Feedback("La manutenzione non è un’emergenza", FeedbackKind.Negative);
-                SetHint("In un’emergenza serve il 112");
+                _hintDecisione = "In un’emergenza serve il 112";
                 break;
             default:
                 Feedback("Non hai scelto in tempo", FeedbackKind.Negative);
-                SetHint("Usa il rilevatore CO");
+                _hintDecisione = "Usa il rilevatore CO";
                 break;
         }
+
+        AggiornaHint();
     }
 
-    /// <summary>Completa gli obiettivi in base allo stato del gameplay.</summary>
+    /// <summary>Completa gli obiettivi, segnala le azioni e aggiorna il suggerimento.</summary>
     void SincronizzaObiettivi()
     {
         if (!IsRunning || gestore == null)
@@ -182,18 +214,49 @@ public sealed class GasLeakScenario : ScenarioController
 
         CompletaObiettivoSe(0, gestore.CollegaAvvisato || _sceltaIniziale == 0);
         CompletaObiettivoSe(1, gestore.RilevatoreUsato);
-        CompletaObiettivoSe(2, gestore.TutteFinestreAperte && gestore.StufettaSpenta);
-        CompletaObiettivoSe(3, gestore.Chiamato112 && gestore.Uscito);
+        CompletaObiettivoSe(2, gestore.FinestreAperte > 0 && gestore.StufettaSpenta);
+        CompletaObiettivoSe(3, gestore.Chiamato112 && gestore.UscitoConCollega);
 
-        if (gestore.RilevatoreUsato && !_rilevatoreSegnalato)
+        bool rilevatoreNuovo = gestore.RilevatoreUsato && !_rilevatoreSegnalato;
+        bool stufettaNuova = gestore.StufettaSpenta && !_stufettaSegnalata;
+        bool finestraNuova = gestore.FinestreAperte > _finestreSegnalate;
+        bool chiamataNuova = gestore.Chiamato112 && !_chiamata112Segnalata;
+
+        if (rilevatoreNuovo)
         {
             _rilevatoreSegnalato = true;
             Alert("Monossido di carbonio confermato\nAera, spegni e chiama il 112", ICONA_AVVISO);
-            SetHint("Apri le finestre e spegni la stufetta");
         }
+
+        if (stufettaNuova)
+        {
+            _stufettaSegnalata = true;
+            Alert("Stufetta spenta\nLa salita del monossido si ferma", ICONA_AVVISO);
+            Feedback("Stufetta spenta", FeedbackKind.Positive);
+        }
+
+        if (finestraNuova)
+        {
+            bool primaFinestra = _finestreSegnalate == 0;
+            _finestreSegnalate = gestore.FinestreAperte;
+            if (primaFinestra)
+            {
+                Alert("Finestra aperta\nL’aria si sta pulendo", ICONA_AVVISO);
+            }
+
+            Feedback("Finestra aperta", FeedbackKind.Positive);
+        }
+
+        if (chiamataNuova)
+        {
+            _chiamata112Segnalata = true;
+            Feedback("112 chiamato", FeedbackKind.Positive);
+        }
+
+        AggiornaHint();
     }
 
-    /// <summary>Segna un obiettivo completato e mostra il feedback sul polso.</summary>
+    /// <summary>Segna un obiettivo completato e porta il contatore al primo non fatto.</summary>
     void CompletaObiettivoSe(int indice, bool condizione)
     {
         if (indice < 0 || indice >= _obiettiviCompletati.Length || indice >= ObjectiveCount)
@@ -207,13 +270,90 @@ public sealed class GasLeakScenario : ScenarioController
         }
 
         _obiettiviCompletati[indice] = true;
-        CompleteObjective();
         Feedback(TestoObiettivo(indice), FeedbackKind.Positive);
 
         if (indice < NUMERO_OBIETTIVI - 1)
         {
+            int successivo = TrovaProssimoObiettivo();
+            if (successivo >= 0)
+            {
+                SetObjective(successivo);
+            }
+
             SetPhase(PHASE_ACTION);
         }
+    }
+
+    /// <summary>Restituisce l’indice del primo obiettivo ancora da completare.</summary>
+    int TrovaProssimoObiettivo()
+    {
+        for (int i = 0; i < _obiettiviCompletati.Length; i++)
+        {
+            if (!_obiettiviCompletati[i])
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>Mostra il suggerimento del passo successivo solo quando cambia.</summary>
+    void AggiornaHint()
+    {
+        if (!IsRunning || gestore == null)
+        {
+            return;
+        }
+
+        string hint = CalcolaHint();
+        if (hint == _hintCorrente)
+        {
+            return;
+        }
+
+        _hintCorrente = hint;
+        SetHint(hint);
+    }
+
+    /// <summary>Calcola il suggerimento in base allo stato reale del gameplay.</summary>
+    string CalcolaHint()
+    {
+        bool nessunaAzione = !_rilevatoreSegnalato && !_stufettaSegnalata && _finestreSegnalate == 0;
+        if (nessunaAzione)
+        {
+            return string.IsNullOrEmpty(_hintDecisione) ? "Usa il rilevatore CO" : _hintDecisione;
+        }
+
+        if (gestore.Chiamato112)
+        {
+            return gestore.Uscito ? "Uscita completata" : "Esci dalla stanza con il collega";
+        }
+
+        if (!gestore.CollegaAvvisato)
+        {
+            return "Avvisa il collega: deve seguirti";
+        }
+
+        bool finestre = gestore.FinestreAperte > 0;
+        bool stufetta = gestore.StufettaSpenta;
+
+        if (!finestre && stufetta)
+        {
+            return "Apri le finestre";
+        }
+
+        if (finestre && !stufetta)
+        {
+            return "Spegni la stufetta";
+        }
+
+        if (!finestre || !stufetta)
+        {
+            return "Apri le finestre e spegni la stufetta";
+        }
+
+        return _rilevatoreSegnalato ? "Chiama il 112 dal telefono" : "Usa il rilevatore CO";
     }
 
     /// <summary>Restituisce il testo breve del feedback di un obiettivo.</summary>
@@ -228,7 +368,7 @@ public sealed class GasLeakScenario : ScenarioController
             case 2:
                 return "Area aerata e stufetta spenta";
             default:
-                return "112 chiamato e uscita completata";
+                return "112 chiamato e collega fuori";
         }
     }
 
@@ -237,7 +377,7 @@ public sealed class GasLeakScenario : ScenarioController
     {
         bool colleghiRiconosciuti = gestore != null && (gestore.CollegaAvvisato || _sceltaIniziale == 0);
         bool rilevatore = gestore != null && gestore.RilevatoreUsato;
-        bool finestre = gestore != null && gestore.TutteFinestreAperte;
+        bool finestre = gestore != null && gestore.FinestreAperte > 0;
         bool stufetta = gestore != null && gestore.StufettaSpenta;
         bool chiamato112 = gestore != null && gestore.Chiamato112;
         bool uscitoConCollega = gestore != null && gestore.UscitoConCollega;
@@ -322,6 +462,109 @@ public sealed class GasLeakScenario : ScenarioController
                 return OutcomeType.Partial;
             default:
                 return OutcomeType.Negative;
+        }
+    }
+
+    /// <summary>Salva i testi dei criteri come sono nell'asset della missione.</summary>
+    void SalvaCriteriOriginali()
+    {
+        _criteriOriginali.Clear();
+        if (Mission == null || Mission.Criteria == null)
+        {
+            return;
+        }
+
+        foreach (CompletionCriterion criterio in Mission.Criteria)
+        {
+            if (criterio != null && !_criteriOriginali.ContainsKey(criterio.Outcome))
+            {
+                _criteriOriginali[criterio.Outcome] = criterio.Text;
+            }
+        }
+    }
+
+    /// <summary>Ripristina i testi originali dei criteri all'inizio di ogni partita.</summary>
+    void RipristinaCriteri()
+    {
+        if (Mission == null || Mission.Criteria == null)
+        {
+            return;
+        }
+
+        foreach (CompletionCriterion criterio in Mission.Criteria)
+        {
+            if (criterio != null && _criteriOriginali.TryGetValue(criterio.Outcome, out string testo))
+            {
+                criterio.Text = testo;
+            }
+        }
+    }
+
+    /// <summary>Aggiorna la didascalia dell'esito con quello che è stato davvero fatto o mancato.</summary>
+    void ImpostaTestoCriterio(EsitoScenario esito)
+    {
+        RipristinaCriteri();
+        if (Mission == null || Mission.Criteria == null)
+        {
+            return;
+        }
+
+        string testo = TestoCriterio(esito);
+        if (string.IsNullOrEmpty(testo))
+        {
+            return;
+        }
+
+        OutcomeType outcome = ToOutcome(esito);
+        foreach (CompletionCriterion criterio in Mission.Criteria)
+        {
+            if (criterio != null && criterio.Outcome == outcome)
+            {
+                criterio.Text = testo;
+                return;
+            }
+        }
+    }
+
+    /// <summary>Restituisce la spiegazione dell'esito in base allo stato reale del gameplay.</summary>
+    string TestoCriterio(EsitoScenario esito)
+    {
+        if (gestore == null)
+        {
+            return null;
+        }
+
+        switch (esito)
+        {
+            case EsitoScenario.SuccessoCompleto:
+                return "Collega fuori e 112 chiamato";
+
+            case EsitoScenario.SuccessoParziale:
+                if (!gestore.Chiamato112 && !gestore.UscitoConCollega)
+                {
+                    return "Usciti senza 112 e senza il collega";
+                }
+
+                if (!gestore.Chiamato112)
+                {
+                    return "Usciti ma senza il 112";
+                }
+
+                if (!gestore.UscitoConCollega)
+                {
+                    return "112 chiamato, ma collega non uscito con te";
+                }
+
+                return "Collega e 112 presenti: controlla i danni riportati";
+
+            case EsitoScenario.FallimentoTempo:
+                return "Tempo scaduto: area non messa in sicurezza";
+
+            case EsitoScenario.FallimentoIntossicazione:
+                return "Intossicazione: esposizione al monossido troppo a lungo";
+
+            default:
+                return null;
         }
     }
 }

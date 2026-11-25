@@ -103,7 +103,7 @@ collider e script stanno sulla radice, quindi basta cambiare i figli.
 | rack estintori | `MESH_Folgorazione_CartelloEstintore` ×4,4 in scena (≈ 0,3 m) | cartello sopra il pannello del rack |
 | `DEC_Decor` | 2 × `MESH_Folgorazione_Barile` | solo arredo (non sostituisce la tanica) |
 | `ENV_Graybox` | `ENV_Floor`, `ENV_Wall_*` (cubi) con `MAT_ConcreteFloorWorn` / `MAT_ConcreteWall` | texture PBR 2K in `Shared/Art/Textures` (`TEX_ConcreteFloorWorn_*`, `TEX_ConcreteWall_*`: Albedo, Normal, MetallicSmoothness generata dalla roughness; displacement non importata, pesante su Quest). `TextureTiling` ripete la texture ogni 2 m. Manca ancora un modello di capannone (soffitto, porte) |
-| `FC01_FuelTank` | `PLACEHOLDER_FuelTank` | **manca**: tanica di carburante (il barile non la sostituisce) |
+| `FC01_FuelTank` | `MESH_Folgorazione_FuelTank2` ×0,18 in scena (≈ 0,47 m) | tanica (rischio nascosto): nel file è alta 2,63 m con il pivot 1 m sopra la base, corretta in scena; si gonfia durante l'avviso. Alternativa importata ma non usata: `MESH_FuelTank` |
 | `PZ01_FuelPool` | `PLACEHOLDER_FuelPool` | **manca**: decal pozza di benzina |
 | `CB01_LiveCable` | LineRenderer | facoltativo: parte dalle prese del generatore |
 | `PLACEHOLDER_Rack*` | rack | **manca**: rack estintori, rack barriere/radio |

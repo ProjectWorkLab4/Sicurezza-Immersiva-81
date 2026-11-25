@@ -310,7 +310,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
 
             // Tanica e serbatoio (rischio nascosto)
             var tank = Root("FC01_FuelTank", hazards, 23.6f, 11.2f);
-            var tankVisual = Box("PLACEHOLDER_FuelTank", tank, Vector3.up * 0.25f, new Vector3(0.6f, 0.5f, 0.6f), "FuelTank", true);
+            // Tanica (rischio nascosto): modello alto 2,63 m nel file, scalato in scena x0,18 (circa 0,47 m, come una tanica vera).
+            var tankVisual = PlaceModel("MESH_Folgorazione_FuelTank2", tank, P(23.6f, 11.2f), 0f, 0.18f, true);
+            AddBoundsCollider(tank.gameObject, tankVisual);
             MarkNotWalkable(tank.gameObject);
             var blast = BlastParticles("VFX_Blast", tank);
             var ring = new GameObject("VFX_BlastRing").AddComponent<LineRenderer>();

@@ -1,4 +1,5 @@
 using System.Collections;
+using SI81.Rig;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
@@ -21,7 +22,7 @@ public class CollegaNPC : MonoBehaviour
 {
     [Header("Riferimenti")]
     [SerializeField] GestoreScenarioGasLeak gestore;
-    [Tooltip("Testa / camera del giocatore. Se vuoto viene usata Camera.main.")]
+    [Tooltip("Testa del giocatore. Se vuoto viene usata quella del rig condiviso.")]
     [SerializeField] Transform giocatore;
     [Tooltip("Punto di interazione (VRInteractableButton sopra un Poke/Ray/Grab interactable).")]
     [SerializeField] VRInteractableButton interazione;
@@ -110,6 +111,11 @@ public class CollegaNPC : MonoBehaviour
         if (gestore == null)
         {
             gestore = FindFirstObjectByType<GestoreScenarioGasLeak>();
+        }
+
+        if (giocatore == null && RigRegistration.Instance != null)
+        {
+            giocatore = RigRegistration.Instance.Head;
         }
 
         if (giocatore == null && Camera.main != null)
@@ -437,7 +443,9 @@ public class CollegaNPC : MonoBehaviour
         Vector3 posizione = transform.position + Vector3.up * altezzaFumetto;
         fumetto.transform.position = posizione;
 
-        Transform target = giocatore != null ? giocatore : (Camera.main != null ? Camera.main.transform : null);
+        Transform target = giocatore != null
+            ? giocatore
+            : (RigRegistration.Instance != null ? RigRegistration.Instance.Head : null);
 
         if (target == null)
         {

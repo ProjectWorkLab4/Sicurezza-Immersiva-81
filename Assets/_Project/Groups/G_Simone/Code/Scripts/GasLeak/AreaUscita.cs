@@ -1,4 +1,5 @@
 ﻿using System;
+using SI81.Rig;
 using UnityEngine;
 
 /// <summary>
@@ -16,7 +17,7 @@ public class AreaUscita : MonoBehaviour
     [SerializeField] CollegaNPC collega;
 
     [Header("Rilevamento giocatore")]
-    [Tooltip("Tag usato dal rig del giocatore. Se vuoto viene cercato OVRCameraRig nei genitori.")]
+    [Tooltip("Tag usato dal rig del giocatore. Se vuoto viene usato il RigRegistration condiviso.")]
     [SerializeField] string tagGiocatore = "Player";
 
     [Header("Debug")]
@@ -80,7 +81,10 @@ public class AreaUscita : MonoBehaviour
             return true;
         }
 
-        return other.GetComponentInParent<OVRCameraRig>() != null;
+        RigRegistration rig = RigRegistration.Instance;
+
+        return rig != null && (other.GetComponentInParent<RigRegistration>() == rig ||
+                               other.transform.root == rig.transform.root);
     }
 
     void OnDrawGizmos()

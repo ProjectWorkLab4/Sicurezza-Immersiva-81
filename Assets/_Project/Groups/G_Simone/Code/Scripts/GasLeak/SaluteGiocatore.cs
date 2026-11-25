@@ -1,4 +1,5 @@
 using System.Collections;
+using SI81.Rig;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -18,7 +19,7 @@ using UnityEngine.Rendering.Universal;
 public class SaluteGiocatore : MonoBehaviour
 {
     [Header("Riferimenti")]
-    [Tooltip("Testa del giocatore. Se vuoto viene usata Camera.main.")]
+    [Tooltip("Testa del giocatore. Se vuoto viene usata quella del rig condiviso.")]
     [SerializeField] Transform testa;
     [SerializeField] AudioSource audioSource;
     [Tooltip("Battito cardiaco in loop. Opzionale.")]
@@ -67,6 +68,11 @@ public class SaluteGiocatore : MonoBehaviour
 
     void Awake()
     {
+        if (testa == null && RigRegistration.Instance != null)
+        {
+            testa = RigRegistration.Instance.Head;
+        }
+
         if (testa == null && Camera.main != null)
         {
             testa = Camera.main.transform;

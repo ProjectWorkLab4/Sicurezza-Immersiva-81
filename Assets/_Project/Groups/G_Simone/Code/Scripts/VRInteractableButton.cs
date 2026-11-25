@@ -1,39 +1,37 @@
 using System;
 using System.Collections.Generic;
-using Oculus.Interaction;
+using SI81.Interaction;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Glue between a Meta XR Interaction SDK interactable (PokeInteractable,
-/// RayInteractable, GrabInteractable, plain Interactable, ...) and normal
-/// UnityEvents / C# events.
+/// Adapter between a shared <see cref="Interactable"/> and the UnityEvents / C# events used by
+/// the Gas Leak and Blackout scripts.
 ///
-/// Put this component on the same GameObject as the interactable (or on a
-/// parent) and it will subscribe to every interactable found on itself and on
-/// its children. No event wiring in the Inspector is required: when the object
-/// is poked, clicked with the ray or grabbed, <see cref="onSelected"/> fires.
+/// The component lives on the same GameObject as the <see cref="Interactable"/> (or on a parent)
+/// and forwards hover, select and grab to the existing callbacks. It does not read input, cast
+/// rays or implement grabbing: the rig's <c>RayInteractor</c> owns all of that.
 /// </summary>
 [DisallowMultipleComponent]
 public class VRInteractableButton : MonoBehaviour
 {
     [Header("Eventi")]
-    [Tooltip("Invocato quando l'oggetto viene selezionato (poke, raggio, grab).")]
+    [Tooltip("Invocato quando l'oggetto viene selezionato (raggio o grab).")]
     [SerializeField] UnityEvent onSelected = new UnityEvent();
     [Tooltip("Invocato quando il puntatore entra sull'oggetto.")]
     [SerializeField] UnityEvent onHoverEnter = new UnityEvent();
     [Tooltip("Invocato quando il puntatore esce dall'oggetto.")]
     [SerializeField] UnityEvent onHoverExit = new UnityEvent();
-    [Tooltip("Invocato quando la selezione finisce (poke rilasciato, grab lasciato).")]
+    [Tooltip("Invocato quando la selezione finisce (grilletto rilasciato o grab lasciato).")]
     [SerializeField] UnityEvent onDeselected = new UnityEvent();
 
     [Header("Comportamento")]
     [Tooltip("Se disattivato l'oggetto resta visibile ma non risponde piu' all'interazione.")]
     [SerializeField] bool available = true;
-    [Tooltip("Tempo minimo tra due pressioni, per evitare doppie attivazioni poke+raggio.")]
+    [Tooltip("Tempo minimo tra due pressioni, per evitare doppie attivazioni select+grab.")]
     [SerializeField] float selectCooldown = 0.3f;
-    [Tooltip("Se la lista e' vuota vengono raccolti automaticamente tutti gli Interactable del GameObject e dei figli.")]
-    [SerializeField] List<MonoBehaviour> interactables = new List<MonoBehaviour>();
+    [Tooltip("Se la lista e' vuota vengono raccolti gli Interactable del GameObject e dei figli.")]
+    [SerializeField] List<Interactable> interactables = new List<Interactable>();
 
     [Header("Feedback (opzionale)")]
     [SerializeField] AudioSource audioSource;
@@ -59,8 +57,10 @@ public class VRInteractableButton : MonoBehaviour
 
     public bool IsHovered { get; private set; }
 
-    readonly List<IInteractableView> _views = new List<IInteractableView>();
+    readonly List<Interactable> _targets = new List<Interactable>();
     readonly Dictionary<Renderer, Color> _originalColors = new Dictionary<Renderer, Color>();
+    readonly Dictionary<Interactable, bool> _selectable = new Dictionary<Interactable, bool>();
+    readonly Dictionary<Interactable, bool> _grabbable = new Dictionary<Interactable, bool>();
     MaterialPropertyBlock _block;
     bool _subscribed;
     float _lastSelectedTime = -999f;
@@ -84,6 +84,7 @@ public class VRInteractableButton : MonoBehaviour
     void OnEnable()
     {
         Subscribe();
+        ApplyAvailability();
     }
 
     void OnDisable()
@@ -102,6 +103,7 @@ public class VRInteractableButton : MonoBehaviour
     public void SetAvailable(bool value)
     {
         available = value;
+        ApplyAvailability();
 
         if (!value)
         {
@@ -144,11 +146,18 @@ public class VRInteractableButton : MonoBehaviour
             return;
         }
 
-        CollectViews();
+        CollectTargets();
 
-        foreach (IInteractableView view in _views)
+        foreach (Interactable target in _targets)
         {
-            view.WhenStateChanged += HandleStateChanged;
+            _selectable[target] = target.Selectable;
+            _grabbable[target] = target.Grabbable;
+            target.HoverEntered += HandleHoverEntered;
+            target.HoverExited += HandleHoverExited;
+            target.SelectEntered += HandleSelectEntered;
+            target.SelectExited += HandleSelectExited;
+            target.GrabEntered += HandleGrabEntered;
+            target.GrabExited += HandleGrabExited;
         }
 
         _subscribed = true;
@@ -161,91 +170,90 @@ public class VRInteractableButton : MonoBehaviour
             return;
         }
 
-        foreach (IInteractableView view in _views)
+        foreach (Interactable target in _targets)
         {
-            view.WhenStateChanged -= HandleStateChanged;
+            target.HoverEntered -= HandleHoverEntered;
+            target.HoverExited -= HandleHoverExited;
+            target.SelectEntered -= HandleSelectEntered;
+            target.SelectExited -= HandleSelectExited;
+            target.GrabEntered -= HandleGrabEntered;
+            target.GrabExited -= HandleGrabExited;
         }
 
+        _selectable.Clear();
+        _grabbable.Clear();
         _subscribed = false;
     }
 
-    void CollectViews()
+    void CollectTargets()
     {
-        _views.Clear();
+        _targets.Clear();
 
-        if (interactables != null && interactables.Count > 0)
+        if (interactables != null)
         {
-            foreach (MonoBehaviour behaviour in interactables)
+            foreach (Interactable target in interactables)
             {
-                AddView(behaviour);
+                AddTarget(target);
             }
-
-            return;
         }
 
-        foreach (MonoBehaviour behaviour in GetComponentsInChildren<MonoBehaviour>(true))
+        if (_targets.Count == 0)
         {
-            AddView(behaviour);
+            foreach (Interactable target in GetComponentsInChildren<Interactable>(true))
+            {
+                AddTarget(target);
+            }
         }
     }
 
-    void AddView(MonoBehaviour behaviour)
+    void AddTarget(Interactable target)
     {
-        if (behaviour == null || behaviour == this)
+        if (target == null || _targets.Contains(target))
         {
             return;
         }
 
-        if (!(behaviour is IInteractableView view))
-        {
-            return;
-        }
-
-        // InteractableGroupView aggregates its children: subscribing to it too
-        // would report every press twice.
-        if (behaviour.GetType().Name.Contains("GroupView"))
-        {
-            return;
-        }
-
-        if (_views.Contains(view))
-        {
-            return;
-        }
-
-        _views.Add(view);
+        _targets.Add(target);
     }
 
-    void HandleStateChanged(InteractableStateChangeArgs args)
+    void ApplyAvailability()
     {
-        switch (args.NewState)
+        if (!_subscribed)
         {
-            case InteractableState.Select:
-                SetHovered(true);
-                Activate();
-                break;
-
-            case InteractableState.Hover:
-                if (args.PreviousState == InteractableState.Select)
-                {
-                    onDeselected.Invoke();
-                    Deselected?.Invoke(this);
-                }
-
-                SetHovered(true);
-                break;
-
-            case InteractableState.Normal:
-            case InteractableState.Disabled:
-                if (args.PreviousState == InteractableState.Select)
-                {
-                    onDeselected.Invoke();
-                    Deselected?.Invoke(this);
-                }
-
-                SetHovered(false);
-                break;
+            return;
         }
+
+        foreach (Interactable target in _targets)
+        {
+            target.Selectable = available && (_selectable.TryGetValue(target, out bool select) && select);
+            target.Grabbable = available && (_grabbable.TryGetValue(target, out bool grab) && grab);
+        }
+    }
+
+    void HandleHoverEntered(SI81.Input.Hand hand) => SetHovered(true);
+
+    void HandleHoverExited(SI81.Input.Hand hand) => SetHovered(false);
+
+    void HandleSelectEntered(SI81.Input.Hand hand)
+    {
+        SetHovered(true);
+        Activate();
+    }
+
+    void HandleSelectExited(SI81.Input.Hand hand) => NotifyDeselected();
+
+    void HandleGrabEntered(SI81.Input.Hand hand)
+    {
+        SetHovered(true);
+        Activate();
+    }
+
+    void HandleGrabExited(SI81.Input.Hand hand) => NotifyDeselected();
+
+    void NotifyDeselected()
+    {
+        onDeselected.Invoke();
+        Deselected?.Invoke(this);
     }
 
     void SetHovered(bool hovered)

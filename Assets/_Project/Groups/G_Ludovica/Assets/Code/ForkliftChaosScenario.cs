@@ -30,6 +30,10 @@ namespace G_Ludovica.ForkliftChaos
         [Header("Riferimenti scena")]
         [SerializeField] private Transform head;
         [SerializeField] private GameObject marco;
+        [Tooltip("Animator del modello di Marco: il respiro si ferma durante l'apnea.")]
+        [SerializeField] private Animator marcoAnimator;
+        [Tooltip("Gruppo dei soccorritori, attivato quando arrivano i soccorsi.")]
+        [SerializeField] private GameObject rescueTeam;
         [SerializeField] private GameObject forklift1;
         [SerializeField] private GameObject forklift2;
         [SerializeField] private GameObject radioPickup;
@@ -155,6 +159,8 @@ namespace G_Ludovica.ForkliftChaos
             rescueExtraDelay = extraExecutionPenalty = 0f;
             insideLzb = insideLzc = lzbWarned = lzcWarned = false;
             lzbEntered = lzcEntered = 0f;
+            if (marcoAnimator != null) marcoAnimator.speed = 1f;
+            if (rescueTeam != null) rescueTeam.SetActive(false);
             records.Clear();
         }
 
@@ -275,6 +281,7 @@ namespace G_Ludovica.ForkliftChaos
         private void AttachRadioToHead()
         {
             if (radioPickup == null) return;
+            radioPickup.SetActive(true);
             Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
             if (h == null) return;
             radioPickup.transform.SetParent(h, true);
@@ -285,6 +292,7 @@ namespace G_Ludovica.ForkliftChaos
         private void AttachBarrierToHead()
         {
             if (barrierPickup == null) return;
+            barrierPickup.SetActive(true);
             Transform h = head != null ? head : (Camera.main != null ? Camera.main.transform : null);
             if (h == null) return;
             barrierPickup.transform.SetParent(h, true);
@@ -317,7 +325,7 @@ namespace G_Ludovica.ForkliftChaos
                     if (!barrierPicked)
                     {
                         barrierPicked = true;
-                        AttachBarrierToHead();
+                        if (source == null || !source.IsHeld) AttachBarrierToHead();
                         Feedback("Barriera in mano: posala sulla linea BL-01.", FeedbackKind.Positive);
                     }
                     break;
@@ -337,8 +345,7 @@ namespace G_Ludovica.ForkliftChaos
                     if (!radioPicked)
                     {
                         radioPicked = true;
-                        if (radioPickup != null) radioPickup.SetActive(false);
-                        AttachRadioToHead();
+                        if (source == null || !source.IsHeld) AttachRadioToHead();
                         Feedback("Radio in mano: usa i tasti 112 e capo turno.", FeedbackKind.Positive);
                     }
                     break;
@@ -557,19 +564,16 @@ namespace G_Ludovica.ForkliftChaos
             }
         }
 
-        /// <summary>Respiro visibile di Marco (si ferma in apnea): serve anche per il controllo del respiro.</summary>
+        /// <summary>Respiro di Marco: l'Animator va in pausa durante l'apnea, così il torace si ferma davvero.</summary>
         private IEnumerator BreathingRoutine()
         {
-            if (marco == null) yield break;
-            Vector3 baseScale = marco.transform.localScale;
-            float t = 0f;
-            while (!finished && !rescueArrived && !apnea && marco != null)
+            if (marco == null && marcoAnimator == null) yield break;
+            while (!finished && !rescueArrived)
             {
-                t += Time.deltaTime;
-                marco.transform.localScale = baseScale * (1f + Mathf.Sin(t * 2.4f) * 0.03f);
+                if (marcoAnimator != null) marcoAnimator.speed = apnea ? 0f : 1f;
                 yield return null;
             }
-            if (marco != null) marco.transform.localScale = baseScale;
+            if (marcoAnimator != null) marcoAnimator.speed = 1f;
         }
 
         private IEnumerator TimedEventsRoutine()
@@ -779,6 +783,7 @@ namespace G_Ludovica.ForkliftChaos
             if (finished) yield break;
 
             rescueArrived = true;
+            if (rescueTeam != null) rescueTeam.SetActive(true);
             Alert("Soccorsi arrivati\nFine scenario", "ICN_CheckCircle");
             HUDService.ShowSoundEvent("Sirena dei soccorsi", true);
             Finish();

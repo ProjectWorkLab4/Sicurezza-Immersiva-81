@@ -1,6 +1,8 @@
+using SI81.Input;
+using SI81.Interaction;
+using SI81.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using SI81.UI;
 
 namespace G_Ludovica.ForkliftChaos
 {
@@ -13,7 +15,7 @@ namespace G_Ludovica.ForkliftChaos
         ObservePallet,
         ObserveBlindCorner,
 
-        // Azioni fisiche: sguardo + grilletto sul oggetto, oppure tasto funzione in Editor.
+        // Azioni fisiche: sguardo + grilletto/impugnatura sull'oggetto, oppure tasto funzione in Editor.
         StopForklift1,
         PickupRadio,
         Call112,
@@ -33,10 +35,13 @@ namespace G_Ludovica.ForkliftChaos
     }
 
     /// <summary>
-    /// Interazione leggera per il scenario Forklift Chaos: raggio dalla testa + grilletto controller (o dwell di sguardo
-    /// per le osservazioni), oppure tasto funzione in Editor. Non duplica il sistema di input comune; usa gli stessi
-    /// binding XR del rig condiviso e delega sempre l'esito al controller dello scenario.
+    /// Adattatore tra lo scenario Forklift Chaos e il layer di interazione condiviso (<see cref="Interactable"/> +
+    /// <see cref="RayInteractor"/>). Non legge più direttamente i controller: si limita a tradurre select/grab/hover
+    /// negli eventi dello scenario. In Editor restano disponibili i tasti funzione e lo sguardo prolungato, perché
+    /// senza visore non esiste una posa valida dei controller.
     /// </summary>
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(Interactable))]
     [AddComponentMenu("SI81/Scenari/Forklift Chaos/Interactable")]
     public sealed class ForkliftChaosInteractable : MonoBehaviour
     {
@@ -44,119 +49,195 @@ namespace G_Ludovica.ForkliftChaos
         [SerializeField] private ForkliftChaosAction action;
         [SerializeField] private string label = "Interagisci";
         [SerializeField] private Key editorKey = Key.None;
-        [SerializeField] private float reach = 2.8f;
         [SerializeField] private bool once = true;
         [SerializeField] private bool requiresRadio;
         [SerializeField] private bool lookOnly;
+        [SerializeField] private bool useGrab;
         [SerializeField] private float dwellSeconds = 1.1f;
 
-        // Un solo grilletto per frame: evita che piu' componenti sullo stesso oggetto partano insieme.
-        private static int lastTriggerFrame = -1;
+        // Un solo evento per frame: due adapter sullo stesso oggetto (osserva + spegni) non devono partire insieme.
+        private static int lastUseFrame = -1;
 
-        private InputAction triggerAction;
+        private Interactable interactable;
         private ForkliftChaosScenario scenario;
         private bool used;
+        private bool hovered;
         private float lookTime;
 
+        /// <summary>Azione richiesta dall'oggetto.</summary>
         public ForkliftChaosAction Action => action;
+        /// <summary>Etichetta mostrata all'utente.</summary>
         public string Label => label;
+        /// <summary>true se l'oggetto va afferrato con l'impugnatura invece che selezionato col grilletto.</summary>
+        public bool UseGrab => useGrab;
+        /// <summary>true se l'oggetto è attualmente tenuto in mano dal giocatore.</summary>
+        public bool IsHeld => interactable != null && interactable.IsGrabbed;
 
+        /// <summary>Configura un'azione da grilletto (select) o da tasto Editor.</summary>
         public void Configure(ForkliftChaosAction newAction, string newLabel, Key newKey,
-            bool needsRadio = false, float newReach = 2.8f)
+            bool needsRadio = false, bool useGrab = false, bool keepAfterUse = false)
         {
             action = newAction;
             label = string.IsNullOrEmpty(newLabel) ? newAction.ToString() : newLabel;
             editorKey = newKey;
             requiresRadio = needsRadio;
-            reach = Mathf.Max(0.5f, newReach);
+            this.useGrab = useGrab;
             lookOnly = false;
+            once = !keepAfterUse;
+            ApplyInteractableFlags();
         }
 
-        public void ConfigureLook(ForkliftChaosAction newAction, string newLabel, float newDwell = 1.1f,
-            float newReach = 3.5f)
+        /// <summary>Configura un'osservazione: basta puntare l'oggetto per il tempo richiesto.</summary>
+        public void ConfigureLook(ForkliftChaosAction newAction, string newLabel, float newDwell = 1.1f)
         {
             action = newAction;
             label = string.IsNullOrEmpty(newLabel) ? newAction.ToString() : newLabel;
             editorKey = Key.None;
-            reach = Mathf.Max(0.5f, newReach);
             dwellSeconds = Mathf.Max(0.2f, newDwell);
             lookOnly = true;
             requiresRadio = false;
+            useGrab = false;
+            once = true;
+            ApplyInteractableFlags();
         }
 
+        /// <summary>Riporta l'oggetto allo stato iniziale (replay dello scenario).</summary>
         public void ResetUsed()
         {
             used = false;
+            hovered = false;
             lookTime = 0f;
+            ApplyInteractableFlags();
+        }
+
+        private void Awake()
+        {
+            interactable = GetComponent<Interactable>();
+            ApplyInteractableFlags();
         }
 
         private void OnEnable()
         {
-            triggerAction = new InputAction("ForkliftChaosUse", InputActionType.Button);
-            triggerAction.AddBinding("<XRController>{LeftHand}/triggerPressed");
-            triggerAction.AddBinding("<XRController>{RightHand}/triggerPressed");
-            triggerAction.Enable();
+            if (interactable == null) interactable = GetComponent<Interactable>();
+            if (interactable == null) return;
+            interactable.SelectEntered += HandleSelectEntered;
+            interactable.GrabEntered += HandleGrabEntered;
+            interactable.HoverEntered += HandleHoverEntered;
+            interactable.HoverExited += HandleHoverExited;
         }
 
         private void OnDisable()
         {
-            if (triggerAction == null) return;
-            triggerAction.Disable();
-            triggerAction.Dispose();
-            triggerAction = null;
+            if (interactable == null) return;
+            interactable.SelectEntered -= HandleSelectEntered;
+            interactable.GrabEntered -= HandleGrabEntered;
+            interactable.HoverEntered -= HandleHoverEntered;
+            interactable.HoverExited -= HandleHoverExited;
+            hovered = false;
+            lookTime = 0f;
         }
 
         private void Update()
         {
-            if ((once && used) || triggerAction == null) return;
+            if (once && used) return;
             if (scenario == null) scenario = FindFirstObjectByType<ForkliftChaosScenario>();
             if (scenario == null || !scenario.IsRunning) return;
 
             if (lookOnly)
             {
-                if (IsAimedAt())
+                // VR: hover del raggio condiviso. Editor: sguardo della testa, perché i controller non sono tracciati.
+                if (hovered || IsAimedAtByHead())
                 {
                     lookTime += Time.deltaTime;
                     if (lookTime >= dwellSeconds) Fire();
                 }
-                else lookTime = 0f;
+                else
+                {
+                    lookTime = 0f;
+                }
                 return;
             }
 
-            bool pressed = false;
-            if (triggerAction.WasPressedThisFrame() && IsAimedAt() && lastTriggerFrame != Time.frameCount)
-            {
-                lastTriggerFrame = Time.frameCount;
-                pressed = true;
-            }
-            if (!pressed && editorKey != Key.None && Keyboard.current != null)
-                pressed = Keyboard.current[editorKey].wasPressedThisFrame;
+            if (editorKey != Key.None && Keyboard.current != null && Keyboard.current[editorKey].wasPressedThisFrame)
+                Fire();
+        }
 
-            if (!pressed) return;
+        private void HandleSelectEntered(Hand hand)
+        {
+            if (lookOnly || useGrab) return;
+            Fire();
+        }
+
+        private void HandleGrabEntered(Hand hand)
+        {
+            if (lookOnly || !useGrab) return;
+            Fire();
+        }
+
+        private void HandleHoverEntered(Hand hand)
+        {
+            if (lookOnly) hovered = true;
+        }
+
+        private void HandleHoverExited(Hand hand)
+        {
+            if (lookOnly) hovered = false;
+        }
+
+        private void Fire()
+        {
+            if (once && used) return;
+            if (scenario == null) scenario = FindFirstObjectByType<ForkliftChaosScenario>();
+            if (scenario == null || !scenario.IsRunning) return;
+
             if (requiresRadio && !scenario.HasRadio)
             {
                 scenario.Feedback("Prendi prima la radio dal rack RK-01.", FeedbackKind.Negative);
                 return;
             }
-            Fire();
-        }
 
-        private void Fire()
-        {
+            // Un solo evento per frame, anche con più adapter sullo stesso collider.
+            if (lastUseFrame == Time.frameCount) return;
+            lastUseFrame = Time.frameCount;
+
             used = true;
             scenario.HandleInteraction(action, this);
+            if (once) ApplyInteractableFlags();
         }
 
-        /// <summary>Controlla che il raggio della testa colpisca questo oggetto o un suo figlio.</summary>
-        private bool IsAimedAt()
+        /// <summary>Allinea select/grab dell'<see cref="Interactable"/> al tipo di azione.</summary>
+        private void ApplyInteractableFlags()
         {
-            Transform head = UIScreenManager.Instance != null ? UIScreenManager.Instance.Head : null;
-            if (head == null && Camera.main != null) head = Camera.main.transform;
+            if (interactable == null) interactable = GetComponent<Interactable>();
+            if (interactable == null) return;
+
+            bool active = !(once && used);
+            if (lookOnly)
+            {
+                interactable.Selectable = false;
+                interactable.Grabbable = false;
+            }
+            else
+            {
+                interactable.Selectable = active && !useGrab;
+                interactable.Grabbable = active && useGrab;
+                interactable.FollowsHand = useGrab;
+            }
+        }
+
+        /// <summary>Solo Editor: controlla che la testa stia puntando questo oggetto (senza controller tracciati).</summary>
+        private bool IsAimedAtByHead()
+        {
+#if UNITY_EDITOR
+            Transform head = Camera.main != null ? Camera.main.transform : null;
             if (head == null) return false;
 
             Ray ray = new Ray(head.position, head.forward);
-            if (!Physics.Raycast(ray, out RaycastHit hit, reach, ~0, QueryTriggerInteraction.Collide)) return false;
+            if (!Physics.Raycast(ray, out RaycastHit hit, 5f, ~0, QueryTriggerInteraction.Collide)) return false;
             return hit.collider != null && hit.collider.GetComponentInParent<ForkliftChaosInteractable>() == this;
+#else
+            return false;
+#endif
         }
 
         private void OnDrawGizmosSelected()

@@ -1,4 +1,5 @@
-using System;
+using System.Collections.Generic;
+using SI81.Input;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
@@ -6,10 +7,11 @@ using UnityEngine.InputSystem.UI;
 namespace SI81.UI
 {
     /// <summary>
-    /// Configura a runtime l'unico EventSystem dell'app (figlio di MNG_UI): assegna a InputSystemUIInputModule le
-    /// azioni create da <see cref="UIInputActions"/> (mouse in Editor + posizione/rotazione/grilletto dei due controller),
-    /// imposta l'origine del tracciamento XR e gestisce l'azione "Back" (B/Y, Esc, Backspace) che espone con
-    /// l'evento <see cref="BackPerformed"/>. Nessun XR Interaction Toolkit (CLAUDE.md §4.12).
+    /// Configura l'unico EventSystem dell'app (figlio di MNG_UI) collegando <see cref="InputSystemUIInputModule"/>
+    /// alle azioni UI di <see cref="InputService"/> (mappa <c>UI</c>): mouse in Editor e posa/grilletto dei due controller.
+    /// Non crea un asset di azioni proprio: l'unico proprietario delle azioni è l'Input Service, che gestisce anche
+    /// Menu e Back. Imposta l'origine del tracciamento XR e aggiunge la diagnostica <see cref="UIInputLog"/>.
+    /// Nessun XR Interaction Toolkit.
     /// Gira prima del modulo (ordine di esecuzione molto basso), così il modulo non crea le sue azioni di default.
     /// </summary>
     [DefaultExecutionOrder(EXECUTION_ORDER)]
@@ -26,41 +28,31 @@ namespace SI81.UI
                  "Se vuoto viene usato il genitore di Camera.main (con un avviso: il rig deve chiamare SetTrackingOrigin).")]
         [SerializeField] private Transform xrTrackingOrigin;
 
-        // Asset delle azioni creato in memoria (uno per EventSystem).
-        private InputActionAsset actions;
-        // Azione "indietro".
-        private InputAction backAction;
-        // true se "indietro" può scattare: lo decide UIScreenManager (solo con il menu visibile).
-        private bool backEnabled = true;
+        // Riferimenti creati qui sopra le azioni dell'Input Service: vanno distrutti con il componente.
+        private readonly List<InputActionReference> createdReferences = new List<InputActionReference>(5);
 
-        /// <summary>Evento: l'utente ha chiesto "indietro" (B/Y, Esc, Backspace).</summary>
-        public event Action BackPerformed;
-
-        /// <summary>Asset delle azioni UI creato a runtime (null prima di Awake).</summary>
-        public InputActionAsset Actions => actions;
         /// <summary>Origine del tracciamento XR usata dal modulo.</summary>
         public Transform XrTrackingOrigin => xrTrackingOrigin;
-        /// <summary>true se l'azione "indietro" è abilitata (vedi <see cref="SetBackEnabled"/>).</summary>
-        public bool BackEnabled => backEnabled;
 
         /// <summary>
-        /// Crea le azioni e le assegna al modulo prima che il modulo si abiliti.
+        /// Collega il modulo alle azioni UI dell'Input Service prima che il modulo si abiliti.
         /// </summary>
         private void Awake()
         {
             if (inputModule == null) inputModule = GetComponent<InputSystemUIInputModule>();
 
-            actions = UIInputActions.CreateAsset();
-            InputActionMap pointer = actions.FindActionMap(UIInputActions.POINTER_MAP, true);
+            InputService service = InputService.EnsureInstance();
+            InputActionMap ui = service.UIMap;
 
             // L'asset va assegnato prima dei singoli riferimenti: il modulo cerca le azioni nel suo asset.
-            inputModule.actionsAsset = actions;
-            inputModule.point = InputActionReference.Create(pointer.FindAction(UIInputActions.ACTION_POINT, true));
-            inputModule.leftClick = InputActionReference.Create(pointer.FindAction(UIInputActions.ACTION_CLICK, true));
-            inputModule.scrollWheel = InputActionReference.Create(pointer.FindAction(UIInputActions.ACTION_SCROLL, true));
-            inputModule.trackedDevicePosition = InputActionReference.Create(pointer.FindAction(UIInputActions.ACTION_TRACKED_POSITION, true));
-            inputModule.trackedDeviceOrientation = InputActionReference.Create(pointer.FindAction(UIInputActions.ACTION_TRACKED_ORIENTATION, true));
+            inputModule.actionsAsset = service.Actions;
+            inputModule.point = Reference(ui, InputBindings.Point);
+            inputModule.leftClick = Reference(ui, InputBindings.Click);
+            inputModule.scrollWheel = Reference(ui, InputBindings.Scroll);
+            inputModule.trackedDevicePosition = Reference(ui, InputBindings.TrackedDevicePosition);
+            inputModule.trackedDeviceOrientation = Reference(ui, InputBindings.TrackedDeviceOrientation);
             // Navigazione da tastiera/gamepad non usata nei menu VR: nessuna azione move/submit/cancel.
+            // Back resta di InputService: UIScreenManager la abilita solo a menu visibile.
             inputModule.move = null;
             inputModule.submit = null;
             inputModule.cancel = null;
@@ -73,57 +65,16 @@ namespace SI81.UI
             if (GetComponent<UIInputLog>() == null) gameObject.AddComponent<UIInputLog>();
 
             ApplyTrackingOrigin();
-
-            backAction = actions.FindActionMap(UIInputActions.NAVIGATION_MAP, true).FindAction(UIInputActions.ACTION_BACK, true);
         }
 
         /// <summary>
-        /// Abilita l'azione "Back" e si iscrive al suo evento.
-        /// </summary>
-        private void OnEnable()
-        {
-            if (backAction == null) return;
-            backAction.performed += HandleBack;
-            RefreshBackAction();
-        }
-
-        /// <summary>
-        /// Disabilita l'azione "Back".
-        /// </summary>
-        private void OnDisable()
-        {
-            if (backAction == null) return;
-            backAction.performed -= HandleBack;
-            backAction.Disable();
-        }
-
-        /// <summary>
-        /// Distrugge l'asset delle azioni creato in memoria.
+        /// Distrugge i riferimenti creati a runtime.
         /// </summary>
         private void OnDestroy()
         {
-            if (actions != null) Destroy(actions);
-        }
-
-        /// <summary>
-        /// Abilita o disabilita l'azione "indietro" (B/Y, Esc, Backspace). UIScreenManager la tiene attiva solo mentre
-        /// il menu è visibile, così durante le missioni quei tasti restano liberi per lo scenario.
-        /// </summary>
-        /// <param name="value">true per abilitarla.</param>
-        public void SetBackEnabled(bool value)
-        {
-            backEnabled = value;
-            RefreshBackAction();
-        }
-
-        /// <summary>
-        /// Allinea lo stato dell'azione "Back" a <see cref="backEnabled"/> e allo stato del componente.
-        /// </summary>
-        private void RefreshBackAction()
-        {
-            if (backAction == null) return;
-            if (backEnabled && isActiveAndEnabled) backAction.Enable();
-            else backAction.Disable();
+            for (int i = 0; i < createdReferences.Count; i++)
+                if (createdReferences[i] != null) Destroy(createdReferences[i]);
+            createdReferences.Clear();
         }
 
         /// <summary>
@@ -137,6 +88,19 @@ namespace SI81.UI
         }
 
         /// <summary>
+        /// Crea un riferimento all'azione indicata e lo ricorda per la distruzione.
+        /// </summary>
+        /// <param name="map">Mappa UI dell'Input Service.</param>
+        /// <param name="actionName">Nome dell'azione (costante di <see cref="InputBindings"/>).</param>
+        /// <returns>Riferimento da assegnare al modulo.</returns>
+        private InputActionReference Reference(InputActionMap map, string actionName)
+        {
+            InputActionReference reference = InputActionReference.Create(map.FindAction(actionName, true));
+            createdReferences.Add(reference);
+            return reference;
+        }
+
+        /// <summary>
         /// Assegna l'origine del tracciamento al modulo; se manca usa il genitore di Camera.main (con un avviso).
         /// </summary>
         private void ApplyTrackingOrigin()
@@ -147,15 +111,6 @@ namespace SI81.UI
                 if (head != null) xrTrackingOrigin = head.parent;
             }
             if (inputModule != null) inputModule.xrTrackingOrigin = xrTrackingOrigin;
-        }
-
-        /// <summary>
-        /// Rilancia la pressione di "Back" agli iscritti (UIScreenManager).
-        /// </summary>
-        /// <param name="context">Contesto dell'azione (non usato).</param>
-        private void HandleBack(InputAction.CallbackContext context)
-        {
-            BackPerformed?.Invoke();
         }
 
         /// <summary>

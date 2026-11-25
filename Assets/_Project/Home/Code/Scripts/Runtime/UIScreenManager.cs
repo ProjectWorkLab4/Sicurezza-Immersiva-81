@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SI81.Input;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -60,6 +61,8 @@ namespace SI81.UI
         private const float RECENTER_WAIT_SECONDS = 3f;
         // true dopo Start (prima non va ripetuto Show della schermata corrente).
         private bool initialized;
+        // Input Service a cui siamo iscritti per il tasto Back (stessa istanza in OnDisable).
+        private InputService inputService;
 
         /// <summary>L'unico gestore attivo (null se non esiste o è stato distrutto).</summary>
         public static UIScreenManager Instance { get; private set; }
@@ -118,7 +121,8 @@ namespace SI81.UI
         private void OnEnable()
         {
             if (Instance != this) return;
-            if (inputSetup != null) inputSetup.BackPerformed += Back;
+            inputService = InputService.EnsureInstance();
+            inputService.BackPerformed += HandleBack;
             SceneManager.sceneLoaded += HandleSceneLoaded;
         }
 
@@ -127,8 +131,21 @@ namespace SI81.UI
         /// </summary>
         private void OnDisable()
         {
-            if (inputSetup != null) inputSetup.BackPerformed -= Back;
+            if (inputService != null)
+            {
+                inputService.BackPerformed -= HandleBack;
+                inputService = null;
+            }
             SceneManager.sceneLoaded -= HandleSceneLoaded;
+        }
+
+        /// <summary>
+        /// Inoltra il tasto Back dell'Input Service alla cronologia del menu (la mano non serve qui).
+        /// </summary>
+        /// <param name="hand">Mano che ha premuto Back.</param>
+        private void HandleBack(Hand hand)
+        {
+            Back();
         }
 
         /// <summary>
@@ -327,7 +344,7 @@ namespace SI81.UI
             bool changed = !menuVisible;
             menuVisible = true;
             if (menuRoot != null && !menuRoot.activeSelf) menuRoot.SetActive(true);
-            if (inputSetup != null) inputSetup.SetBackEnabled(true);
+            if (inputService != null) inputService.SetBackEnabled(true);
             if (!changed) return;
             if (recenterOnShow) Recenter();
             // La dissolvenza in corso è stata interrotta dalla disattivazione: riporta la schermata a stato pieno.
@@ -343,7 +360,7 @@ namespace SI81.UI
         {
             bool changed = menuVisible;
             menuVisible = false;
-            if (inputSetup != null) inputSetup.SetBackEnabled(false);
+            if (inputService != null) inputService.SetBackEnabled(false);
             if (menuRoot != null && menuRoot.activeSelf) menuRoot.SetActive(false);
             if (changed) MenuVisibilityChanged?.Invoke(false);
         }

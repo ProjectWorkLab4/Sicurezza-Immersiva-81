@@ -5,7 +5,7 @@ namespace SI81.Rig
     /// <summary>
     /// Unico punto di contatto tra il Player Rig e la UI comune. Vive in SI81.Rig, così il rig non referenzia
     /// l'assembly UI né il Meta SDK UI: l'adattatore della UI implementa questa interfaccia e chiama
-    /// CoreRig/UIScreenManager/HUDRoot/UIPointer/HapticsService.
+    /// UIScreenManager/HUDRoot/UIPointer/HapticsService.
     /// </summary>
     public interface IRigUIBridge
     {

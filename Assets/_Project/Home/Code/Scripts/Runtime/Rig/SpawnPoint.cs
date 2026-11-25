@@ -20,6 +20,7 @@ namespace SI81.Rig
 
         private Vector3 previousPosition;
         private Quaternion previousRotation;
+        private bool previousMovementLock;
         private RigRegistration appliedRig;
         private bool applied;
 
@@ -50,7 +51,12 @@ namespace SI81.Rig
             RigRegistration rig = appliedRig;
             applied = false;
             appliedRig = null;
-            if (rig != null && RigRegistration.Instance == rig) rig.TeleportTo(previousPosition, previousRotation);
+            if (rig != null && RigRegistration.Instance == rig)
+            {
+                rig.TeleportTo(previousPosition, previousRotation);
+                RigLocomotion locomotion = rig.GetComponent<RigLocomotion>();
+                if (locomotion != null) locomotion.MovementLock = previousMovementLock;
+            }
         }
 
         /// <summary>
@@ -73,9 +79,13 @@ namespace SI81.Rig
             {
                 previousPosition = rig.transform.position;
                 previousRotation = rig.transform.rotation;
+                RigLocomotion locomotion = rig.GetComponent<RigLocomotion>();
+                previousMovementLock = locomotion != null && locomotion.MovementLock;
                 appliedRig = rig;
                 applied = true;
             }
+            RigLocomotion activeLocomotion = rig.GetComponent<RigLocomotion>();
+            if (activeLocomotion != null) activeLocomotion.MovementLock = false;
             Quaternion yaw = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
             rig.TeleportTo(transform.position, yaw);
         }

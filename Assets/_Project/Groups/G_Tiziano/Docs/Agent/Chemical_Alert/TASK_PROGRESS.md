@@ -1,7 +1,7 @@
 # Chemical Alert — stato del lavoro
 
 **Ultimo aggiornamento:** 2026-11-24
-**Stato:** punti 1–2 e documentazione (punto 6) completati; restano verifiche Simulator/headset e punti 4, 5 e 7. Modifiche non committate.
+**Stato:** punti 1–2 e documentazione (punto 6) completati; merge remoto integrato e pubblicato. Restano i punti 3, 4, 5 e 7. Da rivedere una modifica scena locale non committata.
 **Scena:** `Level/Scenes/SCN_ChemicalAlert.unity`
 
 ---
@@ -64,10 +64,14 @@ Aggiornare il gameplay **senza imporre un ordine di azioni**. Le regole di rifer
 | Replay seed fisso `81081` | Due reset identici: `variantB`, seconda perdita a `29.85 s`, composizione armadietto invariata |
 | Replay seed casuale | Seed diversi (`1141970398`, `419091233`) e varianti diverse (`variantC`, `variantA`) |
 | Seconda perdita T16 + anello singolo | Evento a 30 s, `event.second_spill` registrato, crescita x2, contenimento `1/1` ferma la crescita, assorbimento e `Success` |
+| Merge `origin/group_tiziano` | Conflitto scena risolto conservando le modifiche locali e integrando prefab/istanze remote `PortaCamion` e `InvisibleCollision`; `TestCube` resta rimosso |
+| Commit e push | `44bfb1a` (`Merge truck door and invisible collision updates`) pubblicato su `origin/group_tiziano` |
 
 **Nota Console:** nessun errore o warning di gameplay durante Play Mode. Alla chiusura restano messaggi OVR/XR di teardown (`xrDestroySession` con spazi non distrutti), non errori `[CA]`.
 
 **Nota audit (2026-11-24):** i soli riferimenti null rimasti sono 15 slot in `guidedHighlightTargets`, 6 in `operationalDistractors` (da rivedere al punto 4) e i campi audio opzionali (`coughAudioClip`, `VentilationSystem.audioLoop`, `DisturbanceController.loopSource`, `ScenarioReplayController.secondSpillAudioSource`, `SubstanceContactSensor.coughSfx`), gestiti con fallback.
+
+**Nota merge (2026-11-24):** il prefab `Shared/Level/Prefabs/CollisionInvisibile.prefab` è stato rinominato `InvisibleCollision` mantenendo lo stesso GUID; il nome dell'istanza in scena e quello del prefab ora sono allineati.
 
 ---
 
@@ -134,6 +138,7 @@ Aggiornare il gameplay **senza imporre un ordine di azioni**. Le regole di rifer
 - `Code/Scripts/Core/OutcomeEvaluator.cs`, `Code/Scripts/Data/ChemicalAlertConfig.cs`, i tre config (Guided/Operational/Crisis) e le tre varianti sostanza.
 - `Code/Scripts/Debug/DebugCommands.cs`.
 - `Level/Scenes/SCN_ChemicalAlert.unity`, `Level/Prefabs/AbsorbentSheet.prefab`, `Level/Prefabs/ScenarioMarkers.prefab`.
+- Prefab remoti integrati: `Shared/Art/Models/InvisibleCollision.prefab`, `Shared/Level/Prefabs/{InvisibleCollision,PortaCamion}.prefab` e relative istanze/riferimenti.
 - `Docs/SDS/` (testo e pittogrammi).
 - Eliminati: `Interaction/ExitSafeZone.cs`, `Systems/PPEEquipZone.cs`, `Systems/WasteBag.cs`, `Systems/WasteItem.cs` (+ `.meta`).
 - Documentazione aggiornata: `Docs/TECHNICAL_DOCS.md`, `Docs/TEST_COMMANDS_MANUAL.md`, `Docs/Agent/Chemical_Alert/{00_BRIEF.md,HANDOFF.md,TASK_PROGRESS.md}`.
@@ -142,7 +147,8 @@ Aggiornare il gameplay **senza imporre un ordine di azioni**. Le regole di rifer
 
 ## Attenzione alla ripresa
 
-- **Nessun commit presente**: working tree con 49 voci (40 file tracciati modificati/eliminati + 9 voci non tracciate). Preservare tutte le modifiche elencate.
+- Commit di merge `44bfb1a` già pushato; branch `group_tiziano` risultava allineato a `origin/group_tiziano` dopo il push.
+- Il prefab e l'istanza scena sono stati rinominati in `InvisibleCollision`, preservando il GUID del prefab. Le modifiche a scena e documentazione restano locali, non committate/pushate.
 - Sono presenti anche modifiche a `Docs/Agent/Evaquation/EV_*.md` non legate a questa task: non toccarle.
 - TMP Essentials è importato in `Assets/TextMesh Pro/` con autorizzazione dell'utente.
 - Le stringhe italiane della UI possono essere rifinite in un passaggio successivo.

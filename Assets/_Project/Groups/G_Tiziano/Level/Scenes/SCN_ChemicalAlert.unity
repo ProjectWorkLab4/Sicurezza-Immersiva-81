@@ -4326,6 +4326,14 @@ PrefabInstance:
       value: Puddle
       objectReference: {fileID: 0}
     - target: {fileID: 8099669843104476896, guid: 78c404d0a268b17409d48e3097535c15, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8099669843104476896, guid: 78c404d0a268b17409d48e3097535c15, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8099669843104476896, guid: 78c404d0a268b17409d48e3097535c15, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -5009,7 +5017,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3796178100094937643, guid: d0dfb7bcd7039534790d2682470e03cb, type: 3}
       propertyPath: m_Name
-      value: CollisionInvisibile
+      value: InvisibleCollision
       objectReference: {fileID: 0}
     - target: {fileID: 8251107771530002164, guid: d0dfb7bcd7039534790d2682470e03cb, type: 3}
       propertyPath: m_LocalPosition.x

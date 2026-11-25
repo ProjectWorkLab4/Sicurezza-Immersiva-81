@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8251107771530002164}
   - component: {fileID: 915229979668211870}
   m_Layer: 0
-  m_Name: CollisionInvisibile
+  m_Name: InvisibleCollision
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

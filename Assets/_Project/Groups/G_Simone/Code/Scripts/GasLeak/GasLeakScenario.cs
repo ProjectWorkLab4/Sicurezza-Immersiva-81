@@ -29,6 +29,9 @@ public sealed class GasLeakScenario : ScenarioController
     bool _stufettaSegnalata;
     int _finestreSegnalate;
     bool _chiamata112Segnalata;
+    bool _collegaSegnalato;
+    bool _quadroSegnalato;
+    bool _uscitaSegnalata;
     string _hintDecisione = "Riconosci i sintomi e usa il rilevatore CO";
     string _hintCorrente = string.Empty;
     readonly Dictionary<OutcomeType, string> _criteriOriginali = new Dictionary<OutcomeType, string>();
@@ -76,6 +79,9 @@ public sealed class GasLeakScenario : ScenarioController
         _stufettaSegnalata = false;
         _finestreSegnalate = 0;
         _chiamata112Segnalata = false;
+        _collegaSegnalato = false;
+        _quadroSegnalato = false;
+        _uscitaSegnalata = false;
         _hintDecisione = "Riconosci i sintomi e usa il rilevatore CO";
         _hintCorrente = string.Empty;
         RipristinaCriteri();
@@ -221,6 +227,9 @@ public sealed class GasLeakScenario : ScenarioController
         bool stufettaNuova = gestore.StufettaSpenta && !_stufettaSegnalata;
         bool finestraNuova = gestore.FinestreAperte > _finestreSegnalate;
         bool chiamataNuova = gestore.Chiamato112 && !_chiamata112Segnalata;
+        bool collegaNuovo = gestore.CollegaAvvisato && !_collegaSegnalato;
+        bool quadroNuovo = gestore.QuadroAzionato && !_quadroSegnalato;
+        bool uscitaNuova = gestore.Uscito && !_uscitaSegnalata;
 
         if (rilevatoreNuovo)
         {
@@ -247,10 +256,31 @@ public sealed class GasLeakScenario : ScenarioController
             Feedback("Finestra aperta", FeedbackKind.Positive);
         }
 
+        if (collegaNuovo)
+        {
+            _collegaSegnalato = true;
+            Alert("Collega avvisato\nTi seguirà fino all’uscita", ICONA_AVVISO);
+            Feedback("Collega avvisato", FeedbackKind.Positive);
+        }
+
         if (chiamataNuova)
         {
             _chiamata112Segnalata = true;
             Feedback("112 chiamato", FeedbackKind.Positive);
+        }
+
+        if (quadroNuovo)
+        {
+            _quadroSegnalato = true;
+            Alert("Quadro elettrico azionato\nNon ferma il monossido", ICONA_AVVISO);
+            Feedback("Quadro azionato", FeedbackKind.Negative);
+        }
+
+        if (uscitaNuova)
+        {
+            _uscitaSegnalata = true;
+            string esito = gestore.UscitoConCollega ? "Collega al sicuro" : "Sei uscito da solo";
+            Alert("Uscita raggiunta\n" + esito, ICONA_AVVISO);
         }
 
         AggiornaHint();

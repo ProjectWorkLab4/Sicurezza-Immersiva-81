@@ -370,8 +370,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: -0, y: 0.010000001, z: 0.0024000038}
-  m_Center: {x: -0.00036664677, y: 0.02400004, z: -0.0000000013969839}
+  m_Size: {x: 0, y: 0.043161575, z: 0.02400625}
+  m_Center: {x: -0.0003666428, y: 0.0364321, z: -0.00114053}
 --- !u!1 &574979440
 GameObject:
   m_ObjectHideFlags: 0
@@ -1349,6 +1349,33 @@ Transform:
   - {fileID: 2045355531}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1168741569 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7349231110334776630, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+  m_PrefabInstance: {fileID: 1221567980}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &1168741573
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1168741569}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 3873764981129528893, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
 --- !u!1001 &1221567980
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1500,6 +1527,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7383767918172130216, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 858293931}
+    - targetCorrespondingSourceObject: {fileID: 7349231110334776630, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1168741573}
   m_SourcePrefab: {fileID: 100100000, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
 --- !u!4 &1221567981 stripped
 Transform:
@@ -1716,8 +1746,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.0024000036, y: 0.010000004, z: 0.060000114}
-  m_Center: {x: -0.00036665433, y: -0.024000093, z: 0.0000000114087015}
+  m_Size: {x: 0.0024000034, y: 0.14369076, z: 0.060000114}
+  m_Center: {x: -0.00036665433, y: 0.04284545, z: -0.000000005446778}
 --- !u!114 &1221567997
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -135,3 +135,43 @@ Earlier this session: `group_simone` was reset to cloud `origin/main` and force-
 - **Files changed:** `Assets/_Project/Groups/G_Simone/Docs/Blackout/AGENTS.md` (two new log entries), plus all approved modified/deleted/untracked files from the working-tree review (emissive materials and `.meta` files, new prefabs and `.meta` files, `MESH_SegnaleticaLuminosa.fbx`/`.meta`, `GameManager.cs`/`.meta`, `Assets/Blackout.unity`, `Assets/XR/Settings/OpenXR Package Settings.asset`).
 - **Thoughts / reasoning:** Restoring logging after the earlier opt-out keeps the group's control document complete. The README normally treats OpenXR settings churn as a change to review and discard, but the user explicitly approved committing it here. Keeping the camera/light deletion is consistent with the camera being a temporary stand-in until the real VR player rig exists. The mandatory `collab-proxy` check returned nothing before the commit.
 - **What I learned:** Explicit user approval can override the README's default handling of machine-generated XR settings. The temporary camera in `Assets/Blackout.unity` is not the final VR rig, so camera-dependent code must be adapted when the rig arrives. No Unity Version Control tooling was used.
+
+### 2026-11-25 — Finish stuck merge after fetch/pull attempt
+- **Request:** "pull what is in origin"; follow-up choice "Finish the merge".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Docs/Blackout/` for the log.
+- **Actions performed:** `git fetch origin` (only `origin/group_tiziano` moved, `57dbae2`→`339ee72`). `git pull origin group_simone` failed: `You have not concluded your merge (MERGE_HEAD exists)`. Inspection showed `.git/MERGE_HEAD` empty (0 bytes), 942 staged files, `ORIG_HEAD` = `8801308`, and `git status` reporting "All conflicts fixed but you are still merging". With approval, restored `MERGE_HEAD` to `origin/main` (`811ee1983ef9ed6304fe7ab859e05a36c011cf8f`), re-ran the `collab-proxy` guard (clean), and committed the merge as `6083302` (`Merge branch 'origin/main' into group_simone`). Then pushed `group_simone` to `origin/group_simone` and appended this log entry.
+- **Files changed:** `Assets/_Project/Groups/G_Simone/Docs/Blackout/AGENTS.md` (this log entry); git history only otherwise — merge commit `6083302` integrating `origin/main` into `group_simone` (942 staged files) and its push. No G_Simone file content was edited by me.
+- **Thoughts / reasoning:** Pulling was impossible while a broken merge state existed. Finishing the merge preserved the large staged integration instead of discarding it with an abort. Since `origin/group_simone` had no new commits, completing the in-progress merge was the only integration needed, and pushing then brought the remote back in sync.
+- **What I learned:** An empty `.git/MERGE_HEAD` makes Git report an unfinished merge and blocks any pull; `ORIG_HEAD` still identifies the pre-merge commit. `origin/group_tiziano` changed on the remote but belongs to another group, so it was left alone. The `collab-proxy` guard remains clean.
+
+### 2026-11-25 — Restore Struttura.prefab from Git
+- **Request:** "do you see or know what happened to the file Struttura that was saved under the folder Art/Prefab in G_simone? also tell me if there's any way to restore it or restore the latest version of it"; follow-up choice "Restore latest (Recommended)".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Art/Prefab/` (named in the selected restore option).
+- **Actions performed:** Read-only inspection showed `Struttura.prefab` and `.meta` tracked in `HEAD` and `origin/group_simone` but absent from the working tree (`.D` unstaged deletion). Restored both with `git restore -- <paths>`; verified both files exist and the folder has no Git differences.
+- **Files changed:** `Struttura.prefab` and `Struttura.prefab.meta` restored in the working tree; no Git history changed.
+- **Thoughts / reasoning:** Restoring from the index/HEAD recovers the exact committed/pushed version without reintroducing the older `MESH_Struttura` name/GUID and needs no new commit.
+- **What I learned:** The restored version still references the old GUID `064c3fd498cb4344aa653cf035173c87`, which now belongs to `Puf.prefab.meta`; Unity may treat the "Struttura" prefab as a variant of "Puf" until that is corrected.
+
+### 2026-11-25 — Restore deleted model files under G_Simone/Art/Models
+- **Request:** "can you restore the last pull on my local?"; clarified to "I need to restore the deleted files, that's it".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Art/Models/`.
+- **Actions performed:** Read-only inspection showed six tracked files deleted in the working tree: `P_W_4_Scena.fbx`, `P_W_4_Scena 1.fbx`, `P_W_4_Scena 1 (1).fbx` and their `.meta` files. Restored all six from `HEAD` with `git restore`; verified the folder has no remaining Git differences. No pull/merge was undone and no history was changed.
+- **Files changed:** the six FBX/`.meta` files restored in the working tree; no commit or push.
+- **Thoughts / reasoning:** The files were still tracked in `HEAD`, so a simple `git restore` recovered the committed versions without touching the merge, other local changes, or remote state.
+- **What I learned:** The earlier "restore the last pull" request meant restoring files deleted locally, not reverting the merge. Unstaged deletions of tracked files are recoverable from the index/HEAD with `git restore`.
+
+### 2026-11-25 — Animate blackout door Z rotations
+- **Request:** "may you change GameManager so that OnBlackout event also changes the Z rotation (exclusively on inspector) of these objects changes like this: porta_tagliafuoco_D3 90 -> 0, porta_tagliafuoco_D3 180 -> 90, porta_tagliafuoco_D12 0 -> -90, porta_tagliafuoco_D5 0 -> 90, porta_tagliafuoco_D6 90 -> 180, porta_tagliafuoco_D7 90 -> 0; even better if you can make it quick but not immediate. animate it a bit".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/` for the script; `Assets/_Project/Groups/G_Simone/Docs/Blackout/` for the log.
+- **Actions performed:** Added an Inspector-editable `BlackoutDoorRotationRule[]` with the six supplied name/from-Z/to-Z rules, a 0.6 s duration, duplicate-name matching by starting Z (2 degree tolerance), and a smooth `Mathf.SmoothStep` coroutine subscribed to `OnBlackout`. Only each object's local Euler Z is changed; X/Y are preserved. No commit or push.
+- **Files changed:** `Assets/_Project/Groups/G_Simone/Code/Scripts/GameManager.cs`; `Assets/_Project/Groups/G_Simone/Docs/Blackout/AGENTS.md` (this log entry).
+- **Thoughts / reasoning:** Rules stay visible/editable in the Inspector, and the two `porta_tagliafuoco_D3` entries are distinguished by their starting Z value. Animating over time avoids an instant snap.
+- **What I learned:** `localEulerAngles.z` plus `Mathf.DeltaAngle` lets the animation start from the object's current Inspector angle without wrapping the long way around.
+
+### 2026-11-25 — Debug blackout door rotation matching
+- **Request:** "the objects don't seem to move".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/` (script) and `Assets/_Project/Groups/G_Simone/Docs/Blackout/` (log).
+- **Actions performed:** Verified the script is attached to `---GameManager---` inside `Struttura.prefab` and the six rules are serialized. Made name matching case-insensitive with suffix support, widened Z tolerance to 5 degrees, added an optional direct `Transform` per rule, a 0.1 s start delay, and `[BlackoutDoors]` console diagnostics. No commit or push.
+- **Files changed:** `Assets/_Project/Groups/G_Simone/Code/Scripts/GameManager.cs`; `Assets/_Project/Groups/G_Simone/Docs/Blackout/AGENTS.md` (this log entry).
+- **Thoughts / reasoning:** The likely failure was exact name/start-Z matching; diagnostics will reveal actual runtime names/angles if it still fails.
+- **What I learned:** The scene contains only the `Struttura` prefab instance, with GameManager nested inside it; the prefab already stores the edited rule fields.

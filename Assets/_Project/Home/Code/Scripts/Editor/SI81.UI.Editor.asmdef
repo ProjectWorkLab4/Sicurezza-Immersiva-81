@@ -1,0 +1,25 @@
+{
+    "name": "SI81.UI.Editor",
+    "rootNamespace": "SI81.UI.EditorTools",
+    "references": [
+        "SI81.UI",
+        "SI81.UI.Rig",
+        "SI81.Rig",
+        "SI81.Rig.Editor",
+        "Unity.TextMeshPro",
+        "Unity.TextMeshPro.Editor",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

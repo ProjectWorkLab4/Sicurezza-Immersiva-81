@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e854ede8a9d475b4ea0cc6436fc8d2f9, type: 3}
+  m_Name: SO_Mission_MockScenario
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
+  Id: 99
+  Title: Mock Scenario
+  Context: 'Ruolo: collega in un reparto. Un quadro elettrico emette fumo: devi decidere
+    in pochi secondi. Scenario di prova (esempio), senza grafica, per provare il
+    percorso completo della UI.'
+  Icon: {fileID: 21300000, guid: 4c7f48d506c79784a86a618cecc798b0, type: 3}
+  Image: {fileID: 0}
+  GradientTop: {r: 0.35, g: 0.35, b: 0.55, a: 1}
+  GradientBottom: {r: 0.6, g: 0.65, b: 0.85, a: 1}
+  Complexity: 1
+  SceneName: SCN_MockScenario
+  Objectives:
+  - Controlla l'area
+  - Decidi come intervenire
+  - Metti in sicurezza
+  Criteria:
+  - Outcome: 0
+    Text: Dai l'allarme prima di agire (esempio).
+  - Outcome: 1
+    Text: Spegni il quadro da solo, senza allarme (esempio).
+  - Outcome: 2
+    Text: Non decidi in tempo (esempio).
+  Levels:
+  - Level: 1
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  - Level: 2
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  - Level: 3
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 0
+  IsTraining: 0
+  DesignerNote: '(esempio) Scenario finto per provare il flusso: va tolto dal catalogo
+    prima della consegna.'

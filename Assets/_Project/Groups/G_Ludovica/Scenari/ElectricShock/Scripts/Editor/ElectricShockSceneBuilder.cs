@@ -76,6 +76,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Lit("SafeZone", new Color(0.1f, 0.7f, 0.25f));
             Lit("Marker", new Color(1f, 0.85f, 0.1f));
             Lit("Hand", new Color(0.9f, 0.75f, 0.6f));
+            // Pavimento e pareti: texture PBR 2K in Shared/Art/Textures (originali), materiali nel gruppo.
+            TexLit("ConcreteWall", "TEX_ConcreteWall");
+            TexLit("ConcreteFloorWorn", "TEX_ConcreteFloorWorn");
             // Personaggi: il modello non ha texture, i colori distinguono lavoratori e paramedici (materiali del gruppo, FBX invariato).
             Lit("CharSkin", new Color(0.80f, 0.62f, 0.50f));
             Lit("CharHair", new Color(0.15f, 0.10f, 0.07f));
@@ -113,6 +116,38 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             m.SetColor("_EmissionColor", Color.black);
             // Senza questo flag URP considera l'emissione "nera" e alla prima validazione toglie la keyword _EMISSION.
             m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            EditorUtility.SetDirty(m);
+            mats[name] = m;
+        }
+
+        /// <summary>
+        /// Materiale URP Lit con texture PBR di Shared/Art/Textures: Albedo, Normal e MetallicSmoothness
+        /// (metallico 0, levigatezza = 1 - roughness, generata dalla roughness originale).
+        /// </summary>
+        private static void TexLit(string name, string texPrefix)
+        {
+            string path = $"{MAT_DIR}/MAT_{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(m, path);
+            }
+            string T = "Assets/_Project/Shared/Art/Textures/" + texPrefix;
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_Albedo.jpg");
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_Normal.exr");
+            var metalSmooth = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_MetallicSmoothness.png");
+            if (albedo == null || normal == null || metalSmooth == null) Debug.LogError("[SI81 ElectricShock] Texture mancanti per " + texPrefix);
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BaseMap", albedo);
+            m.SetTexture("_BumpMap", normal);
+            m.SetFloat("_BumpScale", 1f);
+            m.EnableKeyword("_NORMALMAP");
+            m.SetTexture("_MetallicGlossMap", metalSmooth);
+            m.EnableKeyword("_METALLICSPECGLOSSMAP");
+            m.SetFloat("_Metallic", 0f);
+            m.SetFloat("_Smoothness", 1f);
+            m.SetFloat("_SmoothnessTextureChannel", 0f);
             EditorUtility.SetDirty(m);
             mats[name] = m;
         }
@@ -545,7 +580,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         /// <summary>Pavimento, pareti con i varchi DR-01 e DR-03, marcatori di zona.</summary>
         private static void BuildEnvironment(Transform env)
         {
-            Box("PLACEHOLDER_Floor", env, new Vector3(15f, -0.05f, 8f), new Vector3(30f, 0.1f, 16f), "Floor", true);
+            var floor = Box("ENV_Floor", env, new Vector3(15f, -0.05f, 8f), new Vector3(30f, 0.1f, 16f), "ConcreteFloorWorn", true);
+            floor.AddComponent<TextureTiling>().Configure(TextureTiling.Mode.Floor, 2f);
             const float h = 3f, t = 0.2f;
             Wall(env, "South", 6f, 2f, 30f, 2f, h, t);
             Wall(env, "North", 6f, 14f, 30f, 14f, h, t);
@@ -563,7 +599,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Vector3 c = (a + b) * 0.5f + Vector3.up * height * 0.5f;
             bool alongX = Mathf.Abs(x1 - x0) > Mathf.Abs(y1 - y0);
             float len = (b - a).magnitude + thickness;
-            Box("PLACEHOLDER_Wall_" + name, parent, c, alongX ? new Vector3(len, height, thickness) : new Vector3(thickness, height, len), "Wall", true);
+            var wall = Box("ENV_Wall_" + name, parent, c, alongX ? new Vector3(len, height, thickness) : new Vector3(thickness, height, len), "ConcreteWall", true);
+            wall.AddComponent<TextureTiling>().Configure(TextureTiling.Mode.Wall, 2f);
         }
 
         /// <summary>Estintore segnaposto con banda colorata, ugello e spruzzo.</summary>

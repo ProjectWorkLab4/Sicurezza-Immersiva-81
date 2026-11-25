@@ -37,7 +37,7 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Posa nella mano: tenuta davanti, di lato.</summary>
         public override void GetHoldPose(out Vector3 localPosition, out Quaternion localRotation)
         {
-            localPosition = new Vector3(0f, -0.5f, 0.3f);
+            localPosition = new Vector3(0f, -0.45f, 0.25f);
             localRotation = Quaternion.Euler(0f, 90f, 0f);
         }
     }

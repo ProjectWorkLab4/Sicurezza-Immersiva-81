@@ -231,7 +231,9 @@ namespace SI81.Ludovica.ElectricShock.Tests
         {
             d.Get<EmergencyStopButton>("emergencyStop").Press();
             var pm1 = d.Get<ParamedicInShock>("paramedicInShock");
-            var generatorBounds = new Bounds(new Vector3(20f, 0.5f, 9.5f), new Vector3(1.8f, 2f, 1.0f));
+            // Ingombro reale del generatore (collider del modello), alzato per il controllo sul piano.
+            var generatorBounds = d.Get<GeneratorUnit>("generator").GetComponent<BoxCollider>().bounds;
+            generatorBounds = new Bounds(new Vector3(generatorBounds.center.x, 0.5f, generatorBounds.center.z), new Vector3(generatorBounds.size.x, 2f, generatorBounds.size.z));
             d.Teleport(20f, 12.5f, 180f);
             pm1.FollowTarget(d.Rig.Head);
             bool crossed = false;

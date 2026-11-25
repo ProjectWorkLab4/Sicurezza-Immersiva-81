@@ -28,6 +28,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         private const string SAMPLE_MISSION = "Assets/_Project/Home/UI/Data/Missions/SO_Mission_ElectricShock.asset";
         private const string CATALOG = "Assets/_Project/Home/UI/Data/Missions/SO_MissionCatalog.asset";
         private const string ICON = "Assets/_Project/Home/Art/Textures/Icons/ICN_ElectricBolt.png";
+        private const string MODELS = "Assets/_Project/Shared/Art/Models/";
+        /// <summary>Numero di barriere da 0,75 m (MESH_Magazzino_Barriera) per chiudere i 4 m del varco DR-03.</summary>
+        private const int BARRIER_COUNT = 5;
 
         private static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
 
@@ -174,26 +177,34 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Generatore, pulsante, cavo
             var hazards = new GameObject("HZD_Hazards").transform;
             var gen = Root("GEN01_Generator", hazards, 20f, 9.5f);
-            var genVisual = Box("PLACEHOLDER_Generator", gen, Vector3.up * 0.45f, new Vector3(1.8f, 0.9f, 1.0f), "Generator", true);
+            // Modello lungo sull'asse Z: ruotato di 90° per avere il lato lungo sulla X della mappa (come GEN-01 nella specifica).
+            var genModel = PlaceModel("MESH_Folgorazione_Generatore", gen, P(20f, 9.5f), 90f, 1f, true);
+            AddBoundsCollider(gen.gameObject, genModel);
+            MarkNotWalkable(gen.gameObject);
             var generator = gen.gameObject.AddComponent<GeneratorUnit>();
-            SetField(generator, "vibratingPart", genVisual.transform);
+            SetField(generator, "vibratingPart", genModel.transform);
             SetField(generator, "engineAudio", Audio3D("SFX_Engine", gen, Vector3.up * 0.5f, true, 0.5f));
 
+            // PB-01 = la "Chiave (Interagibile)" del modello: gira di 90° come la sua animazione e ferma il generatore.
+            var key = FindChild(genModel.transform, "Chiave (Interagibile)");
             var pb = new GameObject("PB01_EmergencyStop").transform;
             pb.SetParent(gen, false);
-            pb.localPosition = new Vector3(-0.1f, 0.9f, 0.4f);
-            Cylinder("PLACEHOLDER_StopButtonBase", pb, Vector3.up * 0.015f, new Vector3(0.14f, 0.015f, 0.14f), "StopButtonBase", false);
-            var cap = Cylinder("PLACEHOLDER_StopButtonCap", pb, Vector3.up * 0.05f, new Vector3(0.09f, 0.025f, 0.09f), "StopButton", false);
+            pb.position = key != null ? key.GetComponent<Renderer>().bounds.center : P(20f, 9.1f, 0.6f);
             var pbCollider = pb.gameObject.AddComponent<BoxCollider>();
-            pbCollider.center = Vector3.up * 0.04f;
-            pbCollider.size = new Vector3(0.18f, 0.1f, 0.18f);
+            pbCollider.size = Vector3.one * 0.14f;
             var stop = pb.gameObject.AddComponent<EmergencyStopButton>();
-            SetField(stop, "cap", cap.transform);
-            SetInteractable(stop, "Arresto di emergenza", cap.GetComponent<Renderer>());
-            Label(pb.gameObject, LabelKind.Interaction, "Arresto di emergenza", "Grilletto: ferma il generatore", new Vector3(0f, 0.25f, 0f));
+            SetField(stop, "cap", key);
+            var stopSo = new SerializedObject(stop);
+            stopSo.FindProperty("turnKey").boolValue = key != null;
+            stopSo.FindProperty("keyTurnedEuler").vector3Value = Vector3.zero;
+            stopSo.ApplyModifiedPropertiesWithoutUndo();
+            SetInteractable(stop, "Chiave di arresto", key != null ? key.GetComponent<Renderer>() : null);
+            Label(pb.gameObject, LabelKind.Interaction, "Chiave di arresto", "Grilletto: gira la chiave e ferma il generatore", new Vector3(0f, 0.25f, 0f));
 
             var cableRoot = Root("CB01_LiveCable", hazards, 18.8f, 8.5f);
-            var cablePoints = new[] { P(20f, 10f, 0.03f), P(18.8f, 8.5f, 0.03f), P(16.9f, 7.6f, 0.03f) };
+            var sockets = FindChild(genModel.transform, "Prese");
+            Vector3 socket = sockets != null ? sockets.GetComponent<Renderer>().bounds.center : P(20f, 9.1f, 0.6f);
+            var cablePoints = new[] { socket, new Vector3(socket.x, 0.03f, socket.z - 0.4f), P(18.8f, 8.5f, 0.03f), P(16.9f, 7.6f, 0.03f) };
             var lr = cableRoot.gameObject.AddComponent<LineRenderer>();
             lr.useWorldSpace = true;
             lr.positionCount = cablePoints.Length;
@@ -201,9 +212,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             lr.widthMultiplier = 0.035f;
             lr.sharedMaterial = mats["Cable"];
             for (int i = 0; i < cablePoints.Length - 1; i++) CableSegment(cableRoot, cablePoints[i], cablePoints[i + 1], i);
-            var sparks = Sparks("VFX_CableSparks", cableRoot, cablePoints[2]);
+            var sparks = Sparks("VFX_CableSparks", cableRoot, cablePoints[cablePoints.Length - 1]);
             var cableFlame = FireParticles("VFX_CableFlame", sparks.transform, 0.15f, 0.25f, 20f);
-            cableFlame.transform.position = cablePoints[1];
+            cableFlame.transform.position = cablePoints[2];
             var cable = cableRoot.gameObject.AddComponent<LiveCable>();
             SetField(cable, "sparks", sparks);
             SetField(cable, "crackleAudio", Audio3D("SFX_Crackle", sparks.transform, Vector3.zero, true, 0.6f));
@@ -253,6 +264,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Tanica e serbatoio (rischio nascosto)
             var tank = Root("FC01_FuelTank", hazards, 23.6f, 11.2f);
             var tankVisual = Box("PLACEHOLDER_FuelTank", tank, Vector3.up * 0.25f, new Vector3(0.6f, 0.5f, 0.6f), "FuelTank", true);
+            MarkNotWalkable(tank.gameObject);
             var blast = BlastParticles("VFX_Blast", tank);
             var ring = new GameObject("VFX_BlastRing").AddComponent<LineRenderer>();
             ring.transform.SetParent(tank, false);
@@ -287,6 +299,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Attrezzature
             var tools = new GameObject("TLS_Tools").transform;
             Box("PLACEHOLDER_RackExtinguishers", tools, P(7f, 12.3f, 0.75f), new Vector3(1.6f, 1.5f, 0.1f), "Rack", true);
+            // Cartello: pannello piatto con la faccia stampata verso -X locale; scala corretta in scena (7 cm -> 30 cm).
+            PlaceModel("MESH_Folgorazione_CartelloEstintore", tools, P(7f, 12.235f, 1.65f), 270f, 4.4f, false);
             var slotRoot = new GameObject("RK02_ExtinguisherSlots").transform;
             var rackHelp = new GameObject("LBL_ExtinguisherRack").transform;
             rackHelp.SetParent(tools, false);
@@ -306,22 +320,25 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
                 MakeExtinguisher(tools, "EXT3_CO2", ExtinguisherAgent.CO2, "LabelCO2", slots[2])
             };
 
-            Box("PLACEHOLDER_RackBarriersRadio", tools, P(11.8f, 10.6f, 0.45f), new Vector3(0.9f, 0.9f, 1.2f), "Rack", true);
-            var barrierA = MakeBarrier(tools, "BAR1_Barrier", P(12.45f, 11.4f));
-            var barrierB = MakeBarrier(tools, "BAR2_Barrier", P(12.7f, 11.4f));
+            MarkNotWalkable(Box("PLACEHOLDER_RackBarriersRadio", tools, P(11.8f, 10.6f, 0.45f), new Vector3(0.9f, 0.9f, 1.2f), "Rack", true));
+            // Barriere: 5 pezzi da 0,75 m (MESH_Magazzino_Barriera) in fila vicino al rack, da portare sul varco DR-03.
+            var barriers = new BarrierPanel[BARRIER_COUNT];
+            for (int i = 0; i < BARRIER_COUNT; i++)
+                barriers[i] = MakeBarrier(tools, $"BAR{i + 1}_Barrier", P(9.2f + i * 0.8f, 13.3f), 0f);
             var radio = MakeRadio(tools, P(11.8f, 10.6f, 0.9f));
 
             var lineRoot = Root("BL10_BarrierLine", tools, 13f, 8f);
-            var lineSlots = new[] { Point("PT_BarrierSlot_1", lineRoot, 13f, 7f), Point("PT_BarrierSlot_2", lineRoot, 13f, 9f) };
-            var markers = new GameObject[2];
-            for (int i = 0; i < 2; i++)
+            var lineSlots = new Transform[BARRIER_COUNT];
+            var markers = new GameObject[BARRIER_COUNT];
+            for (int i = 0; i < BARRIER_COUNT; i++)
             {
+                lineSlots[i] = Point($"PT_BarrierSlot_{i + 1}", lineRoot, 13f, 6.4f + i * 0.8f);
                 lineSlots[i].rotation = Quaternion.Euler(0f, 90f, 0f);
-                markers[i] = Box($"PLACEHOLDER_SlotMarker_{i + 1}", lineSlots[i], Vector3.up * 0.005f, new Vector3(2f, 0.01f, 0.15f), "Marker", false);
+                markers[i] = Box($"PLACEHOLDER_SlotMarker_{i + 1}", lineSlots[i], Vector3.up * 0.005f, new Vector3(0.75f, 0.01f, 0.15f), "Marker", false);
             }
             var line = lineRoot.gameObject.AddComponent<BarrierSnapLine>();
             SetArray(line, "slots", lineSlots);
-            SetArray(line, "barriers", new Object[] { barrierA, barrierB });
+            SetArray(line, "barriers", barriers);
             SetArray(line, "slotMarkers", markers);
 
             // Persone
@@ -402,16 +419,79 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Assign(so.FindProperty("observables"), new Object[] { cableRoot.GetComponent<ObservableHazard>(), pool.GetComponent<ObservableHazard>(), by1.GetComponent<ObservableHazard>() });
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // Arredo: barili (solo decorazione, la tanica FC-01 resta un segnaposto).
+            var decor = new GameObject("DEC_Decor").transform;
+            MarkNotWalkable(decor.gameObject);
+            AddBoundsCollider(PlaceModel("MESH_Folgorazione_Barile", decor, P(27.6f, 12.9f), 0f, 1f, true));
+            AddBoundsCollider(PlaceModel("MESH_Folgorazione_Barile", decor, P(28.4f, 12.6f), 30f, 1f, true));
+
             // NavMesh: escluse persone e oggetti mobili (barriere, estintori, radio, cavo, trigger).
             IgnoreForNavMesh(people.gameObject);
             IgnoreForNavMesh(air.gameObject);
             foreach (var e in extinguishers) IgnoreForNavMesh(e.gameObject);
-            IgnoreForNavMesh(barrierA.gameObject);
-            IgnoreForNavMesh(barrierB.gameObject);
+            foreach (var b in barriers) IgnoreForNavMesh(b.gameObject);
             IgnoreForNavMesh(radio.gameObject);
             BakeNavMesh();
 
             EditorSceneManager.SaveScene(scene, SCENARIO_SCENE);
+        }
+
+        /// <summary>
+        /// Mette in scena un modello FBX di Shared/Art/Models (istanza collegata all'asset, nome = nome dell'asset):
+        /// ruota sul piano, scala uniforme in scena e allinea la base (o il centro) dei renderer al punto indicato.
+        /// </summary>
+        private static GameObject PlaceModel(string fbx, Transform parent, Vector3 worldPos, float yaw, float scale, bool alignBase)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MODELS + fbx + ".fbx");
+            if (prefab == null) { Debug.LogError("[SI81 ElectricShock] Modello mancante: " + fbx); return new GameObject(fbx + "_MANCANTE"); }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent.gameObject.scene);
+            go.transform.SetParent(parent, true);
+            go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * prefab.transform.rotation;
+            go.transform.localScale = prefab.transform.localScale * scale;
+            go.transform.position = worldPos;
+            var b = RendererBounds(go);
+            Vector3 anchor = alignBase ? new Vector3(b.center.x, b.min.y, b.center.z) : b.center;
+            go.transform.position += worldPos - anchor;
+            return go;
+        }
+
+        /// <summary>Bounds mondo di tutti i renderer del modello.</summary>
+        private static Bounds RendererBounds(GameObject go)
+        {
+            var rends = go.GetComponentsInChildren<Renderer>(true);
+            if (rends.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
+            var b = rends[0].bounds;
+            foreach (var r in rends) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        /// <summary>BoxCollider sul proprietario grande quanto i renderer del modello.</summary>
+        private static BoxCollider AddBoundsCollider(GameObject owner, GameObject model)
+        {
+            var b = RendererBounds(model);
+            var c = owner.AddComponent<BoxCollider>();
+            c.center = owner.transform.InverseTransformPoint(b.center);
+            Vector3 size = owner.transform.InverseTransformVector(b.size);
+            c.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
+            return c;
+        }
+
+        /// <summary>BoxCollider sul modello stesso (arredo statico).</summary>
+        private static BoxCollider AddBoundsCollider(GameObject model) => AddBoundsCollider(model, model);
+
+        /// <summary>Cerca un figlio per nome in tutta la gerarchia.</summary>
+        private static Transform FindChild(Transform root, string name) =>
+            root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+
+        /// <summary>
+        /// Ostacolo basso (sotto 0,8 m): senza questo la NavMesh lo considera scalabile (step 0,75 m) e ci cammina sopra.
+        /// Area "Not Walkable" (indice 1, integrata): nessuna modifica a ProjectSettings.
+        /// </summary>
+        private static void MarkNotWalkable(GameObject go)
+        {
+            var m = go.AddComponent<NavMeshModifier>();
+            m.overrideArea = true;
+            m.area = 1;
         }
 
         /// <summary>Esclude un oggetto (e i figli) dalla cottura della NavMesh.</summary>
@@ -483,15 +563,15 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var root = new GameObject(name).transform;
             root.SetParent(parent, false);
             root.SetPositionAndRotation(slot.position, slot.rotation);
-            var body = Cylinder("PLACEHOLDER_ExtinguisherBody", root, Vector3.up * 0.25f, new Vector3(0.18f, 0.25f, 0.18f), "Extinguisher", false);
-            Cylinder("PLACEHOLDER_ExtinguisherLabel", root, Vector3.up * 0.3f, new Vector3(0.185f, 0.06f, 0.185f), labelMat, false);
-            Box("PLACEHOLDER_ExtinguisherHandle", root, Vector3.up * 0.55f, new Vector3(0.05f, 0.05f, 0.14f), "Radio", false);
+            // Modello alto 0,28 m: scalato in scena x2 (circa 0,55 m, come un estintore reale).
+            var model = PlaceModel("MESH_Folgorazione_Estintore", root, slot.position, slot.eulerAngles.y, 2f, true);
+            var body = model.GetComponentInChildren<Renderer>();
+            // Banda colorata del tipo (acqua blu, polvere bianca, CO2 nera) finché non ci sono etichette vere.
+            Cylinder("PLACEHOLDER_ExtinguisherLabel", root, Vector3.up * 0.3f, new Vector3(0.17f, 0.05f, 0.17f), labelMat, false);
             var nozzle = new GameObject("Nozzle").transform;
             nozzle.SetParent(root, false);
-            nozzle.localPosition = new Vector3(0f, 0.55f, 0.1f);
-            var col = root.gameObject.AddComponent<BoxCollider>();
-            col.center = Vector3.up * 0.3f;
-            col.size = new Vector3(0.22f, 0.62f, 0.22f);
+            nozzle.localPosition = new Vector3(0f, 0.5f, 0.1f);
+            AddBoundsCollider(root.gameObject, model);
             var spray = SprayParticles("VFX_Spray", nozzle, agent == ExtinguisherAgent.Water ? new Color(0.5f, 0.7f, 1f, 0.6f) : agent == ExtinguisherAgent.CO2 ? new Color(0.9f, 0.95f, 1f, 0.5f) : new Color(1f, 1f, 1f, 0.8f));
             var ext = root.gameObject.AddComponent<Extinguisher>();
             SetField(ext, "nozzle", nozzle);
@@ -499,22 +579,18 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var so = new SerializedObject(ext);
             so.FindProperty("agent").enumValueIndex = (int)agent;
             so.ApplyModifiedPropertiesWithoutUndo();
-            SetInteractable(ext, "Estintore", body.GetComponent<Renderer>());
+            SetInteractable(ext, "Estintore", body);
             return ext;
         }
 
-        /// <summary>Barriera mobile segnaposto (2 m x 1 m).</summary>
-        private static BarrierPanel MakeBarrier(Transform parent, string name, Vector3 pos)
+        /// <summary>Barriera mobile da 0,75 m (MESH_Magazzino_Barriera, larga sulla X locale).</summary>
+        private static BarrierPanel MakeBarrier(Transform parent, string name, Vector3 pos, float yaw)
         {
             var root = new GameObject(name).transform;
             root.SetParent(parent, false);
-            root.SetPositionAndRotation(pos, Quaternion.Euler(0f, 90f, 0f));
-            Box("PLACEHOLDER_BarrierPanel", root, Vector3.up * 0.55f, new Vector3(2f, 0.5f, 0.05f), "Barrier", false);
-            Box("PLACEHOLDER_BarrierLegL", root, new Vector3(-0.9f, 0.4f, 0f), new Vector3(0.05f, 0.8f, 0.3f), "Rack", false);
-            Box("PLACEHOLDER_BarrierLegR", root, new Vector3(0.9f, 0.4f, 0f), new Vector3(0.05f, 0.8f, 0.3f), "Rack", false);
-            var col = root.gameObject.AddComponent<BoxCollider>();
-            col.center = Vector3.up * 0.5f;
-            col.size = new Vector3(2f, 1f, 0.3f);
+            root.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            var model = PlaceModel("MESH_Magazzino_Barriera", root, pos, yaw, 1f, true);
+            AddBoundsCollider(root.gameObject, model);
             var b = root.gameObject.AddComponent<BarrierPanel>();
             SetInteractable(b, "Barriera", null);
             return b;
@@ -526,10 +602,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var root = new GameObject("RD01_Radio").transform;
             root.SetParent(parent, false);
             root.position = pos;
-            Box("PLACEHOLDER_Radio", root, Vector3.up * 0.1f, new Vector3(0.08f, 0.2f, 0.05f), "Radio", false);
-            var col = root.gameObject.AddComponent<BoxCollider>();
-            col.center = Vector3.up * 0.1f;
-            col.size = new Vector3(0.12f, 0.24f, 0.1f);
+            // Modello alto 0,57 m: scalato in scena (circa 0,22 m, una radio portatile).
+            var model = PlaceModel("MESH_Magazzino_Radio", root, pos, 0f, 0.385f, true);
+            AddBoundsCollider(root.gameObject, model);
             var r = root.gameObject.AddComponent<EmergencyRadio>();
             SetInteractable(r, "Radio 112", null);
             return r;

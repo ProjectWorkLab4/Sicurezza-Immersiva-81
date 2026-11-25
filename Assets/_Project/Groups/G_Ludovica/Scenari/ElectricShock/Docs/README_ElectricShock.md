@@ -87,29 +87,31 @@ e la build APK. Checklist per il visore: [CHECKLIST_Quest.md](CHECKLIST_Quest.md
 - Gli NPC camminano sulla NavMesh (girano attorno a pareti, rack, generatore, collega a terra e fuoco acceso), ma non hanno fisica né animazioni (capsule che scivolano); il giocatore non li urta (collisioni ignorate di proposito).
 - Le barriere si aprono da sole per far passare i colleghi che escono e PM-2 autorizzato; per la logica il varco resta chiuso.
 
-## Segnaposto da sostituire (FBX mancanti)
+## Modelli in scena e segnaposto rimasti
 
-Tutti gli oggetti visivi si chiamano `PLACEHOLDER_*` (cerca "PLACEHOLDER" nella Hierarchy). I collider e gli script stanno sulla radice,
-quindi basta sostituire i figli `PLACEHOLDER_*` con il modello.
+I modelli veri stanno in `Shared/Art/Models` e sono messi in scena dal builder (istanze collegate all'FBX, nome = nome dell'asset;
+le scale sono corrette **in scena**, non nelle impostazioni di importazione). Gli oggetti ancora da sostituire si chiamano `PLACEHOLDER_*`:
+collider e script stanno sulla radice, quindi basta cambiare i figli.
 
-| Radice | Segnaposto | Modello da fornire |
+| Radice | In scena | Note |
 | --- | --- | --- |
-| `ENV_Graybox` | pavimento, pareti | stanza / capannone |
-| `GEN01_Generator` | `PLACEHOLDER_Generator` | generatore portatile (con punto per PB-01) |
-| `PB01_EmergencyStop` | base + fungo | pulsante di emergenza |
-| `CB01_LiveCable` | LineRenderer | cavo |
-| `PZ01_FuelPool` | `PLACEHOLDER_FuelPool` | decal pozza di benzina |
-| `FC01_FuelTank` | `PLACEHOLDER_FuelTank` | tanica di carburante |
-| `EXT1/2/3_*` | corpo, banda colorata, maniglia | 3 estintori con etichetta (acqua, polvere, CO2) |
-| `BAR1/2_Barrier` | pannello + gambe | barriera (prefab dello scenario 07) |
-| `RD01_Radio` | `PLACEHOLDER_Radio` | radio (prefab dello scenario 07) |
-| `PLACEHOLDER_Rack*` | rack | rack estintori, rack barriere/radio |
-| `VT01_Victim` | torso + gambe (capsule) | operaio a terra |
-| `BY01/02/03_Colleague` | capsule | colleghi |
-| `PM1_ParamedicInShock`, `PM2_ArrivingParamedic` | capsule | paramedici |
-| `SAFE01_SafePoint`, `AP02_AssemblyPoint` | dischi verdi | segnaletica a terra |
-| `VFX_*` | particellari semplici | prefab fuoco / fumo / esplosione del Common Core |
-| `SFX_*` (AudioSource 3D) | suoni generati da codice (`PlaceholderAudio`): ronzio, crepitio, fuoco, sibilo, esplosione | SFX del Common Core: basta assegnare il clip all'AudioSource |
+| `GEN01_Generator` | `MESH_Folgorazione_Generatore` | ruotato di 90°; collider dal modello; area NavMesh "Not Walkable" (è alto 0,78 m, sotto lo step di 0,75 m sarebbe scalabile) |
+| `PB01_EmergencyStop` | `Chiave (Interagibile)` del generatore | **la chiave è l'arresto di emergenza**: col grilletto gira di 90° come la sua animazione |
+| `EXT1/2/3_*` | `MESH_Folgorazione_Estintore` ×2 in scena (≈ 0,55 m) | il tipo resta segnato dalla banda colorata `PLACEHOLDER_ExtinguisherLabel` (acqua blu, polvere bianca, CO2 nera) finché non ci sono etichette |
+| `BAR1…5_Barrier` | `MESH_Magazzino_Barriera` (0,75 m) | **5 pezzi** e 5 slot sul varco DR-03 (z 6,4 … 9,6) |
+| `RD01_Radio` | `MESH_Magazzino_Radio` ×0,385 in scena (≈ 0,22 m) | |
+| rack estintori | `MESH_Folgorazione_CartelloEstintore` ×4,4 in scena (≈ 0,3 m) | cartello sopra il pannello del rack |
+| `DEC_Decor` | 2 × `MESH_Folgorazione_Barile` | solo arredo (non sostituisce la tanica) |
+| `ENV_Graybox` | `PLACEHOLDER_*` | **manca**: stanza / capannone |
+| `FC01_FuelTank` | `PLACEHOLDER_FuelTank` | **manca**: tanica di carburante (il barile non la sostituisce) |
+| `PZ01_FuelPool` | `PLACEHOLDER_FuelPool` | **manca**: decal pozza di benzina |
+| `CB01_LiveCable` | LineRenderer | facoltativo: parte dalle prese del generatore |
+| `PLACEHOLDER_Rack*` | rack | **manca**: rack estintori, rack barriere/radio |
+| `VT01_Victim`, `BY01/02/03_Colleague`, `PM1/PM2` | capsule | **mancano**: tutti i personaggi |
+| `SAFE01_SafePoint`, `AP02_AssemblyPoint` | dischi verdi | facoltativo: segnaletica a terra |
+| `VFX_*`, `SFX_*` | particellari e suoni generati da codice | Common Core (fuoco, fumo, esplosione, suoni) |
+
+Elenco completo con priorità: [ElectricShock_AssetCheck.pdf](ElectricShock_AssetCheck.pdf).
 
 ## [TEMP] Cosa sostituire quando arrivano i sistemi comuni
 

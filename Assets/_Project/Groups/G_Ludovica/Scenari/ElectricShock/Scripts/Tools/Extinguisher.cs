@@ -112,7 +112,7 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Posa nella mano: ugello in avanti.</summary>
         public override void GetHoldPose(out Vector3 localPosition, out Quaternion localRotation)
         {
-            localPosition = new Vector3(0f, -0.35f, 0f);
+            localPosition = new Vector3(0f, -0.45f, 0f);
             localRotation = Quaternion.identity;
         }
 

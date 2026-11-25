@@ -114,8 +114,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         {
             var line = Get<BarrierSnapLine>("barrierLine");
             var b = Object.FindObjectsByType<BarrierPanel>(FindObjectsSortMode.None).OrderBy(x => x.name).ToArray();
-            line.Place(b[0], 0);
-            line.Place(b[1], 1);
+            for (int i = 0; i < b.Length; i++) line.Place(b[i], i);
         }
 
         /// <summary>Si mette accanto al fuoco con l'estintore in mano e spruzza per alcuni secondi.</summary>

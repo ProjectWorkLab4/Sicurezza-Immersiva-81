@@ -22,6 +22,8 @@ namespace SI81.Ludovica.ElectricShock
         [SerializeField] private float passageOpenSeconds = 3f;
         [Tooltip("Mezza larghezza del varco lungo la linea (m).")]
         [SerializeField] private float passageHalfWidth = 2.3f;
+        [Tooltip("Mezza larghezza di una barriera (m): la cerniera dell'apertura sta all'estremo (MESH_Magazzino_Barriera = 0,75 m).")]
+        [SerializeField] private float panelHalfWidth = 0.375f;
 
         private BarrierPanel[] occupants;
         private float passageOpenUntil = -1f;
@@ -157,8 +159,8 @@ namespace SI81.Ludovica.ElectricShock
                 var b = occupants[i];
                 if (b == null || b.HeldBy != null) continue;
                 Vector3 center = slots[i].position;
-                Vector3 end = center + slots[i].right;
-                Vector3 other = center - slots[i].right;
+                Vector3 end = center + slots[i].right * panelHalfWidth;
+                Vector3 other = center - slots[i].right * panelHalfWidth;
                 Vector3 pivot = (end - transform.position).sqrMagnitude > (other - transform.position).sqrMagnitude ? end : other;
                 Vector3 v = center - pivot;
                 var rot = Quaternion.Euler(0f, 80f * k * Mathf.Sign(v.z == 0f ? 1f : v.z), 0f);

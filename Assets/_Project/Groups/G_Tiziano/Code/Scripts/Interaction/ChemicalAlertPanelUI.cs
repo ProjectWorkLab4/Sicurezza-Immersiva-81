@@ -17,6 +17,9 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         [SerializeField] private CanvasGroup sdsPanel;
         [SerializeField] private TMP_Text sdsText;
         [SerializeField] private Image[] sdsPictograms = new Image[0];
+        [SerializeField] private GameObject sdsWorldPanel;
+        [SerializeField] private TMP_Text sdsWorldText;
+        [SerializeField] private SpriteRenderer[] sdsWorldPictograms = new SpriteRenderer[0];
         [SerializeField] private TextAsset formicAcidSds;
         [SerializeField, TextArea(10, 24)] private string sdsDisplayText;
         [SerializeField] private CanvasGroup errorPanel;
@@ -58,7 +61,9 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
         private void Start()
         {
-            SetVisible(sdsPanel, director != null && director.IsSdsPanelOpen);
+            // SDS is presented by the scenario-owned 3D card, not the legacy head-locked Canvas.
+            SetVisible(sdsPanel, false);
+            SetSdsWorldVisible(director != null && director.IsSdsPanelOpen);
             SetVisible(errorPanel, false);
             if (coughAudioSource == null)
                 coughAudioSource = GetComponent<AudioSource>();
@@ -78,6 +83,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
                 SetToxicVignette(0f, new Color32(150, 195, 90, 255));
 
             SetSdsText();
+            SyncSdsPictograms();
         }
 
         private void Update()
@@ -98,23 +104,46 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         private void HandleSdsRead(SubstanceVariant variant)
         {
             SetSdsText();
-            SetVisible(sdsPanel, true);
+            SyncSdsPictograms();
+            SetVisible(sdsPanel, false);
+            SetSdsWorldVisible(true);
         }
 
         private void SetSdsText()
         {
-            if (sdsText == null)
+            string content = !string.IsNullOrWhiteSpace(sdsDisplayText)
+                ? sdsDisplayText
+                : formicAcidSds != null ? formicAcidSds.text : string.Empty;
+
+            if (sdsText != null)
+                sdsText.text = content;
+            if (sdsWorldText != null)
+                sdsWorldText.text = content;
+        }
+
+        private void SyncSdsPictograms()
+        {
+            if (sdsPictograms == null || sdsWorldPictograms == null)
                 return;
 
-            if (!string.IsNullOrWhiteSpace(sdsDisplayText))
-                sdsText.text = sdsDisplayText;
-            else if (formicAcidSds != null)
-                sdsText.text = formicAcidSds.text;
+            int count = Mathf.Min(sdsPictograms.Length, sdsWorldPictograms.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (sdsPictograms[i] != null && sdsWorldPictograms[i] != null)
+                    sdsWorldPictograms[i].sprite = sdsPictograms[i].sprite;
+            }
         }
 
         private void HideSds()
         {
             SetVisible(sdsPanel, false);
+            SetSdsWorldVisible(false);
+        }
+
+        private void SetSdsWorldVisible(bool visible)
+        {
+            if (sdsWorldPanel != null)
+                sdsWorldPanel.SetActive(visible);
         }
 
         private void ShowError(string localizationKey)

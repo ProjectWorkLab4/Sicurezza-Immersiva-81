@@ -186,7 +186,11 @@ namespace SI81.Rig
         /// <param name="rotation">Rotazione della radice (yaw).</param>
         public void TeleportTo(Vector3 position, Quaternion rotation)
         {
+            CharacterController controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller != null && controller.enabled;
+            if (wasEnabled) controller.enabled = false;
             transform.SetPositionAndRotation(position, rotation);
+            if (wasEnabled) controller.enabled = true;
             RigLocomotion locomotion = GetComponent<RigLocomotion>();
             if (locomotion != null) locomotion.ResetVerticalVelocity();
         }

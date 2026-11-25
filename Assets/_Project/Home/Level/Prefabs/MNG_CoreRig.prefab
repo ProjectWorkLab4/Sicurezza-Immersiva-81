@@ -246,6 +246,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08cc09a944b4ef14eb47161480caf421, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SI81.Rig::SI81.Rig.RigLocomotion
+  movementLock: 0
   deadzone: 0.2
   moveSpeed: 1.8
   snapTurnEnabled: 1

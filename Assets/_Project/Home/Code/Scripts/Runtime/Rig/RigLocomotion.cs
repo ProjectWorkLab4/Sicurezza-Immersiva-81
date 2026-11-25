@@ -1,12 +1,13 @@
 using SI81.Input;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SI81.Rig
 {
     /// <summary>
     /// Locomozione continua del Player Rig: stick sinistro relativo allo sguardo, snap turn da stick destro,
     /// gravità e contatto col pavimento tramite CharacterController. Muove solo la radice del rig, mai la camera.
-    /// Si blocca quando il canale World è sospeso (menu/pausa) o Time.timeScale è zero.
+    /// Si blocca quando il canale World è sospeso (menu/pausa), quando <see cref="MovementLock"/> è attivo o Time.timeScale è zero.
     /// </summary>
     [DefaultExecutionOrder(EXECUTION_ORDER)]
     [DisallowMultipleComponent]
@@ -17,8 +18,11 @@ namespace SI81.Rig
     {
         /// <summary>Ordine di esecuzione: dopo l'Input Service, prima dei consumatori generici.</summary>
         public const int EXECUTION_ORDER = -900;
+        private const string CORE_SCENE_NAME = "SCN_Core";
 
         [Header("Movimento")]
+        [Tooltip("Se attivo, blocca movimento e rotazione e disabilita le relative InputAction (es. in SCN_Core).")]
+        [SerializeField] private bool movementLock;
         [Tooltip("Zona morta radiale dello stick sinistro (0..0.9).")]
         [Range(0f, 0.9f)]
         [SerializeField] private float deadzone = 0.2f;
@@ -50,6 +54,26 @@ namespace SI81.Rig
         private float verticalVelocity;
         private bool turnArmed = true;
         private bool warnedNoService;
+        private bool coreMovementLock;
+        private bool managesCoreSceneLock;
+        private bool appliedLocomotionLock;
+
+        /// <summary>Se true, blocca movimento e rotazione a scatti e disabilita le relative InputAction.</summary>
+        public bool MovementLock
+        {
+            get => movementLock;
+            set
+            {
+                if (movementLock == value)
+                {
+                    SyncLocomotionInput();
+                    return;
+                }
+                movementLock = value;
+                if (!value) turnArmed = true;
+                SyncLocomotionInput();
+            }
+        }
 
         /// <summary>Zona morta radiale dello stick sinistro.</summary>
         public float Deadzone
@@ -97,15 +121,51 @@ namespace SI81.Rig
         {
             controller = GetComponent<CharacterController>();
             rig = GetComponent<RigRegistration>();
+            managesCoreSceneLock = gameObject.scene.IsValid() && gameObject.scene.name == CORE_SCENE_NAME;
+            coreMovementLock = movementLock;
         }
 
         /// <summary>
-        /// Azzera la velocità verticale quando il rig viene riattivato.
+        /// Azzera la velocità verticale e allinea le InputAction di locomozione quando il rig viene riattivato.
         /// </summary>
         private void OnEnable()
         {
             verticalVelocity = 0f;
             turnArmed = true;
+            if (managesCoreSceneLock)
+            {
+                SceneManager.sceneLoaded += HandleSceneLoaded;
+                SceneManager.sceneUnloaded += HandleSceneUnloaded;
+            }
+            UpdateSceneMovementLock();
+            SyncLocomotionInput();
+        }
+
+        /// <summary>
+        /// Riallinea il blocco movimento dopo la registrazione del rig attivo.
+        /// </summary>
+        private void Start()
+        {
+            UpdateSceneMovementLock();
+            SyncLocomotionInput();
+        }
+
+        /// <summary>
+        /// Rimuove i listener di scena e rilascia l'eventuale blocco sulle InputAction.
+        /// </summary>
+        private void OnDisable()
+        {
+            if (managesCoreSceneLock)
+            {
+                SceneManager.sceneLoaded -= HandleSceneLoaded;
+                SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+            }
+            if (appliedLocomotionLock && (RigRegistration.Instance == null || RigRegistration.Instance == rig))
+            {
+                appliedLocomotionLock = false;
+                InputService service = InputService.Instance;
+                if (service != null) service.SetLocomotionEnabled(true);
+            }
         }
 
         /// <summary>
@@ -129,11 +189,11 @@ namespace SI81.Rig
                 return;
             }
 
-            bool suppressed = service.IsSuppressed(InputChannel.World);
-            if (!suppressed && snapTurnEnabled) ApplySnapTurn(service.ReadTurn());
+            bool blocked = movementLock || service.IsSuppressed(InputChannel.World);
+            if (!blocked && snapTurnEnabled) ApplySnapTurn(service.ReadTurn());
 
             Vector3 velocity = Vector3.zero;
-            if (!suppressed) velocity = ComputeMoveVelocity(service.ReadMove());
+            if (!blocked) velocity = ComputeMoveVelocity(service.ReadMove());
             ApplyGravity(deltaTime);
             controller.Move(velocity * deltaTime + Vector3.up * (verticalVelocity * deltaTime));
         }
@@ -208,7 +268,7 @@ namespace SI81.Rig
         }
 
         /// <summary>
-        /// Mantiene le soglie coerenti nell'inspector.
+        /// Mantiene le soglie coerenti nell'inspector e aggiorna il lock in Play Mode.
         /// </summary>
         private void OnValidate()
         {
@@ -217,6 +277,56 @@ namespace SI81.Rig
             snapTurnDegrees = Mathf.Max(0f, snapTurnDegrees);
             turnActivateThreshold = Mathf.Clamp(turnActivateThreshold, 0.1f, 1f);
             turnRearmThreshold = Mathf.Clamp(turnRearmThreshold, 0f, turnActivateThreshold - 0.01f);
+            if (Application.isPlaying) SyncLocomotionInput();
+        }
+
+        private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            UpdateSceneMovementLock();
+        }
+
+        private void HandleSceneUnloaded(Scene scene)
+        {
+            UpdateSceneMovementLock();
+        }
+
+        /// <summary>
+        /// In SCN_Core: sblocca la locomozione quando è caricato uno scenario diverso da SCN_Core e la riblocca al ritorno.
+        /// </summary>
+        private void UpdateSceneMovementLock()
+        {
+            if (!managesCoreSceneLock) return;
+            if (RigRegistration.Instance != null && rig != RigRegistration.Instance) return;
+            MovementLock = HasLoadedScenarioScene() ? false : coreMovementLock;
+        }
+
+        /// <summary>
+        /// Sincronizza lo stato di abilitazione delle InputAction Move/Turn con <see cref="movementLock"/>.
+        /// </summary>
+        private void SyncLocomotionInput()
+        {
+            if (!Application.isPlaying) return;
+            if (RigRegistration.Instance != null && rig != RigRegistration.Instance) return;
+            InputService service = InputService.Instance;
+            if (service == null) return;
+
+            bool shouldEnable = !isActiveAndEnabled || !movementLock;
+            service.SetLocomotionEnabled(shouldEnable);
+            appliedLocomotionLock = !shouldEnable;
+        }
+
+        private static bool HasLoadedScenarioScene()
+        {
+            int count = SceneManager.sceneCount;
+            for (int i = 0; i < count; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (!scene.IsValid() || !scene.isLoaded) continue;
+                if (scene.name == CORE_SCENE_NAME) continue;
+                if (scene.name.StartsWith("InitTestScene", System.StringComparison.Ordinal)) continue;
+                return true;
+            }
+            return false;
         }
     }
 }

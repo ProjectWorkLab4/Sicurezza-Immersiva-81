@@ -79,7 +79,9 @@ git commit -m "chore: renormalize line endings"
 **Symptom.** Builds fail or warn about a missing scene; `EditorBuildSettings.asset`
 points to a file that does not exist in the repository.
 
-**Fix.** `main` keeps `Assets/_Project/SCN_Placeholder.unity` as the only build
-scene so this never happens. Do not add group scenes to Build Settings from a group
-branch: the scene list changes only on `main`, when the real scene flow is ready.
-See [Placeholder scene](README.md#placeholder-scene).
+**Fix.** `main` keeps `Assets/_Project/Home/Level/Scenes/SCN_Core.unity` as index 0
+and `Assets/_Project/Home/Level/Scenes/Mock/SCN_MockScenario.unity` after it. A group
+adds only its own scenario scene, after the shared scenes, when the scenario is ready
+to merge; it must not remove or renumber `SCN_Core`. If a scene already in the list
+was moved or renamed, move its `.meta` file with it so the GUID does not change.
+See [Build scenes](README.md#build-scenes).

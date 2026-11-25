@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" font-family="Segoe UI, Arial" font-size="13">
+<rect width="760" height="210" fill="#fff"/>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1B5E48"/></marker></defs>
+<rect x="10" y="20" width="110" height="54" rx="10" fill="#1B5E48"/><text x="65" y="52" fill="#fff" text-anchor="middle" font-weight="700">Home</text>
+<rect x="160" y="20" width="120" height="54" rx="10" fill="#1B5E48"/><text x="220" y="45" fill="#fff" text-anchor="middle" font-weight="700">Mission Brief</text><text x="220" y="63" fill="#cfe" text-anchor="middle">livello + Avvia</text>
+<rect x="320" y="20" width="150" height="54" rx="10" fill="#D55E00"/><text x="395" y="45" fill="#fff" text-anchor="middle" font-weight="700">SCN_&lt;Titolo&gt;</text><text x="395" y="63" fill="#fff" text-anchor="middle">il TUO script</text>
+<rect x="510" y="20" width="110" height="54" rx="10" fill="#D55E00"/><text x="565" y="45" fill="#fff" text-anchor="middle" font-weight="700">EndMission</text><text x="565" y="63" fill="#fff" text-anchor="middle">una volta sola</text>
+<rect x="640" y="20" width="110" height="54" rx="10" fill="#1B5E48"/><text x="695" y="52" fill="#fff" text-anchor="middle" font-weight="700">Esito 3–5 s</text>
+<rect x="640" y="130" width="110" height="54" rx="10" fill="#1B5E48"/><text x="695" y="162" fill="#fff" text-anchor="middle" font-weight="700">Debrief</text>
+<rect x="470" y="130" width="130" height="54" rx="10" fill="#1B5E48"/><text x="535" y="162" fill="#fff" text-anchor="middle" font-weight="700">Score &amp; Replay</text>
+<rect x="320" y="130" width="110" height="54" rx="10" fill="#1B5E48"/><text x="375" y="155" fill="#fff" text-anchor="middle" font-weight="700">Home</text><text x="375" y="172" fill="#cfe" text-anchor="middle">o Riprova</text>
+<g stroke="#1B5E48" stroke-width="2.5" fill="none" marker-end="url(#a)">
+<path d="M120 47 L156 47"/><path d="M280 47 L316 47"/><path d="M470 47 L506 47"/><path d="M620 47 L636 47"/><path d="M695 74 L695 126"/><path d="M640 157 L604 157"/><path d="M470 157 L434 157"/></g>
+<text x="10" y="120" fill="#555">Verde = UI comune (automatico) · Arancione = lavoro del tuo team</text>
+</svg>

@@ -1,0 +1,167 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb61877765bfdd4b9ceff80de6f5d63, type: 3}
+  m_Name: SO_HUDIcons
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.HUDIconLibrary
+  entries:
+  - Name: ICN_AccessibilityNew
+    Sprite: {fileID: 21300000, guid: 373ef55f072cff746b03b5acd7cecf7d, type: 3}
+  - Name: ICN_AccessibilityNew_Filled
+    Sprite: {fileID: 21300000, guid: 16a06ad637bd3914494d60f5b5de34cd, type: 3}
+  - Name: ICN_AdsClick
+    Sprite: {fileID: 21300000, guid: f973b490e101f474b8eaaec4e8d892dd, type: 3}
+  - Name: ICN_ArrowBack
+    Sprite: {fileID: 21300000, guid: 4ec6c6c09aa69de449dcfdd7834ff491, type: 3}
+  - Name: ICN_ArrowForward
+    Sprite: {fileID: 21300000, guid: 1866466d780be3648b7c0a3fc4d45696, type: 3}
+  - Name: ICN_ArrowLeft_Filled
+    Sprite: {fileID: 21300000, guid: ceb3e66feb055fa439ded7fd5fd0f1c4, type: 3}
+  - Name: ICN_BackHand
+    Sprite: {fileID: 21300000, guid: 2f01d001346b1614aa8d7449471cd64f, type: 3}
+  - Name: ICN_BarChart
+    Sprite: {fileID: 21300000, guid: f852329968dd43049910ba003c4cb8a9, type: 3}
+  - Name: ICN_BarChart_Filled
+    Sprite: {fileID: 21300000, guid: 527e7f040dfeaa7438b722c00adc086c, type: 3}
+  - Name: ICN_Bolt_Filled
+    Sprite: {fileID: 21300000, guid: 360d87c850862fa4da60bcd8bbabaad0, type: 3}
+  - Name: ICN_Call
+    Sprite: {fileID: 21300000, guid: a4cf1910cf5e3f940b43824ca4213359, type: 3}
+  - Name: ICN_Cancel
+    Sprite: {fileID: 21300000, guid: 289288d5847dd5f41ad90a6238bfbea5, type: 3}
+  - Name: ICN_Cancel_Filled
+    Sprite: {fileID: 21300000, guid: 9b6484f9275f8be4a8e5f8990ceaccf2, type: 3}
+  - Name: ICN_Check
+    Sprite: {fileID: 21300000, guid: dd0f62023663af649a5b84eddc60b6d0, type: 3}
+  - Name: ICN_CheckCircle
+    Sprite: {fileID: 21300000, guid: f959f60d1d5898e4dbe5491db06811a6, type: 3}
+  - Name: ICN_CheckCircle_Filled
+    Sprite: {fileID: 21300000, guid: 02500f5b7077da143a319bfb51bb8205, type: 3}
+  - Name: ICN_ChevronLeft
+    Sprite: {fileID: 21300000, guid: 7e35038cf26c6954d88937ee11b86908, type: 3}
+  - Name: ICN_ChevronRight
+    Sprite: {fileID: 21300000, guid: 042cb97bd0cb7c9438240271f4c9e5ca, type: 3}
+  - Name: ICN_Contrast
+    Sprite: {fileID: 21300000, guid: a30518738831f994383226bb2718544b, type: 3}
+  - Name: ICN_DirectionsRun
+    Sprite: {fileID: 21300000, guid: a5b84a42de59b1d458a9bbbe93a194e5, type: 3}
+  - Name: ICN_DirectionsWalk
+    Sprite: {fileID: 21300000, guid: 5d3dfbafef3b51843847f247193d5f56, type: 3}
+  - Name: ICN_DoorOpen
+    Sprite: {fileID: 21300000, guid: d07138a654ea153468d51b7649b5afd6, type: 3}
+  - Name: ICN_EcgHeart
+    Sprite: {fileID: 21300000, guid: e9c6cb3213ca1b043961f20122b52be0, type: 3}
+  - Name: ICN_ElectricBolt
+    Sprite: {fileID: 21300000, guid: 2716816d7f70cec4c94a61a8822e26a9, type: 3}
+  - Name: ICN_Engineering_Filled
+    Sprite: {fileID: 21300000, guid: 0f8acb79651e06743a03fb6b8836ddfa, type: 3}
+  - Name: ICN_Exit
+    Sprite: {fileID: 21300000, guid: 4386834924f9435468fb9d42caf1383d, type: 3}
+  - Name: ICN_FireExtinguisher
+    Sprite: {fileID: 21300000, guid: 4c7f48d506c79784a86a618cecc798b0, type: 3}
+  - Name: ICN_FlashOff
+    Sprite: {fileID: 21300000, guid: ce1f6a6d9d60afd40a869cbdedfad091, type: 3}
+  - Name: ICN_Forklift
+    Sprite: {fileID: 21300000, guid: 3018fa44d0addb94a9b9f79ed1077ecd, type: 3}
+  - Name: ICN_Help_Filled
+    Sprite: {fileID: 21300000, guid: 86167620f215cbf4db7ef760133ff747, type: 3}
+  - Name: ICN_History
+    Sprite: {fileID: 21300000, guid: 90521da4a3b20cc43ac8a46ff971c84e, type: 3}
+  - Name: ICN_Home
+    Sprite: {fileID: 21300000, guid: 931659989beff2443a7af55dbb44aa48, type: 3}
+  - Name: ICN_Home_Filled
+    Sprite: {fileID: 21300000, guid: 56206fffaf3694d42a317da739404305, type: 3}
+  - Name: ICN_Info
+    Sprite: {fileID: 21300000, guid: 3de468d9f634dc6468b7cfba685ffd9b, type: 3}
+  - Name: ICN_Lightbulb
+    Sprite: {fileID: 21300000, guid: 235520dbf209b144fbadef48aceda0d7, type: 3}
+  - Name: ICN_LocalFireDepartment
+    Sprite: {fileID: 21300000, guid: 09bec03acb04abc4ab42876eec7d9837, type: 3}
+  - Name: ICN_LocalFireDepartment_Filled
+    Sprite: {fileID: 21300000, guid: 5a3f6222b5a1cf748b190c4d7c364a8b, type: 3}
+  - Name: ICN_Lock
+    Sprite: {fileID: 21300000, guid: cb893b3c56b8ead458408a92a4f43187, type: 3}
+  - Name: ICN_NotificationsActive
+    Sprite: {fileID: 21300000, guid: 16ca0efa17d78dd4490a473f866bc55c, type: 3}
+  - Name: ICN_NotificationsActive_Filled
+    Sprite: {fileID: 21300000, guid: e0ed4d6943a237d45bfeb53ef9ca06e3, type: 3}
+  - Name: ICN_PauseCircle
+    Sprite: {fileID: 21300000, guid: 2d485f505e890e642aa123cac6ef6188, type: 3}
+  - Name: ICN_Person
+    Sprite: {fileID: 21300000, guid: b5c741ba1c6ca494b91a0110358f72f3, type: 3}
+  - Name: ICN_Person_Filled
+    Sprite: {fileID: 21300000, guid: ae3cabebf091ba14e80a88021187951c, type: 3}
+  - Name: ICN_PlayArrow
+    Sprite: {fileID: 21300000, guid: 7fa77565bf0c55043aa828d083368519, type: 3}
+  - Name: ICN_PrecisionManufacturing
+    Sprite: {fileID: 21300000, guid: 0acc98d6bd765994582b461821be6b22, type: 3}
+  - Name: ICN_RadioButtonChecked
+    Sprite: {fileID: 21300000, guid: 06ce640e8aa678d4cb0a73f636f867e8, type: 3}
+  - Name: ICN_RadioButtonChecked_Filled
+    Sprite: {fileID: 21300000, guid: c23a09fe0e8b03a4184e2f044b2f04ee, type: 3}
+  - Name: ICN_RadioButtonUnchecked
+    Sprite: {fileID: 21300000, guid: 2f0c0c165105b1d4097a42ba48e2ae75, type: 3}
+  - Name: ICN_RecordVoiceOver
+    Sprite: {fileID: 21300000, guid: ad8fc2836d4567c41a8c2b80057c5b60, type: 3}
+  - Name: ICN_Refresh
+    Sprite: {fileID: 21300000, guid: 18f6b4e3cd5407e408783ade7e65411b, type: 3}
+  - Name: ICN_Replay
+    Sprite: {fileID: 21300000, guid: 898badbe36dca6340971f3cf99aa828e, type: 3}
+  - Name: ICN_RestartAlt
+    Sprite: {fileID: 21300000, guid: 258fc22395f069f40b5687aab2112314, type: 3}
+  - Name: ICN_RotateRight
+    Sprite: {fileID: 21300000, guid: 895c1368ad2d2cf45bb398f47cac7001, type: 3}
+  - Name: ICN_School
+    Sprite: {fileID: 21300000, guid: c62ca211fb0ac1345bebe97ecf6a37f8, type: 3}
+  - Name: ICN_Science
+    Sprite: {fileID: 21300000, guid: 68b9511e79ae2264cab7f345f49b14e6, type: 3}
+  - Name: ICN_SelfImprovement
+    Sprite: {fileID: 21300000, guid: ffc0749fee8b8d34ea40527e7084787b, type: 3}
+  - Name: ICN_SelfImprovement_Filled
+    Sprite: {fileID: 21300000, guid: 6bc1ac374f304d24387c8408f2e7daa6, type: 3}
+  - Name: ICN_Settings
+    Sprite: {fileID: 21300000, guid: 316e261d675a3874ba4245d23746ddb0, type: 3}
+  - Name: ICN_SettingsBackupRestore
+    Sprite: {fileID: 21300000, guid: 9309348fe8845e640820c5f1d4100ebd, type: 3}
+  - Name: ICN_Settings_Filled
+    Sprite: {fileID: 21300000, guid: e973d3f27baab0e4fa301da44ead0505, type: 3}
+  - Name: ICN_SportsEsports
+    Sprite: {fileID: 21300000, guid: dfc59bec365b3fc49a50f82eeb41da29, type: 3}
+  - Name: ICN_SportsEsports_Filled
+    Sprite: {fileID: 21300000, guid: 84a328af79029974bac1a6c318699436, type: 3}
+  - Name: ICN_Star
+    Sprite: {fileID: 21300000, guid: 6e2a89ffc240b65419734acab77bdbb0, type: 3}
+  - Name: ICN_Star_Filled
+    Sprite: {fileID: 21300000, guid: 97b827a25df40b34dad6c1556b618700, type: 3}
+  - Name: ICN_Subtitles
+    Sprite: {fileID: 21300000, guid: 9cbfeb9e006854a4c82855819b97161b, type: 3}
+  - Name: ICN_Subtitles_Filled
+    Sprite: {fileID: 21300000, guid: c5ab6348fb087654091772cb3287599a, type: 3}
+  - Name: ICN_Timer
+    Sprite: {fileID: 21300000, guid: 66aeb63f1d23bd24abe0b38add06b977, type: 3}
+  - Name: ICN_Timer_Filled
+    Sprite: {fileID: 21300000, guid: 1a40b7ee52c5acb478ae1182b7158b56, type: 3}
+  - Name: ICN_Tune
+    Sprite: {fileID: 21300000, guid: 9ad4609fc944bf34f9966d201e4a0250, type: 3}
+  - Name: ICN_Tune_Filled
+    Sprite: {fileID: 21300000, guid: f7959409323826f4e88b1f65d8f852a7, type: 3}
+  - Name: ICN_Undo
+    Sprite: {fileID: 21300000, guid: c5f300085d47b8f43b9e708b6a5f9efc, type: 3}
+  - Name: ICN_VolumeUp
+    Sprite: {fileID: 21300000, guid: f9b65516aa25df24482df5e1b9bd1cdc, type: 3}
+  - Name: ICN_VolumeUp_Filled
+    Sprite: {fileID: 21300000, guid: 1246ca6b1d8be644ca72ea9b940075a6, type: 3}
+  - Name: ICN_Warning
+    Sprite: {fileID: 21300000, guid: b1bd42b3f9888a44f912ec7690ea89a9, type: 3}
+  - Name: ICN_Warning_Filled
+    Sprite: {fileID: 21300000, guid: 97c3e872d650b1f41b3cab585afde2c2, type: 3}
+  - Name: ICN_WorkspacePremium_Filled
+    Sprite: {fileID: 21300000, guid: f091195cd88d6a44d8fcad1364cba6a5, type: 3}

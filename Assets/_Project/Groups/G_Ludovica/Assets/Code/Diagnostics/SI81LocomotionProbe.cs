@@ -92,7 +92,25 @@ namespace G_Ludovica.ForkliftChaos
                 if (metodo != null && input != null)
                     sb.Append(" vel=").Append(Fmt((Vector3)metodo.Invoke(loco, new object[] { input.ReadMove() })));
             }
-            if (cc != null) sb.Append(" ccVel=").Append(Fmt(cc.velocity));
+            if (cc != null)
+            {
+                sb.Append(" ccVel=").Append(Fmt(cc.velocity));
+                sb.Append(" ccPar=").Append(cc.radius.ToString("F2")).Append('/')
+                  .Append(cc.height.ToString("F2")).Append("/slope").Append(cc.slopeLimit);
+                if (rig != null)
+                {
+                    Collider[] hits = Physics.OverlapSphere(rig.transform.position + Vector3.up * 0.9f,
+                        0.6f, ~0, QueryTriggerInteraction.Ignore);
+                    StringBuilder names = new StringBuilder();
+                    foreach (Collider hit in hits)
+                    {
+                        if (hit == cc) continue;
+                        if (names.Length > 0) names.Append(',');
+                        names.Append(hit.name);
+                    }
+                    sb.Append(" near=[").Append(names).Append(']');
+                }
+            }
 
             sb.Append(" || input=").Append(input != null ? "yes" : "NULL");
             if (input != null)

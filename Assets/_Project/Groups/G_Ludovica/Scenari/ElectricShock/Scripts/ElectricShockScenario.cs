@@ -545,6 +545,8 @@ namespace SI81.Ludovica.ElectricShock
                 if (finished) return;
                 pm2 = ParamedicState.AtVictim;
                 pm2AtVictimSince = ElapsedSeconds;
+                var pm2Anim = arrivingParamedic.GetComponent<CharacterAnimator>();
+                if (pm2Anim != null) pm2Anim.Force("Kneel");
                 Subtitle("PM-2", "Sono qui. Come sta?");
             });
         }

@@ -76,6 +76,18 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Lit("SafeZone", new Color(0.1f, 0.7f, 0.25f));
             Lit("Marker", new Color(1f, 0.85f, 0.1f));
             Lit("Hand", new Color(0.9f, 0.75f, 0.6f));
+            // Personaggi: il modello non ha texture, i colori distinguono lavoratori e paramedici (materiali del gruppo, FBX invariato).
+            Lit("CharSkin", new Color(0.80f, 0.62f, 0.50f));
+            Lit("CharHair", new Color(0.15f, 0.10f, 0.07f));
+            Lit("CharBoots", new Color(0.12f, 0.10f, 0.08f));
+            Lit("CharPantsWorker", new Color(0.18f, 0.25f, 0.40f));
+            Lit("CharShirtWorker", new Color(0.55f, 0.55f, 0.55f));
+            Lit("CharVestWorker", new Color(1.00f, 0.45f, 0.05f));
+            Lit("CharHelmetWorker", new Color(0.95f, 0.80f, 0.10f));
+            Lit("CharPantsParamedic", new Color(0.12f, 0.12f, 0.14f));
+            Lit("CharShirtParamedic", new Color(0.90f, 0.90f, 0.90f));
+            Lit("CharVestParamedic", new Color(0.85f, 0.10f, 0.10f));
+            Lit("CharHelmetParamedic", new Color(0.95f, 0.95f, 0.95f));
             Particle("Fire", new Color(1f, 0.55f, 0.15f), true);
             Particle("Smoke", new Color(0.25f, 0.25f, 0.25f, 0.6f), false);
             Particle("Spray", new Color(0.95f, 0.95f, 0.95f, 0.6f), false);
@@ -344,17 +356,13 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             // Persone
             var people = new GameObject("CHR_People").transform;
             var victimRoot = Root("VT01_Victim", people, 16f, 7.5f);
-            Capsule("PLACEHOLDER_VictimTorso", victimRoot, new Vector3(0.45f, 0.15f, 0f), Quaternion.Euler(0f, 0f, 90f), new Vector3(0.4f, 0.5f, 0.3f), "Victim", false);
-            var legs = new GameObject("Legs").transform;
-            legs.SetParent(victimRoot, false);
-            legs.localPosition = new Vector3(-0.05f, 0.15f, 0f);
-            Capsule("PLACEHOLDER_VictimLegs", legs, new Vector3(-0.45f, 0f, 0f), Quaternion.Euler(0f, 0f, 90f), new Vector3(0.3f, 0.45f, 0.3f), "Victim", false);
+            // Lavoratore a terra (clip Worker_Hurt): ruotato di 90° per stare lungo la X come nella specifica.
+            AddCharacter(victimRoot, null, false, "Hurt", "Hurt", 90f);
             var victimCollider = victimRoot.gameObject.AddComponent<BoxCollider>();
             victimCollider.center = new Vector3(0f, 0.17f, 0f);
             victimCollider.size = new Vector3(1.8f, 0.35f, 0.5f);
             var victim = victimRoot.gameObject.AddComponent<InjuredPerson>();
             SetField(victim, "cable", cable);
-            SetField(victim, "legs", legs);
             SetInteractable(victim, "Collega folgorato", null);
             var victimObstacle = victimRoot.gameObject.AddComponent<NavMeshObstacle>();
             victimObstacle.shape = NavMeshObstacleShape.Box;
@@ -370,18 +378,19 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
 
             var pm1Root = Root("PM1_ParamedicInShock", people, 22f, 5f);
             pm1Root.rotation = Quaternion.Euler(0f, 180f, 0f);
-            var pm1Body = new GameObject("Body").transform;
-            pm1Body.SetParent(pm1Root, false);
-            pm1Body.localScale = new Vector3(1f, 0.6f, 1f);
-            var pm1Capsule = Capsule("PLACEHOLDER_Paramedic", pm1Body, Vector3.up * 0.9f, Quaternion.identity, new Vector3(0.5f, 0.9f, 0.5f), "Paramedic", true);
-            pm1Root.gameObject.AddComponent<NpcMover>();
+            var pm1Mover = pm1Root.gameObject.AddComponent<NpcMover>();
+            // Paramedico sotto shock a terra (clip Pm1_Hurt); quando lo accompagni si rialza (Pm1_Rescued) e cammina.
+            AddCharacter(pm1Root, pm1Mover, true, "Idle", "ShockLying", 0f);
+            var pm1Collider = pm1Root.gameObject.AddComponent<BoxCollider>();
+            pm1Collider.center = new Vector3(0f, 0.3f, 0f);
+            pm1Collider.size = new Vector3(0.9f, 0.6f, 1.9f);
             var pm1 = pm1Root.gameObject.AddComponent<ParamedicInShock>();
-            SetField(pm1, "body", pm1Body);
-            SetInteractable(pm1, "Paramedico sotto shock", pm1Capsule.GetComponent<Renderer>());
+            SetInteractable(pm1, "Paramedico sotto shock", null);
 
             var pm2Root = Root("PM2_ArrivingParamedic", people, 1f, 8f);
-            Capsule("PLACEHOLDER_Paramedic2", pm2Root, Vector3.up * 0.9f, Quaternion.identity, new Vector3(0.5f, 0.9f, 0.5f), "Paramedic", true);
             var pm2 = pm2Root.gameObject.AddComponent<NpcMover>();
+            AddCharacter(pm2Root, pm2, true, "Idle", "", 0f);
+            AddCapsuleCollider(pm2Root.gameObject);
             pm2Root.gameObject.SetActive(false);
 
             // MNG_Scenario
@@ -614,9 +623,113 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         private static Bystander MakeBystander(Transform parent, string name, float x, float y)
         {
             var root = Root(name, parent, x, y);
-            Capsule("PLACEHOLDER_Colleague", root, Vector3.up * 0.9f, Quaternion.identity, new Vector3(0.5f, 0.9f, 0.5f), "Bystander", true);
-            root.gameObject.AddComponent<NpcMover>();
+            var mover = root.gameObject.AddComponent<NpcMover>();
+            // Collega al lavoro (clip Worker_Work); quando si muove corre, quando si ferma resta in piedi.
+            AddCharacter(root, mover, false, "Work", "", 0f);
+            AddCapsuleCollider(root.gameObject);
             return root.gameObject.AddComponent<Bystander>();
+        }
+
+        /// <summary>Modello animato di tutti i personaggi: è l'unico FBX con le clip (Pm1 e Pm2 hanno solo la mesh in posa).</summary>
+        private const string CHARACTER_MODEL = "Anim_Folgorazione_Worker";
+
+        /// <summary>Clip del modello: nome breve, nome nell'FBX, loop.</summary>
+        private static readonly (string key, string clip, bool loop)[] CHARACTER_CLIPS =
+        {
+            ("Idle", "Anim_General_Idle", true),
+            ("Run", "Anim_General_Running", true),
+            ("Work", "Anim_Worker_Work", true),
+            ("Hurt", "Anim_Worker_Hurt", false),
+            ("GetUp", "Anim_Worker_Rescued", false),
+            ("ShockLying", "Anim_Pm1_Hurt", false),
+            ("ShockRescued", "Anim_Pm1_Rescued", false),
+            ("Kneel", "Anim_Pm2_Rescue", false)
+        };
+
+        /// <summary>
+        /// Mette il modello animato sotto la radice del personaggio: colori per ruolo sui singoli pezzi (pelle, casco, gilet...),
+        /// Animator senza controller e CharacterAnimator con la correzione di posizione calcolata per ogni clip
+        /// (le clip spostano il corpo rispetto al pivot: qui lo si riporta a terra e centrato sulla radice).
+        /// </summary>
+        private static CharacterAnimator AddCharacter(Transform root, NpcMover mover, bool paramedic, string idleKey, string startKey, float yaw)
+        {
+            string path = MODELS + CHARACTER_MODEL + ".fbx";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) { Debug.LogError("[SI81 ElectricShock] Modello mancante: " + CHARACTER_MODEL); return null; }
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root.gameObject.scene);
+            model.transform.SetParent(root, false);
+            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * prefab.transform.localRotation;
+            model.transform.localPosition = Vector3.zero;
+
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                string n = smr.name;
+                string mat = n.Contains("Hair") || n.Contains("Eyelash") ? "CharHair"
+                    : n.Contains("Boots") ? "CharBoots"
+                    : n.Contains("Pants") ? (paramedic ? "CharPantsParamedic" : "CharPantsWorker")
+                    : n.Contains("Shirt") ? (paramedic ? "CharShirtParamedic" : "CharShirtWorker")
+                    : n.Contains("Vest") ? (paramedic ? "CharVestParamedic" : "CharVestWorker")
+                    : n.Contains("Helmet") ? (paramedic ? "CharHelmetParamedic" : "CharHelmetWorker")
+                    : "CharSkin";
+                var arr = new Material[smr.sharedMaterials.Length];
+                for (int i = 0; i < arr.Length; i++) arr[i] = mats[mat];
+                smr.sharedMaterials = arr;
+                smr.updateWhenOffscreen = false;
+            }
+
+            var animator = model.GetComponent<Animator>();
+            if (animator == null) animator = model.AddComponent<Animator>();
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+
+            var allClips = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().ToList();
+            var anim = root.gameObject.AddComponent<CharacterAnimator>();
+            var so = new SerializedObject(anim);
+            so.FindProperty("animator").objectReferenceValue = animator;
+            so.FindProperty("model").objectReferenceValue = model.transform;
+            so.FindProperty("mover").objectReferenceValue = mover;
+            so.FindProperty("idleKey").stringValue = idleKey;
+            so.FindProperty("startKey").stringValue = startKey;
+            var entries = so.FindProperty("entries");
+            entries.arraySize = CHARACTER_CLIPS.Length;
+            Vector3 startOffset = Vector3.zero;
+            for (int i = 0; i < CHARACTER_CLIPS.Length; i++)
+            {
+                var (key, clipName, loop) = CHARACTER_CLIPS[i];
+                var clip = allClips.FirstOrDefault(c => c.name.EndsWith(clipName));
+                Vector3 offset = Vector3.zero;
+                if (clip != null)
+                {
+                    // Posa al primo fotogramma: base dei renderer a terra e centro sul piano sulla radice.
+                    model.transform.localPosition = Vector3.zero;
+                    clip.SampleAnimation(model, 0f);
+                    var b = RendererBounds(model);
+                    Vector3 world = new Vector3(root.position.x - b.center.x, root.position.y - b.min.y, root.position.z - b.center.z);
+                    offset = root.InverseTransformVector(world);
+                }
+                var e = entries.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("Key").stringValue = key;
+                e.FindPropertyRelative("Clip").objectReferenceValue = clip;
+                e.FindPropertyRelative("Loop").boolValue = loop;
+                e.FindPropertyRelative("ModelOffset").vector3Value = offset;
+                if (key == (string.IsNullOrEmpty(startKey) ? idleKey : startKey)) startOffset = offset;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // Nell'Editor la scena mostra già la posa iniziale.
+            var first = allClips.FirstOrDefault(c => c.name.EndsWith(CHARACTER_CLIPS.First(k => k.key == (string.IsNullOrEmpty(startKey) ? idleKey : startKey)).clip));
+            if (first != null) first.SampleAnimation(model, 0f);
+            model.transform.localPosition = startOffset;
+            return anim;
+        }
+
+        /// <summary>Collider a capsula di una persona in piedi (1,8 m).</summary>
+        private static void AddCapsuleCollider(GameObject go)
+        {
+            var c = go.AddComponent<CapsuleCollider>();
+            c.center = Vector3.up * 0.9f;
+            c.height = 1.8f;
+            c.radius = 0.3f;
         }
 
         /// <summary>Segmento di collider del cavo (non trigger, per il contatto della mano).</summary>

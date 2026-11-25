@@ -54,6 +54,10 @@ namespace SI81.Ludovica.ElectricShock
         {
             if (IsSafe) return;
             if (body != null) body.localScale = Vector3.one;
+            // La clip Pm1_Hurt finisce accovacciato, Pm1_Rescued parte sdraiato a pancia in giù: passare dall'una all'altra
+            // farebbe uno scatto. Da accovacciato si passa direttamente alla camminata.
+            var anim = GetComponent<CharacterAnimator>();
+            if (anim != null) anim.Release();
             mover.Follow(target, 1f, escortSpeed);
         }
 

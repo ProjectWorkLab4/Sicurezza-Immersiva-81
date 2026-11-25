@@ -107,7 +107,7 @@ collider e script stanno sulla radice, quindi basta cambiare i figli.
 | `PZ01_FuelPool` | `PLACEHOLDER_FuelPool` | **manca**: decal pozza di benzina |
 | `CB01_LiveCable` | LineRenderer | facoltativo: parte dalle prese del generatore |
 | `PLACEHOLDER_Rack*` | rack | **manca**: rack estintori, rack barriere/radio |
-| `VT01_Victim`, `BY01/02/03_Colleague`, `PM1/PM2` | capsule | **mancano**: tutti i personaggi |
+| `VT01_Victim`, `BY01/02/03_Colleague`, `PM1/PM2` | `Anim_Folgorazione_Worker` (6 istanze) | modello animato (Mixamo Ch17, rig Generic, 8 clip). Senza texture: colori per ruolo assegnati in scena ai pezzi (gilet arancione e casco giallo = lavoratori; gilet rosso e casco bianco = paramedici). `CharacterAnimator` riproduce le clip senza Animator Controller, fa i loop e tiene il corpo sul posto e a terra (le clip hanno spostamento della radice). `Anim_Folgorazione_Pm1` e `Anim_Folgorazione_Pm2` non sono usati: non hanno animazioni |
 | `SAFE01_SafePoint`, `AP02_AssemblyPoint` | dischi verdi | facoltativo: segnaletica a terra |
 | `VFX_*`, `SFX_*` | particellari e suoni generati da codice | Common Core (fuoco, fumo, esplosione, suoni) |
 

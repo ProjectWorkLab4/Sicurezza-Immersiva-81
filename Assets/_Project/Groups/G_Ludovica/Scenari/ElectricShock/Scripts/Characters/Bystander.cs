@@ -47,6 +47,8 @@ namespace SI81.Ludovica.ElectricShock
             victimPoint = victim;
             hesitateUntil = Time.time + hesitation;
             Current = State.Hesitating;
+            var anim = GetComponent<CharacterAnimator>();
+            if (anim != null) anim.SetIdleKey("Idle");
         }
 
         /// <summary>Fermato dal giocatore: esce verso il punto di raccolta.</summary>
@@ -55,6 +57,8 @@ namespace SI81.Ludovica.ElectricShock
         {
             if (Current == State.Injured || Current == State.Evacuating || Current == State.Evacuated) return;
             Current = State.Evacuating;
+            var anim = GetComponent<CharacterAnimator>();
+            if (anim != null) anim.SetIdleKey("Idle");
             mover.WalkPath(exitPath, 0f, () => Current = State.Evacuated);
         }
 
@@ -63,7 +67,9 @@ namespace SI81.Ludovica.ElectricShock
         {
             Current = State.Injured;
             mover.Stop();
-            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 90f);
+            var anim = GetComponent<CharacterAnimator>();
+            if (anim != null) anim.Force("Hurt");
+            else transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 90f);
         }
 
         /// <summary>Passa dall'esitazione alla camminata.</summary>

@@ -40,7 +40,7 @@ public class RilevatoreCO : MonoBehaviour
     [SerializeField] float intervalloBipLento = 2.4f;
     [Tooltip("Secondi tra due bip con CO molto alto.")]
     [SerializeField] float intervalloBipVeloce = 0.16f;
-    [Tooltip("Se attivo il bip suona solo quando il rilevatore e' in mano.")]
+    [Tooltip("Se attivo il bip suona solo quando il rilevatore è in mano.")]
     [SerializeField] bool soloSeImpugnato = true;
 
     [Header("Colori")]

@@ -24,7 +24,7 @@ public class FinestraApribile : MonoBehaviour
     [SerializeField] Transform anta;
     [Tooltip("Angolo di apertura in gradi (positivo = antiorario attorno all'asse Y locale).")]
     [SerializeField] float angoloAperto = 80f;
-    [Tooltip("Velocita' di apertura in gradi al secondo.")]
+    [Tooltip("Velocità di apertura in gradi al secondo.")]
     [SerializeField] float velocita = 120f;
 
     [Header("Audio")]

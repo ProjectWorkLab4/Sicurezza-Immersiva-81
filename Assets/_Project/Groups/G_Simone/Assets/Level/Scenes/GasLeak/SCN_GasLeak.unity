@@ -278,6 +278,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0023999913, y: 0.010000004, z: 0.060000103}
   m_Center: {x: -0.00036666542, y: 0.024000093, z: 0.0000000114087015}
+--- !u!114 &336020638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1221567984}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Apri finestra
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &380131012
 GameObject:
   m_ObjectHideFlags: 0
@@ -693,6 +715,7 @@ GameObject:
   - component: {fileID: 722291127}
   - component: {fileID: 722291126}
   - component: {fileID: 722291125}
+  - component: {fileID: 722291130}
   m_Layer: 0
   m_Name: Cube
   m_TagString: Untagged
@@ -803,12 +826,34 @@ Transform:
   m_GameObject: {fileID: 722291124}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -10.70821, y: 2.22, z: -0.9245796}
+  m_LocalPosition: {x: -10.17, y: 2.22, z: -0.9245796}
   m_LocalScale: {x: 4.93, y: 4.93, z: 4.93}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2074063199}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &722291130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 722291124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Uscita
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.5, z: 0}
+  icon: {fileID: 0}
 --- !u!1001 &742367156
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -905,6 +950,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 91e06176d74b0254abe614ed9dc383f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 742367160}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 91e06176d74b0254abe614ed9dc383f8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 742367163}
   m_SourcePrefab: {fileID: 100100000, guid: 91e06176d74b0254abe614ed9dc383f8, type: 3}
 --- !u!1 &742367157 stripped
 GameObject:
@@ -1057,6 +1105,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.16463077, y: 0.059262548, z: 0.13937554}
   m_Center: {x: -0.0019233704, y: -0.04219208, z: 0.031693425}
+--- !u!114 &742367163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 742367157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Telefono
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.4, z: 0}
+  icon: {fileID: 0}
 --- !u!114 &847279737
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1143,6 +1213,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0023999913, y: 0.010000007, z: 0.08760016}
   m_Center: {x: -0.00036666542, y: 0.037800066, z: -2.3283064e-10}
+--- !u!114 &858293931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1221567982}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Apri finestra
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &863713161
 GameObject:
   m_ObjectHideFlags: 0
@@ -1481,6 +1573,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8081855201829182849, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 847279737}
+    - targetCorrespondingSourceObject: {fileID: -8081855201829182849, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1298952088}
     - targetCorrespondingSourceObject: {fileID: -4571613276430344157, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1221567992}
@@ -1493,6 +1588,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -4571613276430344157, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1221567997}
+    - targetCorrespondingSourceObject: {fileID: -4571613276430344157, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1221568001}
     - targetCorrespondingSourceObject: {fileID: -8478166854588370627, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1221567991}
@@ -1505,6 +1603,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8478166854588370627, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1221567994}
+    - targetCorrespondingSourceObject: {fileID: -8478166854588370627, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1221568000}
     - targetCorrespondingSourceObject: {fileID: -871151069662187860, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1080691976}
@@ -1517,6 +1618,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -871151069662187860, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 284818909}
+    - targetCorrespondingSourceObject: {fileID: -871151069662187860, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 336020638}
     - targetCorrespondingSourceObject: {fileID: 7383767918172130216, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 635641978}
@@ -1529,6 +1633,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7383767918172130216, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 499381469}
+    - targetCorrespondingSourceObject: {fileID: 7383767918172130216, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 858293931}
   m_SourcePrefab: {fileID: 100100000, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
 --- !u!4 &1221567981 stripped
 Transform:
@@ -1833,6 +1940,72 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0023999913, y: 0.010000007, z: 0.087600164}
   m_Center: {x: -0.00036666542, y: 0.037800092, z: 0.000000005122274}
+--- !u!114 &1221568000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1221567986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Apri finestra
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
+--- !u!114 &1221568001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1221567988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Apri finestra
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
+--- !u!114 &1298952088
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1221567990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Apri finestra
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
 --- !u!1001 &1336210968
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1925,6 +2098,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -7909499435925563901, guid: d998cbf2aad35d2479b6ba18c2f3eead, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1336210975}
+    - targetCorrespondingSourceObject: {fileID: -7909499435925563901, guid: d998cbf2aad35d2479b6ba18c2f3eead, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1336210976}
   m_SourcePrefab: {fileID: 100100000, guid: d998cbf2aad35d2479b6ba18c2f3eead, type: 3}
 --- !u!4 &1336210969 stripped
 Transform:
@@ -2061,6 +2237,28 @@ MonoBehaviour:
   tintOnHover: 0
   hoverColor: {r: 1, g: 0.82, b: 0.35, a: 1}
   tintedRenderers: []
+--- !u!114 &1336210976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1336210972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 0
+  requiresHighlight: 0
+  title: Stufetta a gas
+  titleKey: 
+  detail: Spegnila per fermare il monossido
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.35, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &1362797478
 GameObject:
   m_ObjectHideFlags: 0
@@ -2091,7 +2289,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfebaa4d02b4c9e4aa96cbea3eecd2e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GestoreScenarioGasLeak
-  livelloAvvio: 1
+  livelloAvvio: 0
   livelli:
   - livello: 0
     nome: Guidato
@@ -2173,8 +2371,8 @@ MonoBehaviour:
   quadro: {fileID: 1430322903}
   areaUscita: {fileID: 722291125}
   evidenziatori: []
-  suggerimentoIniziale: Piu' persone con gli stessi sintomi? Potrebbe essere monossido
-    di carbonio.
+  suggerimentoIniziale: "Pi\xF9 persone con gli stessi sintomi? Potrebbe essere monossido
+    di carbonio."
   messaggioTempoScaduto: 'Tempo scaduto: non sei riuscito a mettere in sicurezza
     te e il tuo collega.'
   onAvviato:
@@ -2445,6 +2643,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 62bc63c4a19208147969a03fc331ef0f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1430322904}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 62bc63c4a19208147969a03fc331ef0f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1430322907}
   m_SourcePrefab: {fileID: 100100000, guid: 62bc63c4a19208147969a03fc331ef0f, type: 3}
 --- !u!1 &1430322902 stripped
 GameObject:
@@ -2482,8 +2683,8 @@ MonoBehaviour:
   mostraSuSchermoVR: 1
   display: {fileID: 0}
   titoloMessaggi: QUADRO ELETTRICO
-  messaggioAcceso: 'Quadro elettrico acceso: l''impianto e'' alimentato.'
-  messaggioSpento: 'Quadro elettrico spento: l''impianto e'' disalimentato.'
+  messaggioAcceso: "Quadro elettrico acceso: l\u2019impianto \xE8 alimentato."
+  messaggioSpento: "Quadro elettrico spento: l\u2019impianto \xE8 disalimentato."
   durataMessaggio: 4
   audioSource: {fileID: 0}
   suonoAccensione: {fileID: 0}
@@ -2580,6 +2781,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.05982723, y: 0.3264042, z: 0.5021045}
   m_Center: {x: -0.0131492615, y: 0.00834845, z: 0.16681384}
+--- !u!114 &1430322907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1430322902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 1
+  requiresHighlight: 0
+  title: Quadro elettrico
+  titleKey: 
+  detail: 
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.45, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &1436226949
 GameObject:
   m_ObjectHideFlags: 0
@@ -2739,7 +2962,7 @@ Transform:
   m_GameObject: {fileID: 1467513395}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -44.73, y: -0, z: -25.42}
+  m_LocalPosition: {x: -44.73, y: 1.7, z: -25.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2774,7 +2997,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4bc5f9caca2896d49bb89b3c55b62380, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HUDScenario
-  mostraAvvisoEsito: 1
+  scenario: {fileID: 1362797481}
 --- !u!4 &1470758222
 Transform:
   m_ObjectHideFlags: 0
@@ -2831,8 +3054,8 @@ MonoBehaviour:
   showOnVRScreen: 0
   display: {fileID: 0}
   expiredTitle: TEMPO SCADUTO
-  expiredMessage: Il tempo a disposizione e' terminato. Mettersi in sicurezza ed
-    evacuare l'area.
+  expiredMessage: "Il tempo a disposizione \xE8 terminato. Mettersi in sicurezza
+    ed evacuare l\u2019area."
   expiredMessageDuration: 6
   warningAtSeconds: 0
   warningMessage: 
@@ -2932,6 +3155,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 67cf5d143248cb849bb039a0a2a379a9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1645994401}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 67cf5d143248cb849bb039a0a2a379a9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1645994404}
   m_SourcePrefab: {fileID: 100100000, guid: 67cf5d143248cb849bb039a0a2a379a9, type: 3}
 --- !u!1 &1645994399 stripped
 GameObject:
@@ -3052,6 +3278,28 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0035658663, y: 0.0014249296, z: 0.0056997137}
   m_Center: {x: 0, y: -0.003094771, z: -0.0005000019}
+--- !u!114 &1645994404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1645994399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 0
+  requiresHighlight: 0
+  title: Rilevatore CO
+  titleKey: 
+  detail: Usalo per confermare il monossido
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.45, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &1707572815
 GameObject:
   m_ObjectHideFlags: 0
@@ -3581,6 +3829,7 @@ GameObject:
   - component: {fileID: 2045355532}
   - component: {fileID: 2045355538}
   - component: {fileID: 2045355537}
+  - component: {fileID: 2045355539}
   m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
@@ -3654,7 +3903,7 @@ MonoBehaviour:
   testoSvenuto: ...
   testiLamento:
   - Che mal di testa...
-  - Mi manca l'aria.
+  - "Mi manca l\u2019aria."
   - Ho la nausea, mi gira tutto.
   voce: {fileID: 0}
   clipLamenti: []
@@ -3814,6 +4063,28 @@ MonoBehaviour:
   grabExited:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2045355539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2045355530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 860118aa55d65eb41988903cdd1bc8d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.LabelAnchor
+  kind: 0
+  requiresHighlight: 0
+  title: Collega intossicato
+  titleKey: 
+  detail: Portalo fuori con te
+  detailKey: 
+  buttonKey: 
+  actionKey: 
+  offset: {x: 0, y: 0.6, z: 0}
+  icon: {fileID: 0}
 --- !u!1 &2074063198
 GameObject:
   m_ObjectHideFlags: 0

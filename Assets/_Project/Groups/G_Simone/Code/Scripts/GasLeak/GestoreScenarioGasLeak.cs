@@ -13,21 +13,25 @@ public enum EsitoScenario
     FallimentoIntossicazione = 4
 }
 
-/// <summary>One line of the end-of-level recap.</summary>
+/// <summary>Una riga del riepilogo finale: azione, esito e conseguenza.</summary>
 [Serializable]
 public class VoceRecap
 {
     public string testo;
     public bool corretta;
+    public bool critica;
+    public string conseguenza;
 
     public VoceRecap()
     {
     }
 
-    public VoceRecap(string testo, bool corretta)
+    public VoceRecap(string testo, bool corretta, string conseguenza = "", bool critica = false)
     {
         this.testo = testo;
         this.corretta = corretta;
+        this.conseguenza = conseguenza;
+        this.critica = critica;
     }
 }
 
@@ -41,7 +45,7 @@ public class EsitoEvent : UnityEvent<EsitoScenario>
 /// Brain of the "Gas Leak" scenario (GGD scenario 8, ID 11).
 ///
 /// It owns the difficulty level, the mission timer, the CO concentration, the
-/// progressive damage, the colleague's countdown and the final recap.
+/// progressive damage, il countdown del collega e il riepilogo finale.
 ///
 /// The correct procedure can be performed in any order (GGD: free exploration):
 /// recognise the symptoms, use the CO detector, open the windows, turn the heater
@@ -87,7 +91,7 @@ public class GestoreScenarioGasLeak : MonoBehaviour
     [Header("Testi")]
     [TextArea(2, 4)]
     [SerializeField] string suggerimentoIniziale =
-        "Piu' persone con gli stessi sintomi? Potrebbe essere monossido di carbonio.";
+        "Più persone con gli stessi sintomi? Potrebbe essere monossido di carbonio.";
     [TextArea(2, 4)]
     [SerializeField] string messaggioTempoScaduto =
         "Tempo scaduto: non sei riuscito a mettere in sicurezza te e il tuo collega.";
@@ -369,7 +373,7 @@ public class GestoreScenarioGasLeak : MonoBehaviour
 
         if (aperta)
         {
-            hud?.MostraSuggerimento("Finestra aperta: il monossido sale piu' lentamente.", 4f);
+            hud?.MostraSuggerimento("Finestra aperta: il monossido sale più lentamente.", 4f);
         }
     }
 
@@ -382,7 +386,7 @@ public class GestoreScenarioGasLeak : MonoBehaviour
         }
 
         CollegaAvvisato = true;
-        hud?.MostraSuggerimento("Il collega ti seguira'. Portalo fuori con te.", 5f);
+        hud?.MostraSuggerimento("Il collega ti seguirà. Portalo fuori con te.", 5f);
     }
 
     /// <summary>Called by the phone for every placed call.</summary>
@@ -660,7 +664,7 @@ public class GestoreScenarioGasLeak : MonoBehaviour
         }
 
         QuadroAzionato = true;
-        hud?.MostraSuggerimento("Il quadro elettrico non ferma il monossido: non e' compito del lavoratore.", 5f);
+        hud?.MostraSuggerimento("Il quadro elettrico non ferma il monossido: non è compito del lavoratore.", 5f);
     }
 
     void HandlePlayerUscito(bool conCollega)
@@ -700,50 +704,52 @@ public class GestoreScenarioGasLeak : MonoBehaviour
         }
     }
 
+    /// <summary>Costruisce il riepilogo con azione e conseguenza per ogni voce.</summary>
     void CostruisciRecap(EsitoScenario esito)
     {
         _recap.Clear();
 
-        AggiungiVoce("Hai riconosciuto i sintomi del collega.", CollegaAvvisato);
-        AggiungiVoce("Hai usato il rilevatore di CO.", RilevatoreUsato);
-        AggiungiVoce("Hai aperto le finestre.", FinestreAperte > 0);
-        AggiungiVoce("Hai spento la stufetta.", StufettaSpenta);
-        AggiungiVoce("Hai chiamato il 112.", Chiamato112);
-        AggiungiVoce("Sei uscito dalla stanza con il collega.", UscitoConCollega);
+        AggiungiVoce("Hai riconosciuto i sintomi del collega.", CollegaAvvisato, "hai capito il rischio");
+        AggiungiVoce("Hai usato il rilevatore di CO.", RilevatoreUsato, "hai confermato il monossido");
+        AggiungiVoce("Hai aperto le finestre.", FinestreAperte > 0, "l’aria si sta pulendo");
+        AggiungiVoce("Hai spento la stufetta.", StufettaSpenta, "la salita del CO si ferma");
+        AggiungiVoce("Hai chiamato il 112.", Chiamato112, "i soccorsi sono stati avvisati");
+        AggiungiVoce("Sei uscito dalla stanza con il collega.", UscitoConCollega, "collega fuori pericolo");
 
         if (QuadroAzionato)
         {
-            AggiungiVoce("Hai agito sul quadro elettrico: non serve a fermare il CO.", false);
+            AggiungiVoce("Hai agito sul quadro elettrico.", false, "non ferma il monossido");
         }
 
         if (ChiamatoDisinfestazione)
         {
-            AggiungiVoce("Hai chiamato la disinfestazione: tempo perso.", false);
+            AggiungiVoce("Hai chiamato la disinfestazione.", false, "tempo perso");
         }
 
         if (ChiamatoManutenzione)
         {
-            AggiungiVoce("Hai chiamato la manutenzione: non e' un'emergenza.", false);
+            AggiungiVoce("Hai chiamato la manutenzione.", false, "non è un’emergenza");
         }
 
         if (CollegaSvenuto)
         {
-            AggiungiVoce("Il collega e' svenuto prima di uscire.", false);
+            AggiungiVoce("Il collega è svenuto prima di uscire.", false, "collega ancora in pericolo", critica: true);
         }
 
         if (esito == EsitoScenario.FallimentoTempo)
         {
-            AggiungiVoce("Il tempo a disposizione e' terminato.", false);
+            AggiungiVoce("Il tempo a disposizione è terminato.", false, "missione non completata", critica: true);
         }
         else if (esito == EsitoScenario.FallimentoIntossicazione)
         {
-            AggiungiVoce("Hai perso tutti i cuori per l'intossicazione.", false);
+            AggiungiVoce("Hai perso tutti i cuori per l'intossicazione.", false, "esposizione letale", critica: true);
         }
     }
 
-    void AggiungiVoce(string testo, bool corretta)
+    /// <summary>Aggiunge una riga al riepilogo finale.</summary>
+    void AggiungiVoce(string testo, bool corretta, string conseguenza, bool critica = false)
     {
-        _recap.Add(new VoceRecap(testo, corretta));
+        _recap.Add(new VoceRecap(testo, corretta, conseguenza, critica));
     }
 
     static string SoloCifre(string valore)

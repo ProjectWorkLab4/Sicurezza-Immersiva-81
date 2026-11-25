@@ -30,11 +30,11 @@ public class SaluteGiocatore : MonoBehaviour
     [Header("Effetti")]
     [SerializeField] bool abilitaEffetti = true;
     [SerializeField] Color coloreVignettatura = new Color(0.45f, 0.02f, 0.02f, 1f);
-    [Tooltip("Intensita' massima della vignettatura rossa.")]
+    [Tooltip("Intensità massima della vignettatura rossa.")]
     [Range(0f, 1f)] [SerializeField] float vignettaturaMax = 0.55f;
-    [Tooltip("Intensita' massima della distorsione ottica (vista offuscata).")]
+    [Tooltip("Intensità massima della distorsione ottica (vista offuscata).")]
     [Range(0f, 1f)] [SerializeField] float distorsioneMax = 0.35f;
-    [Tooltip("Intensita' massima dell'aberrazione cromatica.")]
+    [Tooltip("Intensità massima dell’aberrazione cromatica.")]
     [Range(0f, 1f)] [SerializeField] float aberrazioneMax = 0.7f;
     [Tooltip("Desaturazione massima (valori negativi).")]
     [Range(-100f, 0f)] [SerializeField] float desaturazioneMax = -70f;
@@ -42,9 +42,9 @@ public class SaluteGiocatore : MonoBehaviour
     [Range(-5f, 0f)] [SerializeField] float esposizioneMax = -0.8f;
 
     [Header("Battito")]
-    [Tooltip("Pitch del battito quando il malessere e' minimo.")]
+    [Tooltip("Pitch del battito quando il malessere è minimo.")]
     [SerializeField] float pitchLento = 0.85f;
-    [Tooltip("Pitch del battito quando il malessere e' massimo.")]
+    [Tooltip("Pitch del battito quando il malessere è massimo.")]
     [SerializeField] float pitchVeloce = 1.5f;
 
     [Header("Danno")]

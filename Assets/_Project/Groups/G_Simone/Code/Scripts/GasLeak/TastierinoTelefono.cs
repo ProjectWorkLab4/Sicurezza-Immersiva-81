@@ -20,8 +20,8 @@ public class TastierinoTelefono : MonoBehaviour
     [Tooltip("Se attivo i tasti rispondono solo con la cornetta sollevata.")]
     [SerializeField] bool richiedeCornetta = true;
 
-    [Tooltip("Cifra prodotta dai primi dieci tasti, nell'ordine in cui sono assegnati. " +
-             "L'indice 10 cancella, l'indice 11 chiama.")]
+    [Tooltip("Cifra prodotta dai primi dieci tasti, nell’ordine in cui sono assegnati. " +
+             "L’indice 10 cancella, l’indice 11 chiama.")]
     [SerializeField] string sequenzaCifre = "1234567890";
 
     void Awake()

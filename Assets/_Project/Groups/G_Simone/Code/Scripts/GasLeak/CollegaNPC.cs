@@ -46,7 +46,7 @@ public class CollegaNPC : MonoBehaviour
     [SerializeField] float ritardoAvvioSeguito = 0.8f;
     [Tooltip("Ampiezza dell'oscillamento quando ha i sintomi (gradi).")]
     [SerializeField] float ampiezzaBarcollamento = 7f;
-    [Tooltip("Velocita' dell'oscillamento.")]
+    [Tooltip("Velocità dell’oscillamento.")]
     [SerializeField] float velocitaBarcollamento = 1.4f;
 
     [Header("Fumetto")]
@@ -68,7 +68,7 @@ public class CollegaNPC : MonoBehaviour
     [SerializeField] string[] testiLamento =
     {
         "Che mal di testa...",
-        "Mi manca l'aria.",
+        "Mi manca l’aria.",
         "Ho la nausea, mi gira tutto."
     };
 

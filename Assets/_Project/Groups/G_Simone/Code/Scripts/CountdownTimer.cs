@@ -24,11 +24,11 @@ public class FloatEvent : UnityEvent<float>
 public class CountdownTimer : MonoBehaviour
 {
     [Header("Tempo")]
-    [Tooltip("Durata in secondi usata da StartTimer() e all'avvio.")]
+    [Tooltip("Durata in secondi usata da StartTimer() e all’avvio.")]
     [SerializeField] float durationSeconds = 120f;
     [SerializeField] bool autoStart = false;
     [SerializeField] bool loop = false;
-    [Tooltip("Ritardo prima di far ripartire il timer quando loop e' attivo.")]
+    [Tooltip("Ritardo prima di far ripartire il timer quando loop è attivo.")]
     [SerializeField] float loopDelay = 2f;
 
     [Header("Interazione")]
@@ -49,7 +49,7 @@ public class CountdownTimer : MonoBehaviour
     [SerializeField] string expiredTitle = "TEMPO SCADUTO";
     [Tooltip("Messaggio stampato sullo schermo VR allo scadere del tempo.")]
     [TextArea(2, 5)]
-    [SerializeField] string expiredMessage = "Il tempo a disposizione e' terminato. Mettersi in sicurezza ed evacuare l'area.";
+    [SerializeField] string expiredMessage = "Il tempo a disposizione è terminato. Mettersi in sicurezza ed evacuare l’area.";
     [SerializeField] float expiredMessageDuration = 6f;
 
     [Header("Avviso (opzionale)")]

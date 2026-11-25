@@ -1,46 +1,50 @@
-using System.Collections;
 using System.Collections.Generic;
 using SI81.UI;
 using UnityEngine;
 
 /// <summary>
-/// Thin compatibility layer for the Gas Leak scenario HUD.
+/// Ponte di compatibilità per i vecchi script della UI di Gas Leak.
 ///
-/// The scenario no longer builds a Canvas: timer, objectives, hints, feedback and end-of-mission
-/// panel come from the shared HUD in <c>SCN_Core</c>. The methods below keep the existing
-/// gameplay scripts unchanged and route their calls to <see cref="HUDService"/>.
+/// Non crea Canvas: suggerimenti, feedback e avvisi passano allo scenario condiviso, che li
+/// instrada alla UI comune di SCN_Core (guida §3 caso B e §5). La schermata finale è gestita
+/// una sola volta da GasLeakScenario con EndMission.
 /// </summary>
 [DisallowMultipleComponent]
 public class HUDScenario : MonoBehaviour
 {
-    [Tooltip("Mostra un avviso con il titolo dell'esito finale.")]
-    [SerializeField] bool mostraAvvisoEsito = true;
+    [Tooltip("ScenarioController su MNG_Scenario. Se vuoto viene cercato in scena.")]
+    [SerializeField] ScenarioController scenario;
 
-    Coroutine _routineSuggerimento;
-    bool _esitoVisibile;
+    /// <summary>Scenario condiviso usato per parlare alla UI comune.</summary>
+    ScenarioController Controller
+    {
+        get
+        {
+            if (scenario == null)
+            {
+                scenario = FindFirstObjectByType<ScenarioController>(FindObjectsInactive.Include);
+            }
 
-    // ---------------------------------------------------------------- API
+            return scenario;
+        }
+    }
 
-    /// <summary>The shared HUD owns the mission timer; kept for source compatibility.</summary>
+    /// <summary>Il timer è della UI comune; il metodo resta per compatibilità.</summary>
     public void ImpostaTempo(float secondi)
     {
     }
 
-    /// <summary>Hearts are shown by the shared objective/phase panel; kept for compatibility.</summary>
+    /// <summary>I cuori non hanno un canale dedicato; il metodo resta per compatibilità.</summary>
     public void ImpostaCuori(int attuali, int massimo)
     {
     }
 
-    /// <summary>Applies the difficulty label through the shared phase channel.</summary>
+    /// <summary>La fase è decisa da GasLeakScenario; il metodo resta per compatibilità.</summary>
     public void ImpostaDifficolta(ImpostazioniDifficolta impostazioni)
     {
-        if (impostazioni != null && !string.IsNullOrWhiteSpace(impostazioni.nome))
-        {
-            HUDService.SetPhase("hud.phase.action");
-        }
     }
 
-    /// <summary>Shows a contextual hint for a few seconds.</summary>
+    /// <summary>Mostra un suggerimento sul polso tramite lo scenario.</summary>
     public void MostraSuggerimento(string testo, float durata)
     {
         if (string.IsNullOrWhiteSpace(testo))
@@ -48,77 +52,36 @@ public class HUDScenario : MonoBehaviour
             return;
         }
 
-        if (_routineSuggerimento != null)
-        {
-            StopCoroutine(_routineSuggerimento);
-        }
-
-        HUDService.SetHint(testo);
-        _routineSuggerimento = StartCoroutine(CicloSuggerimento(Mathf.Max(1f, durata)));
+        Controller?.SetHint(testo);
     }
 
-    IEnumerator CicloSuggerimento(float durata)
-    {
-        yield return new WaitForSeconds(durata);
-        HUDService.SetHint(string.Empty);
-        _routineSuggerimento = null;
-    }
-
-    /// <summary>Shows the guided-level thumbs feedback (-1 down, 0 intermediate, 1 up).</summary>
+    /// <summary>Mostra il feedback del pollice tramite lo scenario.</summary>
     public void MostraFeedbackPollice(int livello)
     {
         switch (livello)
         {
             case 1:
-                HUDService.ShowActionFeedback("Pollice su", FeedbackKind.Positive);
+                Controller?.Feedback("Pollice su", FeedbackKind.Positive);
                 break;
             case 0:
-                HUDService.ShowActionFeedback("Così così", FeedbackKind.Neutral);
+                Controller?.Feedback("Così così", FeedbackKind.Neutral);
                 break;
             default:
-                HUDService.ShowActionFeedback("Pollice giù", FeedbackKind.Negative);
+                Controller?.Feedback("Pollice giù", FeedbackKind.Negative);
                 break;
         }
     }
 
-    /// <summary>
-    /// The shared end-of-mission screen is driven by GasLeakScenario through EndMission;
-    /// this only keeps the old call site working.
-    /// </summary>
+    /// <summary>Non apre pannelli locali: EndMission gestisce l'esito nella UI comune.</summary>
     public void MostraEsito(EsitoScenario esito, int punteggio, IReadOnlyList<VoceRecap> recap)
     {
-        NascondiEsito();
-
-        if (mostraAvvisoEsito)
-        {
-            HUDService.ShowEventAlert(TitoloEsito(esito));
-        }
-
-        _esitoVisibile = true;
     }
 
-    /// <summary>The shared HUD is dismissed by the mission flow.</summary>
+    /// <summary>Nessun pannello locale da nascondere: la UI comune gestisce la chiusura.</summary>
     public void NascondiEsito()
     {
-        _esitoVisibile = false;
     }
 
-    public bool EsitoVisibile => _esitoVisibile;
-
-    static string TitoloEsito(EsitoScenario esito)
-    {
-        switch (esito)
-        {
-            case EsitoScenario.SuccessoCompleto:
-                return "Successo completo";
-            case EsitoScenario.SuccessoParziale:
-                return "Successo parziale";
-            case EsitoScenario.FallimentoTempo:
-                return "Tempo scaduto";
-            case EsitoScenario.FallimentoIntossicazione:
-                return "Intossicazione";
-            default:
-                return "Esito";
-        }
-    }
+    /// <summary>Non esiste un esito locale; la UI comune mostra Debrief e punteggio.</summary>
+    public bool EsitoVisibile => false;
 }

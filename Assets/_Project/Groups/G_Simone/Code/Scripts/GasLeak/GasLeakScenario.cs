@@ -24,7 +24,6 @@ public sealed class GasLeakScenario : ScenarioController
     [SerializeField] bool debugMode;
 
     readonly bool[] _obiettiviCompletati = new bool[NUMERO_OBIETTIVI];
-    int _sceltaIniziale = -1;
     bool _rilevatoreSegnalato;
     bool _stufettaSegnalata;
     int _finestreSegnalate;
@@ -74,7 +73,6 @@ public sealed class GasLeakScenario : ScenarioController
     /// <summary>Avvia il gameplay e le prime indicazioni della UI comune.</summary>
     protected override void OnScenarioStarted()
     {
-        _sceltaIniziale = -1;
         _rilevatoreSegnalato = false;
         _stufettaSegnalata = false;
         _finestreSegnalate = 0;
@@ -99,12 +97,6 @@ public sealed class GasLeakScenario : ScenarioController
         SetPhase(PHASE_SCAN);
         Subtitle("Caposquadra", "Due colleghi hanno mal di testa e nausea: può essere monossido.", 6f);
         SetHint("Riconosci i sintomi e usa il rilevatore CO");
-
-        AskDecision(
-            "Due colleghi hanno mal di testa e nausea. Cosa fai prima?",
-            new[] { "Usa il rilevatore di CO", "Apri subito le finestre", "Chiama la manutenzione" },
-            OnDecisioneIniziale,
-            20f);
     }
 
     /// <summary>Chiude la missione per scadenza del tempo con esito negativo.</summary>
@@ -151,7 +143,7 @@ public sealed class GasLeakScenario : ScenarioController
                 bool corretta = voce.corretta;
                 if (voce.testo.IndexOf("sintomi del collega", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    corretta = gestore.CollegaAvvisato || _sceltaIniziale == 0;
+                    corretta = gestore.CollegaAvvisato;
                 }
                 else if (voce.testo.IndexOf("chiamato il 112", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
@@ -176,40 +168,6 @@ public sealed class GasLeakScenario : ScenarioController
         return righe;
     }
 
-    /// <summary>Gestisce la prima decisione e aggiorna fase, feedback e suggerimento.</summary>
-    void OnDecisioneIniziale(int scelta)
-    {
-        if (!IsRunning)
-        {
-            return;
-        }
-
-        _sceltaIniziale = scelta;
-        SetPhase(PHASE_ACTION);
-
-        switch (scelta)
-        {
-            case 0:
-                Feedback("Scelta corretta: usa il rilevatore", FeedbackKind.Positive);
-                _hintDecisione = "Prendi il rilevatore sul tavolo";
-                break;
-            case 1:
-                Feedback("Aerare aiuta, ma serve confermare il CO", FeedbackKind.Neutral);
-                _hintDecisione = "Usa anche il rilevatore CO";
-                break;
-            case 2:
-                Feedback("La manutenzione non è un’emergenza", FeedbackKind.Negative);
-                _hintDecisione = "In un’emergenza serve il 112";
-                break;
-            default:
-                Feedback("Non hai scelto in tempo", FeedbackKind.Negative);
-                _hintDecisione = "Usa il rilevatore CO";
-                break;
-        }
-
-        AggiornaHint();
-    }
-
     /// <summary>Completa gli obiettivi, segnala le azioni e aggiorna il suggerimento.</summary>
     void SincronizzaObiettivi()
     {
@@ -218,7 +176,7 @@ public sealed class GasLeakScenario : ScenarioController
             return;
         }
 
-        CompletaObiettivoSe(0, gestore.CollegaAvvisato || _sceltaIniziale == 0);
+        CompletaObiettivoSe(0, gestore.CollegaAvvisato);
         CompletaObiettivoSe(1, gestore.RilevatoreUsato);
         CompletaObiettivoSe(2, gestore.FinestreAperte > 0 && gestore.StufettaSpenta);
         CompletaObiettivoSe(3, gestore.Chiamato112 && gestore.UscitoConCollega);
@@ -405,7 +363,7 @@ public sealed class GasLeakScenario : ScenarioController
     /// <summary>Calcola le cinque dimensioni usate dalla UI comune per lo SPI.</summary>
     int[] CalcolaDimensioni(EsitoScenario esito)
     {
-        bool colleghiRiconosciuti = gestore != null && (gestore.CollegaAvvisato || _sceltaIniziale == 0);
+        bool colleghiRiconosciuti = gestore != null && gestore.CollegaAvvisato;
         bool rilevatore = gestore != null && gestore.RilevatoreUsato;
         bool finestre = gestore != null && gestore.FinestreAperte > 0;
         bool stufetta = gestore != null && gestore.StufettaSpenta;
@@ -419,7 +377,7 @@ public sealed class GasLeakScenario : ScenarioController
 
         int sicurezza = 35 + cuori * 15 + (uscitoConCollega ? 25 : 0) - (collegaSvenuto ? 20 : 0);
         int consapevolezza = 20 + (colleghiRiconosciuti ? 15 : 0) + (rilevatore ? 20 : 0)
-            + (finestre ? 10 : 0) + (stufetta ? 10 : 0) + (_sceltaIniziale == 0 ? 15 : 0);
+            + (finestre ? 10 : 0) + (stufetta ? 10 : 0);
         int decisione = 25 + (chiamato112 ? 30 : 0) + (!quadro ? 15 : 0)
             + (!disinfestazione ? 15 : 0) + (!manutenzione ? 15 : 0);
         int esecuzione = 15 + (rilevatore ? 10 : 0) + (finestre ? 20 : 0) + (stufetta ? 20 : 0)

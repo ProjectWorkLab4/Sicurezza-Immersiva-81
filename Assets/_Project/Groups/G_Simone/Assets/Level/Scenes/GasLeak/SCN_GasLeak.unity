@@ -119,6 +119,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!4 &55028369 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3576456576246790775, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+  m_PrefabInstance: {fileID: 1221567980}
+  m_PrefabAsset: {fileID: 0}
 --- !u!114 &284818909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -205,6 +210,97 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0023999913, y: 0.010000004, z: 0.060000103}
   m_Center: {x: -0.00036666542, y: 0.024000093, z: 0.0000000114087015}
+--- !u!1 &299733861 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+  m_PrefabInstance: {fileID: 1221567980}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &299733862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299733861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e35ca9fb9d1ebba4bb93546e2c3ebb56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VRInteractableButton
+  onSelected:
+    m_PersistentCalls:
+      m_Calls: []
+  onHoverEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onHoverExit:
+    m_PersistentCalls:
+      m_Calls: []
+  onDeselected:
+    m_PersistentCalls:
+      m_Calls: []
+  available: 1
+  selectCooldown: 0.3
+  interactables: []
+  audioSource: {fileID: 0}
+  pressClip: {fileID: 0}
+  tintOnHover: 0
+  hoverColor: {r: 1, g: 0.82, b: 0.35, a: 1}
+  tintedRenderers: []
+--- !u!65 &299733863
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299733861}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.00112, y: 0.0121, z: 0.020725}
+  m_Center: {x: 0.00009, y: 0.00605, z: 0.0001}
+--- !u!114 &299733864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299733861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 1
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!114 &336020638
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1444,6 +1540,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: P_W_4_Scena 1 (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 5026213398915746353, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.0057
+      objectReference: {fileID: 0}
     - target: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       propertyPath: m_Name
       value: wd
@@ -1527,6 +1627,18 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7383767918172130216, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 858293931}
+    - targetCorrespondingSourceObject: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 299733862}
+    - targetCorrespondingSourceObject: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 299733864}
+    - targetCorrespondingSourceObject: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 299733863}
+    - targetCorrespondingSourceObject: {fileID: 6856366893632746685, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1920251332}
     - targetCorrespondingSourceObject: {fileID: 7349231110334776630, guid: 68942bef2cb3fd14998588f6a09485d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1168741573}
@@ -3458,6 +3570,33 @@ MonoBehaviour:
   tintOnHover: 0
   hoverColor: {r: 1, g: 0.82, b: 0.35, a: 1}
   tintedRenderers: []
+--- !u!114 &1920251332
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299733861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e72ea6fee7d47054c92bec2f66baf1ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SportelloApribile
+  apertoAllAvvio: 0
+  maniglia: {fileID: 299733862}
+  anta: {fileID: 55028369}
+  asseAperturaLocale: {x: 0, y: 0, z: 1}
+  angoloAperto: 90
+  velocita: 160
+  audioSource: {fileID: 0}
+  suonoApertura: {fileID: 0}
+  suonoChiusura: {fileID: 0}
+  onAperto:
+    m_PersistentCalls:
+      m_Calls: []
+  onChiuso:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &1985930791
 GameObject:
   m_ObjectHideFlags: 0

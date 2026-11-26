@@ -11,6 +11,9 @@ GameObject:
   - component: {fileID: 2564616443026059430}
   - component: {fileID: 2245951273085775276}
   - component: {fileID: 2187539471665534050}
+  - component: {fileID: 3273002336408518639}
+  - component: {fileID: 6265318618096872253}
+  - component: {fileID: 4737028930185615657}
   m_Layer: 0
   m_Name: MESH_LatexGlove
   m_TagString: Untagged
@@ -90,6 +93,77 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &3273002336408518639
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 312893207458312249}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.12748037, y: 0.21992679, z: 0.17602721}
+  m_Center: {x: -0.4788255, y: 0.9841146, z: 0.073629}
+--- !u!114 &6265318618096872253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 312893207458312249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &4737028930185615657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 312893207458312249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 0
+  isCorrect: 0
+  displayName: Guanti in lattice monouso
+  interactable: {fileID: 6265318618096872253}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &427485869278717151
 GameObject:
   m_ObjectHideFlags: 0
@@ -99,6 +173,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5273741515020430683}
+  - component: {fileID: 2387862892804173659}
+  - component: {fileID: 650114132210173587}
+  - component: {fileID: 7198176461953741642}
   m_Layer: 0
   m_Name: MESH_FaceShield
   m_TagString: Untagged
@@ -123,6 +200,77 @@ Transform:
   - {fileID: 4176158724920850517}
   m_Father: {fileID: 4366801123249646480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &2387862892804173659
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 427485869278717151}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.5488042, y: 1.1264336, z: 0.31}
+  m_Center: {x: 0.0994021, y: -0.4082167, z: -0.029999994}
+--- !u!114 &650114132210173587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 427485869278717151}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &7198176461953741642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 427485869278717151}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 2
+  isCorrect: 1
+  displayName: Visiera facciale EN 166
+  interactable: {fileID: 650114132210173587}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &526927679561768381
 GameObject:
   m_ObjectHideFlags: 0
@@ -132,6 +280,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4768015617948607548}
+  - component: {fileID: 4621400371081243941}
+  - component: {fileID: 1616890561483614704}
+  - component: {fileID: 8180267385845751816}
   m_Layer: 0
   m_Name: MESH_ChemicalApron
   m_TagString: Untagged
@@ -156,6 +307,77 @@ Transform:
   - {fileID: 8373295133537485837}
   m_Father: {fileID: 4366801123249646480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &4621400371081243941
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526927679561768381}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.42999995, y: 1.04, z: 0.049999997}
+  m_Center: {x: 0, y: 0.13499999, z: 0}
+--- !u!114 &1616890561483614704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526927679561768381}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &8180267385845751816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526927679561768381}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 1
+  isCorrect: 1
+  displayName: Grembiule antischizzo
+  interactable: {fileID: 1616890561483614704}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &883325079040528004
 GameObject:
   m_ObjectHideFlags: 0
@@ -350,6 +572,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4878156318024343918}
+  - component: {fileID: 7002965242721446048}
+  - component: {fileID: 4144990058881735910}
+  - component: {fileID: 4946924694517065040}
   m_Layer: 0
   m_Name: MESH_Respirator
   m_TagString: Untagged
@@ -375,6 +600,77 @@ Transform:
   - {fileID: 7952578306783498826}
   m_Father: {fileID: 4366801123249646480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &7002965242721446048
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1686802996108628054}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.5350165, y: 0.8269297, z: 0.21000001}
+  m_Center: {x: -0.11750822, y: -0.39346477, z: -0.06}
+--- !u!114 &4144990058881735910
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1686802996108628054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &4946924694517065040
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1686802996108628054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 3
+  isCorrect: 1
+  displayName: Respiratore FFP3
+  interactable: {fileID: 4144990058881735910}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &1763796789854740889
 GameObject:
   m_ObjectHideFlags: 0
@@ -598,6 +894,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7611456609563559688}
   - component: {fileID: 5907126169468623991}
+  - component: {fileID: 7146163487989666757}
   - component: {fileID: 5606585898444618525}
   m_Layer: 0
   m_Name: MESH_PpeCabinetBack
@@ -629,6 +926,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3066669325892931499}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &7146163487989666757
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3066669325892931499}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &5606585898444618525
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -688,6 +1006,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5781096047880855431}
   - component: {fileID: 3325087456905443750}
+  - component: {fileID: 7250182156448859823}
   - component: {fileID: 5758810611165540256}
   m_Layer: 0
   m_Name: MESH_PpeCabinetSideRight
@@ -719,6 +1038,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3807805004666373523}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &7250182156448859823
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3807805004666373523}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &5758810611165540256
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -792,8 +1132,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4164867559364103012}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.7933533, z: 0, w: 0.6087614}
-  m_LocalPosition: {x: -0.6, y: 1.5, z: 0.3}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.6, y: 1, z: 0.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -901,6 +1241,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4276370733213034722}
   - component: {fileID: 8795206019158291100}
+  - component: {fileID: 6605024814072439198}
   - component: {fileID: 8947727613479210116}
   m_Layer: 0
   m_Name: MESH_PpeCabinetTop
@@ -932,6 +1273,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4741547486451786823}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &6605024814072439198
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4741547486451786823}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &8947727613479210116
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1260,7 +1622,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4366801123249646480}
-  - component: {fileID: 5338127635792232641}
+  - component: {fileID: 2693196041756481548}
+  - component: {fileID: 4068237386685091494}
   m_Layer: 0
   m_Name: MESH_PpeCabinet
   m_TagString: Untagged
@@ -1298,27 +1661,129 @@ Transform:
   - {fileID: 6914357126706942644}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &5338127635792232641
-BoxCollider:
+--- !u!82 &2693196041756481548
+AudioSource:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5901090545386411921}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1.2, y: 2, z: 0.6}
-  m_Center: {x: 0, y: 1, z: 0}
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 0.8
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 0
+  MinDistance: 1
+  MaxDistance: 15
+  Pan2D: 0
+  rolloffMode: 1
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &4068237386685091494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5901090545386411921}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9318d2e2ec4c9a748aefea83dac4810c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeCabinet
+  scenario: {fileID: 0}
+  cabinetInteractable: {fileID: 8716103470426550688}
+  doorTransform: {fileID: 3988018544225707348}
+  openDoorAngleY: -105
+  oneShotAudio: {fileID: 2693196041756481548}
+  equipClip: {fileID: 8300000, guid: f8344b2829dba3f4fa471a5ea2e164b7, type: 3}
+  openClip: {fileID: 8300000, guid: ab35ce11fe7bd014b8785437d3c14825, type: 3}
+  items:
+  - {fileID: 8121011808013801472}
+  - {fileID: 8180267385845751816}
+  - {fileID: 7198176461953741642}
+  - {fileID: 4946924694517065040}
+  - {fileID: 4737028930185615657}
+  - {fileID: 1833963145303332807}
 --- !u!1 &5983132357402903299
 GameObject:
   m_ObjectHideFlags: 0
@@ -1330,6 +1795,8 @@ GameObject:
   - component: {fileID: 2469632801971642411}
   - component: {fileID: 5651131122833995333}
   - component: {fileID: 4488892248466451757}
+  - component: {fileID: 6662899061092541477}
+  - component: {fileID: 8716103470426550688}
   m_Layer: 0
   m_Name: MESH_PpeCabinet_DoorPanel
   m_TagString: Untagged
@@ -1409,6 +1876,60 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &6662899061092541477
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983132357402903299}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &8716103470426550688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983132357402903299}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 1
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &7193537694588416078
 GameObject:
   m_ObjectHideFlags: 0
@@ -1510,6 +2031,9 @@ GameObject:
   - component: {fileID: 1721250992636019674}
   - component: {fileID: 5048020588839679013}
   - component: {fileID: 8047073565091478009}
+  - component: {fileID: 5348032467086395167}
+  - component: {fileID: 4745693076045439199}
+  - component: {fileID: 8121011808013801472}
   m_Layer: 0
   m_Name: MESH_HeatResistantGlove
   m_TagString: Untagged
@@ -1589,6 +2113,77 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &5348032467086395167
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7495646614243879444}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.124813296, y: 0.21725969, z: 0.17336012}
+  m_Center: {x: -0.47882548, y: 0.9841146, z: 0.07362899}
+--- !u!114 &4745693076045439199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7495646614243879444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &8121011808013801472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7495646614243879444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 0
+  isCorrect: 1
+  displayName: Guanti anticalore EN 407
+  interactable: {fileID: 4745693076045439199}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &7811459376346525173
 GameObject:
   m_ObjectHideFlags: 0
@@ -1599,6 +2194,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4733754959614209974}
   - component: {fileID: 8520735031161030826}
+  - component: {fileID: 168944442963540416}
   - component: {fileID: 8755449348314545042}
   m_Layer: 0
   m_Name: MESH_PpeCabinetSideLeft
@@ -1630,6 +2226,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7811459376346525173}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &168944442963540416
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7811459376346525173}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &8755449348314545042
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1689,6 +2306,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2163852326382630545}
   - component: {fileID: 6022264253811012840}
+  - component: {fileID: 5037405870990013471}
   - component: {fileID: 6139559042984392866}
   m_Layer: 0
   m_Name: MESH_PpeCabinetBottom
@@ -1720,6 +2338,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8118282206612580476}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &5037405870990013471
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8118282206612580476}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &6139559042984392866
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1870,6 +2509,9 @@ GameObject:
   - component: {fileID: 6914357126706942644}
   - component: {fileID: 5033996721685922433}
   - component: {fileID: 2757874109691691754}
+  - component: {fileID: 1393286995395945911}
+  - component: {fileID: 5033914049075849387}
+  - component: {fileID: 1833963145303332807}
   m_Layer: 0
   m_Name: MESH_SurgicalMask
   m_TagString: Untagged
@@ -1954,6 +2596,77 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &1393286995395945911
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8245676720136434918}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 13.458491, y: 13.756965, z: 16.576141}
+  m_Center: {x: 1.7186201, y: -1.9985247, z: -5.098602}
+--- !u!114 &5033914049075849387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8245676720136434918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 0
+  canGrab: 0
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1833963145303332807
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8245676720136434918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f88dd1d088559dd4fbb723bbab6f78d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockPpeItem
+  slot: 3
+  isCorrect: 0
+  displayName: Mascherina chirurgica
+  interactable: {fileID: 5033914049075849387}
+  cabinet: {fileID: 4068237386685091494}
 --- !u!1 &8373255044138639034
 GameObject:
   m_ObjectHideFlags: 0

@@ -439,3 +439,115 @@ Earlier this session: `group_simone` was reset to cloud `origin/main` and force-
 - **Files changed:** `Art/Materials/MAT_Stanze_LightGrey.mat` (new) and its `.meta`; `SCN_Blackout.unity`; `AGENTS.md` (this entry).
 - **Thoughts / reasoning:** Assigning the array by index preserved the walls material instead of overwriting both slots; a dedicated in-scope material keeps Shared untouched.
 - **What I learned:** `Renderer.sharedMaterials` must be edited as an array to target a single submesh slot; assigning `sharedMaterial` would not make the intended two-slot distinction explicit.
+
+### 2026-11-26 — Fire VFX: moderate in Realistico, intense in Stress
+- **Request:** "use FireLocation and FireLocation (1) as location references. I need VFX that look/feel like fire. they're moderate and only for realistic level"; follow-up: "now make intense VFX (enough to make it a bit hard to see) only for stress level"; final tweak: "do not make it a column, make the particles expand a bit". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/` — same script, no scene or Home edits; dense local smoke only, no full-screen veil.
+- **Actions performed:** Read-only activation check showed the already-modified `SCN_Blackout.unity` with the two FireLocation objects and untracked audio; left untouched. Confirmed the transforms are children of `Struttura` (scale 100) and that levels map to `MissionSession.Level` (Realistic = Operational, Stress = Crisis). Created and extended `BlackoutFireVFX.cs` (+ `.meta`, GUID `d84c6f1b93a74e2fbd5a0c8e172b6f39`) with two variants: moderate (20/s flame, 5/s smoke, light 1.0) for Operational, intense (55/s flame, 26/s smoke up to 140 particles, light 2.2) for Crisis; Guided creates none. Runtime soft texture and URP Particles/Unlit additive/alpha materials are shared; parent scale is compensated with local scale 0.01; VFX are children of the reference objects. Per the user's correction the intense smoke uses a 55° cone, low speed/gravity, stronger sideways noise and a growing size curve (0.7 → 1.15 → 1.8) so it expands instead of forming a column. Recompile clean. Play Mode: Crisis produced the intense VFX at both points (rates 55/26, cone 55°, size max 2.2, expanding curve, flickering light); Guided produced none. Play Mode stopped, scene not dirty. No commits.
+- **Files changed:** `Code/Scripts/BlackoutFireVFX.cs` (new/extended); `Code/Scripts/BlackoutFireVFX.cs.meta` (new); `Docs/Blackout/AGENTS.md` (this entry).
+- **Thoughts / reasoning:** A single self-bootstrapping script keeps the whole feature in G_Simone and avoids touching the already-modified scene. Runtime materials/textures avoid new Shared assets; scale compensation keeps sizes in metres. Gating by `MissionSession.Level` at build time keeps the levels visually distinct without duplicate scene objects.
+- **What I learned:** `AfterSceneLoad` can precede a standalone Editor session, so the script waits for `MissionSession.IsActive`. URP Particles/Unlit needs explicit `_SrcBlend`/`_DstBlend` plus `_SURFACE_TYPE_TRANSPARENT` for additive vs alpha. A wide cone plus a size-over-lifetime growth curve and low upward force is what makes smoke read as billowing rather than a column.
+
+### 2026-11-26 — SFX_Burning: Realistico a 0.5, Stress a 0.85
+- **Request:** "now in realistic scenario insert SFX_Burning at a moderate volume"; follow-up: "now implement that same sound in the same manner but with a higher volume" → "for stress level only". Entry approved by the user.
+- **Directory confirmed by user:** `Code/Scripts/GameManager.cs` and `Art/Prefab/Struttura.prefab` for the first task; the follow-up changed only `GameManager.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications to the scene, prefab, docs, Home mission asset and untracked audio; left them untouched. Added a serialized `burningSound` clip and a dedicated looping 2D `AudioSource` to `GameManager`, subscribed to `OnBlackout` and to `MissionSession.Ended`, with all subscriptions removed in `OnDestroy`. Assigned `SFX_Burning.wav` (GUID `2628dc849ee855f4facc9ebab95b5a5e`) on `---GameManager---` in `Struttura.prefab`. Initially gated to `Operational` at volume 0.5; then extended the same method so `Crisis` uses volume 0.85 while `Guided` stays silent. Recompile clean. Play Mode: Guided not playing, Operational playing at 0.50, Crisis playing at 0.85, both looping; mission end stopped playback. Scene not dirty, no commits.
+- **Files changed:** `Code/Scripts/GameManager.cs`; `Art/Prefab/Struttura.prefab`.
+- **Thoughts / reasoning:** A separate AudioSource keeps the burning loop independent from the fire-alarm placeholder; reusing one source with a level-dependent volume avoids duplicate audio paths while keeping the two difficulty tiers distinct.
+- **What I learned:** AudioClip references in a prefab must be assigned on the prefab asset component (`---GameManager---` child); the scene instance inherits the new field. A single AudioSource can safely switch volume per difficulty because only one level is active per mission.
+
+### 2026-11-26 — Uno sbaglio fallisce lo Stress; errori registrati a tutti i livelli
+- **Request:** "now make it so one mistake fails the scenario in stress level"; clarification: "the mistakes are universal for all levels, in case you only registered them for realistic".
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutScenario.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications to scene, prefab, docs, Home mission asset and untracked audio; left them untouched. Confirmed `RegistraErroreGDD` already registers mistakes for every level after blackout (`erroriGDD`, `interazioniErrate`, red vignette) and only the failure check was gated to Realistic. Extended the condition: Operational still fails at 3 wrong interactions, Crisis fails at 1, Guided has no threshold; the log message now reports the level. Recompile clean. Play Mode with counters reset: Crisis ended after 1 mistake; Operational after 1 and 2 was still running and ended at 3; Guided was still running after 3. Scene not dirty, no commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`.
+- **Thoughts / reasoning:** Keeping one shared registration path with per-level thresholds preserves the same feedback and debrief data at every difficulty and avoids duplicate error hooks.
+- **What I learned:** `interazioniErrate` is reset only by `OnScenarioStarted`, so repeated manual tests must reset it explicitly; vignette feedback also fires for duplicate descriptions while only distinct ones are added to `erroriGDD`.
+
+### 2026-11-26 — Tosse da immobilità nello Stress, senza danno
+- **Request:** "implement a mechanic where every 40s the player is still, SFX_Cough plays non-looped and the red vignette effect happens, without taking actual damage". Entry approved by the user.
+- **Directory confirmed by user:** `Code/Scripts/BlackoutScenario.cs` and `SCN_Blackout.unity` (scenario + scene chosen; Stress only; movement of the rig inside the scene).
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Added a serialized `suonoTosse` clip and a runtime non-looping 2D AudioSource (volume 0.7) to `BlackoutScenario`. `Update()` runs only while the mission is active in Crisis: it reads `RigRegistration.Instance` head and hands, resets the stillness timer when any moves more than 0.25 m, and after 40 s calls `PlayOneShot` on the cough clip plus the existing `MostraVignettaErrore()` — feedback only, no damage or score change — then resets the timer. State is reset in `OnScenarioStarted()` and the source destroyed in `OnDestroy()`. Assigned `SFX_Cough.mp3` (GUID `b66d583cd37ea48418806173977f2af9`) on `MNG_Scenario` in `SCN_Blackout.unity`. Recompile clean. Play Mode with an injected test rig: after 41 s still the cough played (loop false, volume 0.7), vignette and routine were created and the mission stayed running; moving the rig 2 m reset the timer; Operational did not trigger. Scene saved and not dirty, no commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`; `Assets/Level/Scenes/Blackout/SCN_Blackout.unity`.
+- **Thoughts / reasoning:** Reusing the existing red-vignette helper gives the required feedback without adding hearts or changing scoring; rig movement as the reset signal matches "only when the player rig moves inside the scene".
+- **What I learned:** In a standalone Editor Play of SCN_Blackout there is no registered rig, so a temporary rig was needed for verification; `AudioSource.PlayOneShot` does not set `AudioSource.clip`, which is why playback checks must use `isPlaying`.
+
+### 2026-11-26 — Timer dello Stress a 90 secondi
+- **Request:** "now change the timer in stress level to 1.5 minutes max". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutScenario.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. In `AvviaTimerScenario()` changed the Crisis branch from 120 to 90 seconds and updated the doc comment; Guided (0, stopwatch) and Operational (180) unchanged. Recompile clean. A Play Mode attempt to read `HUDService.RemainingSeconds` was inconclusive because the standalone scene has no HUD root (`IsReady = false`), so the value was verified by code inspection. Scene not dirty, no commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`.
+- **Thoughts / reasoning:** A single switch value keeps the difficulty timers explicit and leaves the other levels untouched.
+- **What I learned:** In a standalone Play of SCN_Blackout, HUDService has no root, so timer verification requires either launching from SCN_Core or inspecting the code path.
+
+### 2026-11-26 — Fire VFX ora appaiono dal lancio via SCN_Core
+- **Request:** "vfx doesn't appear" — fire particles not showing when launching Blackout from the UI.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutFireVFX.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Reproduced the exact SCN_Core → launcher → additively loaded SCN_Blackout path: no VFX were created, while manually invoking the bootstrap immediately created both. Confirmed `inAttesa` was false and identified the root cause: `RuntimeInitializeOnLoadMethod(AfterSceneLoad)` runs only for the first scene load (SCN_Core), not for the additive Blackout load. Replaced it with a `SceneManager.sceneLoaded` subscription registered at `SubsystemRegistration`, with statics reset there. Recompile clean. Retested: SCN_Core → launch Operational created moderate VFX at both points; ReturnToHome → launch Crisis created the intense variant at both points. Restored SCN_Blackout as the open scene, not dirty. Opening SCN_Core in Play regenerated 19 OpenXR feature fileIDs in `Assets/XR/Settings/OpenXR Package Settings.asset`; left untouched pending the user's decision. No commits.
+- **Files changed:** `Code/Scripts/BlackoutFireVFX.cs`.
+- **Thoughts / reasoning:** A per-scene callback is required because the scenario scene is loaded additively after the session begins; the bootstrap still avoids duplicates and reads the level from the session first, UI fallback second.
+- **What I learned:** `RuntimeInitializeLoadType.AfterSceneLoad` fires only for the first scene load in this project; `SceneManager.sceneLoaded` is the reliable hook for additive scenario loads.
+
+### 2026-11-26 — Shader del contorno: espansione in spazio mondo
+- **Request:** "the highlighter shader is broken. the way it was made before was good, can you fix it so it looks like how it was originally please?"
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Art/Shaders/SH_ContornoEvidenziazione.shader` only.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Inspected the shader: it compiled and was supported, but the vertex offset was applied in object space, so the 0.02 width was scaled by the ×100 hierarchy of the outlined meshes. Restored the original behaviour: world-space position/normal expansion (`TransformObjectToWorld`, `TransformObjectToWorldNormal`, `TransformWorldToHClip`) and an explicit `LightMode = SRPDefaultUnlit` tag; colour and width unchanged. Forced a reimport; shader supported, one pass, material still bound. The OpenXR feature-fileID churn reappeared during import and was restored again under the user's earlier approval. No commits.
+- **Files changed:** `Art/Shaders/SH_ContornoEvidenziazione.shader`.
+- **Thoughts / reasoning:** World-space expansion keeps the outline width in metres regardless of parent scale, matching the original implementation described in the earlier log entry.
+- **What I learned:** A shader can be reported as supported yet render incorrectly; with scaled meshes, object-space normal expansion multiplies the intended width.
+
+### 2026-11-26 — Sottotitoli Caposquadra rimossi dal Guidato
+- **Request:** "now remove the caposquadra ui in guided mode"; clarified: remove only the Caposquadra subtitles and keep the hints. Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutScenario.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Removed the `Subtitle("Caposquadra", ...)` calls from the Guided branches of `OnScenarioStarted()` and `HandleBlackout()`, keeping the two `SetHint(...)` lines. Recompile clean; no `Caposquadra` references remain in the script. No commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`.
+- **Thoughts / reasoning:** Removing only the subtitles preserves the Guided hint feature while eliminating the Caposquadra voice UI the user asked to drop.
+- **What I learned:** The Caposquadra text was emitted only by `BlackoutScenario`; the shared HUD `SetHint` channel is separate and unaffected.
+
+### 2026-11-26 — Obiettivo segnaletica avanza selezionando D3
+- **Request:** "in mechanics where triggers change at what stage you are, the change between 'Segui la segnaletica luminosa' and 'Evacua l'edificio' happens when porta_tagliafuoco_D3 gets selected". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutScenario.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Added a runtime `SelectEntered` subscription on `porta_tagliafuoco_D3` (resolved with `GameManager.DoorNameMatches`, adding an `Interactable` if absent). The one-shot handler calls `CompleteObjective()`, is reset in `OnScenarioStarted()` and unsubscribed in `OnDestroy()`. Recompile clean. Play Mode: 2 objectives and 1 handler registered; selecting D3 advanced current index 0→1 and completed count 0→1; a second selection was ignored. OpenXR fileID churn reappeared and was restored under the earlier approval. No commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`.
+- **Thoughts / reasoning:** Using the base `CompleteObjective()` keeps the wrist/debrief objective counter consistent with the stage change; a one-shot guard prevents repeated selections from skipping further steps.
+- **What I learned:** Several handlers can coexist on the same `Interactable.SelectEntered`, so the new objective trigger does not disturb the door-reset or wrong-action subscriptions.
+
+### 2026-11-26 — Volumi del fuoco e dell'allarme nello Stress
+- **Request:** "now raise the volume of SFX_Fire and slightly raise the fire alarm volume in stress mode"; clarified: SFX_Fire = SFX_Burning, raise only Stress to 1.0, alarm 0.8 normally and 1.0 in Stress. Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/GameManager.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Raised `BurningVolumeStress` from 0.85 to 1.0 (Realistic unchanged at 0.5), added `AlarmVolume = 0.8` and `AlarmVolumeStress = 1f`, and set the alarm AudioSource volume by `MissionSession.Level` inside `PlayBlackoutSound()`. Recompile clean. Play Mode: Guided alarm 0.80 with burning off; Operational alarm 0.80 / burning 0.50; Crisis alarm 1.00 / burning 1.00. OpenXR fileID churn reappeared and was restored under the earlier approval. No commits.
+- **Files changed:** `Code/Scripts/GameManager.cs`.
+- **Thoughts / reasoning:** The alarm source previously used Unity's default volume 1.0, so a 0.8 baseline was needed to make Stress a slight raise rather than no change.
+- **What I learned:** Both sounds share the blackout event but use separate AudioSources, so their volumes can be tuned independently per difficulty.
+
+### 2026-11-26 — Obiettivi nascosti nel Brief anche in Guidato (solo Blackout)
+- **Request:** "hide the objective rows even in guided only for blackout scenario". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Home/Code/Scripts/Runtime/Screens/MissionBriefScreen.cs` (Brief screen only; other UI locations unchanged).
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. In `ApplyObjectiveVisibility()` removed the Guided exception, so the `ID_BLACKOUT` gate now hides all objective rows at every level; updated the comment. Recompile clean. Play Mode: Blackout + Guided showed 0 of 4 objective rows; FireStarter still showed 4 of 4. Unity restarted during verification with no project-file changes; SCN_Blackout restored as the open scene. No commits.
+- **Files changed:** `Assets/_Project/Home/Code/Scripts/Runtime/Screens/MissionBriefScreen.cs`.
+- **Thoughts / reasoning:** Removing only the level exception keeps the change scoped to Blackout and leaves other scenarios' Brief behaviour intact.
+- **What I learned:** Calling `ApplyObjectiveVisibility()` directly requires the private `mission` field to be set (normally done by `Refresh()`); this was only a verification-harness detail.
+
+### 2026-11-26 — Testo dell'esito positivo cambiato
+- **Request:** "what text comes up when the 'esito positivo' ui comes up?" → "subtext"; then "change 'Tutti al sicuro e guasto segnalato' to 'Hai evacuato l'edificio in sicurezza'". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Home/UI/Data/Missions/SO_Mission_Blackout.asset` only.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Located the outcome subtext: `OutcomePanel.ResolveReason()` reads `MissionSession.Current.GetCriterionText(result.Outcome)`, i.e. the Positive criterion (`Outcome: 0`) in `SO_Mission_Blackout.asset`. Changed that Text from "Tutti al sicuro e guasto segnalato" to "Hai evacuato l'edificio in sicurezza"; the partial and negative criteria were left unchanged. No code, scene or G_Simone changes; no commits.
+- **Files changed:** `Assets/_Project/Home/UI/Data/Missions/SO_Mission_Blackout.asset`.
+- **Thoughts / reasoning:** Editing the mission data keeps the outcome reason consistent across the short outcome panel and any UI that reads the criteria, without touching shared code.
+- **What I learned:** The short "Esito positivo" subtext is scenario data (the Positive criterion), not a hardcoded string; the title comes from `ui.outcome.positive` in `SO_UIStrings_It`.
+
+### 2026-11-26 — Tosse da immobilità ogni 20 secondi nello Stress
+- **Request:** "change the cough mechanic to every 20s in stress". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/BlackoutScenario.cs`.
+- **Actions performed:** Read-only activation check showed the existing user modifications; left them untouched. Changed `TOSSA_INTERVALLO` from 40f to 20f. Recompile clean. Play Mode with a test rig: at 19.99 s no cough, at 21 s the cough played and the counter reset; level was Crisis. A new untracked `BlackoutCameraSmoke.cs` (+ `.meta`) appeared in the same folder and was left untouched. No commits.
+- **Files changed:** `Code/Scripts/BlackoutScenario.cs`.
+- **Thoughts / reasoning:** A single constant controls the interval, so the stress-only, no-damage feedback behaviour stays identical with a shorter cadence.
+- **What I learned:** The threshold check uses accumulated `Time.deltaTime` with a one-shot reset, so verifying just below and just above 20 s is enough to confirm the new cadence.
+
+### 2026-11-26 — Camera smoke in Stress mode (and visibility fix)
+- **Request:** "add a smoke effect on the camera in stress mode", with "do not intensify it so much that it makes it impossible to see, but it does need to make it harder", then "I can't see the vfx" and "you can make the particles black" → "Black, but denser/more opaque". Entry approved by the user.
+- **Directory confirmed by user:** `Assets/_Project/Groups/G_Simone/Code/Scripts/` (new script; fixes applied to the same file).
+- **Actions performed:** Created `BlackoutCameraSmoke.cs` + `.meta`. Runtime self-bootstrap via `sceneLoaded`; only `DifficultyLevel.Crisis`; subscribes to `GameManager.OnBlackout`; attaches a runtime particle system ~0.45 m in front of the camera with local simulation space and rig-scale compensation. Ramps over 85 s: emission 3→26/s, size 0.25–0.45→0.45–0.95 m, material alpha 0.65→0.95, black gradient with alpha peak 0.65, max 110 particles. Debugged invisible VFX in Play mode: particles existed and rendered but were too dark; switched to black with higher opacity/density. Fixed replay by destroying/recreating the host per scene load and on mission end; switched to `sharedMaterial` so the alpha ramp affects the drawn material. Recompile clean; Play Mode verification via Game View captures; Play stopped; no git state-changing commands; no commit.
+- **Files changed:** `BlackoutCameraSmoke.cs` (new, then fixed); `BlackoutCameraSmoke.cs.meta` (new); `AGENTS.md` (this entry).
+- **Thoughts / reasoning:** Runtime bootstrap avoids editing the already-modified scene and covers additive loads; black smoke needs opacity and density rather than a light tone to read against a dark office; caps preserve "harder but not impossible".
+- **What I learned:** `ParticleSystemRenderer.material` can return an instanced copy, so `sharedMaterial` is required for runtime material tweaks; a `sceneLoaded` host must be recreated between missions or it keeps a stale event subscription.

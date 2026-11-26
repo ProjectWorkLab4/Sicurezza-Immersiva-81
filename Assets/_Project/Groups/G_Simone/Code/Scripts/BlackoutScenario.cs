@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using SI81.Input;
 using SI81.Interaction;
+using SI81.Rig;
 using SI81.UI;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,16 +19,23 @@ using UnityEngine.UI;
 public sealed class BlackoutScenario : ScenarioController
 {
     const string ICONA_AVVISO = "ICN_Warning_Filled";
+    const string PORTA_SEGNALETICA = "porta_tagliafuoco_D3";
     const string TITOLO_RILEVATORE = "RILEVATORE CO";
     const string MESSAGGIO_RILEVATORE = "I livelli di CO sono troppo alti";
     const float DURATA_MESSAGGIO_RILEVATORE = 10f;
     const float VIGNETTA_INTENSITA = 0.85f;
     const float VIGNETTA_DURATA = 1f;
     const float TINTA_ROSSA_ALPHA = 0.3f;
+    const float TOSSA_INTERVALLO = 20f;
+    const float TOSSA_SOGLIA_MOVIMENTO = 0.25f;
+    const float TOSSA_VOLUME = 0.7f;
     static readonly Color COLORE_VIGNETTA = new Color(0.5f, 0.01f, 0.01f, 1f);
 
     [Tooltip("Cervello del blackout presente su MNG_Scenario.")]
     [SerializeField] private GameManager gameManager;
+
+    [Tooltip("SFX della tosse: riprodotto una volta ogni 40 s di immobilità nello Stress, senza danno.")]
+    [SerializeField] private AudioClip suonoTosse;
 
     // Da riattivare quando il telefono sarà interattivo:
     // [Tooltip("Telefono interattivo presente nella scena.")]
@@ -56,6 +64,14 @@ public sealed class BlackoutScenario : ScenarioController
     private readonly Dictionary<UniversalAdditionalCameraData, bool> postProcessingPrecedenti = new Dictionary<UniversalAdditionalCameraData, bool>();
     private System.Action<bool> handlerQuadro;
     private QuadroElettricoInterattivo quadroElettrico;
+    private readonly Dictionary<Interactable, System.Action<Hand>> handlerObiettivo = new Dictionary<Interactable, System.Action<Hand>>();
+    private bool obiettivoSegnaleticaCompletato;
+    private AudioSource sorgenteTosse;
+    private Vector3 ultimaTesta;
+    private Vector3 ultimaManoSinistra;
+    private Vector3 ultimaManoDestra;
+    private bool posizioneRigRilevata;
+    private float tempoFermo;
 
     /// <summary>Recupera il gameplay se i campi non sono stati assegnati.</summary>
     private void Awake()
@@ -65,8 +81,125 @@ public sealed class BlackoutScenario : ScenarioController
             gameManager = FindFirstObjectByType<GameManager>();
         }
 
+        sorgenteTosse = gameObject.AddComponent<AudioSource>();
+        sorgenteTosse.playOnAwake = false;
+        sorgenteTosse.loop = false;
+        sorgenteTosse.spatialBlend = 0f;
+        sorgenteTosse.volume = TOSSA_VOLUME;
+
         PreparaPorteSuccesso();
         PreparaAzioniErrate();
+        PreparaObiettivoSegnaletica();
+    }
+
+    /// <summary>
+    /// La selezione di porta_tagliafuoco_D3 completa "Segui la segnaletica luminosa" e passa
+    /// all'obiettivo "Evacua l'edificio". Si riabbona a runtime senza modificare la scena.
+    /// </summary>
+    private void PreparaObiettivoSegnaletica()
+    {
+        Transform[] transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Transform porta = null;
+
+        foreach (Transform candidato in transforms)
+        {
+            if (GameManager.DoorNameMatches(candidato.name, PORTA_SEGNALETICA))
+            {
+                porta = candidato;
+                break;
+            }
+        }
+
+        if (porta == null)
+        {
+            Debug.LogWarning($"[Blackout] Porta '{PORTA_SEGNALETICA}' non trovata: l'obiettivo segnaletica non avanzerà.", this);
+            return;
+        }
+
+        Interactable[] presenti = porta.GetComponentsInChildren<Interactable>(true);
+        if (presenti.Length == 0)
+        {
+            Interactable creato = porta.gameObject.AddComponent<Interactable>();
+            creato.FollowsHand = false;
+            presenti = new[] { creato };
+        }
+
+        foreach (Interactable interactable in presenti)
+        {
+            if (interactable == null || handlerObiettivo.ContainsKey(interactable))
+            {
+                continue;
+            }
+
+            System.Action<Hand> handler = hand => HandlePortaSegnaleticaSelezionata();
+            interactable.SelectEntered += handler;
+            handlerObiettivo[interactable] = handler;
+        }
+    }
+
+    /// <summary>Avanza di un solo passo, la prima volta che viene selezionata la porta D3.</summary>
+    private void HandlePortaSegnaleticaSelezionata()
+    {
+        if (!IsRunning || obiettivoSegnaleticaCompletato) return;
+
+        obiettivoSegnaleticaCompletato = true;
+        CompleteObjective();
+        Debug.Log($"[Blackout] Obiettivo segnaletica completato selezionando '{PORTA_SEGNALETICA}'.");
+    }
+
+    /// <summary>
+    /// Stress: ogni 40 secondi senza movimento del rig, tosse e vignettatura rossa, senza danni.
+    /// Il timer si azzera quando il rig si muove dentro la scena.
+    /// </summary>
+    private void Update()
+    {
+        if (!IsRunning || Level != DifficultyLevel.Crisis || suonoTosse == null)
+        {
+            return;
+        }
+
+        RigRegistration rig = RigRegistration.Instance;
+        if (rig == null || rig.Head == null)
+        {
+            return;
+        }
+
+        Vector3 testa = rig.Head.position;
+        Vector3 sinistra = rig.LeftHand != null ? rig.LeftHand.position : Vector3.zero;
+        Vector3 destra = rig.RightHand != null ? rig.RightHand.position : Vector3.zero;
+
+        if (!posizioneRigRilevata)
+        {
+            ultimaTesta = testa;
+            ultimaManoSinistra = sinistra;
+            ultimaManoDestra = destra;
+            posizioneRigRilevata = true;
+            tempoFermo = 0f;
+            return;
+        }
+
+        float sogliaAlQuadrato = TOSSA_SOGLIA_MOVIMENTO * TOSSA_SOGLIA_MOVIMENTO;
+        if ((testa - ultimaTesta).sqrMagnitude > sogliaAlQuadrato ||
+            (sinistra - ultimaManoSinistra).sqrMagnitude > sogliaAlQuadrato ||
+            (destra - ultimaManoDestra).sqrMagnitude > sogliaAlQuadrato)
+        {
+            ultimaTesta = testa;
+            ultimaManoSinistra = sinistra;
+            ultimaManoDestra = destra;
+            tempoFermo = 0f;
+            return;
+        }
+
+        tempoFermo += Time.deltaTime;
+        if (tempoFermo < TOSSA_INTERVALLO)
+        {
+            return;
+        }
+
+        tempoFermo = 0f;
+        sorgenteTosse.PlayOneShot(suonoTosse);
+        MostraVignettaErrore();
+        Debug.Log("[Blackout] Tosse per immobilità prolungata (Stress): solo feedback, nessun danno.");
     }
 
     /// <summary>Rimuove le iscrizioni alle porte, poi lascia pulire la classe base.</summary>
@@ -108,6 +241,16 @@ public sealed class BlackoutScenario : ScenarioController
 
         handlerMessaggioRilevatore.Clear();
 
+        foreach (KeyValuePair<Interactable, System.Action<Hand>> coppia in handlerObiettivo)
+        {
+            if (coppia.Key != null)
+            {
+                coppia.Key.SelectEntered -= coppia.Value;
+            }
+        }
+
+        handlerObiettivo.Clear();
+
         if (routineVignetta != null)
         {
             StopCoroutine(routineVignetta);
@@ -147,6 +290,12 @@ public sealed class BlackoutScenario : ScenarioController
         }
 
         cameraDataAggiunti.Clear();
+
+        if (sorgenteTosse != null)
+        {
+            Destroy(sorgenteTosse);
+            sorgenteTosse = null;
+        }
 
         if (quadroElettrico != null && handlerQuadro != null)
         {
@@ -367,11 +516,16 @@ public sealed class BlackoutScenario : ScenarioController
             Debug.Log($"[Blackout] Azione non corretta registrata: {descrizione}");
         }
 
-        // Realistico: tre interazioni sbagliate fanno fallire la missione,
-        // anche se l'errore era già stato registrato in precedenza.
-        if (Level == DifficultyLevel.Operational && interazioniErrate >= 3)
+        // Gli errori sono registrati a tutti i livelli; cambia solo la soglia di fallimento:
+        // Realistico tre errori, Stress anche uno solo, Guidato nessuna soglia.
+        // Contano le interazioni errate, anche ripetute.
+        bool fallisce =
+            (Level == DifficultyLevel.Operational && interazioniErrate >= 3) ||
+            (Level == DifficultyLevel.Crisis && interazioniErrate >= 1);
+
+        if (fallisce)
         {
-            Debug.Log($"[Blackout] {interazioniErrate} interazioni errate: missione fallita (Realistico).");
+            Debug.Log($"[Blackout] {interazioniErrate} interazioni errate: missione fallita ({Level}).");
             ChiudiMissione();
         }
     }
@@ -554,8 +708,16 @@ public sealed class BlackoutScenario : ScenarioController
         erroriGDD.Clear();
         interazioniErrate = 0;
         blackoutAttivo = false;
+        tempoFermo = 0f;
+        posizioneRigRilevata = false;
         porteSelezionate.Clear();
+        obiettivoSegnaleticaCompletato = false;
         RiattivaRilevatore();
+
+        if (gameManager != null)
+        {
+            gameManager.AggiornaContorniGuidati(Level == DifficultyLevel.Guided);
+        }
 
         AvviaTimerScenario();
 
@@ -563,7 +725,6 @@ public sealed class BlackoutScenario : ScenarioController
 
         if (Level == DifficultyLevel.Guided)
         {
-            Subtitle("Caposquadra", "Un blackout ha spento il magazzino. Non usare fiamme libere.", 6f);
             SetHint("Segui le luci di emergenza verso l'uscita");
         }
     }
@@ -588,14 +749,13 @@ public sealed class BlackoutScenario : ScenarioController
 
         if (Level == DifficultyLevel.Guided)
         {
-            Subtitle("Caposquadra", "Segui le luci di emergenza. Non usare fiamme libere.", 6f);
             SetHint("Segui le frecce verdi verso l'uscita d'emergenza");
         }
     }
 
     /// <summary>
     /// Avvia il timer della HUD seguendo il GDD: Guidato senza conto alla rovescia,
-    /// Realistico (Operational) 3 minuti, Stress (Crisis) 2 minuti. Allo scadere la HUD
+    /// Realistico (Operational) 3 minuti, Stress (Crisis) 1,5 minuti. Allo scadere la HUD
     /// chiama già OnTimerExpired, che chiude con esito Negativo e mostra la schermata di fallimento.
     /// Un successo con la porta ferma il timer tramite EndMission.
     /// </summary>
@@ -609,7 +769,7 @@ public sealed class BlackoutScenario : ScenarioController
                 secondi = 0; // cronometro, nessun limite
                 break;
             case DifficultyLevel.Crisis:
-                secondi = 120;
+                secondi = 90; // 1,5 minuti
                 break;
             default: // DifficultyLevel.Operational (Realistico)
                 secondi = 180;

@@ -1545,6 +1545,7 @@ MonoBehaviour:
   editorLevel: 2
   loadCoreInEditor: 0
   gameManager: {fileID: 7095944475137727226}
+  suonoTosse: {fileID: 0}
   porteSuccesso:
   - {fileID: 4377457346676460384}
   - {fileID: 3094314235927487260}
@@ -1595,6 +1596,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   blackoutDelay: 5
   blackoutSound: {fileID: 0}
+  burningSound: {fileID: 8300000, guid: 2628dc849ee855f4facc9ebab95b5a5e, type: 3}
+  contorniGuidati: []
+  materialeContorno: {fileID: 2100000, guid: e1a4c7d92b6f48e0a5d3c8f1b7e2a460, type: 2}
   doorRotationRules:
   - objectName: porta_tagliafuoco_D3
     fromZ: 90
@@ -11503,6 +11507,7 @@ MonoBehaviour:
   cornetta: {fileID: 5124993508224699158}
   riponiAlRilascioCornetta: 1
   pulsanteChiudi: {fileID: 0}
+  scenario: {fileID: 0}
   schermoTelefono: {fileID: 0}
   display: {fileID: 0}
   mostraSuSchermoVR: 1

@@ -198,12 +198,12 @@ namespace SI81.UI
         }
 
         /// <summary>
-        /// Obiettivi numerati su una riga ciascuno (accorciati con "…" se troppo lunghi). Per Blackout si mostrano
-        /// solo nel livello selezionato Guided; gli altri scenari non cambiano.
+        /// Obiettivi numerati su una riga ciascuno (accorciati con "…" se troppo lunghi). Per Blackout restano
+        /// nascosti a tutti i livelli, Guidato compreso; gli altri scenari non cambiano.
         /// </summary>
         private void ApplyObjectiveVisibility()
         {
-            bool mostra = mission == null || mission.Id != ID_BLACKOUT || (UINavigationContext.SelectedLevel ?? DifficultyLevel.Guided) == DifficultyLevel.Guided;
+            bool mostra = mission == null || mission.Id != ID_BLACKOUT;
             for (int i = 0; i < objectiveTexts.Length; i++)
             {
                 TMP_Text text = objectiveTexts[i];

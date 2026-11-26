@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using SI81.UI;
 using UnityEngine;
 
 [Serializable]
@@ -24,6 +25,18 @@ public class GameManager : MonoBehaviour
     [Header("Blackout")]
     [SerializeField] float blackoutDelay = 5f;
     [SerializeField] AudioClip blackoutSound;
+    [Tooltip("SFX di bruciamento in loop dopo il blackout: Realistico a volume 0.5, Stress a 1.0.")]
+    [SerializeField] AudioClip burningSound;
+    const float BurningVolume = 0.5f;
+    const float BurningVolumeStress = 1f;
+    const float AlarmVolume = 0.8f;
+    const float AlarmVolumeStress = 1f;
+
+    [Header("Guided outline")]
+    [Tooltip("Renderer da evidenziare col contorno arancione/giallo nel livello Guidato. Compilare qui dall'Inspector.")]
+    [SerializeField] Renderer[] contorniGuidati = new Renderer[0];
+    [Tooltip("Materiale del contorno (MAT_ContornoEvidenziazione).")]
+    [SerializeField] Material materialeContorno;
 
     [Header("Blackout doors (local Z only)")]
     [SerializeField] BlackoutDoorRotationRule[] doorRotationRules =
@@ -53,6 +66,7 @@ public class GameManager : MonoBehaviour
     public event Action OnBlackout;
 
     AudioSource audioSource;
+    AudioSource burningSource;
     AudioClip placeholderAlarm;
     Coroutine blackoutRoutine;
     Coroutine doorRotationRoutine;
@@ -62,9 +76,11 @@ public class GameManager : MonoBehaviour
     {
         OnBlackout += DisableSceneLights;
         OnBlackout += PlayBlackoutSound;
+        OnBlackout += PlayBurningSound;
         OnBlackout += ApplyBlackoutLook;
         OnBlackout += AnimateBlackoutDoors;
         OnBlackout += AccendiEmissioneSegnaletica;
+        MissionSession.Ended += HandleMissionEnded;
         ImpostaEmissioneSegnaletica(false);
         blackoutRoutine = StartCoroutine(TriggerBlackoutAfter(blackoutDelay));
         audioSource = GetComponent<AudioSource>();
@@ -77,15 +93,41 @@ public class GameManager : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.loop = true;
         audioSource.spatialBlend = 0f;
+
+        burningSource = gameObject.AddComponent<AudioSource>();
+        burningSource.playOnAwake = false;
+        burningSource.loop = true;
+        burningSource.spatialBlend = 0f;
+        burningSource.volume = BurningVolume;
+    }
+
+    /// <summary>Mostra o nasconde il contorno dei renderer configurati per il livello Guidato.</summary>
+    public void AggiornaContorniGuidati(bool attivi)
+    {
+        if (contorniGuidati == null) return;
+
+        foreach (Renderer renderer in contorniGuidati)
+        {
+            EvidenziatoreContorno.Imposta(renderer, materialeContorno, attivi);
+        }
     }
 
     void OnDestroy()
     {
+        EvidenziatoreContorno.Rimuovi(contorniGuidati);
+
         OnBlackout -= DisableSceneLights;
         OnBlackout -= PlayBlackoutSound;
+        OnBlackout -= PlayBurningSound;
         OnBlackout -= ApplyBlackoutLook;
         OnBlackout -= AnimateBlackoutDoors;
         OnBlackout -= AccendiEmissioneSegnaletica;
+        MissionSession.Ended -= HandleMissionEnded;
+
+        if (burningSource != null)
+        {
+            burningSource.Stop();
+        }
 
         if (blackoutRoutine != null)
         {
@@ -309,7 +351,45 @@ public class GameManager : MonoBehaviour
         audioSource.Stop();
         audioSource.clip = clip;
         audioSource.loop = true;
+        audioSource.volume = MissionSession.Level == DifficultyLevel.Crisis ? AlarmVolumeStress : AlarmVolume;
         audioSource.Play();
+    }
+
+    /// <summary>
+    /// Bruciamento in loop dopo il blackout: volume moderato nel Realistico, piu' alto nello Stress.
+    /// Il Guidato resta senza audio di fuoco.
+    /// </summary>
+    void PlayBurningSound()
+    {
+        if (burningSound == null || burningSource == null) return;
+
+        float volume;
+        switch (MissionSession.Level)
+        {
+            case DifficultyLevel.Operational:
+                volume = BurningVolume;
+                break;
+            case DifficultyLevel.Crisis:
+                volume = BurningVolumeStress;
+                break;
+            default:
+                return;
+        }
+
+        burningSource.Stop();
+        burningSource.clip = burningSound;
+        burningSource.loop = true;
+        burningSource.volume = volume;
+        burningSource.Play();
+    }
+
+    /// <summary>Ferma il suono del fuoco quando la missione finisce.</summary>
+    void HandleMissionEnded(MissionResult result)
+    {
+        if (burningSource != null)
+        {
+            burningSource.Stop();
+        }
     }
 
     static AudioClip CreateFireAlarmPlaceholder()

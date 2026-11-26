@@ -267,6 +267,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: SI81.Rig::SI81.Rig.SpawnPoint
   applyOnEnable: 1
+--- !u!4 &152778220 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1534693549544015007, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+  m_PrefabInstance: {fileID: 977116454}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &184011054
 GameObject:
   m_ObjectHideFlags: 0
@@ -317,7 +322,7 @@ MonoBehaviour:
   loadCoreInEditor: 0
   abnormalBreathingProbability: 0.7
   aedAvailableProbability: 0.75
-  breathingMode: 1
+  breathingMode: 0
   aedMode: 0
   missionDurationSeconds: 180
   finalAssistanceDurationSeconds: 0
@@ -993,6 +998,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownBreathingZone
   npc: {fileID: 977116456}
   requiredDwellSeconds: 2.5
+  completionHapticAmplitude: 0.35
+  completionHapticDuration: 0.12
+  abnormalDoublePulse: 1
+  abnormalHapticAmplitude: 0.55
+  abnormalHapticDuration: 0.22
+  abnormalPulseGapSeconds: 0.15
 --- !u!65 &495204264
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1583,6 +1594,153 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1144323519003977191, guid: c82d0865fa8b7f1449837fc7d1215759, type: 3}
   m_PrefabInstance: {fileID: 687627914}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &689191249
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 689191250}
+  - component: {fileID: 689191252}
+  - component: {fileID: 689191251}
+  - component: {fileID: 689191253}
+  - component: {fileID: 689191254}
+  m_Layer: 0
+  m_Name: MESH_ChestCompressionZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &689191250
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689191249}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.7485229, y: -0, z: -0, w: 0.66310906}
+  m_LocalPosition: {x: 0, y: -0.049075343, z: 0.10472546}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 152778220}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &689191251
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689191249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7571d55aeee057d4f80722e9ef66e682, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownCpr
+  scenario: {fileID: 184011056}
+  npc: {fileID: 977116456}
+  pressureThreshold: 0.03
+  releaseThreshold: 0.08
+  maxControllerDistance: 0.25
+  hapticAmplitude: 0.5
+  hapticDuration: 0.12
+  debugLog: 0
+--- !u!65 &689191252
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689191249}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.3, y: 0.36, z: 0.2}
+  m_Center: {x: 0, y: 0.02, z: 0}
+--- !u!114 &689191253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689191249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6613018839b75c14c9f20da26c62259c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownCprRhythm
+  cpr: {fileID: 689191251}
+  scenario: {fileID: 184011056}
+  idealInterval: 0.55
+  minCorrectInterval: 0.5
+  maxCorrectInterval: 0.6
+  maxErrorTolerance: 0.4
+  debugLog: 0
+  debugSnapshot:
+    completedCompressions: 0
+    evaluatedIntervals: 0
+    correctIntervals: 0
+    tooShortIntervals: 0
+    tooLongIntervals: 0
+    correctPercent: 0
+    cumulativeError: 0
+    averageError: 0
+    averageInterval: 0
+    rhythmQuality: 0
+    lastInterval: 0
+    lastError: 0
+    lastQuality: 0
+    sequenceState: 
+    applicableForScoring: 0
+--- !u!114 &689191254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689191249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcf41ab8e4f959a48a979813bdf0d134, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.ManDown.ManDownCprFlow
+  cpr: {fileID: 689191251}
+  rhythm: {fileID: 689191253}
+  scenario: {fileID: 184011056}
+  npc: {fileID: 977116456}
+  poorRhythmQualityThreshold: 0.6
+  minEvaluatedIntervalsForAlert: 5
+  poorRhythmAlertCooldownSeconds: 5
+  debugLog: 0
+  debugSnapshot:
+    phase: 
+    initialCount: 0
+    afterAedCount: 0
+    withoutAedCount: 0
+    initialTarget: 0
+    afterAedTarget: 0
+    withoutAedTarget: 0
+    initialComplete: 0
+    afterAedComplete: 0
+    withoutAedComplete: 0
+    instructionShown: 0
+    poorRhythmAlerts: 0
+    lastPoorRhythmAlertAt: 0
+    afterAedPhase: 0
+    missionEnded: 0
 --- !u!1001 &714496095
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2200,6 +2358,9 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 1534693549544015007, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 689191250}
     - targetCorrespondingSourceObject: {fileID: 1342065481848776972, guid: 20de021303084b74b8e9c7b5eb247d90, type: 3}
       insertIndex: -1
       addedObject: {fileID: 495204262}

@@ -189,6 +189,8 @@ namespace SI81.ManDown
         private bool finalMonitoringStarted;
         private bool finalMonitoringCompleted;
         private float finalMonitoringStartedAt = -1f;
+        private float cprStartedAt = -1f;
+        private ManDownCprQualitySnapshot? lastCprQualitySnapshot;
 
         // =================================================================
         // Eventi per le future classi
@@ -373,6 +375,13 @@ namespace SI81.ManDown
         public bool FinalMonitoringCompleted => finalMonitoringCompleted;
         /// <summary>Timestamp di inizio dell'ultimo monitoraggio finale; -1 se non è mai partito.</summary>
         public float FinalMonitoringStartedAt => finalMonitoringStartedAt;
+
+        /// <summary>Secondi di missione dell'avvio della RCP; -1 se non ancora avviata.</summary>
+        public float CprStartedAt => cprStartedAt;
+        /// <summary>True se è stato registrato almeno uno snapshot grezzo della RCP.</summary>
+        public bool HasCprQualityData => lastCprQualitySnapshot.HasValue;
+        /// <summary>Ultimo snapshot grezzo della RCP (default se non presente).</summary>
+        public ManDownCprQualitySnapshot LastCprQualitySnapshot => lastCprQualitySnapshot ?? default;
         /// <summary>Secondi dall'inizio effettivo della missione.</summary>
         public float MissionElapsedSeconds => initialized && !concluded ? Time.time - missionStartTime : lastResult != null ? lastResult.ElapsedSeconds : 0f;
         /// <summary>Registro azioni in sola lettura.</summary>
@@ -709,6 +718,7 @@ namespace SI81.ManDown
             }
 
             cprStarted = true;
+            cprStartedAt = Time.time - missionStartTime;
             if (breathingChecked && !breathingAbnormal) incompatibleProcedure = true;
             RecordAction(ACTION_CPR_START, true, true, null);
             if (phase != ManDownPhase.Aed && phase != ManDownPhase.CprResume) ChangePhase(ManDownPhase.Cpr);
@@ -743,6 +753,26 @@ namespace SI81.ManDown
 
             ChangePhase(result.Phase == ManDownCprPhase.AfterDefibrillation ? ManDownPhase.CprResume : ManDownPhase.Cpr);
             CprResultRegistered?.Invoke(result);
+        }
+
+        /// <summary>
+        /// Riceve i dati grezzi della RCP (compressioni per fase, tentativi invalidi e statistiche
+        /// ritmiche) senza calcolare punteggi né applicare penalità. Se la RCP non era ancora stata
+        /// avviata, ne registra l'avvio; il timestamp resta quello della prima pressione fisica.
+        /// </summary>
+        /// <param name="snapshot">Dati prodotti dall'integrazione RCP.</param>
+        public void ReportCprQualitySnapshot(ManDownCprQualitySnapshot snapshot)
+        {
+            if (!AcceptsActions) return;
+            if (!cprStarted)
+            {
+                cprStarted = true;
+                cprStartedAt = snapshot.StartedAt >= 0f ? snapshot.StartedAt : Time.time - missionStartTime;
+                if (breathingChecked && !breathingAbnormal) incompatibleProcedure = true;
+                RecordAction(ACTION_CPR_START, true, true, "reported_by_cpr_quality");
+                CprStarted?.Invoke();
+            }
+            lastCprQualitySnapshot = snapshot;
         }
 
         /// <summary>Registra un problema di qualità della RCP (una sola volta).</summary>
@@ -859,16 +889,17 @@ namespace SI81.ManDown
         /// quando il giocatore sceglie la posizione laterale, ma è un'API pubblica riutilizzabile dal futuro ramo
         /// RCP/DAE. Non tocca il timer comune, non avanza obiettivi e non mostra un secondo timer nell'HUD:
         /// imposta solo la fase condivisa PHASE_RESOLUTION per la durata del monitoraggio.
-        /// Una nuova chiamata mentre è già attivo non riavvia il conteggio.
+        /// Una nuova chiamata mentre è già attivo non riavvia il conteggio. Il parametro facoltativo
+        /// distingue nel registro il ramo con respirazione anormale che ha completato la RCP.
         /// </summary>
-        public void StartFinalMonitoring()
+        public void StartFinalMonitoring(string note = null)
         {
             if (!AcceptsActions || finalMonitoringStarted && !finalMonitoringCompleted) return;
 
             finalMonitoringStarted = true;
             finalMonitoringCompleted = false;
             finalMonitoringStartedAt = Time.time - missionStartTime;
-            RecordAction(ACTION_FINAL_ASSISTANCE_START, true, true, "normal_breathing_monitoring");
+            RecordAction(ACTION_FINAL_ASSISTANCE_START, true, true, note ?? "normal_breathing_monitoring");
             SetPhase(PHASE_RESOLUTION);
             FinalMonitoringStarted?.Invoke();
 
@@ -1106,7 +1137,8 @@ namespace SI81.ManDown
             var result = new ManDownScenarioResult(
                 outcome, safetyScore, dimensions, failureCauses, penalties, rescue, elapsed,
                 breathingAbnormal, aedAvailable, call112Made, timedOut,
-                finalMonitoringCompleted, breathingAssessments.Count, lastCorrectPositionAt, reassessmentMissing);
+                finalMonitoringCompleted, breathingAssessments.Count, lastCorrectPositionAt, reassessmentMissing,
+                lastCprQualitySnapshot ?? default);
 
             lastResult = result;
             concluded = true;
@@ -1296,6 +1328,8 @@ namespace SI81.ManDown
             finalMonitoringStarted = false;
             finalMonitoringCompleted = false;
             finalMonitoringStartedAt = -1f;
+            cprStartedAt = -1f;
+            lastCprQualitySnapshot = null;
             finalAssistanceStarted = false;
             assistanceCompleted = false;
             cprPoorQuality = false;

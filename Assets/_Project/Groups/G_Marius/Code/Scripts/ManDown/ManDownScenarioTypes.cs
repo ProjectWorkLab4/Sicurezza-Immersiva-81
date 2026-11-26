@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SI81.UI;
+using UnityEngine;
 
 namespace SI81.ManDown
 {
@@ -312,6 +313,100 @@ namespace SI81.ManDown
     }
 
     /// <summary>
+    /// Dati grezzi della RCP prodotti dall'integrazione tra rilevamento fisico e valutazione ritmica.
+    /// Il controller li conserva senza calcolare punteggi né applicare penalità: sono destinati al
+    /// futuro task di scoring e debriefing. Le quantità sono soglie di gameplay, non protocolli clinici.
+    /// </summary>
+    public readonly struct ManDownCprQualitySnapshot
+    {
+        /// <summary>Secondi di missione dell'avvio della RCP; -1 se non avviata.</summary>
+        public float StartedAt { get; }
+        /// <summary>Compressioni fisicamente complete nella fase iniziale con DAE.</summary>
+        public int CompletedInitialWithAed { get; }
+        /// <summary>Compressioni fisicamente complete nella fase successiva alla defibrillazione.</summary>
+        public int CompletedAfterDefibrillation { get; }
+        /// <summary>Compressioni fisicamente complete nel percorso senza DAE.</summary>
+        public int CompletedWithoutAed { get; }
+        /// <summary>Totale delle compressioni fisicamente complete.</summary>
+        public int TotalCompleted { get; }
+        /// <summary>Tentativi fisicamente invalidi registrati dal detector.</summary>
+        public int InvalidAttempts { get; }
+        /// <summary>Intervalli ritmici valutati.</summary>
+        public int EvaluatedIntervals { get; }
+        /// <summary>Intervalli ritmici corretti.</summary>
+        public int CorrectIntervals { get; }
+        /// <summary>Intervalli ritmici troppo brevi.</summary>
+        public int TooShortIntervals { get; }
+        /// <summary>Intervalli ritmici troppo lunghi.</summary>
+        public int TooLongIntervals { get; }
+        /// <summary>Percentuale di intervalli corretti (0 se non ci sono intervalli).</summary>
+        public float CorrectPercent { get; }
+        /// <summary>Errore temporale cumulativo, in secondi.</summary>
+        public float CumulativeError { get; }
+        /// <summary>Errore temporale medio, in secondi.</summary>
+        public float AverageError { get; }
+        /// <summary>Intervallo medio, in secondi.</summary>
+        public float AverageInterval { get; }
+        /// <summary>Qualità ritmica complessiva (0 se non ci sono intervalli).</summary>
+        public float RhythmQuality { get; }
+        /// <summary>true se la RCP è stata eseguita su una persona che respira normalmente.</summary>
+        public bool Inappropriate { get; }
+        /// <summary>Secondi di completamento della fase RCP iniziale; -1 se non completata.</summary>
+        public float InitialPhaseCompletedAt { get; }
+        /// <summary>Secondi di completamento della fase RCP dopo il DAE; -1 se non completata.</summary>
+        public float AfterAedPhaseCompletedAt { get; }
+        /// <summary>Secondi di completamento della RCP senza DAE; -1 se non completata.</summary>
+        public float WithoutAedCompletedAt { get; }
+        /// <summary>Secondi dell'interruzione esplicita per il DAE; -1 se non avvenuta.</summary>
+        public float InterruptedForAedAt { get; }
+
+        /// <summary>Crea uno snapshot completo; i timestamp non impostati usano -1.</summary>
+        public ManDownCprQualitySnapshot(
+            float startedAt,
+            int completedInitialWithAed,
+            int completedAfterDefibrillation,
+            int completedWithoutAed,
+            int totalCompleted,
+            int invalidAttempts,
+            int evaluatedIntervals,
+            int correctIntervals,
+            int tooShortIntervals,
+            int tooLongIntervals,
+            float correctPercent,
+            float cumulativeError,
+            float averageError,
+            float averageInterval,
+            float rhythmQuality,
+            bool inappropriate,
+            float initialPhaseCompletedAt = -1f,
+            float afterAedPhaseCompletedAt = -1f,
+            float withoutAedCompletedAt = -1f,
+            float interruptedForAedAt = -1f)
+        {
+            StartedAt = startedAt;
+            CompletedInitialWithAed = completedInitialWithAed;
+            CompletedAfterDefibrillation = completedAfterDefibrillation;
+            CompletedWithoutAed = completedWithoutAed;
+            TotalCompleted = totalCompleted;
+            InvalidAttempts = invalidAttempts;
+            EvaluatedIntervals = evaluatedIntervals;
+            CorrectIntervals = correctIntervals;
+            TooShortIntervals = tooShortIntervals;
+            TooLongIntervals = tooLongIntervals;
+            CorrectPercent = Math.Max(0f, correctPercent);
+            CumulativeError = Math.Max(0f, cumulativeError);
+            AverageError = Math.Max(0f, averageError);
+            AverageInterval = Math.Max(0f, averageInterval);
+            RhythmQuality = Mathf.Clamp01(rhythmQuality);
+            Inappropriate = inappropriate;
+            InitialPhaseCompletedAt = initialPhaseCompletedAt;
+            AfterAedPhaseCompletedAt = afterAedPhaseCompletedAt;
+            WithoutAedCompletedAt = withoutAedCompletedAt;
+            InterruptedForAedAt = interruptedForAedAt;
+        }
+    }
+
+    /// <summary>
     /// Fotografia congelata della conclusione: esito, punteggio provvisorio, cause, penalizzazioni e condizioni iniziali.
     /// Le future classi e i test leggono da qui senza dipendere dallo stato vivo del componente.
     /// </summary>
@@ -350,6 +445,8 @@ namespace SI81.ManDown
         /// (dato grezzo per il futuro scoring; non modifica il punteggio provvisorio).
         /// </summary>
         public bool ReassessmentAfterCorrectPositionMissing { get; }
+        /// <summary>Dati grezzi della RCP al momento della conclusione (default se non eseguita).</summary>
+        public ManDownCprQualitySnapshot CprQuality { get; }
 
         internal ManDownScenarioResult(
             OutcomeType outcome,
@@ -366,7 +463,8 @@ namespace SI81.ManDown
             bool finalMonitoringCompleted,
             int breathingAssessmentCount,
             float lastCorrectPositionAt,
-            bool reassessmentAfterCorrectPositionMissing)
+            bool reassessmentAfterCorrectPositionMissing,
+            ManDownCprQualitySnapshot cprQuality = default)
         {
             Outcome = outcome;
             Score = score;
@@ -383,6 +481,7 @@ namespace SI81.ManDown
             BreathingAssessmentCount = breathingAssessmentCount;
             LastCorrectPositionAt = lastCorrectPositionAt;
             ReassessmentAfterCorrectPositionMissing = reassessmentAfterCorrectPositionMissing;
+            CprQuality = cprQuality;
         }
     }
 }

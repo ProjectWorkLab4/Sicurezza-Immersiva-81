@@ -117,6 +117,17 @@ namespace SI81.MachineLock
         /// <summary>Bad Ending 2 debrief line.</summary>
         public const string BadEnding2 = "La pressa ha continuato a lavorare.";
 
+        // ------------------------------------------------------------------ Inaction / smoke (GDD §9.12)
+
+        /// <summary>Inaction stage 1 alert title: smoke in the room.</summary>
+        public const string SmokeStage1 = "Fumo in sala";
+        /// <summary>Inaction stage 1 alert detail.</summary>
+        public const string SmokeStage1Detail = "La pressa continua.";
+        /// <summary>Inaction stage 2 alert title: unbreathable air.</summary>
+        public const string SmokeStage2 = "Aria irrespirabile";
+        /// <summary>Inaction stage 2 alert detail.</summary>
+        public const string SmokeStage2Detail = "Ferma la pressa.";
+
         // ------------------------------------------------------------------ Hints (GDD §12.3)
 
         /// <summary>Start hint format: {0} is the observed target count.</summary>
@@ -163,6 +174,8 @@ namespace SI81.MachineLock
         public const string DebriefGoodPpe = "Hai indossato i 4 DPI → protezione completa";
         /// <summary>Good line: spill delimited and contained.</summary>
         public const string DebriefGoodContainment = "Hai delimitato e contenuto la pozza → area sicura";
+        /// <summary>Good line: leak valve closed before the handover (good practice, no score).</summary>
+        public const string DebriefGoodValveClosed = "Hai chiuso la valvola → perdita fermata";
         /// <summary>Critical line: hot oil burn.</summary>
         public const string DebriefCriticalHotOil = "Contatto con olio bollente → ustione";
         /// <summary>Critical line: live oil shock.</summary>
@@ -201,6 +214,7 @@ namespace SI81.MachineLock
                 case DebriefLineId.GoodZeroEnergy: return DebriefGoodZeroEnergy;
                 case DebriefLineId.GoodPpe: return DebriefGoodPpe;
                 case DebriefLineId.GoodContainment: return DebriefGoodContainment;
+                case DebriefLineId.GoodValveClosed: return DebriefGoodValveClosed;
                 case DebriefLineId.CriticalHotOil: return DebriefCriticalHotOil;
                 case DebriefLineId.CriticalShock: return DebriefCriticalShock;
                 case DebriefLineId.CriticalWater: return DebriefCriticalWater;

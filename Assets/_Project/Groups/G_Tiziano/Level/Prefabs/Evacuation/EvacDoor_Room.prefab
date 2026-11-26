@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5146358739412979893}
   - component: {fileID: 8421646899295630078}
   - component: {fileID: 3128186947401008404}
+  - component: {fileID: 232821737873744194}
   m_Layer: 0
   m_Name: EvacDoor_Room
   m_TagString: Untagged
@@ -48,7 +49,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f1a0000000000000000000000000002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Interaction.ScenarioInteractable
-  grabbable: 0
+  grabbable: 1
   activatable: 1
   inspectable: 0
   interactionEnabled: 1
@@ -98,6 +99,39 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   onClosed:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &232821737873744194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 15257932375420308}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 1
+  canGrab: 1
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
     m_PersistentCalls:
       m_Calls: []
 --- !u!1 &3129263655321918324
@@ -424,7 +458,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3

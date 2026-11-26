@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
+using SI81.Rig;
 using SI81.Tiziano.ChemicalAlert.Interaction;
 using SI81.Tiziano.Evacuation.Systems;
 using UDebug = UnityEngine.Debug;
@@ -47,6 +48,7 @@ namespace SI81.Tiziano.Evacuation.Interaction
         private int order = -1;
         private float fixedY;
         private bool haltedReported;
+        private RigRegistration ignoredRig;
 
         /// <summary>Raised when this NPC starts following.</summary>
         public event Action<EvacNpc> FollowStarted;
@@ -88,12 +90,42 @@ namespace SI81.Tiziano.Evacuation.Interaction
         {
             if (interactable != null)
                 interactable.Activated += HandleActivated;
+            RigRegistration.Registered += HandleRigRegistered;
+            ApplyPlayerCollisionIgnore(RigRegistration.Instance);
         }
 
         private void OnDisable()
         {
             if (interactable != null)
                 interactable.Activated -= HandleActivated;
+            RigRegistration.Registered -= HandleRigRegistered;
+        }
+
+        private void HandleRigRegistered(RigRegistration rig)
+        {
+            ApplyPlayerCollisionIgnore(rig);
+        }
+
+        /// <summary>
+        /// Il collider solido usato dal raggio della mano non deve spingere il CharacterController del rig:
+        /// l'NPC segue il giocatore senza urtarlo, ma resta puntabile con grilletto e impugnatura.
+        /// </summary>
+        private void ApplyPlayerCollisionIgnore(RigRegistration rig)
+        {
+            if (rig == null || ignoredRig == rig)
+                return;
+
+            ignoredRig = rig;
+            CharacterController controller = rig.GetComponent<CharacterController>();
+            if (controller == null)
+                return;
+
+            Collider[] own = GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < own.Length; i++)
+            {
+                if (!own[i].isTrigger)
+                    Physics.IgnoreCollision(own[i], controller, true);
+            }
         }
 
         /// <summary>Initialises the NPC after a runtime spawn. The position sets its fixed Y.</summary>
@@ -108,6 +140,7 @@ namespace SI81.Tiziano.Evacuation.Interaction
             haltedReported = false;
             if (interactable != null)
                 interactable.SetInteractionEnabled(true);
+            ApplyPlayerCollisionIgnore(RigRegistration.Instance);
         }
 
         /// <summary>Starts following at the given position in the line. Returns false unless Idle.</summary>

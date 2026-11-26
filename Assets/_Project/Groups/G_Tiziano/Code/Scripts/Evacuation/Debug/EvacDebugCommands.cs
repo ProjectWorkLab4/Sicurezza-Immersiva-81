@@ -703,6 +703,40 @@ namespace SI81.Tiziano.Evacuation.Debug
 
             steps.Add(new SmokeStep
             {
+                Name = "hand interaction surfaces reachable by ray",
+                Run = () =>
+                {
+                    var surfaces = UnityEngine.Object.FindObjectsByType<SI81.Tiziano.ChemicalAlert.Interaction.ScenarioInteractable>(
+                        FindObjectsInactive.Include, FindObjectsSortMode.None);
+                    if (surfaces.Length == 0)
+                        return "no ScenarioInteractable in scene";
+
+                    foreach (var surface in surfaces)
+                    {
+                        var shared = surface.GetComponent<SI81.Interaction.Interactable>();
+                        if (shared == null)
+                            return $"{surface.name}: shared Interactable missing";
+                        if (!shared.Grabbable || shared.FollowsHand)
+                            return $"{surface.name}: grab={shared.Grabbable} followHand={shared.FollowsHand}";
+
+                        bool solidSurface = false;
+                        foreach (var collider in surface.GetComponentsInChildren<Collider>(true))
+                        {
+                            if (!collider.isTrigger)
+                            {
+                                solidSurface = true;
+                                break;
+                            }
+                        }
+                        if (!solidSurface)
+                            return $"{surface.name}: no non-trigger collider for the ray";
+                    }
+                    return null;
+                }
+            });
+
+            steps.Add(new SmokeStep
+            {
                 Name = "each level loads its own config",
                 Run = () =>
                 {

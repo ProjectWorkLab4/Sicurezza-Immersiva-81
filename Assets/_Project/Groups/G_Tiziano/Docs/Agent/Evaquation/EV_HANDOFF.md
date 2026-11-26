@@ -1,21 +1,21 @@
 # HANDOFF — Evacuation
 
 ## Stato corrente (riscrivere a ogni task, max 15 righe)
-- Ultima task completata: E13 (2026-11-25) — controllo prestazioni Quest: report + static batching e tetto particelle; scenario completato.
-- Report: `Docs/EVAC_PERF_REPORT.md` (numeri prima/dopo, correzioni, verifica). Documenti E12 in `Docs/` (`EVAC_TECHNICAL_DOCS.md`, `EVAC_FLOWCHART.md`, `EVAC_DEBRIEF_TABLE.md`, `EVAC_TEST_COMMANDS_MANUAL.md`).
-- Chemical Alert: congelato e completo. NON modificarlo. Riusati senza modifiche `ActionLog/ScenarioResult/Outcome/Dimension/IResettable`, `ScenarioInteractable`, `HintSO`.
+- Ultima task: E20 (2026-11-26) — mappa: corridoio e pareti graybox resi visibili (il FBX non li contiene).
+- E19: interazioni uffici sul muro del modello. E18: hit box NPC. E17: Home. E16: NPC non spingono. E15: missione 09.
+- Causa: collider di interazione tutti trigger; il `RayInteractor` condiviso raycasta con `QueryTriggerInteraction.Ignore` → piani/NPC/pulsante non colpibili. Il bridge duplicava `Select → Activated` (doppia apertura porte).
+- Fix: collider solidi di raycast su piani/porte/pulsante; `RaycastSurface` (sfera 0.55 @ y1.05) aggiunta a `EvacNpc.prefab`; area trigger NPC conservata.
+- `EvacInteractableBridge`: solo `GrabEnter → RaiseActivated()`, `followsHand=false`; Hover/Select gestiti dal solo `ScenarioInteractable` → 1 evento per azione.
+- Prefab aggiornati: EvacPlan, EvacElevatorButton, EvacDoor_Room/StairsEmergency/StairsInternal, EvacNpc; scena `SCN_Evacuation` salvata (`isDirty=false`).
+- Script: `Integration/EvacInteractableBridge.cs` riscritto; `Debug/EvacDebugCommands.cs` + step smoke "hand interaction surfaces reachable by ray".
+- Verifiche: raycast `Ignore` colpisce i 3 piani; `GrabEnter` → NPC Idle→Following, porta 1 toggle, piano ispezionato; `SelectEnter` porta 1 toggle. Y 50/50, F12 10/10, 0 errori console.
+- Report/documenti E12–E13 in `Docs/` (`EVAC_TECHNICAL_DOCS.md`, `EVAC_FLOWCHART.md`, `EVAC_DEBRIEF_TABLE.md`, `EVAC_TEST_COMMANDS_MANUAL.md`, `EVAC_PERF_REPORT.md`).
+- Chemical Alert: congelato e intoccato. Riuso senza modifiche CA core/`ScenarioInteractable`/`HintSO`; solo lettura di Home per il rig condiviso.
 - Decisioni confermate: scale giuste = emergenza; sinistra = interne; 5 NPC (3+2); Crisis 1 cuore, 3° contatto = morte; fuoco 5/10; ascensore letale; corsia ≥1.2 m; seed unico nel Director.
 - REUSE_MAP.md: RIUSA core CA; COPIA pattern `PlayerHealth`/`ContactSensor`/`Disturbance` → sistemi `Evac*`; VFX fuoco placeholder in `GROUP/`.
-- Path docs: `Docs/Agent/Evaquation/` (con la q). ⚠ `Debug` è un namespace: `using UDebug = UnityEngine.Debug;`.
-- Tipi (`Code/Scripts/Evacuation/`): Core, Data, Interaction, Systems, Integration, Debug; Director in `Systems/EvacuationDirector.cs`.
-- Director: 18 eventi C# + stato pubblico per la UI futura; elenco in `Docs/EVAC_TECHNICAL_DOCS.md`.
-- `evac.replay.start` = entry meta a inizio run (NON un LG di debrief, non punteggiata), presente nel `ResultReady` via ActionLog; seed con contatore anti-collisioni per reset ravvicinati.
-- E13: 111 MeshRenderer di `MODEL_Office` con `BatchingStatic` → 5 batch, 166 draw call, batches 376→229; `FireSlot` fireRate 26→18, smokeRate 10→8, smokeCap 60→40 → tetto 600→230 in Crisis.
-- Draw call Editor: 377→320 (Guided), 385→329 (Crisis); 1 Directional Light, 0 trasparenze, 0 luci extra; 0 errori console.
-- Scena `SCN_Evacuation`: `MODEL_Office` + MNG_* invariati; `Environment` con 55 BoxCollider e 0 renderer; prefab in `Level/Prefabs/Evacuation/`.
-- Modello: `MESH_UFFICIO_COMPLETO.fbx` (111 mesh) in `Art/Models/`; pos (7.95,0,10.492), scala (1,1,-0.771); NPC restano i prefab `EvacNpc`.
-- Tasti debug: H N M F R X P K T O Y F8 F9 L I G C J E Q V U Z F7 B F10 F3 F4 F5 F6 F11 F12 + menu `Evac/…`; elenco in `Docs/EVAC_TEST_COMMANDS_MANUAL.md`.
-- `RunSmokeTest` 49/49 PASS, F5 200/200, F11 5/5, F12 10/10. Nessun git, nessun file fuori `G_Tiziano/`, nessuna UI/animazione.
+- Path docs: `Docs/Agent/Evaquation/` (con la q); `Debug` è un namespace: `using UDebug = UnityEngine.Debug;`. Scena senza rig locale (input da `SCN_Core`), tutto ancorato ai marker.
+- Tasti debug: H N M F R X P K T O Y F8 F9 L I G C J E Q V U Z F7 B F10 F3 F4 F5 F6 F11 F12 + menu `Evac/…`.
+- Nessun git, nessuna scrittura fuori `G_Tiziano/`, nessuna UI/animazione, Chemical Alert intoccato.
 
 ## Log (solo append, max 8 righe per task)
 ### Exx — titolo — data
@@ -154,3 +154,75 @@
 - Test col Simulator: M (Crisis) → F4/F3 verifica fuoco leggibile coi VFX ridotti; R/X/F12 reset puliti e VFX spenti.
 - Richieste all'utente: profilare su Quest reale (draw call/frame time) e confermare che il tetto particelle ridotto non penalizzi la leggibilità del fuoco.
 - Problemi aperti: nessuno in scope; la valutazione Quest resta fuori dal gruppo.
+
+### E14 — Fix grab/interazione mano (rig condiviso) — 2026-11-26
+- Fatto: diagnosticato con raycast in scena — `RayInteractor` con `QueryTriggerInteraction.Ignore` colpiva il muro, non il piano (`isTrigger=true`). Aggiunti collider solidi di raycast su 3 piani, 4 porte, pulsante ascensore e figlio `RaycastSurface` su `EvacNpc.prefab` (area trigger ~1 m conservata, verificata dallo smoke test).
+- Bridge: rimossi Hover/Select duplicati (già inoltrati da `ScenarioInteractable`); `GrabEnter` → `RaiseActivated()`, `Grabbable` dal prefab, `FollowsHand=false` → la presa attiva senza trascinare oggetti. `grabbable=1` e `followsHand=0` serializzati in tutti i prefab/scena.
+- File (rel. a GROUP/): modificati `Code/Scripts/Evacuation/Integration/EvacInteractableBridge.cs`, `Code/Scripts/Evacuation/Debug/EvacDebugCommands.cs` (nuovo step 3), 6 prefab in `Level/Prefabs/Evacuation/`, `Level/Scenes/SCN_Evacuation.unity`, `Docs/Agent/Evaquation/EV_HANDOFF.md`. Nessun git, nessun file fuori `G_Tiziano/`, nessuna UI/animazione, Chemical Alert intoccato.
+- Decisioni/deviazioni: [PROPOSTA] grip = attivazione invece di trasporto, coerente con "nessuna animazione"; non modificati `Home/RayInteractor` (fuori gruppo) né CA. Se in futuro il raggio includerà i trigger, rimuovere i collider di raycast aggiunti.
+- Comandi di test: Y → `SmokeTest summary 50/50 ALL PASS` (nuovo step "hand interaction surfaces reachable by ray"); F12 → `E10 reset stress: 10/10 PASS`; O → `SelfCheck TOTAL: ALL PASS`; J → "Test spot -> <nome>" davanti a piano/porta/NPC; R → reset pulito.
+- Test col Simulator: J fino al piano → grip o trigger → `[EV] Grab -> Activate` / `[CA] Activated` + `[EV] Plan inspected`; J su un NPC → `[EV] NPC following`; grip su porta → `[EV] Door ... opened/closed` una sola volta; pulsante ascensore → LG06.
+- Richieste all'utente: verificare in Simulator (e poi Quest) che grip e trigger funzionino su piano/NPC/porte/pulsante; confermare che la presa non debba far seguire l'oggetto alla mano.
+- Problemi aperti: nessuno in scope; il rig resta in `SCN_Core` (fuori gruppo).
+
+### E15 — Home/UI: missione Evacuation pronta — 2026-11-26
+- Fatto: compilato `Home/UI/Data/Missions/SO_Mission_Evacuation.asset` (ID 09, contesto reale 216 char, 4 obiettivi ≤30, 3 criteri, complessità 3, DesignerNote senza segnaposto). Override tempo HUD: Guided 0, Operational 180, Crisis 120, allineati al Director.
+- Build Settings: `SCN_Evacuation` aggiunta dopo `SCN_Core` (indice 1); catalogo e `MNG_Scenario` (missione + `MNG_SpawnPoint`) già collegati, non toccati.
+- Verifiche: `ScenarioValidator.Validate(...)` → 0 issue; Play da `SCN_Core` → `CurrentScreen=Home`, card `LBL_Title=09 · Evacuation`, 9 missioni a catalogo, 0 errori console; editor riportato su `SCN_Core`.
+- File: fuori `G_Tiziano/` solo per autorizzazione esplicita: `SO_Mission_Evacuation.asset`, `ProjectSettings/EditorBuildSettings.asset`; aggiornato `EV_HANDOFF.md`. Nessun git, nessuna UI creata, Chemical Alert intoccato.
+- Decisioni/deviazioni: mantenute 8 missioni di esempio e mock (99); ID 09 scelto dall'utente; nessun menu `SI81/UI/Build…` eseguito.
+- Comandi di test: `SI81/Scenari/Valida tutti gli scenari` → 0 errori per Evacuation; Play da `SCN_Core` → Home → card `09 · Evacuation` → Mission Brief → Avvia → `SCN_Evacuation`.
+- Richieste all'utente: provare il flusso completo Home → Brief → missione → Debrief → Home nei 3 livelli (Simulator/Quest); decidere se togliere la missione mock (99) alla consegna.
+- Problemi aperti: nessuno in scope.
+
+### E16 — NPC che seguono senza spingere — 2026-11-26
+- Fatto: `EvacNpc.ApplyPlayerCollisionIgnore()` ignora le collisioni tra i collider solidi dell'NPC (la sfera `RaycastSurface` usata dal raggio della mano) e il `CharacterController` del rig condiviso; applicato in `OnEnable`, `Configure` e all'evento `RigRegistration.Registered`, con unsubscribe in `OnDisable`.
+- Causa: il collider solido aggiunto in E14 per rendere l'NPC puntabile dal `RayInteractor` (che scarta i trigger) urtava il giocatore mentre la fila si avvicinava (lineSpacing 0.9 m). I trigger restano invariati e non spingono.
+- File: modificato solo `Code/Scripts/Evacuation/Interaction/EvacNpc.cs`. Nessun git, nessuna UI/animazione, Chemical Alert intoccato; scena e prefab invariati.
+- Verifiche: in Play con `SCN_Core` + `SCN_Evacuation`, `Physics.GetIgnoreCollision(surface, controller)` = true per 5/5 NPC; `SmokeTest summary 50/50 ALL PASS`; 5 NPC raccolti restano in `Following` con fila attiva.
+- Comandi di test: U/Z → raccolta NPC; T → teletrasporto rig; F7 → stampa fila e distanze; Y → smoke test 50/50; Simulator: avvicinarsi a un NPC che segue → nessuna spinta, il raggio continua a puntarlo.
+- Decisioni/deviazioni: nessun nuovo layer e nessuna modifica a ProjectSettings; la presa resta attivazione senza trascinamento (E14).
+- Richieste all'utente: confermare in Simulator/Quest che la fila non spinga più e che l'NPC resti puntabile con grip/trigger.
+- Problemi aperti: nessuno in scope.
+
+### E17 — Home: Evacuation disponibile di nuovo — 2026-11-26
+- Causa: la modifica alle Build Settings di E15 era rimasta solo in memoria: dopo il domain reload/Play Mode `EditorBuildSettings.scenes` era tornato alle 3 scene precedenti, quindi la Home filtrava la card. Missione, catalogo e `MNG_Scenario` erano intatti.
+- Fatto: `EditorBuildSettings.scenes` riscritto con Core(0), Evacuation(1), Mock, ChemicalAlert e salvato con `File/Save Project`; verificato su `ProjectSettings/EditorBuildSettings.asset` anche dopo Play/Stop.
+- Verifiche: Play da `SCN_Core` → `CurrentScreen=Home`, card `BTN_ScenarioCard7` con testo `09 · Evacuation`, `interactable=True`; click card → Mission Brief → "Avvia scenario" → `SCN_Evacuation` caricata in additivo, `MissionSession.IsActive=True`, Director in `Action`.
+- File: solo `ProjectSettings/EditorBuildSettings.asset` (autorizzazione esplicita data in E15) e `EV_HANDOFF.md`. Nessun git, nessuna UI creata, Chemical Alert intoccato.
+- Comandi di test: Play da `SCN_Core` → Home → card `09 · Evacuation` → Mission Brief → `Avvia scenario` → missione in Action; `SI81/Scenari/Valida tutti gli scenari` → 0 errori per Evacuation.
+- Decisioni/deviazioni: mantenute mock (99) e Chemical Alert in Build Settings; nessun menu `SI81/UI/Build…` eseguito; la card non è stata creata a mano, arriva dal catalogo.
+- Richieste all'utente: confermare che la card sia presente e avviabile anche dopo un riavvio dell'Editor (il file è ora salvato).
+- Problemi aperti: nessuno in scope.
+
+### E18 — Hit box delle interazioni mano — 2026-11-26
+- Fatto: in `EvacNpc.prefab` la sfera solida `RaycastSurface` (r 0.55, centro y 1.05, più alta e più larga del modello) è stata sostituita da un `BoxCollider` non-trigger centro (0, 0.85, 0), size (0.42, 1.70, 0.42): copre l'NPC dal pavimento all'altezza della testa, larghezza pari al visual capsula (0.32) + margine.
+- Verificato invariato: piani (box 0.60×0.45×0.08), porte (Blocker + Hinge), pulsante ascensore (0.10×0.30×0.20) — le hit box corrispondono già ai visual; l'area trigger NPC (sfera r 1) resta per le regole di gioco.
+- Verifiche: in Play, raggio da 0.8 m in avanti a 1.5 m di altezza colpisce `RaycastSurface` per 5/5 NPC; `Physics.GetIgnoreCollision(box, CharacterController)=true` per 5/5 (nessuna spinta); `SmokeTest summary 50/50 ALL PASS`.
+- File: modificato solo `Level/Prefabs/Evacuation/EvacNpc.prefab` e `EV_HANDOFF.md`. Nessun git, nessuna UI/animazione, Chemical Alert intoccato; Build Settings rimaste salvate.
+- Comandi di test: J → davanti a NPC; grip/trigger → `[EV] NPC following`; U/Z → raccolta; Y → 50/50; avvicinarsi alla fila → nessuna spinta.
+- Decisioni/deviazioni: il box è più alto del visual capsula (1 m) per consentire il raggio all'altezza della testa del giocatore; nessun nuovo layer, nessuna modifica al rig condiviso.
+- Richieste all'utente: confermare in Simulator/Quest che puntare il collega sia facile e che la fila non spinga.
+- Problemi aperti: nessuno in scope.
+
+### E19 — Interazioni allineate a MESH_UFFICIO_COMPLETO — 2026-11-26
+- Riferimento: FBX `Art/Models/MESH_UFFICIO_COMPLETO.fbx` già montato in `MODEL_Office` (111 mesh, pos 7.95/0/10.49, scala 1/1/−0.771). Muro sud uffici nel modello: z≈8.76 (cube `Cube.087`), contro z=8 dei collider graybox e z=8.12 dei piani.
+- Fatto: spostati a z=8.76 i 5 collider `Wall_Offices_South_*` e le porte `Door_R1/R2`; spostati a z=8.92 i piani `Plan_R1/R2` e i marker `POS_Plan_R1/R2`, cioè davanti alla faccia del muro (8.86) perché lo sguardo e il raggio arrivano dall'interno ufficio.
+- Non toccati: piano corridoio, porte scale interne/emergenza e pulsante ascensore (il FBX non ha una superficie equivalente) e area trigger NPC; `MODEL_Office` invariato.
+- Verifiche: raggio da 0.8 m lato ufficio colpisce `Plan_R1/R2` e `Door_R1/R2` (porte da chiuse); `SmokeTest summary 50/50 ALL PASS` dopo l'allineamento; scena salvata (`isDirty=false`), editor riportato su `SCN_Core`.
+- File: modificata solo `Level/Scenes/SCN_Evacuation.unity` e `EV_HANDOFF.md`. Nessun git, nessuna UI/animazione, Chemical Alert intoccato, Build Settings rimaste salvate.
+- Comandi di test: `J` davanti a piano/porta → grip/trigger → `[EV] Plan inspected` / `[EV] Door ...`; `I` simula ispezione; `Y` → 50/50; Simulator: controllare che i piani siano attaccati al muro visibile.
+- Decisioni/deviazioni: i piani sono 0.16 m davanti al centro muro per non essere occlusi dal collider del muro durante lo sguardo; porte centrate nel muro con apertura immediata; nessun collider aggiunto al FBX (resta visual-only).
+- Richieste all'utente: confermare in Simulator/Quest che piani e porte siano dove si vede il muro del modello; se vuoi allineare anche corridoio/ascensore, indicare la superficie del FBX di riferimento.
+- Problemi aperti: piano corridoio, ascensore e scale restano ancorati ai marker graybox.
+
+### E20 — Mappa: corridoi e muri visibili — 2026-11-26
+- Causa: `MODEL_Office` (`MESH_UFFICIO_COMPLETO.fbx`) contiene uffici/scrivanie ma non il corridoio; `Environment` ha i collider del corridoio ma 0 renderer, quindi corridoio e alcune pareti non si vedevano.
+- Fatto: aggiunti `MeshFilter`+`MeshRenderer` (cube) ai collider esistenti `Floor_Corridor`, `Wall_Corridor_South_Seg0`, `Wall_Corridor_South_Seg1`, `Wall_StairsInt_West_Seg0`, `Wall_Elevator_East_Seg0`; materiali riusati `MAT_EV_Floor` e `MAT_EV_Wall`, scala = size del BoxCollider, `BatchingStatic`.
+- Non duplicati i muri già presenti nel FBX (muro sud uffici a z 8.76, pareti x 2/14, scale emergenza). Nessun collider nuovo: solo visual sui collider già presenti.
+- Verifiche: screenshot top-down mostra il corridoio completo (pavimento + muro sud + pareti laterali); `SmokeTest summary 50/50 ALL PASS`; 0 errori console; scena salvata, editor riportato su `SCN_Core`.
+- File: modificata solo `Level/Scenes/SCN_Evacuation.unity` e `EV_HANDOFF.md`. Nessun git, nessuna UI/animazione, Chemical Alert intoccato.
+- Comandi di test: guarda la scena dall'alto (`MODEL_Office`) → corridoio visibile; Play da `SCN_Core` → Home → missione → percorri il corridoio; `Y` → 50/50.
+- Decisioni/deviazioni: il corridoio resta graybox con materiali del gruppo, non parte del FBX; per averlo nel modello serve un aggiornamento dell'FBX da parte del modellatore (fuori scope).
+- Richieste all'utente: confermare che corridoio e muri mancanti ora ci siano; se vuoi il corridoio dentro `MESH_UFFICIO_COMPLETO`, passa un FBX aggiornato.
+- Problemi aperti: il modello FBX non contiene il corridoio; i visual aggiunti sono graybox.

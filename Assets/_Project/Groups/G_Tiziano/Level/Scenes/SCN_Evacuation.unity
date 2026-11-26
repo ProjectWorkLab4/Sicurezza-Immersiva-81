@@ -2393,7 +2393,7 @@ Transform:
   m_GameObject: {fileID: 221443589}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.2, y: 1.5, z: 8.12}
+  m_LocalPosition: {x: 4.2, y: 1.5, z: 8.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4209,7 +4209,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 403148352}
   scenario: {fileID: 403148350}
-  inspectOnSelect: 0
 --- !u!114 &403148352
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4224,7 +4223,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -4273,7 +4272,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5146358739412979893, guid: 277a8a47740c2b841afb6e42517a1991, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 8
+      value: 8.76
       objectReference: {fileID: 0}
     - target: {fileID: 5146358739412979893, guid: 277a8a47740c2b841afb6e42517a1991, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4724,7 +4723,7 @@ PrefabInstance:
     - target: {fileID: 2631028983127937639, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 1651869539}
+      objectReference: {fileID: 1641783322}
     - target: {fileID: 3354075130410592099, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4.2
@@ -4735,7 +4734,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3354075130410592099, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 8.12
+      value: 8.92
       objectReference: {fileID: 0}
     - target: {fileID: 3354075130410592099, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4867,7 +4866,7 @@ Transform:
   m_GameObject: {fileID: 590270692}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 10.2, y: 1.5, z: 8.12}
+  m_LocalPosition: {x: 10.2, y: 1.5, z: 8.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5153,12 +5152,14 @@ GameObject:
   m_Component:
   - component: {fileID: 621936514}
   - component: {fileID: 621936515}
+  - component: {fileID: 621936517}
+  - component: {fileID: 621936516}
   m_Layer: 0
   m_Name: Wall_Corridor_South_Seg1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 22
+  m_StaticEditorFlags: 4
   m_IsActive: 1
 --- !u!4 &621936514
 Transform:
@@ -5170,7 +5171,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 12.200001, y: 1.5, z: 5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 7.8, y: 3, z: 0.19999981}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 201578210}
@@ -5197,6 +5198,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 7.8, y: 3, z: 0.19999981}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &621936516
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 621936513}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d88bc0b1282739044859784ecdbd7e49, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &621936517
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 621936513}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &656692213
 GameObject:
   m_ObjectHideFlags: 0
@@ -7241,7 +7299,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -7277,7 +7335,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f1a0000000000000000000000000002, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Interaction.ScenarioInteractable
-  grabbable: 0
+  grabbable: 1
   activatable: 1
   inspectable: 0
   interactionEnabled: 1
@@ -7314,7 +7372,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 895553919}
   scenario: {fileID: 895553917}
-  inspectOnSelect: 0
 --- !u!114 &895553919
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7329,7 +7386,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -8499,12 +8556,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1088224048}
   - component: {fileID: 1088224049}
+  - component: {fileID: 1088224051}
+  - component: {fileID: 1088224050}
   m_Layer: 0
   m_Name: Wall_Elevator_East_Seg0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 22
+  m_StaticEditorFlags: 4
   m_IsActive: 1
 --- !u!4 &1088224048
 Transform:
@@ -8516,7 +8575,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 16, y: 1.5, z: 6.5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.20000076, y: 3, z: 2.8000002}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1042940981}
@@ -8543,6 +8602,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.20000076, y: 3, z: 2.8000002}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1088224050
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1088224047}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d88bc0b1282739044859784ecdbd7e49, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1088224051
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1088224047}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1090845371
 GameObject:
   m_ObjectHideFlags: 0
@@ -8660,7 +8776,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 1126586728}
   scenario: {fileID: 1126586725}
-  inspectOnSelect: 0
 --- !u!114 &1126586728
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8675,7 +8790,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -8862,7 +8977,7 @@ Transform:
   m_GameObject: {fileID: 1163393106}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 13.775, y: 1.5, z: 8}
+  m_LocalPosition: {x: 13.775, y: 1.5, z: 8.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10300,7 +10415,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 1375756675}
   scenario: {fileID: 1375756673}
-  inspectOnSelect: 0
 --- !u!114 &1375756675
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10315,7 +10429,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -10703,12 +10817,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1460983231}
   - component: {fileID: 1460983232}
+  - component: {fileID: 1460983234}
+  - component: {fileID: 1460983233}
   m_Layer: 0
   m_Name: Floor_Corridor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 22
+  m_StaticEditorFlags: 4
   m_IsActive: 1
 --- !u!4 &1460983231
 Transform:
@@ -10720,7 +10836,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 8, y: -0.05, z: 6.5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 16, y: 0.1, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1865461192}
@@ -10747,6 +10863,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 16, y: 0.1, z: 3}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1460983233
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1460983230}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 10a9330036dcd564b9844ec6ce68956c, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1460983234
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1460983230}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1461561747
 GameObject:
   m_ObjectHideFlags: 0
@@ -10773,7 +10946,7 @@ Transform:
   m_GameObject: {fileID: 1461561747}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 11, y: 2.55, z: 8}
+  m_LocalPosition: {x: 11, y: 2.55, z: 8.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -11479,7 +11652,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 1600850246}
   scenario: {fileID: 1600850243}
-  inspectOnSelect: 1
 --- !u!114 &1600850246
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11494,7 +11666,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -11711,13 +11883,13 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8923613230021497311, guid: 583f0418311629f4198bfebf8d7a7bcf, type: 3}
   m_PrefabInstance: {fileID: 1635281083}
   m_PrefabAsset: {fileID: 0}
---- !u!134 &1651869539
+--- !u!134 &1641783322
 PhysicsMaterial:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 
+  m_Name: ' (Instance)'
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -12005,12 +12177,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1718889794}
   - component: {fileID: 1718889795}
+  - component: {fileID: 1718889797}
+  - component: {fileID: 1718889796}
   m_Layer: 0
   m_Name: Wall_Corridor_South_Seg0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 22
+  m_StaticEditorFlags: 4
   m_IsActive: 1
 --- !u!4 &1718889794
 Transform:
@@ -12022,7 +12196,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 3.3, y: 1.5, z: 5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 6.7999997, y: 3, z: 0.19999981}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1278426802}
@@ -12049,6 +12223,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 6.7999997, y: 3, z: 0.19999981}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1718889796
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718889793}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d88bc0b1282739044859784ecdbd7e49, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1718889797
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1718889793}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1719033639
 GameObject:
   m_ObjectHideFlags: 0
@@ -12594,7 +12825,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3354075130410592099, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 8.12
+      value: 8.92
       objectReference: {fileID: 0}
     - target: {fileID: 3354075130410592099, guid: 2b4653f974c6f4a498fb82cb1b71f03e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -12694,7 +12925,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 1807569420}
   scenario: {fileID: 1807569417}
-  inspectOnSelect: 1
 --- !u!114 &1807569420
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12709,7 +12939,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -13290,7 +13520,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 1867436427}
   scenario: {fileID: 1867436424}
-  inspectOnSelect: 1
 --- !u!114 &1867436427
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13305,7 +13534,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -13507,7 +13736,7 @@ Transform:
   m_GameObject: {fileID: 1921391722}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.2250001, y: 1.5, z: 8}
+  m_LocalPosition: {x: 2.2250001, y: 1.5, z: 8.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -13794,12 +14023,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1984226634}
   - component: {fileID: 1984226635}
+  - component: {fileID: 1984226637}
+  - component: {fileID: 1984226636}
   m_Layer: 0
   m_Name: Wall_StairsInt_West_Seg0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 22
+  m_StaticEditorFlags: 4
   m_IsActive: 1
 --- !u!4 &1984226634
 Transform:
@@ -13811,7 +14042,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.5, z: 6.5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.2, y: 3, z: 2.8000002}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 613831756}
@@ -13838,6 +14069,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.2, y: 3, z: 2.8000002}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1984226636
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1984226633}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d88bc0b1282739044859784ecdbd7e49, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1984226637
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1984226633}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1993179865
 GameObject:
   m_ObjectHideFlags: 0
@@ -13895,7 +14183,7 @@ Transform:
   m_GameObject: {fileID: 1996935657}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: 2.55, z: 8}
+  m_LocalPosition: {x: 5, y: 2.55, z: 8.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14254,7 +14542,7 @@ Transform:
   m_GameObject: {fileID: 2040175698}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8, y: 1.5, z: 8}
+  m_LocalPosition: {x: 8, y: 1.5, z: 8.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14487,7 +14775,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5146358739412979893, guid: 277a8a47740c2b841afb6e42517a1991, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 8
+      value: 8.76
       objectReference: {fileID: 0}
     - target: {fileID: 5146358739412979893, guid: 277a8a47740c2b841afb6e42517a1991, type: 3}
       propertyPath: m_LocalRotation.w
@@ -14574,7 +14862,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Integration.EvacInteractableBridge
   interactable: {fileID: 2075735594}
   scenario: {fileID: 2075735592}
-  inspectOnSelect: 0
 --- !u!114 &2075735594
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14589,7 +14876,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
   canSelect: 1
   canGrab: 1
-  followsHand: 1
+  followsHand: 0
   hoverEntered:
     m_PersistentCalls:
       m_Calls: []

@@ -77,6 +77,11 @@ namespace SI81.MachineLock.EditorTools
                 CheckScenario(scene, mission, ref errors);
                 CheckForbiddenComponents(scene, ref errors);
                 CheckBuildSettings(ref errors);
+                CheckPrefabs(ref errors);
+                CheckTriangleBudget(scene, ref errors);
+                CheckLights(scene, ref errors);
+                CheckLabelAnchors(scene, ref errors);
+                CheckDryPerimeter(scene, ref errors);
             }
             finally
             {
@@ -266,12 +271,144 @@ namespace SI81.MachineLock.EditorTools
             return count - 1;
         }
 
+        // ------------------------------------------------------------------ P2 checks
+
+        /// <summary>
+        /// Checks that the twelve production-named prefabs exist and that none of them has a missing
+        /// MonoBehaviour or a broken reference (GDD §14.2).
+        /// </summary>
+        private static void CheckPrefabs(ref int errors)
+        {
+            int missingScripts = 0;
+            foreach (string name in MachineLockSceneBuilder.PREFAB_NAMES)
+            {
+                string path = MachineLockSceneBuilder.PREFAB_DIR + "/" + name + ".prefab";
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null)
+                {
+                    errors += Error($"Prefab not found: {path}");
+                    continue;
+                }
+
+                foreach (Component component in prefab.GetComponentsInChildren<Component>(true))
+                    if (component == null) missingScripts++;
+            }
+            Debug.Log($"[MachineLockValidator] Prefabs={MachineLockSceneBuilder.PREFAB_NAMES.Length} MissingScripts={missingScripts}");
+            if (missingScripts > 0)
+                errors += Error($"{missingScripts} missing script(s) found inside the Machine Lock prefabs.");
+        }
+
+        /// <summary>
+        /// Triangle budget of the whole scene, including every MeshFilter under every root.
+        /// </summary>
+        private static void CheckTriangleBudget(Scene scene, ref int errors)
+        {
+            long triangles = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (MeshFilter filter in root.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    Mesh mesh = filter.sharedMesh;
+                    if (mesh != null) triangles += mesh.triangles.Length / 3;
+                }
+            }
+            Debug.Log($"[MachineLockValidator] Triangles={triangles} Budget=100000");
+            if (triangles > 100000)
+                errors += Error($"Scene triangle count is {triangles}, above the 100000 budget.");
+        }
+
+        /// <summary>
+        /// Dynamic light budget: at most two realtime/mixed lights and at most one shadow caster.
+        /// Baked ceiling fixtures do not count (GDD §7.7).
+        /// </summary>
+        private static void CheckLights(Scene scene, ref int errors)
+        {
+            int realtime = 0;
+            int shadowCasters = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (Light light in root.GetComponentsInChildren<Light>(true))
+                {
+                    if (light == null || !light.enabled || !light.gameObject.activeInHierarchy) continue;
+                    if (light.lightmapBakeType != LightmapBakeType.Baked) realtime++;
+                    if (light.shadows != LightShadows.None) shadowCasters++;
+                }
+            }
+            Debug.Log($"[MachineLockValidator] RealtimeLights={realtime} ShadowLights={shadowCasters}");
+            if (realtime > 2)
+                errors += Error($"Scene has {realtime} active realtime/mixed lights; the budget is 2.");
+            if (shadowCasters > 1)
+                errors += Error($"Scene has {shadowCasters} shadow-casting lights; the budget is 1.");
+        }
+
+        /// <summary>
+        /// Exactly thirteen world labels and exactly three Risk labels (GDD §8.4).
+        /// </summary>
+        private static void CheckLabelAnchors(Scene scene, ref int errors)
+        {
+            int anchors = 0;
+            int risks = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (LabelAnchor anchor in root.GetComponentsInChildren<LabelAnchor>(true))
+                {
+                    if (anchor == null) continue;
+                    anchors++;
+                    if (anchor.Kind == LabelKind.Risk) risks++;
+                }
+            }
+            Debug.Log($"[MachineLockValidator] LabelAnchors={anchors} RiskLabels={risks}");
+            if (anchors != 13)
+                errors += Error($"Scene has {anchors} LabelAnchor components instead of the expected 13.");
+            if (risks != 3)
+                errors += Error($"Scene has {risks} Risk labels instead of the expected 3.");
+        }
+
+        /// <summary>
+        /// The three puddle variants must leave at least 1.5 m of dry perimeter on every side
+        /// (GDD §7.6): pattern extents are read from PATTERN_PuddleA/B/C in HAZARD_Oil.
+        /// </summary>
+        private static void CheckDryPerimeter(Scene scene, ref int errors)
+        {
+            string[] names = { "PATTERN_PuddleA", "PATTERN_PuddleB", "PATTERN_PuddleC" };
+            foreach (string name in names)
+            {
+                Transform pattern = FindDeep(scene, name);
+                if (pattern == null)
+                {
+                    errors += Error($"{name} is missing from HAZARD_Oil.");
+                    continue;
+                }
+
+                Vector3 position = pattern.position;
+                float halfX = Mathf.Abs(pattern.lossyScale.x) * 0.5f;
+                float halfZ = Mathf.Abs(pattern.lossyScale.z) * 0.5f;
+                float west = position.x - halfX + 6f;
+                float east = 6f - (position.x + halfX);
+                float south = position.z - halfZ + 4f;
+                float north = 4f - (position.z + halfZ);
+                Debug.Log($"[MachineLockValidator] {name} DryMargin W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00}");
+
+                if (west < 1.5f - 0.001f || east < 1.5f - 0.001f || south < 1.5f - 0.001f || north < 1.5f - 0.001f)
+                    errors += Error($"{name} leaves a dry perimeter below 1.5 m " +
+                                    $"(W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00}).");
+            }
+        }
+
         // ------------------------------------------------------------------ Utilities
 
         private static GameObject FindRoot(Scene scene, string name)
         {
             foreach (GameObject root in scene.GetRootGameObjects())
                 if (root.name == name) return root;
+            return null;
+        }
+
+        private static Transform FindDeep(Scene scene, string name)
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+                foreach (Transform transform in root.GetComponentsInChildren<Transform>(true))
+                    if (transform.name == name) return transform;
             return null;
         }
 

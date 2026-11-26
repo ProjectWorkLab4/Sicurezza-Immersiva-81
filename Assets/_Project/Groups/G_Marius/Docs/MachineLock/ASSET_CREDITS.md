@@ -8,7 +8,7 @@
 | Branch | `scenario/machine-lock` |
 | Asset source list | [`../ASSET_AUDIT_Scenario08_MachineLock.txt`](../ASSET_AUDIT_Scenario08_MachineLock.txt) |
 | Design reference | [`GDD_MachineLock.md`](GDD_MachineLock.md) — §17 Asset plan |
-| Status | Template — schema ready, tables populated in P2 (blockout and placeholders) and P8 (audio, VFX, lighting) |
+| Status | Populated in P2 (blockout and placeholders); audio and VFX rows follow in P8 |
 
 ---
 
@@ -79,19 +79,75 @@ later.
 
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| — | *(to be populated in P2)* | — | — | — | — | — | — | — | — |
+| 1 | `TEX_ConcreteFloorWorn_Albedo` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Albedo.jpg` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_diff_4k.jpg` | SI81 shared library | Project-owned (educational use) | Copied and renamed; 2048 default, Android override 1024 ASTC 6×6 | P2 |
+| 2 | `TEX_ConcreteFloorWorn_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Normal.exr` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_nor_gl_4k.exr` | SI81 shared library | Project-owned (educational use) | Copied and renamed; NormalMap; 2048 default, Android override 1024 ASTC 6×6 | P2 |
+| 3 | `TEX_ConcreteFloorWorn_Rough` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Rough.jpg` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_rough_4k.jpg` | SI81 shared library | Project-owned (educational use) | Copied and renamed; linear; 2048 default, Android override 1024 ASTC 6×6 | P2 |
+| 4 | `MAT_ConcreteFloorWorn` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_ConcreteFloorWorn.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/Material.036.mat` | SI81 shared library | Project-owned (educational use) | Copied from `Material.036`, rewired to the three group textures, tiling 6×4, URP Lit | P2 |
+| 5 | `MAT_PaintedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PaintedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropWhiteMetallic.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit unchanged | P2 |
+| 6 | `MAT_PolishedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PolishedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropPolishedMetal.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit unchanged | P2 |
+
+Shared FBX meshes are referenced directly from the prefabs and are **not** copied or edited:
+`GUANTO.fbx`, `MASCHERINA.fbx`, `OCCHIALI_PROTETTIVI.fbx`,
+`MESH_Magazzino_Cono.fbx`, `MESH_PANNO_ASSORBENTE_TEAM.fbx`, `Estintore.fbx`,
+`Quadro Elettrico.fbx`, `Manopola.fbx` and
+`Chemical_Alert_Room/MESH_PORTA_CAMION_TEAM.fbx`.
 
 ### 4.2 Assets authored in `G_Marius`
 
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| — | *(to be populated in P2)* | — | — | — | — | — | — | — | — |
+| 1 | `MAT_WallConcrete` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_WallConcrete.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit gray concrete | P2 |
+| 2 | `MAT_CeilingConcrete` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_CeilingConcrete.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit dark concrete | P2 |
+| 3 | `MAT_Oil` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Oil.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit (0.05, 0.03, 0.02), metallic 0, smoothness 0.9 | P2 |
+| 4 | `MAT_EmergencyStop_Red` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_EmergencyStop_Red.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit red | P2 |
+| 5 | `MAT_EmergencyStop_Yellow` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_EmergencyStop_Yellow.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit yellow | P2 |
+| 6 | `MAT_HMI_Screen` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_HMI_Screen.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit emissive fault screen | P2 |
+| 7 | `MAT_FaceShield_Visor` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_FaceShield_Visor.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit transparent visor (alpha 0.18) | P2 |
+| 8 | `MAT_Apron_Rubber` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Apron_Rubber.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit dark rubber | P2 |
+| 9 | `MAT_HeatGlove` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_HeatGlove.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit heat-resistant fabric | P2 |
+| 10 | `MAT_Latex` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Latex.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit white/cream, smoothness 0.85 | P2 |
+| 11 | `MAT_Respirator` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Respirator.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit off-white | P2 |
+| 12 | `MAT_FloorSafetyMarking_Yellow` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_FloorSafetyMarking_Yellow.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit yellow with faint emission; used on thin quads at y = 0.01 | P2 |
+| 13 | `MAT_BeaconRed` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_BeaconRed.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit emissive red dome | P2 |
+| 14 | `MAT_LedRed` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_LedRed.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit emissive red LED | P2 |
+| 15 | `MAT_LedGreen` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_LedGreen.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit emissive green LED | P2 |
+| 16 | `MAT_GhostSnap` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_GhostSnap.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit transparent green highlight | P2 |
+| 17 | `MAT_LightFixture` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_LightFixture.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit emissive ceiling diffuser | P2 |
+| 18 | `MAT_Sign_Stampaggio` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Sign_Stampaggio.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit with emission map for the sign texture | P2 |
+| 19 | `MAT_Sign_QuadroGenerale` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Sign_QuadroGenerale.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit with emission map for the sign texture | P2 |
+| 20 | `MAT_Sign_Dpi` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Sign_Dpi.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit with emission map for the sign texture | P2 |
+| 21 | `MAT_Sign_KitAntispandimento` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Sign_KitAntispandimento.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit with emission map for the sign texture | P2 |
+| 22 | `MAT_Sign_Uscita` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_Sign_Uscita.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit with emission map for the sign texture | P2 |
+| 23 | `TEX_Sign_Stampaggio` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_Stampaggio.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
+| 24 | `TEX_Sign_QuadroGenerale` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_QuadroGenerale.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
+| 25 | `TEX_Sign_Dpi` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_Dpi.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
+| 26 | `TEX_Sign_KitAntispandimento` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_KitAntispandimento.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
+| 27 | `TEX_Sign_Uscita` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_Uscita.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
 
 ### 4.3 Placeholders and grayboxes
 
+All prefabs below keep the final production name; their visual children can be replaced
+later without renaming the roots. They are built by
+`MachineLockSceneBuilder.BuildFullScene` from primitives and the Shared FBX meshes.
+
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| — | *(to be populated in P2)* | — | — | — | — | — | — | — | — |
+| 1 | `MESH_HydraulicPress` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_HydraulicPress.prefab` | Prefab | `PLACEHOLDER` | primitives + Shared materials | G_Marius | Project-owned (educational use) | Graybox frame, crown, columns, moving `MESH_HydraulicPress_Ram`, guard, control panel, display, thermometer, leak pipe | P2 |
+| 2 | `MESH_EStopPedestal` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_EStopPedestal.prefab` | Prefab | `PLACEHOLDER` | primitives | G_Marius | Project-owned (educational use) | Pedestal, yellow backplate, red mushroom, test-start button | P2 |
+| 3 | `MESH_AlarmButton` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AlarmButton.prefab` | Prefab | `PLACEHOLDER` | primitives | G_Marius | Project-owned (educational use) | Wall box, red button, red beacon dome with a realtime point light (disabled at start) | P2 |
+| 4 | `MESH_ElectricalPanel` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_ElectricalPanel.prefab` | Prefab | `PLACEHOLDER` | `Quadro Elettrico.fbx`, `Manopola.fbx` + primitives | G_Marius | Project-owned (educational use) | Cabinet, rotary disconnect, lockout point with red LED, voltage tester with red/green LEDs | P2 |
+| 5 | `MESH_PpeCabinet` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_PpeCabinet.prefab` | Prefab | `PLACEHOLDER` | primitives + `GUANTO.fbx`, `MASCHERINA.fbx`, `OCCHIALI_PROTETTIVI.fbx` | G_Marius | Project-owned (educational use) | Cabinet, hinged door, shelves and the six PPE items | P2 |
+| 6 | `MESH_SpillKit` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_SpillKit.prefab` | Prefab | `PLACEHOLDER` | primitives + nested `MESH_Cone`, `MESH_AbsorbentMat`, `MESH_AbsorbentSock` | G_Marius | Project-owned (educational use) | Cart/bin with four cones, two mats and two socks | P2 |
+| 7 | `MESH_WaterExtinguisher` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_WaterExtinguisher.prefab` | Prefab | `PLACEHOLDER` | `Estintore.fbx` + primitives | G_Marius | Project-owned (educational use) | 0.6 m body, wall bracket, capsule collider | P2 |
+| 8 | `MESH_Cone` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_Cone.prefab` | Prefab | `PLACEHOLDER` | `MESH_Magazzino_Cono.fbx` | G_Marius | Project-owned (educational use) | 0.5 m high, 0.3 m base, box collider | P2 |
+| 9 | `MESH_AbsorbentMat` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AbsorbentMat.prefab` | Prefab | `PLACEHOLDER` | `MESH_PANNO_ASSORBENTE_TEAM.fbx` | G_Marius | Project-owned (educational use) | 1.0 × 0.02 × 0.8 m, box collider | P2 |
+| 10 | `MESH_AbsorbentSock` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AbsorbentSock.prefab` | Prefab | `PLACEHOLDER` | primitive cylinder | G_Marius | Project-owned (educational use) | 1.2 × 0.15 × 0.15 m, capsule collider | P2 |
+| 11 | `MESH_Valve` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_Valve.prefab` | Prefab | `PLACEHOLDER` | primitives | G_Marius | Project-owned (educational use) | Pipe section, 0.3 m `MESH_Valve_Wheel`, box collider | P2 |
+| 12 | `MESH_IndustrialDoor_RollUp` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_IndustrialDoor_RollUp.prefab` | Prefab | `PLACEHOLDER` | `MESH_PORTA_CAMION_TEAM.fbx` + primitives | G_Marius | Project-owned (educational use) | Open frame around the 1.2 × 2.2 m doorway; no collider blocks the walk-through | P2 |
+
+The room itself is a graybox built directly in `SCN_MachineLock`: `MESH_Floor`,
+`MESH_Walls`, `MESH_Ceiling`, the sign quads, the yellow safety markings and the
+three baked ceiling fixtures are scene objects, not prefabs.
 
 ### 4.4 Downloaded third-party assets
 
@@ -144,8 +200,7 @@ verbatim so the build manifest and the store listing can reuse it.
 
 ## 7. Open items
 
-- Populate §4.1–§4.3 during P2, together with the blockout and placeholder
-  prefabs.
+- §4.1–§4.3 are populated for P2. Re-check them whenever a blockout asset is replaced.
 - Populate §4.4–§4.6 during P8, together with audio, VFX and lighting.
 - Confirm the license of every `[BRANCH]` asset copied from another group's
   branch before it is merged into the shared build.

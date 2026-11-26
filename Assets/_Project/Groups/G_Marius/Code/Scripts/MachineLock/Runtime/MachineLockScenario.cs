@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.IO;
 using SI81.Rig;
 using SI81.UI;
 using UnityEngine;
@@ -123,6 +125,7 @@ namespace SI81.MachineLock
         private bool actionStarted;
         private Coroutine playingLines;
         private Coroutine respawnRoutine;
+        private MachineLockPatternSelector patternSelector;
         private int forcedPatternIndex = -1;
         private DifficultyLevel? forcedLevel;
 
@@ -184,8 +187,8 @@ namespace SI81.MachineLock
         private DifficultyLevel EffectiveLevel => forcedLevel ?? Level;
 
         /// <summary>
-        /// Starts the scenario: creates the SPI, applies the layout pattern, starts the room tone, sets the
-        /// scan phase, plays the intro subtitles and shows the first hint.
+        /// Starts the scenario: creates the SPI, applies the layout pattern via the persistent shuffle-bag,
+        /// starts the room tone, sets the scan phase, plays the intro subtitles and shows the first hint.
         /// Called by the base controller once the HUD is ready.
         /// </summary>
         protected override void OnScenarioStarted()
@@ -198,7 +201,7 @@ namespace SI81.MachineLock
             spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(EffectiveLevel));
             spi.SetElapsed(0f);
 
-            int pattern = forcedPatternIndex >= 0 ? forcedPatternIndex : UnityEngine.Random.Range(0, 3);
+            int pattern = ResolvePatternSelector().NextPattern(forcedPatternIndex);
             ApplyLayoutPattern(pattern);
             StartAmbientAudio();
 
@@ -227,11 +230,11 @@ namespace SI81.MachineLock
 
         /// <summary>
         /// Drives the inaction timer while the press keeps running (GDD §9.12). The timer is stopped by
-        /// any E-stop; it is independent of the level time limit.
+        /// any E-stop or once exit handover begins; it is independent of the level time limit.
         /// </summary>
         private void Update()
         {
-            if (!IsRunning || ended || TaskEStop) return;
+            if (!IsRunning || ended || TaskEStop || TaskExit) return;
             AdvanceInaction(Time.deltaTime);
         }
 
@@ -459,24 +462,34 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// The player reached the exit. With the press still running the exit is blocked; otherwise
-        /// missing non-critical tasks are penalised, the supervisor line plays and the mission ends once.
+        /// Opens the shared <c>HUD_DecisionPanel</c> to ask the player whether they want to leave the
+        /// stamping room now (ADR-0006). Used by <see cref="MachineLockExitDoor"/>.
+        /// </summary>
+        /// <param name="onChosen">Callback invoked with 0 (confirm exit), 1 (stay), or -1 (timeout).</param>
+        /// <returns>true when the shared decision panel opened cleanly.</returns>
+        public bool RequestExitConfirmation(Action<int> onChosen)
+        {
+            if (ended || TaskExit) return false;
+            return AskDecision(
+                MachineLockTexts.ExitConfirmQuestion,
+                new[] { MachineLockTexts.ExitConfirmYes, MachineLockTexts.ExitConfirmNo },
+                onChosen,
+                0f);
+        }
+
+        /// <summary>
+        /// The player confirmed leaving the room through the west exit door (ADR-0006). Early Exit is
+        /// always allowed, even while the press is still running: missing tasks (including an active press)
+        /// are penalized at handover, the supervisor closing line plays, and the mission ends once.
         /// </summary>
         public void NotifyExitReached()
         {
-            if (ended) return;
-            if (!TaskEStop)
-            {
-                Alert(MachineLockTexts.ExitBlocked + "\n" + MachineLockTexts.ExitBlocked2);
-                return;
-            }
-            if (TaskExit) return;
-            if (spi == null) return;
+            if (ended || TaskExit || spi == null) return;
 
             TaskExit = true;
             actionStarted = true;
             ApplyHandoverPenalties();
-            Apply(SpiEvent.Exit);
+            if (TaskEStop) Apply(SpiEvent.Exit);
             RefreshObjectives();
 
             OutcomeType outcome = spi.EvaluateOutcome(BuildOutcomeInput());
@@ -814,6 +827,7 @@ namespace SI81.MachineLock
         private void ApplyHandoverPenalties()
         {
             if (spi == null) return;
+            if (!TaskEStop) spi.ApplyEvent(SpiEvent.MissingEStop);
             if (!TaskAlarm) spi.ApplyEvent(SpiEvent.MissingAlarm);
             if (!TaskMainOff) spi.ApplyEvent(SpiEvent.MissingMainOff);
             if (!TaskLockout) spi.ApplyEvent(SpiEvent.MissingLockout);
@@ -822,6 +836,17 @@ namespace SI81.MachineLock
                 if (conesPlaced < 4) spi.ApplyEvent(SpiEvent.MissingCones);
                 if (absorbentsPlaced < 4) spi.ApplyEvent(SpiEvent.MissingAbsorbents);
             }
+        }
+
+        private MachineLockPatternSelector ResolvePatternSelector()
+        {
+            if (patternSelector != null) return patternSelector;
+            int count = layoutPatterns != null && layoutPatterns.Length > 0
+                ? layoutPatterns.Length
+                : MachineLockPatternSelector.DEFAULT_PATTERN_COUNT;
+            string statePath = Path.Combine(Application.persistentDataPath, MachineLockPatternSelector.DEFAULT_FILE_NAME);
+            patternSelector = new MachineLockPatternSelector(statePath, count);
+            return patternSelector;
         }
 
         private MachineLockOutcomeInput BuildOutcomeInput()

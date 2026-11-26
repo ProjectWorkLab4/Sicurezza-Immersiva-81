@@ -88,7 +88,6 @@ namespace SI81.MachineLock
         private Color faultBaseColor = Color.white;
         private MaterialPropertyBlock propertyBlock;
         private Coroutine jogRoutine;
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true while the ram is cycling, i.e. until the E-stop or a power cut.</summary>
         public bool IsRunning => running;
@@ -117,31 +116,15 @@ namespace SI81.MachineLock
 
         private void OnEnable()
         {
-            if (estopInteractable != null)
-            {
-                estopInteractable.SelectEntered += OnEStopSelected;
-                estopInteractable.HoverEntered += OnEStopHovered;
-            }
-            if (testStartInteractable != null)
-            {
-                testStartInteractable.SelectEntered += OnTestStartSelected;
-                testStartInteractable.HoverEntered += OnTestStartHovered;
-            }
+            if (estopInteractable != null) estopInteractable.SelectEntered += OnEStopSelected;
+            if (testStartInteractable != null) testStartInteractable.SelectEntered += OnTestStartSelected;
             if (running && powered) PlayLoop();
         }
 
         private void OnDisable()
         {
-            if (estopInteractable != null)
-            {
-                estopInteractable.SelectEntered -= OnEStopSelected;
-                estopInteractable.HoverEntered -= OnEStopHovered;
-            }
-            if (testStartInteractable != null)
-            {
-                testStartInteractable.SelectEntered -= OnTestStartSelected;
-                testStartInteractable.HoverEntered -= OnTestStartHovered;
-            }
+            if (estopInteractable != null) estopInteractable.SelectEntered -= OnEStopSelected;
+            if (testStartInteractable != null) testStartInteractable.SelectEntered -= OnTestStartSelected;
             if (jogRoutine != null) StopCoroutine(jogRoutine);
             jogRoutine = null;
             jogging = false;
@@ -404,24 +387,6 @@ namespace SI81.MachineLock
         private void OnTestStartSelected(Hand hand)
         {
             TryStart();
-        }
-
-        private void OnEStopHovered(Hand hand)
-        {
-            EmitHover(MachineLockTexts.HoverEStop, eStopPressed ? FeedbackKind.Positive : FeedbackKind.Neutral);
-        }
-
-        private void OnTestStartHovered(Hand hand)
-        {
-            EmitHover(MachineLockTexts.HoverTryStart, FeedbackKind.Neutral);
-        }
-
-        private void EmitHover(string text, FeedbackKind kind)
-        {
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < 0.3f) return;
-            lastHoverTime = now;
-            if (HUDService.IsReady) HUDService.ShowActionFeedback(text, kind);
         }
 
         /// <summary>

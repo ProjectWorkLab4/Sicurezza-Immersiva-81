@@ -33,8 +33,6 @@ namespace SI81.MachineLock
     [AddComponentMenu("SI81/MachineLock/Machine Lock PPE Item")]
     public sealed class MachineLockPpeItem : MonoBehaviour
     {
-        private const float HOVER_THROTTLE_SECONDS = 0.25f;
-
         [Header("Item")]
         [Tooltip("Slot this item fills once equipped.")]
         [SerializeField] private PpeSlot slot = PpeSlot.Gloves;
@@ -55,9 +53,9 @@ namespace SI81.MachineLock
         [Tooltip("Physical shelf badge/status plaque shown when this item is currently worn (\"<Nome DPI> indossato\").")]
         [SerializeField] private GameObject equippedBadgeVisual;
 
+        private readonly MachineLockHoverFeedback hoverFeedback = new MachineLockHoverFeedback();
         private Interactable wiredInteractable;
         private bool cabinetOpen;
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>Slot this item fills once equipped.</summary>
         public PpeSlot Slot => slot;
@@ -68,7 +66,7 @@ namespace SI81.MachineLock
         /// <summary>true while the item is worn and therefore hidden from the cabinet shelf.</summary>
         public bool IsEquipped { get; private set; }
         /// <summary>Most recent hover Action Feedback string emitted for this item.</summary>
-        public string LastHoverFeedback { get; private set; } = string.Empty;
+        public string LastHoverFeedback => hoverFeedback.LastFeedback;
         /// <summary>true when the shelf equipped status indicator is active.</summary>
         public bool IsEquippedShelfStatusVisible => equippedBadgeVisual != null ? equippedBadgeVisual.activeSelf : IsEquipped;
 
@@ -125,30 +123,20 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Emits the hover Action Feedback for this PPE item (throttled cleanly).
-        /// Called automatically by <see cref="Interactable.HoverEntered"/>.
+        /// Emits the hover Action Feedback for this PPE item immediately, subject to global cooldown.
+        /// Regular VR ray hovers go through the continuous dwell timer in <see cref="OnHoverEntered"/>.
         /// </summary>
         public void EmitHoverFeedback()
         {
             if (!cabinetOpen && !IsEquipped) return;
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS)
-            {
-                // Always refresh LastHoverFeedback if state changed (e.g. immediately after equip).
-                string currentText = GetHoverFeedbackText();
-                if (LastHoverFeedback == currentText) return;
-            }
+            hoverFeedback.TryEmitNow(GetHoverFeedbackText(), ResolveHoverKind());
+        }
 
-            lastHoverTime = now;
-            string text = GetHoverFeedbackText();
-            LastHoverFeedback = text;
-            if (HUDService.IsReady)
-            {
-                FeedbackKind kind = IsEquipped
-                    ? (isCorrect ? FeedbackKind.Positive : FeedbackKind.Negative)
-                    : FeedbackKind.Neutral;
-                HUDService.ShowActionFeedback(text, kind);
-            }
+        private FeedbackKind ResolveHoverKind()
+        {
+            return IsEquipped
+                ? (isCorrect ? FeedbackKind.Positive : FeedbackKind.Negative)
+                : FeedbackKind.Neutral;
         }
 
         /// <summary>
@@ -191,7 +179,13 @@ namespace SI81.MachineLock
 
         private void OnDisable()
         {
+            hoverFeedback.CancelHover();
             Unwire();
+        }
+
+        private void Update()
+        {
+            hoverFeedback.Tick();
         }
 
         private void ResolveCabinet()
@@ -213,6 +207,7 @@ namespace SI81.MachineLock
             wiredInteractable = interactable;
             wiredInteractable.SelectEntered += OnSelectEntered;
             wiredInteractable.HoverEntered += OnHoverEntered;
+            wiredInteractable.HoverExited += OnHoverExited;
         }
 
         private void Unwire()
@@ -220,18 +215,26 @@ namespace SI81.MachineLock
             if (wiredInteractable == null) return;
             wiredInteractable.SelectEntered -= OnSelectEntered;
             wiredInteractable.HoverEntered -= OnHoverEntered;
+            wiredInteractable.HoverExited -= OnHoverExited;
             wiredInteractable = null;
         }
 
         private void OnSelectEntered(Hand hand)
         {
+            hoverFeedback.CancelHover();
             ResolveCabinet();
             if (cabinet != null) cabinet.Equip(this);
         }
 
         private void OnHoverEntered(Hand hand)
         {
-            EmitHoverFeedback();
+            if (!cabinetOpen && !IsEquipped) return;
+            hoverFeedback.BeginHover(GetHoverFeedbackText(), ResolveHoverKind());
+        }
+
+        private void OnHoverExited(Hand hand)
+        {
+            hoverFeedback.CancelHover();
         }
 
         private void ApplySelectable()

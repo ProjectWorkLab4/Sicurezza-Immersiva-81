@@ -18,8 +18,6 @@ namespace SI81.MachineLock
     [AddComponentMenu("SI81/MachineLock/Machine Lock PPE Cabinet")]
     public sealed class MachineLockPpeCabinet : MonoBehaviour
     {
-        private const float HOVER_THROTTLE_SECONDS = 0.25f;
-
         [Header("Wiring")]
         [Tooltip("Scenario that receives the PPE feedback and the count changes.")]
         [SerializeField] private MachineLockScenario scenario;
@@ -57,7 +55,6 @@ namespace SI81.MachineLock
         private Interactable wiredInteractable;
         private Interactable wiredSecondaryInteractable;
         private readonly List<Collider> resolvedDoorColliders = new List<Collider>();
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true after the door was opened. Opening is idempotent.</summary>
         public bool IsOpen { get; private set; }
@@ -251,26 +248,16 @@ namespace SI81.MachineLock
         {
             if (cabinetInteractable != null && wiredInteractable != cabinetInteractable)
             {
-                if (wiredInteractable != null)
-                {
-                    wiredInteractable.SelectEntered -= OnCabinetSelected;
-                    wiredInteractable.HoverEntered -= OnCabinetHovered;
-                }
+                if (wiredInteractable != null) wiredInteractable.SelectEntered -= OnCabinetSelected;
                 wiredInteractable = cabinetInteractable;
                 wiredInteractable.SelectEntered += OnCabinetSelected;
-                wiredInteractable.HoverEntered += OnCabinetHovered;
             }
 
             if (secondaryDoorInteractable != null && wiredSecondaryInteractable != secondaryDoorInteractable)
             {
-                if (wiredSecondaryInteractable != null)
-                {
-                    wiredSecondaryInteractable.SelectEntered -= OnCabinetSelected;
-                    wiredSecondaryInteractable.HoverEntered -= OnCabinetHovered;
-                }
+                if (wiredSecondaryInteractable != null) wiredSecondaryInteractable.SelectEntered -= OnCabinetSelected;
                 wiredSecondaryInteractable = secondaryDoorInteractable;
                 wiredSecondaryInteractable.SelectEntered += OnCabinetSelected;
-                wiredSecondaryInteractable.HoverEntered += OnCabinetHovered;
             }
         }
 
@@ -279,13 +266,11 @@ namespace SI81.MachineLock
             if (wiredInteractable != null)
             {
                 wiredInteractable.SelectEntered -= OnCabinetSelected;
-                wiredInteractable.HoverEntered -= OnCabinetHovered;
                 wiredInteractable = null;
             }
             if (wiredSecondaryInteractable != null)
             {
                 wiredSecondaryInteractable.SelectEntered -= OnCabinetSelected;
-                wiredSecondaryInteractable.HoverEntered -= OnCabinetHovered;
                 wiredSecondaryInteractable = null;
             }
         }
@@ -293,16 +278,6 @@ namespace SI81.MachineLock
         private void OnCabinetSelected(Hand hand)
         {
             Open();
-        }
-
-        private void OnCabinetHovered(Hand hand)
-        {
-            if (IsOpen) return;
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS) return;
-            lastHoverTime = now;
-            if (HUDService.IsReady)
-                HUDService.ShowActionFeedback(MachineLockTexts.HoverPpeCabinetClosed, FeedbackKind.Neutral);
         }
 
         private void PlayOneShot(AudioClip clip)

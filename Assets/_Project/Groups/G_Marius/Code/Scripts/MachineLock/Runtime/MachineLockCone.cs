@@ -21,7 +21,6 @@ namespace SI81.MachineLock
     {
         private const float DEFAULT_SNAP_RADIUS = 0.6f;
         private const int FREEZE_FRAMES = 2;
-        private const float HOVER_THROTTLE_SECONDS = 0.35f;
 
         [Header("Wiring")]
         [Tooltip("Spill system that owns the zones, the ghost hint and the containment count.")]
@@ -42,12 +41,9 @@ namespace SI81.MachineLock
         private Interactable wiredInteractable;
         private Rigidbody body;
         private int freezeFrames;
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true after the cone snapped to a zone. A placed cone cannot be grabbed again.</summary>
         public bool Snapped { get; private set; }
-        /// <summary>Most recent hover Action Feedback string emitted for this cone.</summary>
-        public string LastHoverFeedback { get; private set; } = string.Empty;
 
         /// <summary>
         /// Ensures physical collisions with the active player <see cref="CharacterController"/> are ignored
@@ -176,7 +172,6 @@ namespace SI81.MachineLock
             if (interactable == null || wiredInteractable == interactable) return;
             Unwire();
             wiredInteractable = interactable;
-            wiredInteractable.HoverEntered += OnHoverEntered;
             wiredInteractable.GrabEntered += OnGrabEntered;
             wiredInteractable.GrabExited += OnGrabExited;
         }
@@ -184,21 +179,9 @@ namespace SI81.MachineLock
         private void Unwire()
         {
             if (wiredInteractable == null) return;
-            wiredInteractable.HoverEntered -= OnHoverEntered;
             wiredInteractable.GrabEntered -= OnGrabEntered;
             wiredInteractable.GrabExited -= OnGrabExited;
             wiredInteractable = null;
-        }
-
-        private void OnHoverEntered(Hand hand)
-        {
-            if (Snapped) return;
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS) return;
-            lastHoverTime = now;
-            LastHoverFeedback = MachineLockTexts.HoverCone;
-            if (HUDService.IsReady)
-                HUDService.ShowActionFeedback(LastHoverFeedback, FeedbackKind.Neutral);
         }
 
         private void OnGrabEntered(Hand hand)

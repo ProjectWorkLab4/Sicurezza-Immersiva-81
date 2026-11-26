@@ -36,6 +36,8 @@ MonoBehaviour:
   waterSafetyPenalty: 5
   tryStartSafetyPenalty: 5
   criticalDecisionPenalty: 10
+  missingEStopSafetyPenalty: 20
+  missingEStopDecisionPenalty: 40
   missingAlarmPenalty: 8
   missingMainPenalty: 2
   missingLockoutPenalty: 2

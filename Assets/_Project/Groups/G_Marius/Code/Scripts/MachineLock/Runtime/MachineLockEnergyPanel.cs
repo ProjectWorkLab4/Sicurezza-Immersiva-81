@@ -25,7 +25,6 @@ namespace SI81.MachineLock
         private const float DEFAULT_ENERGIZED_PROBABILITY = 0.5f;
         private const float SWITCH_OFF_ANGLE = -80f;
         private const float ARC_PULSE_SECONDS = 0.35f;
-        private const float HOVER_THROTTLE_SECONDS = 0.25f;
 
         private static readonly WaitForSeconds ArcPulseWait = new WaitForSeconds(ARC_PULSE_SECONDS);
 
@@ -46,6 +45,8 @@ namespace SI81.MachineLock
         [SerializeField] private Interactable testerInteractable;
         [Tooltip("Rotary disconnect handle on the Main Disconnect Switch Sub-Station.")]
         [SerializeField] private Transform switchHandle;
+        [Tooltip("Local rotation axis of the rotary disconnect handle (Z for legacy box, X for front-facing shaft).")]
+        [SerializeField] private Vector3 switchRotationAxis = Vector3.forward;
 
         [Header("LEDs & Status Lamps")]
         [Tooltip("Optional ON (red) indicator on the Main Disconnect Switch Sub-Station.")]
@@ -79,10 +80,10 @@ namespace SI81.MachineLock
         [Tooltip("Beep of the voltage tester.")]
         [SerializeField] private AudioClip testerBeepClip;
 
+        private readonly MachineLockHoverFeedback hoverFeedback = new MachineLockHoverFeedback();
         private Quaternion switchOnRotation;
         private Coroutine arcRoutine;
         private ParticleSystem arcParticles;
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true while the main circuit is closed (starts ON, GDD §9.3).</summary>
         public bool MainPowerOn { get; private set; } = true;
@@ -95,7 +96,7 @@ namespace SI81.MachineLock
         /// <summary>true after the tester confirmed ZERO.</summary>
         public bool TesterZero { get; private set; }
         /// <summary>Most recent hover Action Feedback string emitted by any of the three Sub-Stations.</summary>
-        public string LastHoverFeedback { get; private set; } = string.Empty;
+        public string LastHoverFeedback => hoverFeedback.LastFeedback;
 
         private void Awake()
         {
@@ -127,16 +128,19 @@ namespace SI81.MachineLock
             {
                 mainSwitchInteractable.SelectEntered += OnMainSwitchSelected;
                 mainSwitchInteractable.HoverEntered += OnMainSwitchHovered;
+                mainSwitchInteractable.HoverExited += OnSubStationHoverExited;
             }
             if (lockoutInteractable != null)
             {
                 lockoutInteractable.SelectEntered += OnLockoutSelected;
                 lockoutInteractable.HoverEntered += OnLockoutHovered;
+                lockoutInteractable.HoverExited += OnSubStationHoverExited;
             }
             if (testerInteractable != null)
             {
                 testerInteractable.SelectEntered += OnTesterSelected;
                 testerInteractable.HoverEntered += OnTesterHovered;
+                testerInteractable.HoverExited += OnSubStationHoverExited;
             }
         }
 
@@ -146,17 +150,21 @@ namespace SI81.MachineLock
             {
                 mainSwitchInteractable.SelectEntered -= OnMainSwitchSelected;
                 mainSwitchInteractable.HoverEntered -= OnMainSwitchHovered;
+                mainSwitchInteractable.HoverExited -= OnSubStationHoverExited;
             }
             if (lockoutInteractable != null)
             {
                 lockoutInteractable.SelectEntered -= OnLockoutSelected;
                 lockoutInteractable.HoverEntered -= OnLockoutHovered;
+                lockoutInteractable.HoverExited -= OnSubStationHoverExited;
             }
             if (testerInteractable != null)
             {
                 testerInteractable.SelectEntered -= OnTesterSelected;
                 testerInteractable.HoverEntered -= OnTesterHovered;
+                testerInteractable.HoverExited -= OnSubStationHoverExited;
             }
+            hoverFeedback.CancelHover();
             if (arcRoutine != null) StopCoroutine(arcRoutine);
             arcRoutine = null;
             if (arcParticles != null) arcParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -165,6 +173,7 @@ namespace SI81.MachineLock
 
         private void Update()
         {
+            hoverFeedback.Tick();
             if (MainPowerOn || Charge01 <= 0f) return;
             float decaySeconds = config != null ? config.energyDecaySeconds : DEFAULT_DECAY_SECONDS;
             if (decaySeconds <= 0f)
@@ -329,14 +338,9 @@ namespace SI81.MachineLock
             ApplyLed(lockoutReadyLedRenderer, (!MainPowerOn && !LockedOut) ? ledGreenMaterial : ledOffMaterial);
         }
 
-        private void EmitHoverFeedback(string text, FeedbackKind kind)
+        private void BeginSubStationHover(string text, FeedbackKind kind)
         {
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS && LastHoverFeedback == text)
-                return;
-            lastHoverTime = now;
-            LastHoverFeedback = text;
-            if (HUDService.IsReady) HUDService.ShowActionFeedback(text, kind);
+            hoverFeedback.BeginHover(text, kind);
         }
 
         private void ShowLive(bool pulseArc)
@@ -366,9 +370,10 @@ namespace SI81.MachineLock
         private void ApplySwitchHandle(bool on)
         {
             if (switchHandle == null) return;
+            Vector3 axis = switchRotationAxis.sqrMagnitude > 0.0001f ? switchRotationAxis.normalized : Vector3.forward;
             switchHandle.localRotation = on
                 ? switchOnRotation
-                : switchOnRotation * Quaternion.Euler(0f, 0f, SWITCH_OFF_ANGLE);
+                : switchOnRotation * Quaternion.AngleAxis(SWITCH_OFF_ANGLE, axis);
         }
 
         private void SetLockoutSelectable(bool selectable)
@@ -388,24 +393,43 @@ namespace SI81.MachineLock
             oneShotAudio.PlayOneShot(clip);
         }
 
-        private void OnMainSwitchSelected(Hand hand) => OpenMainSwitch();
-        private void OnLockoutSelected(Hand hand) => ApplyLockout();
-        private void OnTesterSelected(Hand hand) => ReadTester();
+        private void OnMainSwitchSelected(Hand hand)
+        {
+            hoverFeedback.CancelHover();
+            OpenMainSwitch();
+        }
+
+        private void OnLockoutSelected(Hand hand)
+        {
+            hoverFeedback.CancelHover();
+            ApplyLockout();
+        }
+
+        private void OnTesterSelected(Hand hand)
+        {
+            hoverFeedback.CancelHover();
+            ReadTester();
+        }
 
         private void OnMainSwitchHovered(Hand hand)
         {
-            EmitHoverFeedback(GetMainSwitchHoverText(), MainPowerOn ? FeedbackKind.Neutral : FeedbackKind.Positive);
+            BeginSubStationHover(GetMainSwitchHoverText(), MainPowerOn ? FeedbackKind.Neutral : FeedbackKind.Positive);
         }
 
         private void OnLockoutHovered(Hand hand)
         {
             FeedbackKind kind = LockedOut ? FeedbackKind.Positive : (MainPowerOn ? FeedbackKind.Negative : FeedbackKind.Neutral);
-            EmitHoverFeedback(GetLockoutHoverText(), kind);
+            BeginSubStationHover(GetLockoutHoverText(), kind);
         }
 
         private void OnTesterHovered(Hand hand)
         {
-            EmitHoverFeedback(GetTesterHoverText(), TesterZero ? FeedbackKind.Positive : FeedbackKind.Neutral);
+            BeginSubStationHover(GetTesterHoverText(), TesterZero ? FeedbackKind.Positive : FeedbackKind.Neutral);
+        }
+
+        private void OnSubStationHoverExited(Hand hand)
+        {
+            hoverFeedback.CancelHover();
         }
     }
 }

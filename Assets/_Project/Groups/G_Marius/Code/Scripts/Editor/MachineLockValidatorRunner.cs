@@ -16,10 +16,13 @@ using UnityEngine.SceneManagement;
 namespace SI81.MachineLock.EditorTools
 {
     /// <summary>
-    /// Batchmode validator of the Machine Lock scenario. Runs the shared scenario validator through
-    /// reflection and enforces all Issue #35 / ADR-0001..0004 architectural, Quest 3 budget, ASTC,
-    /// building-shell, Dry Perimeter, non-overlapping electrical Sub-Station, 4-slot PPE, particle,
-    /// light, audio, and damage-profile gates. Exits 0 only with zero errors and zero warnings.
+    /// Validator of the Machine Lock scenario (batchmode and interactive Editor). Runs the shared
+    /// ScenarioValidator through reflection and enforces all ADR-0002..0006 &amp; Issue #36-#42 gates:
+    /// low-poly WorkshopShell (&lt;= 12k tris), total triangle budget (&lt;= 100k), ASTC overrides,
+    /// zero displacement maps, zero DoorRollHousing/sausage/gas-detector legacy artifacts, uniform
+    /// extinguisher/cone scales, SPLAT oil puddle quadrants, ISO 7010 signage, MachineLockExitDoor
+    /// without ScenarioTrigger, Dry Perimeter &gt;= 2.5 m, electrical Sub-Station separation, 4-slot PPE,
+    /// updated audio clips, particles, lights, and damage feedback serialization.
     /// </summary>
     public static class MachineLockValidatorRunner
     {
@@ -27,14 +30,27 @@ namespace SI81.MachineLock.EditorTools
         private const string SCENE_PATH = MachineLockSceneBuilder.SCENE_PATH;
         private const string CORE_SCENE_PATH = MachineLockSceneBuilder.CORE_SCENE_PATH;
         private const string MOCK_SCENE_PATH = MachineLockSceneBuilder.MOCK_SCENE_PATH;
+        private const int WORKSHOP_SHELL_TRI_BUDGET = 12000;
+        private const int SCENE_TRI_BUDGET = 100000;
 
         /// <summary>
-        /// Validates SCN_MachineLock and exits with 0 when clean, 1 otherwise.
+        /// Runs validation inside a live Editor session without calling <see cref="EditorApplication.Exit"/>.
         /// </summary>
-        public static void ValidateScene()
+        [MenuItem("SI81/MachineLock/Validate Scene (In Editor)")]
+        public static void ValidateSceneInteractive()
         {
-            int errors = 0;
-            int warnings = 0;
+            ValidateSceneInEditor(out int errors, out int warnings);
+            Debug.Log($"[MachineLockValidator] Interactive run complete: Errors={errors} Warnings={warnings}");
+        }
+
+        /// <summary>
+        /// Runs every validation gate against SCN_MachineLock and returns the error/warning counts
+        /// without terminating the Unity Editor process.
+        /// </summary>
+        public static bool ValidateSceneInEditor(out int errors, out int warnings)
+        {
+            errors = 0;
+            warnings = 0;
             try
             {
                 Validate(ref errors, ref warnings);
@@ -45,7 +61,17 @@ namespace SI81.MachineLock.EditorTools
             }
 
             Debug.Log($"[MachineLockValidator] Errors={errors} Warnings={warnings}");
-            EditorApplication.Exit(errors > 0 || warnings > 0 ? 1 : 0);
+            return errors == 0 && warnings == 0;
+        }
+
+        /// <summary>
+        /// Batchmode entry point: validates SCN_MachineLock and exits with 0 when clean, 1 otherwise.
+        /// </summary>
+        public static void ValidateScene()
+        {
+            bool clean = ValidateSceneInEditor(out _, out _);
+            if (Application.isBatchMode)
+                EditorApplication.Exit(clean ? 0 : 1);
         }
 
         private static void Validate(ref int errors, ref int warnings)
@@ -79,7 +105,9 @@ namespace SI81.MachineLock.EditorTools
                 CheckScenario(scene, mission, ref errors);
                 CheckForbiddenComponents(scene, ref errors);
                 CheckBuildSettings(ref errors);
-                CheckIndustrialBuildingShell(scene, ref errors);
+                CheckWorkshopShellAndLegacyCleanup(scene, ref errors);
+                CheckHeroPropScaleAndSplatPuddle(scene, ref errors);
+                CheckIsoSignagePresence(scene, ref errors);
                 CheckTextureAstcAndDisplacement(scene, ref errors);
                 CheckPrefabs(ref errors);
                 CheckTriangleBudget(scene, ref errors);
@@ -90,7 +118,7 @@ namespace SI81.MachineLock.EditorTools
                 CheckElectricalAndPpeWiring(scene, ref errors);
                 CheckRuntimeComponents(scene, ref errors);
                 CheckParticles(scene, ref errors);
-                CheckAudioClips(ref errors);
+                CheckAudioClips(scene, ref errors);
                 CheckDamageProfile(ref errors);
                 CheckDamageFeedbackSerialization(scene, ref errors);
             }
@@ -167,7 +195,7 @@ namespace SI81.MachineLock.EditorTools
             Debug.Log($"[MachineLockValidator] Shared scenario validator returned {count} issue(s).");
         }
 
-        // ------------------------------------------------------------------ Shell, spawn, scenario, build settings
+        // ------------------------------------------------------------------ Spawn, scenario, build settings
 
         private static void CheckSpawnPoint(Scene scene, ref int errors)
         {
@@ -189,7 +217,7 @@ namespace SI81.MachineLock.EditorTools
 
             float yaw = Mathf.Abs(Mathf.DeltaAngle(spawn.transform.eulerAngles.y, MachineLockSceneBuilder.SPAWN_EULER.y));
             if (yaw > 0.1f)
-                errors += Error($"MNG_SpawnPoint yaw is {spawn.transform.eulerAngles.y:0.000}° instead of {MachineLockSceneBuilder.SPAWN_EULER.y}°.");
+                errors += Error($"MNG_SpawnPoint yaw is {spawn.transform.eulerAngles.y:0.000} deg instead of {MachineLockSceneBuilder.SPAWN_EULER.y} deg.");
         }
 
         private static void CheckScenario(Scene scene, MissionDefinition mission, ref int errors)
@@ -282,62 +310,157 @@ namespace SI81.MachineLock.EditorTools
             return count - 1;
         }
 
-        // ------------------------------------------------------------------ Industrial building & ASTC checks
+        // ------------------------------------------------------------------ Workshop shell, hero assets, signage & ASTC
 
         /// <summary>
-        /// Verifies that the shared PFB_OldIndustrialBuilding shell is present in SCN_MachineLock
-        /// with intact renderers and zero missing scripts (ADR-0001).
+        /// Enforces ADR-0005 workshop shell triangle budget (&lt;= 12,000 tris) and confirms legacy
+        /// high-poly building, roll-up housing, and pixel-font banner/plaque artifacts are absent.
         /// </summary>
-        private static void CheckIndustrialBuildingShell(Scene scene, ref int errors)
+        private static void CheckWorkshopShellAndLegacyCleanup(Scene scene, ref int errors)
         {
-            Transform building = FindDeep(scene, "PFB_OldIndustrialBuilding");
-            if (building == null)
+            Transform shell = FindDeep(scene, "MESH_WorkshopShell");
+            if (shell == null)
             {
-                errors += Error("PFB_OldIndustrialBuilding shell is missing from SCN_MachineLock (ADR-0001).");
+                errors += Error("MESH_WorkshopShell is missing from SCN_MachineLock (ADR-0005).");
                 return;
             }
-            int renderers = building.GetComponentsInChildren<MeshRenderer>(true).Length;
-            int missing = 0;
-            foreach (Transform t in building.GetComponentsInChildren<Transform>(true))
-                missing += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject);
-            Debug.Log($"[MachineLockValidator] IndustrialBuilding=Present Renderers={renderers} MissingScripts={missing}");
-            if (renderers < 2)
-                errors += Error($"PFB_OldIndustrialBuilding has only {renderers} MeshRenderer(s).");
-            if (missing > 0)
-                errors += Error($"PFB_OldIndustrialBuilding has {missing} missing script(s).");
+
+            long shellTris = 0;
+            int renderers = 0;
+            foreach (MeshFilter mf in shell.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                renderers++;
+                shellTris += mf.sharedMesh.triangles.Length / 3;
+            }
+
+            Debug.Log($"[MachineLockValidator] WorkshopShell Renderers={renderers} Tris={shellTris} Budget={WORKSHOP_SHELL_TRI_BUDGET}");
+            if (renderers < 1)
+                errors += Error("MESH_WorkshopShell has no rendered meshes.");
+            if (shellTris > WORKSHOP_SHELL_TRI_BUDGET)
+                errors += Error($"MESH_WorkshopShell triangle count is {shellTris}, above the {WORKSHOP_SHELL_TRI_BUDGET} budget.");
+
+            // Legacy artifacts removed in Issue #36 must be absent from the scene.
+            string[] forbiddenLegacyNames =
+            {
+                "PFB_OldIndustrialBuilding",
+                "MESH_DoorRollHousing",
+                "MESH_SignStampaggio",
+                "MESH_SignQuadroGenerale",
+                "MESH_SignDpi",
+                "MESH_SignKitAntispandimento",
+                "MESH_SignUscita",
+                "MESH_PlaqueAlarm",
+                "MESH_PlaqueValveFront",
+                "MESH_PlaqueSpillKit",
+                "MESH_PlaqueExtinguisher",
+                "MESH_PlaqueExitHeader"
+            };
+            foreach (string legacy in forbiddenLegacyNames)
+            {
+                if (FindDeep(scene, legacy) != null)
+                    errors += Error($"Legacy object '{legacy}' must be removed in Issue #36.");
+            }
         }
 
         /// <summary>
-        /// Validates Android ASTC overrides (&lt;= 2048) across all active building and PBR textures
-        /// (albedo, normal, roughness/AO/spec) and confirms no rendered material references an 8K displacement map.
+        /// Verifies uniform non-squashed local scales on the water extinguisher and all four cones,
+        /// and checks that the organic four-quadrant oil puddle binds <c>MAT_Oil</c>.
+        /// </summary>
+        private static void CheckHeroPropScaleAndSplatPuddle(Scene scene, ref int errors)
+        {
+            // Verify Water Extinguisher & Traffic Cones have uniform non-squashed local scale.
+            Transform ext = FindDeep(scene, "MESH_ExtinguisherBody");
+            if (ext == null)
+                errors += Error("MESH_ExtinguisherBody not found inside MESH_WaterExtinguisher.");
+            else if (!IsNearlyUniform(ext.localScale))
+                errors += Error($"MESH_ExtinguisherBody has squashed non-uniform scale {ext.localScale}.");
+
+            int conesChecked = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (MachineLockCone cone in root.GetComponentsInChildren<MachineLockCone>(true))
+                {
+                    Transform body = cone.transform.Find("MESH_ConeBody");
+                    if (body == null)
+                    {
+                        errors += Error($"Cone {cone.name} is missing MESH_ConeBody.");
+                        continue;
+                    }
+                    conesChecked++;
+                    if (!IsNearlyUniform(body.localScale))
+                        errors += Error($"Cone {cone.name}/MESH_ConeBody has squashed non-uniform scale {body.localScale}.");
+                }
+            }
+            if (conesChecked != 4)
+                errors += Error($"Expected 4 MESH_ConeBody checks, found {conesChecked}.");
+
+            // Verify organic oil puddle quadrants exist and bind glossy MAT_Oil.
+            string[] quadNames = { "MESH_PuddleQuadrantNE", "MESH_PuddleQuadrantNW", "MESH_PuddleQuadrantSE", "MESH_PuddleQuadrantSW" };
+            long splatTris = 0;
+            foreach (string qName in quadNames)
+            {
+                Transform q = FindDeep(scene, qName);
+                if (q == null)
+                {
+                    errors += Error($"Missing organic oil puddle quadrant: {qName}.");
+                    continue;
+                }
+                MeshFilter mf = q.GetComponentInChildren<MeshFilter>(true);
+                MeshRenderer mr = q.GetComponentInChildren<MeshRenderer>(true);
+                if (mf == null || mf.sharedMesh == null || mr == null)
+                {
+                    errors += Error($"Oil puddle quadrant {qName} has no rendered mesh.");
+                    continue;
+                }
+                splatTris += mf.sharedMesh.triangles.Length / 3;
+                if (mr.sharedMaterial == null || mr.sharedMaterial.name != "MAT_Oil")
+                    errors += Error($"Oil puddle quadrant {qName} must use MAT_Oil (actual: {mr.sharedMaterial?.name ?? "null"}).");
+            }
+            Debug.Log($"[MachineLockValidator] SplatOilPuddle Quadrants=4 Tris={splatTris}");
+            if (splatTris < 200)
+                errors += Error($"Oil puddle triangle count ({splatTris}) looks like legacy boxes instead of MESH_OilPuddleSplat.");
+        }
+
+        /// <summary>
+        /// Verifies that every UNI EN ISO 7010 safety sign defined in
+        /// <see cref="MachineLockSceneBuilder.ISO_SIGN_KEYS"/> is placed in the scene.
+        /// </summary>
+        private static void CheckIsoSignagePresence(Scene scene, ref int errors)
+        {
+            int found = 0;
+            foreach (string key in MachineLockSceneBuilder.ISO_SIGN_KEYS)
+            {
+                string signObjectName = "MESH_IsoSign_" + key;
+                if (FindDeep(scene, signObjectName) != null) found++;
+                else errors += Error($"Missing UNI EN ISO 7010 safety sign in SCN_MachineLock: {signObjectName}.");
+            }
+            Debug.Log($"[MachineLockValidator] Iso7010Signs={found}/{MachineLockSceneBuilder.ISO_SIGN_KEYS.Length}");
+        }
+
+        /// <summary>
+        /// Enforces Quest 3 Android ASTC overrides (&lt;= 2048) across all scenario PBR, signage, and
+        /// plaque textures, and guarantees no scene material binds a displacement or legacy sausage map.
         /// </summary>
         private static void CheckTextureAstcAndDisplacement(Scene scene, ref int errors)
         {
-            string[] buildingTexPaths =
-            {
-                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingbase.jpg",
-                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingNormalMap.jpg",
-                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingAmbientOcclusionMap.jpg",
-                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingSpecularMap.jpg",
-                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/TexturesCom_ConcreteBare0348_1_S.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Albedo.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Normal.exr",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Rough.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Albedo.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Normal.exr",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Rough.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Albedo.jpg",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Normal.exr",
-                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Rough.jpg"
-            };
+            var requiredTextures = new List<string>(MachineLockSceneBuilder.PBR_TEXTURE_FILES.Length
+                + MachineLockSceneBuilder.ISO_SIGN_KEYS.Length
+                + MachineLockSceneBuilder.METAL_PLAQUE_KEYS.Length);
+            foreach (string file in MachineLockSceneBuilder.PBR_TEXTURE_FILES)
+                requiredTextures.Add($"{MachineLockSceneBuilder.TEXTURE_DIR}/{file}");
+            foreach (string key in MachineLockSceneBuilder.ISO_SIGN_KEYS)
+                requiredTextures.Add($"{MachineLockSceneBuilder.TEXTURE_DIR}/TEX_IsoSign_{key}.png");
+            foreach (string key in MachineLockSceneBuilder.METAL_PLAQUE_KEYS)
+                requiredTextures.Add($"{MachineLockSceneBuilder.TEXTURE_DIR}/TEX_Plaque_{key}.png");
 
             int checkedCount = 0;
-            foreach (string path in buildingTexPaths)
+            foreach (string path in requiredTextures)
             {
                 var importer = AssetImporter.GetAtPath(path) as TextureImporter;
                 if (importer == null)
                 {
-                    errors += Error($"Expected PBR/building texture missing: {path}");
+                    errors += Error($"Expected PBR/signage texture missing: {path}");
                     continue;
                 }
                 checkedCount++;
@@ -352,8 +475,8 @@ namespace SI81.MachineLock.EditorTools
                 }
             }
 
-            // Ensure the 8K buildingDisplacementMap is NOT referenced by any material rendered in SCN_MachineLock.
-            int displacementRefs = 0;
+            // Ensure no rendered material references a displacement or sausage texture.
+            int badTextureRefs = 0;
             var seenMaterials = new HashSet<Material>();
             foreach (GameObject root in scene.GetRootGameObjects())
             {
@@ -368,17 +491,23 @@ namespace SI81.MachineLock.EditorTools
                         {
                             if (mat.shader.GetPropertyType(i) != ShaderPropertyType.Texture) continue;
                             Texture tex = mat.GetTexture(mat.shader.GetPropertyNameId(i));
-                            if (tex != null && tex.name.IndexOf("Displacement", StringComparison.OrdinalIgnoreCase) >= 0)
+                            if (tex == null) continue;
+                            if (tex.name.IndexOf("Displacement", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
-                                displacementRefs++;
+                                badTextureRefs++;
                                 errors += Error($"Material {mat.name} references displacement texture {tex.name} on Quest 3.");
+                            }
+                            if (tex.name.IndexOf("SAUSAGE", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                badTextureRefs++;
+                                errors += Error($"Material {mat.name} still references legacy sausage texture {tex.name}.");
                             }
                         }
                     }
                 }
             }
 
-            Debug.Log($"[MachineLockValidator] AstcTexturesChecked={checkedCount}/{buildingTexPaths.Length} DisplacementRefs={displacementRefs}");
+            Debug.Log($"[MachineLockValidator] AstcTexturesChecked={checkedCount}/{requiredTextures.Count} BadTextureRefs={badTextureRefs}");
         }
 
         // ------------------------------------------------------------------ Prefabs, budgets, labels, dry perimeter
@@ -415,9 +544,9 @@ namespace SI81.MachineLock.EditorTools
                     if (mesh != null) triangles += mesh.triangles.Length / 3;
                 }
             }
-            Debug.Log($"[MachineLockValidator] Triangles={triangles} Budget=100000");
-            if (triangles > 100000)
-                errors += Error($"Scene triangle count is {triangles}, above the 100000 budget.");
+            Debug.Log($"[MachineLockValidator] Triangles={triangles} Budget={SCENE_TRI_BUDGET}");
+            if (triangles > SCENE_TRI_BUDGET)
+                errors += Error($"Scene triangle count is {triangles}, above the {SCENE_TRI_BUDGET} budget.");
         }
 
         private static void CheckLights(Scene scene, ref int errors)
@@ -493,7 +622,6 @@ namespace SI81.MachineLock.EditorTools
 
         private static void CheckElectricalAndPpeWiring(Scene scene, ref int errors)
         {
-            // Verify electrical Sub-Stations are physically separated (>= 0.55 m apart).
             Transform mainSub = FindDeep(scene, "SUB_MainDisconnect");
             Transform lockSub = FindDeep(scene, "SUB_LockoutStation");
             Transform testSub = FindDeep(scene, "SUB_VoltageTester");
@@ -510,7 +638,6 @@ namespace SI81.MachineLock.EditorTools
                     errors += Error($"Electrical Sub-Stations are too close (Main-Lock={d1:0.00}m, Lock-Tester={d2:0.00}m; minimum 0.55 m).");
             }
 
-            // Verify 4-slot PPE wiring: Gloves, Body, Face, Feet (4 correct + 2 distractors on Gloves & Face).
             int correctCount = 0;
             int distractorCount = 0;
             bool hasFeet = false;
@@ -555,11 +682,13 @@ namespace SI81.MachineLock.EditorTools
             int snapZones = CountInScene<MachineLockSnapZone>(scene);
             int observations = CountInScene<MachineLockObservationTarget>(scene);
             int feedback = CountInScene<MachineLockDamageFeedback>(scene);
+            int exitDoors = CountInScene<MachineLockExitDoor>(scene);
+            int legacyTriggers = CountInScene<ScenarioTrigger>(scene);
 
             Debug.Log($"[MachineLockValidator] Runtime Press={press} Alarm={alarm} Panel={panel} " +
                       $"Extinguisher={extinguisher} Cabinet={cabinet} PpeItems={ppeItems} Valve={valve} " +
                       $"Spill={spill} Cones={cones} Absorbents={absorbents} SnapZones={snapZones} " +
-                      $"ObservationTargets={observations} DamageFeedback={feedback}");
+                      $"ObservationTargets={observations} DamageFeedback={feedback} ExitDoors={exitDoors} LegacyTriggers={legacyTriggers}");
 
             errors += Expect(press, 1, "MachineLockPress");
             errors += Expect(alarm, 1, "MachineLockAlarm");
@@ -574,6 +703,8 @@ namespace SI81.MachineLock.EditorTools
             errors += Expect(snapZones, 8, "MachineLockSnapZone");
             errors += Expect(observations, 6, "MachineLockObservationTarget");
             errors += Expect(feedback, 1, "MachineLockDamageFeedback");
+            errors += Expect(exitDoors, 1, "MachineLockExitDoor");
+            errors += Expect(legacyTriggers, 0, "Legacy ScenarioTrigger");
 
             int missingScripts = CountMissingScripts(scene);
             Debug.Log($"[MachineLockValidator] SceneMissingScripts={missingScripts}");
@@ -603,7 +734,7 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error($"{playOnAwake} particle systems play on awake; the budget is 4.");
         }
 
-        private static void CheckAudioClips(ref int errors)
+        private static void CheckAudioClips(Scene scene, ref int errors)
         {
             int expected = MachineLockSceneBuilder.AUDIO_CLIPS.Length + 1;
             int loaded = 0;
@@ -611,7 +742,35 @@ namespace SI81.MachineLock.EditorTools
                 loaded += CheckAudioClip(MachineLockSceneBuilder.SOUND_DIR + "/" + clip, ref errors);
             loaded += CheckAudioClip(MachineLockSceneBuilder.MUSIC_DIR + "/" + MachineLockSceneBuilder.AMBIENT_CLIP, ref errors);
 
-            Debug.Log($"[MachineLockValidator] AudioClips={loaded}/{expected}");
+            // Verify scenario audio clip wiring: SFX_ElectricShock on DamageFeedback, SFX_MechanicalButton on Press, SFX_AlarmSiren on Alarm.
+            GameObject manager = FindRoot(scene, "MNG_Scenario");
+            MachineLockDamageFeedback feedback = manager != null ? manager.GetComponent<MachineLockDamageFeedback>() : null;
+            if (feedback != null)
+            {
+                var shockClip = new SerializedObject(feedback).FindProperty("shockClip").objectReferenceValue as AudioClip;
+                if (shockClip == null || shockClip.name != "SFX_ElectricShock")
+                    errors += Error($"MachineLockDamageFeedback.shockClip must be SFX_ElectricShock (actual: {shockClip?.name ?? "null"}).");
+            }
+
+            Transform pressTransform = FindDeep(scene, "MESH_HydraulicPress");
+            MachineLockPress press = pressTransform != null ? pressTransform.GetComponent<MachineLockPress>() : null;
+            if (press != null)
+            {
+                var clackClip = new SerializedObject(press).FindProperty("clackClip").objectReferenceValue as AudioClip;
+                if (clackClip == null || clackClip.name != "SFX_MechanicalButton")
+                    errors += Error($"MachineLockPress.clackClip must be SFX_MechanicalButton (actual: {clackClip?.name ?? "null"}).");
+            }
+
+            Transform alarmTransform = FindDeep(scene, "MESH_AlarmButton");
+            MachineLockAlarm alarm = alarmTransform != null ? alarmTransform.GetComponent<MachineLockAlarm>() : null;
+            if (alarm != null)
+            {
+                var sirenSrc = new SerializedObject(alarm).FindProperty("sirenAudio").objectReferenceValue as AudioSource;
+                if (sirenSrc == null || sirenSrc.clip == null || sirenSrc.clip.name != "SFX_AlarmSiren" || !sirenSrc.loop)
+                    errors += Error("MachineLockAlarm.sirenAudio must loop SFX_AlarmSiren.");
+            }
+
+            Debug.Log($"[MachineLockValidator] AudioClips={loaded}/{expected} AudioWiringVerified=True");
             if (loaded != expected)
                 errors += Error($"{expected - loaded} audio clip(s) of the GDD §13.1 set are missing.");
         }
@@ -632,10 +791,8 @@ namespace SI81.MachineLock.EditorTools
                 return;
             }
 
-            Vignette vignette;
-            bool hasVignette = profile.TryGet(out vignette) && vignette != null;
-            ColorAdjustments adjustments;
-            bool hasAdjustments = profile.TryGet(out adjustments) && adjustments != null;
+            bool hasVignette = profile.TryGet(out Vignette vignette) && vignette != null;
+            bool hasAdjustments = profile.TryGet(out ColorAdjustments adjustments) && adjustments != null;
 
             Debug.Log($"[MachineLockValidator] DamageProfile Vignette={hasVignette} ColorAdjustments={hasAdjustments}");
             if (!hasVignette)
@@ -645,9 +802,8 @@ namespace SI81.MachineLock.EditorTools
         }
 
         /// <summary>
-        /// Verifies that solid non-trigger floor colliders exist beneath Spawn, the Dry Perimeter
-        /// corridors, and across the open West doorway alcove up to BOUND_WestBackstop so the
-        /// player cannot drop through the floor when walking into a blocked exit.
+        /// Probes key walking coordinates across the active bay and exit vestibule to ensure solid
+        /// non-trigger floor colliders cover the full locomotion surface without step-down gaps.
         /// </summary>
         private static void CheckWalkableFloorContinuity(Scene scene, ref int errors)
         {
@@ -658,7 +814,6 @@ namespace SI81.MachineLock.EditorTools
                 {
                     if (col == null || !col.enabled || col.isTrigger) continue;
                     Bounds b = col.bounds;
-                    // Floor slabs sit near y = 0 (top surface within [-0.15, +0.15]).
                     if (b.max.y >= -0.15f && b.max.y <= 0.15f && b.size.x >= 1.0f && b.size.z >= 1.0f)
                         floorColliders.Add(col);
                 }
@@ -697,8 +852,8 @@ namespace SI81.MachineLock.EditorTools
         }
 
         /// <summary>
-        /// Verifies serialized timing and overlay-material wiring on MachineLockDamageFeedback
-        /// (ADR-0003: fadeIn=0.15s, hold=0.5s, fadeOut=1.5s, non-null overlayMaterialAsset).
+        /// Verifies that <see cref="MachineLockDamageFeedback"/> serializes the ADR-0003 stereo overlay
+        /// material and exact fade-in/hold/fade-out timings (0.15 / 0.50 / 1.50 s).
         /// </summary>
         private static void CheckDamageFeedbackSerialization(Scene scene, ref int errors)
         {
@@ -721,6 +876,16 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error("MachineLockDamageFeedback.overlayMaterialAsset is not assigned.");
             if (Mathf.Abs(fadeIn - 0.15f) > 0.02f || Mathf.Abs(hold - 0.50f) > 0.05f || Mathf.Abs(fadeOut - 1.50f) > 0.05f)
                 errors += Error($"MachineLockDamageFeedback timings ({fadeIn}/{hold}/{fadeOut}) diverge from spec (0.15/0.50/1.50).");
+        }
+
+        private static bool IsNearlyUniform(Vector3 scale)
+        {
+            float sx = Mathf.Abs(scale.x);
+            float sy = Mathf.Abs(scale.y);
+            float sz = Mathf.Abs(scale.z);
+            float max = Mathf.Max(sx, Mathf.Max(sy, sz));
+            float min = Mathf.Min(sx, Mathf.Min(sy, sz));
+            return max > 0.001f && (max - min) / max < 0.05f;
         }
 
         private static int CountInScene<T>(Scene scene) where T : Component

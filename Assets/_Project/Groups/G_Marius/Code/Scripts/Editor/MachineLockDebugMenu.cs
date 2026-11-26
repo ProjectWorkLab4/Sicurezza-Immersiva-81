@@ -281,6 +281,25 @@ namespace SI81.MachineLock.EditorTools
                 badEnding.Spi == 49
                 && badEnding.EvaluateOutcome(Input(true, false, false)) == OutcomeType.Negative,
                 "spi=" + badEnding.Spi);
+
+            MachineLockSpi earlyExitGuided = CreateSpi(SpiTimeMode.Guided, 20f);
+            earlyExitGuided.ApplyEvent(SpiEvent.MissingEStop);
+            Check("ScoreExample_EarlyExitMissingEStopGuided_Is0Negative",
+                earlyExitGuided.Spi == 0
+                && Nearly(earlyExitGuided.Safety, 0f)
+                && Nearly(earlyExitGuided.Decision, 0f)
+                && Nearly(earlyExitGuided.TimePoints, 0f)
+                && earlyExitGuided.EvaluateOutcome(Input(true, false, false, true)) == OutcomeType.Negative,
+                "spi=" + earlyExitGuided.Spi);
+
+            MachineLockSpi earlyExitOp = CreateSpi(SpiTimeMode.Realistic, 45f);
+            ObserveAll(earlyExitOp);
+            earlyExitOp.ApplyEvent(SpiEvent.Alarm);
+            earlyExitOp.ApplyEvent(SpiEvent.MissingEStop);
+            Check("ScoreExample_EarlyExitMissingEStopOperational_Is0Negative",
+                earlyExitOp.Spi == 0
+                && earlyExitOp.EvaluateOutcome(Input(true, false, false, true)) == OutcomeType.Negative,
+                "spi=" + earlyExitOp.Spi);
         }
 
         // =====================================================================

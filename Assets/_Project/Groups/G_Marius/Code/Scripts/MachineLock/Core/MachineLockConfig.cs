@@ -87,6 +87,10 @@ namespace SI81.MachineLock
         public int criticalDecisionPenalty = 10;
 
         [Header("Decision penalties")]
+        [Tooltip("Safety penalty when abandoning the room while the press is still running (Early Exit).")]
+        public int missingEStopSafetyPenalty = 20;
+        [Tooltip("Decision penalty when abandoning the room while the press is still running (Early Exit).")]
+        public int missingEStopDecisionPenalty = 40;
         [Tooltip("Decision penalty when leaving without the alarm.")]
         public int missingAlarmPenalty = 8;
         [Tooltip("Decision penalty when leaving without the main switch open.")]
@@ -179,6 +183,8 @@ namespace SI81.MachineLock
                 WaterSafetyPenalty = waterSafetyPenalty,
                 TryStartSafetyPenalty = tryStartSafetyPenalty,
                 CriticalDecisionPenalty = criticalDecisionPenalty,
+                MissingEStopSafetyPenalty = missingEStopSafetyPenalty,
+                MissingEStopDecisionPenalty = missingEStopDecisionPenalty,
                 MissingAlarmPenalty = missingAlarmPenalty,
                 MissingMainPenalty = missingMainPenalty,
                 MissingLockoutPenalty = missingLockoutPenalty,

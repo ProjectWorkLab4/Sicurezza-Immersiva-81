@@ -54,6 +54,8 @@ namespace SI81.MachineLock
         ApproachBeforeEStop,
         /// <summary>Player approached the live puddle danger zone before main power was off.</summary>
         ApproachLiveBeforeMainOff,
+        /// <summary>Early Exit while the press is still running: severe Safety/Decision penalty and critical debrief line.</summary>
+        MissingEStop,
         /// <summary>Handover without the department alarm.</summary>
         MissingAlarm,
         /// <summary>Handover without the main switch open.</summary>
@@ -116,6 +118,8 @@ namespace SI81.MachineLock
         CriticalWrongPpe,
         /// <summary>Bad Ending 2: the press kept working.</summary>
         CriticalInaction,
+        /// <summary>Early Exit while the press is still running.</summary>
+        CriticalMissingEStop,
         /// <summary>Exit without the alarm.</summary>
         BadMissingAlarm,
         /// <summary>Exit without main off or lockout.</summary>
@@ -152,6 +156,10 @@ namespace SI81.MachineLock
         public int TryStartSafetyPenalty = 5;
         /// <summary>Decision penalty of a critical event.</summary>
         public int CriticalDecisionPenalty = 10;
+        /// <summary>Safety penalty when leaving the room while the press is still running (Early Exit).</summary>
+        public int MissingEStopSafetyPenalty = 20;
+        /// <summary>Decision penalty when leaving the room while the press is still running (Early Exit).</summary>
+        public int MissingEStopDecisionPenalty = 40;
         /// <summary>Decision penalty for a handover without the alarm.</summary>
         public int MissingAlarmPenalty = 8;
         /// <summary>Decision penalty for a handover without the main switch open.</summary>
@@ -251,6 +259,7 @@ namespace SI81.MachineLock
         private bool approachBeforeEStopApplied;
         private bool approachLiveApplied;
         private bool timeoutApplied;
+        private bool missingEStopApplied;
 
         private float lastCriticalSeconds = float.NegativeInfinity;
 
@@ -287,19 +296,22 @@ namespace SI81.MachineLock
             ? 0f
             : options.AwarenessMax * Math.Min(observedIds.Count, options.AwarenessTargets) / (float)options.AwarenessTargets;
 
-        /// <summary>Time dimension, 0 to 5. Proportional to the unused part of the level budget.</summary>
+        /// <summary>Time dimension, 0 to 5. Proportional to the unused part of the level budget (forfeited on Early Exit without E-stop).</summary>
         public float TimePoints
         {
             get
             {
+                if (missingEStopApplied) return 0f;
                 if (options.TimeLimitSeconds <= 0f) return options.TimeMax;
                 float remaining = (options.TimeLimitSeconds - Elapsed) / options.TimeLimitSeconds;
                 return options.TimeMax * Clamp01(remaining);
             }
         }
 
-        /// <summary>Weighted SPI, rounded and clamped to 0..100.</summary>
-        public int Spi => Clamp(RoundToInt(Safety + Awareness + Decision + Execution + TimePoints), 0, SPI_MAX);
+        /// <summary>Weighted SPI, rounded and clamped to 0..100 (zeroed on Early Exit without E-stop in Operational/Crisis).</summary>
+        public int Spi => missingEStopApplied && options.HardEndAtLimit
+            ? 0
+            : Clamp(RoundToInt(Safety + Awareness + Decision + Execution + TimePoints), 0, SPI_MAX);
 
         /// <summary>Task flag: E-stop pressed.</summary>
         public bool TaskEStop => taskEStop;
@@ -457,6 +469,15 @@ namespace SI81.MachineLock
                     if (approachLiveApplied) return;
                     approachLiveApplied = true;
                     AddDecision(-options.CriticalDecisionPenalty);
+                    break;
+
+                case SpiEvent.MissingEStop:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingEStop)) return;
+                    missingEStopApplied = true;
+                    Safety = Math.Max(0f, Safety - options.MissingEStopSafetyPenalty);
+                    AddDecision(-options.MissingEStopDecisionPenalty);
+                    AddLine(DebriefLineId.CriticalMissingEStop, false, true);
+                    CriticalOccurred = true;
                     break;
 
                 case SpiEvent.MissingAlarm:

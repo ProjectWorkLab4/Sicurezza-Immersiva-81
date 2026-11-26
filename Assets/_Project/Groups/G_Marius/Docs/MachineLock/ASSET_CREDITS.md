@@ -7,188 +7,175 @@
 | Owner | G_Marius |
 | Branch | `scenario/machine-lock` |
 | Asset source list | [`../ASSET_AUDIT_Scenario08_MachineLock.txt`](../ASSET_AUDIT_Scenario08_MachineLock.txt) |
-| Design reference | [`GDD_MachineLock.md`](GDD_MachineLock.md) — §17 Asset plan |
-| Status | Complete for Issue #35: `PFB_OldIndustrialBuilding` shell + ASTC textures, upgraded Shared FBX props, Polyhaven CC0 PBR textures, 16 Diegetic Plaques, 16 authentic workshop audio clips, 10 VFX systems, damage overlay shader & URP volume profile |
+| Design reference | [`GDD_MachineLock.md`](GDD_MachineLock.md) — §17 Asset plan, ADR-0005, ADR-0006 |
+| Status | Complete for Issue #36 (#37–#42): Blender-authored `MESH_WorkshopShell` (~3.5k tris) + 20 Blender hero/dressing/spill FBXs, 7 PolyHaven CC0 PBR texture sets, 14 UNI EN ISO 7010 signs, 6 brushed-metal plaques, organic `MESH_SPLAT` oil puddle, 18 authentic workshop audio clips |
 
 ---
 
 ## 1. Purpose
 
-Every third-party, shared-library and generated asset used by Scenario 08 gets one
-row in this file. The file exists so that the project can prove, at review time,
-where each asset came from and under which license it is used.
+Every third-party, shared-library and authored asset used by Scenario 08 gets one row in this file so the project can prove, at review time, where each asset came from and under which license it is used.
 
-The scenario may only ship assets that are:
+The scenario ships only assets that are:
 
-1. copied from or referenced directly in the project's own `Assets/_Project/Shared/` library, or
+1. copied from or referenced directly in `Assets/_Project/Shared/`, or
 2. created inside `Assets/_Project/Groups/G_Marius/`, or
-3. downloaded under a license that allows redistribution inside a built
-   application, with the source, author and license recorded below.
-
-Anything else is not allowed in the build.
+3. downloaded under a permissive license (`CC0-1.0`, `CC-BY-4.0`, `Public Domain`) recorded below.
 
 ## 2. Rules
 
-These rules restate the GDD asset policy (§17) and the repository rules in
-[`README.md`](../../../../../../README.md).
-
-- **Never edit pre-existing `Shared/` originals.** Copy textures/materials into
-  `Assets/_Project/Groups/G_Marius/` before customizing, or reference Shared FBX
-  meshes directly from group prefabs/scene instances without modifying the FBX.
-- **Never edit another group's folder.** Assets from `origin/gruppo_ludovica`
-  (`SFX_FKC_Siren.wav`, `SFX_FKC_Alarm.wav`) are copied into `G_Marius` and
-  recorded below.
-- **Root names keep the production convention** (`MESH_HydraulicPress`,
-  `MAT_Oil`, `SFX_AlarmSiren`, …) so art swaps never break serialized references.
-- **No new packages.** URP decals only if the renderer feature is already enabled.
-- **Downscale high-resolution textures** to 1024 or 2048 ASTC 6×6 (or 512/1024 ASTC 4×4
-  for signage/plaques) on Android/Quest 3, and omit 8K displacement maps from Quest 3
-  materials. Record every override in the *Modifications* column.
-- **Player-facing text stays in code, plaques, or localization data**, not in asset names.
+- **Never edit `Assets/_Project/Home/` or pre-existing `Assets/_Project/Shared/` originals.** Copy Shared textures/materials into `Assets/_Project/Groups/G_Marius/` before customizing, or reference Shared FBXs read-only.
+- **Root names keep the production convention** (`MESH_HydraulicPress`, `MAT_Oil`, `SFX_AlarmSiren`, …).
+- **No new packages.**
+- **Android / Quest 3 texture optimization:** 1024 ASTC 6×6 for PBR maps, 512/1024 ASTC 4×4 for ISO 7010 signage and plaques; zero displacement maps on Quest 3 materials.
 
 ## 3. Status vocabulary
 
 | Status | Meaning |
 |---|---|
-| `SHARED` | Supplied in `Assets/_Project/Shared/` (referenced directly or copied into `G_Marius`). |
-| `GROUP` | Authored inside `G_Marius` (shader, material, prefab, texture, config). |
+| `SHARED` | Supplied in `Assets/_Project/Shared/` (referenced read-only or copied into `G_Marius`). |
+| `GROUP` | Authored inside `G_Marius` (Blender 5.0 FBX, shader, material, prefab, ISO 7010 sign, config). |
 | `BRANCH` | Copied from another SI81 team branch (`origin/gruppo_ludovica`) into `G_Marius`. |
 | `DOWNLOADED` | Third-party asset with a verified reachable URL and redistribution license recorded below. |
-| `GENERATED` | Procedurally produced in-repo (`MachineLockSceneBuilder` plaques, signs, VFX). |
+| `GENERATED` | Procedurally produced in-repo (`MachineLockSceneBuilder` VFX, lighting, procedural normal maps). |
+
+---
 
 ## 4. Credit tables
 
-### 4.1 Shared library assets copied into `G_Marius` or added in `Shared/`
+### 4.1 Shared library assets referenced read-only or copied into `G_Marius`
 
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | `TEX_ConcreteFloorWorn_Albedo` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Albedo.jpg` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_diff_4k.jpg` | SI81 shared library | Project-owned (educational use) | Copied and renamed; 2048 default, Android 1024 ASTC 6×6 | P2 |
-| 2 | `TEX_ConcreteFloorWorn_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Normal.exr` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_nor_gl_4k.exr` | SI81 shared library | Project-owned (educational use) | Copied and renamed; NormalMap; 2048 default, Android 1024 ASTC 6×6 | P2 |
-| 3 | `TEX_ConcreteFloorWorn_Rough` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteFloorWorn_Rough.jpg` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_rough_4k.jpg` | SI81 shared library | Project-owned (educational use) | Copied and renamed; linear; 2048 default, Android 1024 ASTC 6×6 | P2 |
-| 4 | `MAT_ConcreteFloorWorn` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_ConcreteFloorWorn.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/Material.036.mat` | SI81 shared library | Project-owned (educational use) | Copied from `Material.036`, rewired to group textures, URP Lit | P2 |
-| 5 | `MAT_PaintedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PaintedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropWhiteMetallic.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit | P2 |
-| 6 | `MAT_PolishedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PolishedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropPolishedMetal.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit | P2 |
-| 7 | `PFB_OldIndustrialBuilding` | `Assets/_Project/Shared/Art/Models/PFB_OldIndustrialBuilding.fbx` | Model | `SHARED` | Team Shared asset drop (Issue #35 / ADR-0001) | SI81 shared library | Project-owned (educational use) | Referenced directly in `SCN_MachineLock`; scene instance omits `building top` exterior roof (saving 21,748 tris) and uses scenario URP Lit materials | Issue #35 |
-| 8 | `buildingbase.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/buildingbase.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | 8192×2148 source; `.meta` clamped to 2048 default, Android 2048 ASTC 6×6 | Issue #35 |
-| 9 | `buildingNormalMap.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/buildingNormalMap.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | 8192×2148 source; NormalMap, 2048 default, Android 1024 ASTC 6×6 | Issue #35 |
-| 10 | `buildingAmbientOcclusionMap.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/buildingAmbientOcclusionMap.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | 8192×2148 source; linear, 1024 default, Android 1024 ASTC 6×6 | Issue #35 |
-| 11 | `buildingSpecularMap.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/buildingSpecularMap.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | 8192×2148 source; linear, 1024 default, Android 1024 ASTC 6×6 | Issue #35 |
-| 12 | `TexturesCom_ConcreteBare0348_1_S.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/TexturesCom_ConcreteBare0348_1_S.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | 1024×1024; Android 1024 ASTC 6×6 | Issue #35 |
-| 13 | `buildingDisplacementMap.jpg` | `Assets/_Project/Shared/Art/Textures/TEX_OldIndustrialBuilding/buildingDisplacementMap.jpg` | Texture | `SHARED` | Team Shared asset drop (`TEX_OldIndustrialBuilding`) | SI81 shared library | Project-owned (educational use) | **Unreferenced** on Quest 3 URP Lit materials (displacement omitted); Android import capped at 256 ASTC 6×6 | Issue #35 |
-| 14 | `TEX_Glove_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Glove_Normal.png` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/NORMAL_GUANTO.png` | SI81 shared library | Project-owned (educational use) | Copied into `G_Marius`; NormalMap; Android 1024 ASTC 6×6 | Issue #35 |
-| 15 | `TEX_AbsorbentMat_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_AbsorbentMat_Normal.png` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/MAPPA_NORMALE_PANNO.png` | SI81 shared library | Project-owned (educational use) | Copied into `G_Marius`; NormalMap; Android 1024 ASTC 6×6 | Issue #35 |
-| 16 | `TEX_AbsorbentSock_Albedo` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_AbsorbentSock_Albedo.png` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/TEXTURE_SAUSAGES.png` | SI81 shared library | Project-owned (educational use) | Copied into `G_Marius`; Android 1024 ASTC 6×6 | Issue #35 |
+| 1 | `MAT_PaintedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PaintedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropWhiteMetallic.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit | P2 |
+| 2 | `MAT_PolishedSteel` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PolishedSteel.mat` | Material | `SHARED` | `Assets/_Project/Shared/Art/Materials/MAT_OfficePropPolishedMetal.mat` | SI81 shared library | Project-owned (educational use) | Copied and renamed, URP Lit | P2 |
+| 3 | `TEX_Glove_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Glove_Normal.png` | Texture | `SHARED` | `Assets/_Project/Shared/Art/Textures/NORMAL_GUANTO.png` | SI81 shared library | Project-owned (educational use) | Copied into `G_Marius`; NormalMap; Android 1024 ASTC 6×6 | Issue #35 |
 
-Shared FBX meshes referenced directly from group prefabs/scene instances without modifying any pre-existing `Shared/` file:
+Shared FBX meshes referenced read-only from `Assets/_Project/Shared/` (zero edits to `Shared/`):
 
-- **Models:** `PFB_OldIndustrialBuilding.fbx`, `GUANTO.fbx`,
-  `OCCHIALI_PROTETTIVI.fbx`, `MESH_Magazzino_Cono.fbx`, `MESH_PANNO_ASSORBENTE_TEAM.fbx`,
-  `MESH_SALSICCIOTTO_ONEDRIVE.fbx`, `Estintore.fbx`, `MESH_Folgorazione_CartelloEstintore.fbx`,
-  `Quadro Elettrico.fbx`, `Manopola.fbx`, `MESH_PULSANTI_TEAM.fbx`,
-  `MESH_RilevatoreDiGas.fbx`, `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`,
-  `MESH_Magazzino_Barriera.fbx`, `MESH_Magazzino_Scaffale.fbx`,
-  `MESH_Folgorazione_Barile.fbx`, `Pallet.fbx`, `MESH_VENTOLA_TEAM.fbx`,
-  `MESH_Magazzino_LuceDaSoffitto.fbx`, and `Chemical_Alert_Room/MESH_PORTA_CAMION_TEAM.fbx`.
+- **PPE & Controls:** `GUANTO.fbx`, `OCCHIALI_PROTETTIVI.fbx`, `MESH_PULSANTI_TEAM.fbx`, `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`.
+- **Background Factory Bay & Lighting:** `Muletto.fbx` (666 tris), `MESH_Folgorazione_Generatore.fbx` (1,322 tris), `MESH_Magazzino_Barriera.fbx`, `MESH_Magazzino_Scaffale.fbx`, `MESH_Folgorazione_Barile.fbx`, `Pallet.fbx`, `MESH_VENTOLA_TEAM.fbx`, `MESH_Magazzino_LuceDaSoffitto.fbx`.
 
-### 4.2 Assets authored in `G_Marius`
+*(Superseded in Issue #36: `PFB_OldIndustrialBuilding.fbx`, `MESH_PORTA_CAMION_TEAM.fbx`, `MESH_RilevatoreDiGas.fbx`, `Estintore.fbx`, `MESH_Magazzino_Cono.fbx`, `MESH_PANNO_ASSORBENTE_TEAM.fbx`, `MESH_SALSICCIOTTO_ONEDRIVE.fbx`, and `TEXTURE_SAUSAGES.png` are no longer referenced by `SCN_MachineLock`.)*
 
-| # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | `SH_MachineLockDamageOverlay` | `Assets/_Project/Groups/G_Marius/Code/Shaders/SH_MachineLockDamageOverlay.shader` | Shader | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP transparent unlit VR-stereo-safe (`UNITY_VERTEX_INPUT_INSTANCE_ID` / `UNITY_VERTEX_OUTPUT_STEREO`) overlay shader (`ZTest Always`, `Queue=Overlay`) for peripheral red damage vignette & respawn blink (ADR-0003) | Issue #35 |
-| 2 | `MAT_DamageOverlay` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_DamageOverlay.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | Uses `SH_MachineLockDamageOverlay`; driven at runtime by `MachineLockDamageFeedback` | Issue #35 |
-| 3 | `MAT_IndustrialBuilding_Wall` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_IndustrialBuilding_Wall.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit bound to `buildingbase`, `buildingNormalMap`, `buildingAmbientOcclusionMap` (no displacement map) | Issue #35 |
-| 4 | `MAT_IndustrialBuilding_Floor` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_IndustrialBuilding_Floor.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit bound to `TexturesCom_ConcreteBare0348_1_S.jpg` | Issue #35 |
-| 5 | `MAT_IndustrialBuilding_Window` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_IndustrialBuilding_Window.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit translucent factory daylight glass | Issue #35 |
-| 6 | `MAT_PressSteel_Green` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_PressSteel_Green.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit bound to Polyhaven CC0 `TEX_GreenMetalRust_*` (tiling 2×2) for hydraulic press body | Issue #35 |
-| 7 | `MAT_ConcreteWall_PBR` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_ConcreteWall_PBR.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit bound to Polyhaven CC0 `TEX_ConcreteWall009_*` for bay concrete surfaces | Issue #35 |
-| 8 | `MAT_WallConcrete`, `MAT_CeilingConcrete`, `MAT_DarkSlate`, `MAT_CyanAccent` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_*.mat` | Materials | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit architectural and electrical Sub-Station accents | P2 / Issue #35 |
-| 9 | `MAT_Oil`, `MAT_EmergencyStop_Red`, `MAT_EmergencyStop_Yellow`, `MAT_HMI_Screen`, `MAT_HMI_Off` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_*.mat` | Materials | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit hazard, emergency control and press display materials | P2 / P8 |
-| 10 | `MAT_FaceShield_Visor`, `MAT_Apron_Rubber`, `MAT_HeatGlove`, `MAT_SafetyBoot_Leather`, `MAT_SafetyBoot_Sole`, `MAT_Latex`, `MAT_SurgicalMask_Blue` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_*.mat` | Materials | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit PPE materials (ADR-0004: 4 correct + 2 distractors); `MAT_HeatGlove` references `NORMAL_GUANTO.png` | P2 / Issue #35 |
-| 11 | `MAT_AbsorbentMat`, `MAT_AbsorbentSock` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_*.mat` | Materials | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit spill containment materials referencing `MAPPA_NORMALE_PANNO.png` and `TEXTURE_SAUSAGES.png` | Issue #35 |
-| 12 | `MAT_FloorSafetyMarking_Yellow`, `MAT_BaselineZone`, `MAT_GhostSnap`, `MAT_BeaconRed`, `MAT_ExitBeacon_Idle`, `MAT_ExitBeacon_Ready`, `MAT_LedRed`, `MAT_LedGreen`, `MAT_LedOff`, `MAT_LightFixture`, `MAT_ParticleSoft` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_*.mat` | Materials | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | Guided Wayfinding, LEDs, emissive Exit Beacon, and soft transparent URP Particles/Unlit material | P2 / P8 / Issue #35 |
-| 13 | `TEX_Sign_*` & `MAT_Sign_*` (5 wall signs) | `Assets/_Project/Groups/G_Marius/Art/{Textures,Materials}/MachineLock/{TEX,MAT}_Sign_*.{png,mat}` | Texture + Material | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 wall signs (`Stampaggio`, `QuadroGenerale`, `Dpi`, `KitAntispandimento`, `Uscita`), Android 1024 ASTC 4×4 | P2 |
-| 14 | `TEX_Plaque_*` & `MAT_Plaque_*` (21 Diegetic Plaques) | `Assets/_Project/Groups/G_Marius/Art/{Textures,Materials}/MachineLock/{TEX,MAT}_Plaque_*.{png,mat}` | Texture + Material | `GENERATED` | created in-repo by `MachineLockSceneBuilder.Plaques.cs` | G_Marius | Project-owned (educational use) | 512×256 multi-line industrial Diegetic Plaques (3 electrical Sub-Stations, E-Stop, Alarm, Valve, Spill Kit, Extinguisher, Exit Header, 6 PPE bays, plus 6 per-item `<Nome DPI> INDOSSATO` shelf badges), Android 512 ASTC 4×4 (ADR-0002) | Issue #35 |
-| 15 | `SO_MachineLockDamageProfile` | `Assets/_Project/Groups/G_Marius/Level/Data/SO_MachineLockDamageProfile.asset` | Volume profile | `GROUP` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | URP `VolumeProfile` with red `Vignette` and `ColorAdjustments` sub-assets | P8 |
+### 4.2 Group-authored Blender 5.0 3D models (`Assets/_Project/Groups/G_Marius/Art/Models/`)
+
+| # | Asset | Triangles | Status | Source / Author | License | Notes | Phase |
+|---|---:|---:|---|---|---|---|---|
+| 1 | `MESH_WorkshopShell.fbx` | 3,516 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | `28 × 13 × 6.5 m` Italian industrial workshop shell with H-beam columns, Warren roof trusses, clerestory windows, West exit vestibule, East electrical backing wall (ADR-0005) | Issue #37 |
+| 2 | `MESH_IndustrialWorkbench.fbx` | 460 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Hardwood butcher-block workbench with red drawers, pegboard, bench vise | Issue #37 |
+| 3 | `MESH_ToolCabinet.fbx` | 464 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Lista-style 6-drawer steel workshop tool cabinet | Issue #37 |
+| 4 | `MESH_BundDrums.fbx` | 1,016 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Two ribbed 200 L hydraulic oil drums on yellow spill-containment bund | Issue #37 |
+| 5 | `MESH_SteelBollard.fbx` | 364 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Bolted yellow/black industrial steel safety bollard | Issue #37 |
+| 6 | `MESH_SheetPallet.fbx` | 448 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Euro pallet loaded with strapped stamped metal sheet blanks | Issue #37 |
+| 7 | `MESH_OverheadConduit.fbx` | 432 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Overhead armored cable tray & risers connecting Electrical Bay to Press | Issue #37 |
+| 8 | `MESH_HydraulicPressBody.fbx` | 3,448 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Chamfered 250 t H-frame hydraulic press with tie rods, bolster, hydraulic cylinders, guard rails, HMI arm, 120 °C gauge, east leak manifold | Issue #38 |
+| 9 | `MESH_HydraulicPressRam.fbx` | 444 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Sliding cast-steel hydraulic ram head, hazard pinch edge, piston & guide rods | Issue #38 |
+| 10 | `MESH_SubStationDisconnect.fbx` | 680 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | IP65 steel disconnect enclosure with escutcheon & recessed LED bezels | Issue #38 |
+| 11 | `MESH_DisconnectHandle.fbx` | 160 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Red/black rotary throw disconnect lever (pivoted on X rotation shaft) | Issue #38 |
+| 12 | `MESH_SubStationLockout.fbx` | 836 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | IP65 yellow/slate LOTO enclosure with steel padlock hasp & parked padlock | Issue #38 |
+| 13 | `MESH_SubStationTester.fbx` | 1,100 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Authentic industrial voltage tester / multimeter cabinet with probes & dial (replaces cyan gas detector) | Issue #38 |
+| 14 | `MESH_SteelExitDoorFrame.fbx` | 344 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Beveled steel exit jambs, 3 North barrel hinges, threshold sill, overhead E002 light box | Issue #38 |
+| 15 | `MESH_SteelExitDoorLeaf.fbx` | 360 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Hinged Italian REI-120 steel exit door leaf with wired-glass vision slit, kickplate, closer | Issue #38 |
+| 16 | `MESH_PanicBar.fbx` | 300 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Signal-green EN 1125 horizontal panic bar (*maniglione antipanico*) | Issue #38 |
+| 17 | `MESH_WaterExtinguisherHero.fbx` | 766 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Uniform-scale Y-up UNI EN 3 water fire extinguisher with Class-A blue band, pressure gauge, hose & nozzle | Issue #39 |
+| 18 | `MESH_TrafficConeHero.fbx` | 224 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Uniform-scale Y-up safety traffic cone with weighted rubber base & dual reflective collars | Issue #39 |
+| 19 | `MESH_AbsorbentMatHero.fbx` | 248 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Quilted pillowed polypropylene oil-absorbent pad (`0.95 × 0.034 × 0.75 m`) | Issue #39 |
+| 20 | `MESH_AbsorbentSockHero.fbx` | 412 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Curved fabric-sleeved industrial oil-absorbent sock/boom with crimped metal end clips | Issue #39 |
+| 21 | `MESH_OilPuddleSplat.fbx` | 1,536 | `GROUP` | Derived from team-provided `MESH_SPLAT.glb`, normalized & split into 4 quadrants in Blender 5.0 | Project-owned | Organic 7.0 × 5.0 m glossy hot-oil puddle (`MESH_PuddleQuadrantNE/NW/SE/SW`) bound to `MAT_Oil` | Issue #39 |
+| 22 | `MESH_SafetyBootsHero.fbx` | 5,152 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Sculpted S3 steel-toe leather work boots pair with lugged soles, steel toe bumper, eyelets, crisscross laces & padded collar | Issue #36 |
+| 23 | `MESH_ChemicalApronHero.fbx` | 1,660 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Draped PVC/neoprene industrial splash bib apron with gravity folds, reinforced safety stripes, grommets, neck/waist straps & peg hook | Issue #36 |
+| 24 | `MESH_FaceShieldHero.fbx` | 2,064 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Contoured EN 166 full face shield with safety-yellow HDPE browguard, ratchet suspension harness & curved clear polycarbonate visor | Issue #36 |
+| 25 | `MESH_HeatGlovesHero.fbx` | 3,014 | `DOWNLOADED` | Derived from Poly Haven `garden_gloves_01` (`https://polyhaven.com/a/garden_gloves_01`, `CC0-1.0`) + flared EN 407 gauntlet cuffs authored in Blender 5.0 | Poly Haven (`CC0-1.0`) + `G_Marius` | Decimated photogrammetry glove pair enhanced with flared aluminized forearm cuffs & EN 407 heat-leather finish | Issue #36 |
+| 26 | `MESH_LatexGlovesHero.fbx` | 3,440 | `SHARED` | Normalized & mirrored L+R pair derived from `Assets/_Project/Shared/Art/Models/GUANTO.fbx` | SI81 shared library + `G_Marius` | Centered disposable nitrile/latex glove pair (Wrong DPI distractor) preserving baked UV map for `TEX_Glove_Normal.png` | Issue #36 |
+| 27 | `MESH_SurgicalMaskHero.fbx` | 1,020 | `GROUP` | Authored in Blender 5.0 (`G_Marius`) | Project-owned | Smooth curved 3-pleat non-woven medical surgical mask with pinched nose bridge & 3D elastic ear-loops (Wrong DPI distractor) | Issue #36 |
 
 ### 4.3 Scenario prefabs (12 production roots)
 
-All 12 prefabs keep their production root name and combine Shared FBX meshes, Polyhaven CC0 PBR materials, and flush Diegetic Plaques.
+All 12 prefabs keep their production root names under `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/` and combine Blender hero meshes, PolyHaven CC0 PBR materials, UNI EN ISO 7010 signage, and engraved brushed-aluminum plaques.
+
+| # | Production prefab | Source & key components | Phase |
+|---|---|---|---|
+| 1 | `MESH_HydraulicPress` | `MESH_HydraulicPressBody.fbx` + `MESH_HydraulicPressRam.fbx`, `MAT_PressSteel_Green`, HMI fault display, 120 °C gauge, `MAT_Plaque_PressNameplate`, `MachineLockPress` | P2 / Issue #38 |
+| 2 | `MESH_EStopPedestal` | Pedestal + `MESH_PULSANTI_TEAM.fbx` + red E-stop mushroom + green Try-Start + `MAT_Plaque_EStop` | P2 / Issue #40 |
+| 3 | `MESH_AlarmButton` | Break-glass housing, rotating emissive beacon + realtime point light, looping spatial `SFX_AlarmSiren`, `MachineLockAlarm` | P2 / Issue #40 |
+| 4 | `MESH_ElectricalPanel` | 3 physically separated (≥ 0.88 m) IP65 steel Sub-Stations (`MESH_SubStationDisconnect`, `MESH_DisconnectHandle`, `MESH_SubStationLockout`, `MESH_SubStationTester`), recessed LEDs, brushed-aluminum plaques, `MachineLockEnergyPanel` | P2 / Issue #38 |
+| 5 | `MESH_PpeCabinet` | Wide non-blocking sliding-door locker (`1.80 × 2.05 × 0.44 m`), 4 correct PPE + 2 paired distractors (`GUANTO.fbx`, `OCCHIALI_PROTETTIVI.fbx`, `MESH_SafetyBoots`, pleated surgical mask), 6 anti-aliased `EquippedBadge` indicators, `MachineLockPpeCabinet` | P2 / Issue #35 |
+| 6 | `MESH_SpillKit` | Red spill-kit trolley (`MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`) with 4 nested `MESH_Cone`, 2 `MESH_AbsorbentMat`, 2 `MESH_AbsorbentSock` | P2 / Issue #39 |
+| 7 | `MESH_WaterExtinguisher` | Uniform-scale `MESH_WaterExtinguisherHero.fbx` + wall bracket + attached `MESH_IsoSign_F001` (travels across Patterns A/B/C), `VFX_WaterSpray`, `MachineLockExtinguisher` | P2 / Issue #39 |
+| 8 | `MESH_Cone` | Uniform-scale `MESH_TrafficConeHero.fbx` (`MAT_TrafficCone_Body`, `MAT_ConeReflective`), player-body no-clip safety, `MachineLockCone` | P2 / Issue #39 |
+| 9 | `MESH_AbsorbentMat` | Quilted `MESH_AbsorbentMatHero.fbx` (`MAT_AbsorbentMat` + quilted normal map), `MachineLockAbsorbent` | P2 / Issue #39 |
+| 10 | `MESH_AbsorbentSock` | Curved fabric-sleeved `MESH_AbsorbentSockHero.fbx` (`MAT_AbsorbentSock`, zero sausage texture), `MachineLockAbsorbent` | P2 / Issue #39 |
+| 11 | `MESH_Valve` | Bright red spoked handwheel + pulsing Guided cue ring on east pipe outside puddle, `MachineLockValve` | P2 / Issue #35 |
+| 12 | `MESH_IndustrialDoor_RollUp` | Hinged REI-120 steel door (`MESH_SteelExitDoorFrame.fbx`, `MESH_SteelExitDoorLeaf.fbx`, `MESH_PanicBar.fbx`, `MAT_ExitDoorSteel`, `MAT_PanicBar`, zero `MESH_DoorRollHousing`), overhead `MESH_IsoSign_E002`, `MESH_ExitBeacon`, `MachineLockExitDoor` | P2 / Issue #38, #41 |
+
+### 4.4 Signage, Plaques, Shaders & Procedural PBR Maps (`G_Marius`)
+
+| # | Asset | Unity path | Type | Status | Author | License | Notes | Phase |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `TEX_IsoSign_*` & `MAT_IsoSign_*` (14 signs) | `Assets/_Project/Groups/G_Marius/Art/{Textures,Materials}/MachineLock/{TEX,MAT}_IsoSign_*.{png,mat}` | Texture + Material | `GROUP` | G_Marius | Project-owned | Crisp 4×-supersampled anti-aliased UNI EN ISO 7010 / D.Lgs. 81/08 signs (`W012`, `W017`, `W024`, `W011`, `P011`, `M008`, `M009`, `M013`, `M026`, `PpeBoard`, `F001`, `F005`, `E001`, `E002`), Android 512/1024 ASTC 4×4 | Issue #40 |
+| 2 | `TEX_Plaque_*` & `MAT_Plaque_*` (6 metal plaques + 6 PPE badges) | `Assets/_Project/Groups/G_Marius/Art/{Textures,Materials}/MachineLock/{TEX,MAT}_Plaque_*.{png,mat}` | Texture + Material | `GROUP` | G_Marius | Project-owned | Engraved brushed-aluminum nameplates (`MainSwitch`, `Lockout`, `Tester`, `EStop`, `PressNameplate`, `DeptHeader`) and 6 crisp anti-aliased PPE shelf equipped badges, Android 512/1024 ASTC 4×4 | Issue #40 |
+| 3 | `TEX_AbsorbentMat_{Albedo,QuiltedNormal}`, `TEX_AbsorbentSock_{FabricAlbedo,FabricNormal}`, `TEX_OilRipple_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_*.png` | Texture | `GENERATED` | G_Marius | Project-owned | Procedural quilted pad, woven polypropylene fabric, and subtle wet-oil ripple PBR maps (1024 ASTC 6×6) | Issue #39 |
+| 4 | `SH_MachineLockDamageOverlay` & `MAT_DamageOverlay` | `Assets/_Project/Groups/G_Marius/Code/Shaders/SH_MachineLockDamageOverlay.shader` | Shader + Material | `GROUP` | G_Marius | Project-owned | VR-stereo-safe (`Single-Pass Instanced`) peripheral red damage vignette & respawn blink overlay (ADR-0003) | Issue #35 |
+| 5 | `SO_MachineLockDamageProfile` | `Assets/_Project/Groups/G_Marius/Level/Data/SO_MachineLockDamageProfile.asset` | VolumeProfile | `GROUP` | G_Marius | Project-owned | URP `VolumeProfile` with red `Vignette` and `ColorAdjustments` sub-assets | P8 |
+
+### 4.5 Downloaded third-party textures (Poly Haven CC0-1.0)
+
+| # | Production asset set | Unity path prefix | Status | Source | Author | License | Modifications | Phase |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `TEX_WorkshopFloor_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_WorkshopFloor_*` | `DOWNLOADED` | `https://polyhaven.com/a/concrete_floor_02` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #37 |
+| 2 | `TEX_FactoryWall_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_FactoryWall_*` | `DOWNLOADED` | `https://polyhaven.com/a/factory_wall` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #37 |
+| 3 | `TEX_MetalPlate_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_MetalPlate_*` | `DOWNLOADED` | `https://polyhaven.com/a/metal_plate` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #37 |
+| 4 | `TEX_CorrugatedIron_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_CorrugatedIron_*` | `DOWNLOADED` | `https://polyhaven.com/a/corrugated_iron` | Jenelle van Heerden & Dimitrios Savva (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #37 |
+| 5 | `TEX_WorkbenchWood_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_WorkbenchWood_*` | `DOWNLOADED` | `https://polyhaven.com/a/dark_wooden_planks` | Amal Kumar (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #37 |
+| 6 | `TEX_GreenMetalRust_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_GreenMetalRust_*` | `DOWNLOADED` | `https://polyhaven.com/a/green_metal_rust` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #35 |
+| 7 | `TEX_ConcreteWall009_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteWall009_*` | `DOWNLOADED` | `https://polyhaven.com/a/concrete_wall_009` | Charlotte Baglioni (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #35 |
+
+### 4.6 Audio (18 authentic clips)
 
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | `MESH_HydraulicPress` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_HydraulicPress.prefab` | Prefab | `GROUP` | Multi-part press (`MAT_PressSteel_Green`, `MAT_PolishedSteel`) + `MESH_PULSANTI_TEAM.fbx` | G_Marius | Project-owned (educational use) | Painted green rusted steel frame, twin cylinders, moving `MESH_HydraulicPress_Ram`, safety cage, HMI fault display, thermometer, leak manifold | P2 / Issue #35 |
-| 2 | `MESH_EStopPedestal` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_EStopPedestal.prefab` | Prefab | `GROUP` | `MESH_PULSANTI_TEAM.fbx` + pedestal + `MAT_Plaque_EStop` | G_Marius | Project-owned (educational use) | Industrial pedestal with yellow backplate, red E-stop mushroom, green try-start button, flush Diegetic Plaque | P2 / Issue #35 |
-| 3 | `MESH_AlarmButton` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AlarmButton.prefab` | Prefab | `GROUP` | Wall housing + beacon + `MAT_Plaque_Alarm` | G_Marius | Project-owned (educational use) | Red break-glass style button, rotating emissive beacon + realtime point light, flush Diegetic Plaque | P2 / Issue #35 |
-| 4 | `MESH_ElectricalPanel` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_ElectricalPanel.prefab` | Prefab | `GROUP` | `Quadro Elettrico.fbx`, `Manopola.fbx`, `MESH_PULSANTI_TEAM.fbx`, `MESH_RilevatoreDiGas.fbx` + plaques | G_Marius | Project-owned (educational use) | 3 physically separated (≥ 0.88 m), color-coded Sub-Stations: Main Disconnect (red/slate), Lockout Station (yellow/black), Voltage Tester (cyan/blue) with flush Diegetic Plaques | P2 / Issue #35 |
-| 5 | `MESH_PpeCabinet` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_PpeCabinet.prefab` | Prefab | `GROUP` | Wide sliding-door locker + `GUANTO.fbx`, `OCCHIALI_PROTETTIVI.fbx`, `MESH_SafetyBoots`, pleated surgical mask + 7 bay plaques | G_Marius | Project-owned (educational use) | 1.80×2.05×0.44 m non-blocking sliding doors (colliders disable on `Open()`), 6 distinct bays (ADR-0004: Heat Gloves, Apron, Face Shield, Safety Boots S3 + Latex Gloves & low-poly pleated Surgical Mask distractors) + `EquippedBadge` | P2 / Issue #35 |
-| 6 | `MESH_SpillKit` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_SpillKit.prefab` | Prefab | `GROUP` | `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx` + nested cones/mats/socks + `MAT_Plaque_SpillKit` | G_Marius | Project-owned (educational use) | Red industrial spill-kit bin with 4 cones, 2 mats, 2 socks and Grip Diegetic Plaque | P2 / Issue #35 |
-| 7 | `MESH_WaterExtinguisher` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_WaterExtinguisher.prefab` | Prefab | `GROUP` | `Estintore.fbx` + `MESH_Folgorazione_CartelloEstintore.fbx` + `MAT_Plaque_Extinguisher` | G_Marius | Project-owned (educational use) | Wall-mounted water extinguisher distractor with shared extinguisher sign and Class-A warning plaque | P2 / Issue #35 |
-| 8 | `MESH_Cone` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_Cone.prefab` | Prefab | `GROUP` | `MESH_Magazzino_Cono.fbx` | G_Marius | Project-owned (educational use) | 0.5 m cone; ignores `CharacterController` collisions on grab/place without losing raycasts | P2 / Issue #35 |
-| 9 | `MESH_AbsorbentMat` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AbsorbentMat.prefab` | Prefab | `GROUP` | `MESH_PANNO_ASSORBENTE_TEAM.fbx` + `MAT_AbsorbentMat` | G_Marius | Project-owned (educational use) | 1.0 × 0.02 × 0.8 m mat with `MAPPA_NORMALE_PANNO.png` normal map and player-body no-clip safety | P2 / Issue #35 |
-| 10 | `MESH_AbsorbentSock` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_AbsorbentSock.prefab` | Prefab | `GROUP` | `MESH_SALSICCIOTTO_ONEDRIVE.fbx` + `MAT_AbsorbentSock` | G_Marius | Project-owned (educational use) | Upgraded from primitive cylinder to Shared FBX absorbent sock with `TEXTURE_SAUSAGES.png` and player-body no-clip safety | P2 / Issue #35 |
-| 11 | `MESH_Valve` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_Valve.prefab` | Prefab | `GROUP` | Pipe collar, bright red spoked wheel, pulsing cue ring + `MAT_Plaque_Valve` | G_Marius | Project-owned (educational use) | Unmissable bright red valve wheel on east oil pipe outside puddle with pulsing halo and Diegetic Plaque | P2 / Issue #35 |
-| 12 | `MESH_IndustrialDoor_RollUp` | `Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/MESH_IndustrialDoor_RollUp.prefab` | Prefab | `GROUP` | `MESH_PORTA_CAMION_TEAM.fbx` + `MAT_Plaque_ExitHeader` | G_Marius | Project-owned (educational use) | Wide 2.0 × 2.5 m unobstructed exit portal with overhead `MESH_ExitBeacon` | P2 / Issue #35 |
+| 1 | `SFX_PressLoop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressLoop.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/c/cf/WWS_Pressing.ogg` | Work With Sounds / Technical Museum of Slovenia | `CC-BY-4.0` | 44.1 kHz mono WAV, 6.00 s seamless loop | Issue #35 |
+| 2 | `SFX_PressStop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressStop.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Layered power-down + low rumble | Issue #35 |
+| 3 | `SFX_MechanicalButton` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_MechanicalButton.wav` | Audio (one-shot) | `GROUP` | Team-supplied `G_Marius` audio drop (wired to `MachineLockPress.clackClip`) | G_Marius | Project-owned | Wired to E-stop emergency mushroom press | Issue #40 |
+| 4 | `SFX_EStopClack` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EStopClack.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Mechanical latch for PPE cabinet sliding doors | Issue #35 |
+| 5 | `SFX_AlarmButton` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmButton.wav` | Audio (one-shot) | `BRANCH` | `origin/gruppo_ludovica`: `SFX_FKC_Alarm.wav` | Team Ludovica / Wyzowl | `CC0-1.0` | Renamed to `SFX_AlarmButton.wav` | Issue #35 |
+| 6 | `SFX_AlarmSiren` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmSiren.wav` | Audio (loop) | `GROUP` | Updated `G_Marius` workshop alarm siren WAV | G_Marius | Project-owned | Looping 3D spatial Logarithmic rolloff (`2.5–24 m`, volume `0.65`) | Issue #40 |
+| 7 | `SFX_BreakerOff` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_BreakerOff.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Heavy disconnect breaker click | Issue #35 |
+| 8 | `SFX_Lockout` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Lockout.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Heavy mechanical lock (LOTO & Exit Door panic-bar latch) | Issue #35 / #41 |
+| 9 | `SFX_OilLeak` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_OilLeak.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/b/b1/WWS_Airpumpsteamlocomotive.ogg` | Work With Sounds / Konrad Gutkowski | `CC-BY-4.0` | 4.00 s seamless pressurized hiss loop | Issue #35 |
+| 10 | `SFX_ValveTurn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_ValveTurn.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Heavy mechanical ratchet | Issue #35 |
+| 11 | `SFX_TesterBeep` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_TesterBeep.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Clear digital multimeter beep | Issue #35 |
+| 12 | `SFX_EquipPpe` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EquipPpe.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Fabric slide foley | Issue #35 |
+| 13 | `SFX_Snap` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Snap.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Crisp snap placement click | Issue #35 |
+| 14 | `SFX_SteamBurst` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_SteamBurst.wav` | Audio (one-shot) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/2/22/WWS_Steamlocomotive.ogg` | Work With Sounds / Konrad Gutkowski | `CC-BY-4.0` | 1.80 s pressurized steam burst | Issue #35 |
+| 15 | `SFX_ElectricShock` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_ElectricShock.wav` | Audio (one-shot) | `GROUP` | Team-supplied `G_Marius` audio drop (wired to `MachineLockDamageFeedback.shockClip`) | G_Marius | Project-owned | Replaces `SFX_Shock.wav` on live-oil shock critical event | Issue #40 |
+| 16 | `SFX_Shock` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Shock.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Retained fallback clip | Issue #35 |
+| 17 | `SFX_Burn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Burn.wav` | Audio (one-shot) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/9/9d/Zzrrrp_sizzle.ogg` | stephan (Wikimedia Commons) | `Public Domain` | 1.50 s hot-oil sizzle burst | Issue #35 |
+| 18 | `SFX_AmbientFactory` | `Assets/_Project/Groups/G_Marius/Audio/Music/MachineLock/SFX_AmbientFactory.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/d/d9/WWS_HydropowerStation.ogg` | Work With Sounds / Technical Museum of Slovenia | `CC-BY-4.0` | 8.00 s seamless industrial machine-hall hum | Issue #35 |
 
-### 4.4 Downloaded third-party textures
+### 4.7 VFX, Lighting & Wayfinding (`SCN_MachineLock`)
 
-| # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | `TEX_GreenMetalRust_Albedo` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_GreenMetalRust_Albedo.jpg` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/green_metal_rust` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android override 1024 ASTC 6×6 | Issue #35 |
-| 2 | `TEX_GreenMetalRust_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_GreenMetalRust_Normal.exr` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/green_metal_rust` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K OpenGL normal map; NormalMap import, Android 1024 ASTC 6×6 | Issue #35 |
-| 3 | `TEX_GreenMetalRust_Rough` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_GreenMetalRust_Rough.jpg` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/green_metal_rust` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K roughness map; linear, Android 1024 ASTC 6×6 | Issue #35 |
-| 4 | `TEX_ConcreteWall009_Albedo` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteWall009_Albedo.jpg` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/concrete_wall_009` | Charlotte Baglioni (Poly Haven) | `CC0-1.0` | 1K download; Android override 1024 ASTC 6×6 | Issue #35 |
-| 5 | `TEX_ConcreteWall009_Normal` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteWall009_Normal.exr` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/concrete_wall_009` | Charlotte Baglioni (Poly Haven) | `CC0-1.0` | 1K OpenGL normal map; NormalMap import, Android 1024 ASTC 6×6 | Issue #35 |
-| 6 | `TEX_ConcreteWall009_Rough` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteWall009_Rough.jpg` | Texture | `DOWNLOADED` | `https://polyhaven.com/a/concrete_wall_009` | Charlotte Baglioni (Poly Haven) | `CC0-1.0` | 1K roughness map; linear, Android 1024 ASTC 6×6 | Issue #35 |
+| # | Production item | Scene path | Type | Status | Notes | Phase |
+|---|---|---|---|---|---|---|
+| 1 | `VFX_OilJet` / `VFX_OilParticles` | `HAZARD_Oil/VFX_OilJet` | VFX | `GENERATED` | Pressurized hot-oil stream + 80-particle spray (`playOnAwake = true`), stops when valve closes | P8 |
+| 2 | `VFX_OilPuddle` | `HAZARD_Oil/VFX_OilPuddle` | Mesh / VFX | `GROUP` | 4-quadrant organic `MESH_OilPuddleSplat.fbx` (`MAT_Oil`, ripples), each quadrant hides as absorbents snap | Issue #39 |
+| 3 | `VFX_Steam` | `HAZARD_Oil/VFX_Steam` | VFX | `GENERATED` | Ambient hot-oil steam wisps (max 60 particles, `playOnAwake = true`), bursts on water contact | P8 |
+| 4 | `VFX_Smoke` | `HAZARD_Oil/VFX_Smoke` | VFX | `GENERATED` | Inaction & water-reaction dark smoke plume (max 120 particles, `playOnAwake = false`) | P8 |
+| 5 | `VFX_ElectricalArc` | `ENV_Safety/MESH_ElectricalPanel/SUB_VoltageTester/VFX_ElectricalArc` | VFX | `GENERATED` | Electrical arc burst on live-oil shock (max 40 particles, `playOnAwake = false`) | P8 / Issue #38 |
+| 6 | `VFX_AlarmBeacon` | `ENV_Safety/MESH_AlarmButton/VFX_AlarmBeacon` | VFX + Light | `GENERATED` | Rotating emissive dome (`MAT_BeaconRed`) + realtime red point light (no shadows, disabled at start) | P8 |
+| 7 | `VFX_DisplayFault` | `ENV_Press/MESH_HydraulicPress/MESH_PressDisplay/VFX_DisplayFault` | VFX marker | `GENERATED` | Drives press HMI blinking fault emission (`MAT_HMI_Screen` → `MAT_HMI_Off` when main power is cut) | P8 |
+| 8 | `VFX_WaterSpray` | `ENV_Safety/MESH_WaterExtinguisher/VFX_WaterSpray` | VFX | `GENERATED` | Water spray cone (max 100 particles, `playOnAwake = false`), fires on extinguisher misuse | P8 |
+| 9 | `VFX_BaselineMarker` & `VFX_SnapGhost` | `ZONE_Coverage1..4` & `ZONE_ConePoint1..4` | Wayfinding | `GENERATED` | Guided baseline floor outlines (`MAT_BaselineZone`) + green snap ghosts (`MAT_GhostSnap`) | P8 / Issue #35 |
+| 10 | `VFX_DamageVignette` + `MAT_DamageOverlay` | `MNG_Scenario/VFX_DamageVignette` | Volume + Overlay | `GENERATED` | Global URP `Volume` (`SO_MachineLockDamageProfile`) + stereo-safe peripheral overlay (`SH_MachineLockDamageOverlay`, ADR-0003) | P8 / Issue #35 |
+| 11 | `MESH_ExitBeacon` | `ENV_Room/MESH_Door/MESH_IndustrialDoor_RollUp/MESH_ExitBeacon` | Wayfinding | `GENERATED` | Overhead exit status bar (`MAT_ExitBeacon_Idle` → `MAT_ExitBeacon_Ready` when `TaskEStop && TaskContainment`) | Issue #35 / #38 |
+| 12 | `MNG_Light` | `SCN_MachineLock/MNG_Light` | Light | `GENERATED` | Single directional realtime fill light (no shadows) + flat industrial ambient | P2 / Issue #35 |
+| 13 | `MESH_CeilingLight01..04` | `ENV_Room/MESH_Signs/MESH_CeilingLight01..04` | Light | `GENERATED` | Four baked ceiling industrial fixtures (`MESH_Magazzino_LuceDaSoffitto.fbx`, zero realtime cost) | P2 / Issue #35 |
+| 14 | `LIGHT_DamageFlash` | `MNG_Scenario/LIGHT_DamageFlash` | Light | `GENERATED` | Red point flash pulsed alongside damage overlay on Critical Events (disabled while idle) | P8 / Issue #35 |
 
-### 4.5 Audio (16 authentic clips)
-
-All 16 clips keep the exact `SFX_` production names and are formatted as 44.1 kHz mono 16-bit PCM WAV (imported with Android Vorbis/ADPCM compression). Replaced the P8 synthesized placeholders in Issue #35 with Team Ludovica CC0 assets, Wyzowl SFX Kit CC0 foley/mechanical recordings, and Wikimedia Commons industrial recordings.
-
-| # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | `SFX_PressLoop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressLoop.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/c/cf/WWS_Pressing.ogg` | Work With Sounds / Technical Museum of Slovenia | `CC-BY-4.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, trimmed to 6.00 s seamless crossfaded loop, normalized | Issue #35 |
-| 2 | `SFX_PressStop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressStop.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/digital/digital-power-down.wav` + `sounds/booms-and-bass/bass-rumble-medium.wav`) | Wyzowl | `CC0-1.0` | Layered power-down and low mechanical rumble into 44.1 kHz mono WAV, normalized | Issue #35 |
-| 3 | `SFX_EStopClack` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EStopClack.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/mechanical/mechanical-latch-heavy.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, trimmed/normalized | Issue #35 |
-| 4 | `SFX_AlarmButton` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmButton.wav` | Audio (one-shot) | `BRANCH` | `origin/gruppo_ludovica`: `Assets/_Project/Groups/G_Ludovica/Audio/Sound/SFX_FKC_Alarm.wav` (origin: Wyzowl SFX Kit `sounds/time/time-alarm.wav`) | Team Ludovica / Wyzowl | `CC0-1.0` | Copied verbatim (2.31 s) and renamed to `SFX_AlarmButton.wav` | Issue #35 |
-| 5 | `SFX_AlarmSiren` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmSiren.wav` | Audio (loop) | `BRANCH` | `origin/gruppo_ludovica`: `Assets/_Project/Groups/G_Ludovica/Audio/Sound/SFX_FKC_Siren.wav` | Team Ludovica | `CC0-1.0` | Copied verbatim (3.00 s loop) and renamed to `SFX_AlarmSiren.wav` | Issue #35 |
-| 6 | `SFX_BreakerOff` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_BreakerOff.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/mechanical/mechanical-switch-heavy.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 7 | `SFX_Lockout` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Lockout.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/mechanical/mechanical-lock-heavy.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 8 | `SFX_OilLeak` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_OilLeak.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/b/b1/WWS_Airpumpsteamlocomotive.ogg` | Work With Sounds / Konrad Gutkowski | `CC-BY-4.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, trimmed to 4.00 s seamless crossfaded pressurized hiss loop, normalized | Issue #35 |
-| 9 | `SFX_ValveTurn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_ValveTurn.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/mechanical/mechanical-ratchet-heavy.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 10 | `SFX_TesterBeep` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_TesterBeep.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/digital/digital-blip-clear.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 11 | `SFX_EquipPpe` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EquipPpe.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/foley/foley-fabric-slide.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 12 | `SFX_Snap` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Snap.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/interface/click-snap-medium.wav`) | Wyzowl | `CC0-1.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 13 | `SFX_SteamBurst` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_SteamBurst.wav` | Audio (one-shot) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/2/22/WWS_Steamlocomotive.ogg` | Work With Sounds / Konrad Gutkowski | `CC-BY-4.0` | Extracted 1.80 s pressurized steam burst to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 14 | `SFX_Shock` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Shock.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` (`sounds/digital/digital-static.wav` + `sounds/digital/digital-glitch-clear.wav` + `sounds/impacts/impact-heavy-hard.wav`) | Wyzowl | `CC0-1.0` | Layered electrical arc burst + impact into 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 15 | `SFX_Burn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Burn.wav` | Audio (one-shot) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/9/9d/Zzrrrp_sizzle.ogg` | stephan (Wikimedia Commons) | `Public Domain` | Trimmed to 1.50 s hot-oil sizzle burst, converted to 44.1 kHz mono 16-bit PCM WAV, normalized | Issue #35 |
-| 16 | `SFX_AmbientFactory` | `Assets/_Project/Groups/G_Marius/Audio/Music/MachineLock/SFX_AmbientFactory.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/d/d9/WWS_HydropowerStation.ogg` | Work With Sounds / Technical Museum of Slovenia | `CC-BY-4.0` | Converted to 44.1 kHz mono 16-bit PCM WAV, trimmed to 8.00 s seamless crossfaded industrial machine-hall hum, normalized | Issue #35 |
-
-### 4.6 Visual effects and lighting
-
-Every VFX below is a `ParticleSystem` or scene component created in-repo by
-`MachineLockSceneBuilder`, rendered with `MAT_ParticleSoft` so no system falls back to a
-pink shader on Quest 3. Particle budget: ≤ 200 particles per system and ≤ 4 play-on-awake systems.
-
-| # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | `VFX_OilJet` | `SCN_MachineLock` — `HAZARD_Oil/VFX_OilJet` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Dark oil cone, max 80 particles, plays on awake, plus jet stream & `SFX_OilLeak`; deactivated when Valve closes | P8 |
-| 2 | `VFX_OilPuddle` | `SCN_MachineLock` — `HAZARD_Oil/VFX_OilPuddle` | VFX / mesh | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Four glossy `MAT_Oil` quadrant meshes scaled by `PATTERN_PuddleA/B/C`; each absorbent hides one quadrant | P8 |
-| 3 | `VFX_Steam` | `SCN_MachineLock` — `HAZARD_Oil/VFX_Steam` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Soft white steam wisps over hot oil, max 60 particles, plays on awake, burst on water extinguisher | P8 |
-| 4 | `VFX_Smoke` | `SCN_MachineLock` — `HAZARD_Oil/VFX_Smoke` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Dark grey smoke above press, max 120 particles; ramps at inaction stage 1 (90 s) & stage 2 (150 s), cleared on E-stop | P8 |
-| 5 | `VFX_ElectricalArc` | `SCN_MachineLock` — `MESH_ElectricalPanel/VFX_ElectricalArc` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Sparks at Voltage Tester Sub-Station, max 40 particles, not auto-playing; pulsed 0.35 s on LIVE reading | P8 |
-| 6 | `VFX_AlarmBeacon` | `SCN_MachineLock` — `MESH_AlarmButton/VFX_AlarmBeacon` | VFX / light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Rotating emissive dome (`MAT_BeaconRed`) + realtime red point light (range 8 m, no shadows, disabled at start) | P8 |
-| 7 | `VFX_DisplayFault` | `SCN_MachineLock` — `MESH_HydraulicPress/MESH_PressDisplay/VFX_DisplayFault` | VFX marker | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Drives press HMI blinking fault emission (`MAT_HMI_Screen` → `MAT_HMI_Off` when main power is cut) | P8 |
-| 8 | `VFX_WaterSpray` | `SCN_MachineLock` — `MESH_WaterExtinguisher/VFX_WaterSpray` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Water cone, max 100 particles, not auto-playing, one-shot burst on water extinguisher misuse | P8 |
-| 9 | `VFX_BaselineMarker` & `VFX_SnapGhost` | `SCN_MachineLock` — `ZONE_Coverage1..4` and `ZONE_ConePoint1..4` | VFX / mesh | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Proactive Guided baseline outline rings (`MAT_BaselineZone`, shown once full PPE is worn) + bright green snap ghosts (`MAT_GhostSnap`, shown while holding matching item); both hide on occupy | P8 / Issue #35 |
-| 10 | `VFX_DamageVignette` + `MAT_DamageOverlay` | `SCN_MachineLock` — `MNG_Scenario/VFX_DamageVignette` | Volume + Overlay | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Global URP `Volume` (`SO_MachineLockDamageProfile`) plus scenario-owned head-aligned VR-stereo-safe peripheral red vignette & respawn fade overlay (`SH_MachineLockDamageOverlay`) when camera post-processing is disabled (ADR-0003) | P8 / Issue #35 |
-| 11 | `MESH_ExitBeacon` | `SCN_MachineLock` — `ENV_Room/MESH_Door/MESH_ExitBeacon` | Wayfinding | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Overhead exit status light bar switching from dim (`MAT_ExitBeacon_Idle`) to bright glowing green (`MAT_ExitBeacon_Ready`) when `TaskEStop && TaskContainment` | Issue #35 |
-| 12 | `MNG_Light` | `SCN_MachineLock` — root `MNG_Light` | Light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Single directional realtime fill (no shadows) plus bright industrial ambient | P2 / Issue #35 |
-| 13 | `MESH_CeilingLight01..04` | `SCN_MachineLock` — `ENV_Room/MESH_Signs` | Light | `GENERATED` | `MESH_Magazzino_LuceDaSoffitto.fbx` + baked point lights | G_Marius | Project-owned (educational use) | Four baked ceiling industrial light fixtures (no realtime cost) | P2 / Issue #35 |
-| 14 | `LIGHT_DamageFlash` | `SCN_MachineLock` — `MNG_Scenario/LIGHT_DamageFlash` | Light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Red point flash pulsed alongside the damage overlay on Critical Events; intensity 0, no shadows, disabled while idle | P8 / Issue #35 |
+---
 
 ## 5. Attribution text for the build
-
-The following attribution notice covers all `CC-BY-4.0` assets shipped in Scenario 08 (CC0-1.0 and Public Domain assets require no attribution legally, but are credited for completeness):
 
 ```text
 Scenario 08 (Machine Lock) includes the following Creative Commons Attribution 4.0 (CC BY 4.0) audio recordings from the Work With Sounds project via Wikimedia Commons (https://creativecommons.org/licenses/by/4.0/):
@@ -198,7 +185,7 @@ Scenario 08 (Machine Lock) includes the following Creative Commons Attribution 4
 - "WWS Airpumpsteamlocomotive" by Work With Sounds / Konrad Gutkowski (https://upload.wikimedia.org/wikipedia/commons/b/b1/WWS_Airpumpsteamlocomotive.ogg) — edited into a seamless mono loop (SFX_OilLeak.wav).
 
 Additional CC0-1.0 / Public Domain assets:
-- PBR textures "Green Metal Rust" (Rob Tuytel) and "Concrete Wall 009" (Charlotte Baglioni) from Poly Haven (https://polyhaven.com/, CC0-1.0).
-- Mechanical, digital, and foley SFX from Wyzowl SFX Kit (https://github.com/wyzowl/sfx-kit, CC0-1.0) and Team Ludovica (SFX_FKC_Siren.wav, SFX_FKC_Alarm.wav, CC0-1.0).
+- PBR textures "Concrete Floor 02", "Factory Wall", "Metal Plate", "Green Metal Rust" (Rob Tuytel), "Concrete Wall 009" (Charlotte Baglioni), "Corrugated Iron" (Jenelle van Heerden & Dimitrios Savva), "Dark Wooden Planks" (Amal Kumar), and 3D model "Garden Gloves 01" from Poly Haven (https://polyhaven.com/, CC0-1.0).
+- Mechanical, digital, and foley SFX from Wyzowl SFX Kit (https://github.com/wyzowl/sfx-kit, CC0-1.0) and Team Ludovica (SFX_FKC_Alarm.wav, CC0-1.0).
 - "Zzrrrp sizzle" by stephan via Wikimedia Commons (https://upload.wikimedia.org/wikipedia/commons/9/9d/Zzrrrp_sizzle.ogg, Public Domain).
 ```

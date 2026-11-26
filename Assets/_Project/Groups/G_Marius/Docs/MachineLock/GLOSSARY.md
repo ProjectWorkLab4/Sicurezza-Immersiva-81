@@ -26,6 +26,10 @@ _Avoid_: Toast, tooltip
 A physical sign or control nameplate mounted directly on a prop or wall so its label belongs to the environment and never clips through geometry.
 _Avoid_: World label, UI canvas
 
+**Safety Sign**:
+A standardized workplace safety placard following UNI EN ISO 7010 and Italian D.Lgs. 81/08 (warning, prohibition, mandatory PPE, fire-fighting, or emergency exit) mounted in the room as authentic environmental information in all difficulty modes.
+_Avoid_: Warning sticker, tutorial poster, hint sign
+
 **Guided Wayfinding**:
 Proactive environmental cues in Guided mode—yellow safety floor paintings, glowing Containment Zone floor rings, valve indicators, and an exit beacon—that show the player how to navigate the procedure without text clutter.
 _Avoid_: Quest markers, breadcrumbs, tutorial arrows
@@ -69,3 +73,7 @@ _Avoid_: Padlock, breaker lock
 **Critical Event**:
 A high-severity safety violation (live-oil shock, hot-oil burn, wrong-PPE burn, press contact, water on hot oil, unisolated try-start, or inaction) that penalizes Safety and Decision, fires damage feedback, and respawns the player in Guided mode.
 _Avoid_: Fatal error, death, fail state
+
+**Early Exit**:
+Confirming departure through the exit door before the room is fully made safe (for example, while the press is still running or spill containment is incomplete), which is always permitted and evaluated with full safety penalties and debrief feedback rather than blocked.
+_Avoid_: Abort, quit mission, blocked exit

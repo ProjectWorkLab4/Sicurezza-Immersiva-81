@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using SI81.MachineLock;
@@ -647,6 +648,112 @@ namespace SI81.MachineLock.Tests
             finally
             {
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        // =====================================================================
+        // Early Exit & Persistent Pattern Rotation (ADR-0006, Issue #41)
+        // =====================================================================
+
+        [Test]
+        public void EarlyExit_MissingEStop_AppliesCriticalPenaltiesDebriefAndNegativeOutcome()
+        {
+            MachineLockSpi guided = StartedRun(SpiTimeMode.Guided, 15f);
+            guided.ApplyEvent(SpiEvent.MissingEStop);
+            guided.ApplyEvent(SpiEvent.MissingEStop); // Idempotent
+
+            Assert.AreEqual(0f, guided.Safety, Tolerance);
+            Assert.AreEqual(0f, guided.Decision, Tolerance);
+            Assert.AreEqual(0f, guided.TimePoints, Tolerance, "Abandoning a running press forfeits the speed bonus.");
+            Assert.AreEqual(0, guided.Spi, "Immediate Early Exit with press running yields SPI 0.");
+            Assert.IsTrue(guided.CriticalOccurred);
+            Assert.AreEqual(1, CountLines(guided, DebriefLineId.CriticalMissingEStop.ToString()));
+            Assert.AreEqual(OutcomeType.Negative,
+                guided.EvaluateOutcome(Input(pressRunning: true, contained: false, allTasks: false, anyCritical: true)));
+            Assert.That(MachineLockTexts.DebriefLine(DebriefLineId.CriticalMissingEStop),
+                Does.Contain("pressa ancora in funzione"));
+        }
+
+        [Test]
+        public void EarlyExit_MissingEStop_OperationalAndCrisis_ZeroesScoreEvenWithPartialProgress()
+        {
+            foreach (SpiTimeMode mode in new[] { SpiTimeMode.Realistic, SpiTimeMode.Stress })
+            {
+                MachineLockSpi spi = StartedRun(mode, 60f);
+                ObserveAll(spi);
+                spi.ApplyEvent(SpiEvent.Alarm);
+                spi.ApplyEvent(SpiEvent.MissingEStop);
+
+                Assert.AreEqual(0, spi.Spi, mode + " Early Exit with press running must yield zero score.");
+                Assert.AreEqual(OutcomeType.Negative,
+                    spi.EvaluateOutcome(Input(pressRunning: true, contained: false, allTasks: false, anyCritical: true)));
+            }
+        }
+
+        [Test]
+        public void EarlyExit_PressStoppedWithMissingNonCriticalTasks_YieldsPartialWithPenalties()
+        {
+            MachineLockSpi spi = StartedRun(SpiTimeMode.Guided, 120f);
+            spi.ApplyEvent(SpiEvent.EStop);
+            spi.ApplyEvent(SpiEvent.MissingAlarm);
+            spi.ApplyEvent(SpiEvent.MissingMainOff);
+            spi.ApplyEvent(SpiEvent.MissingLockout);
+            spi.ApplyEvent(SpiEvent.MissingCones);
+            spi.ApplyEvent(SpiEvent.MissingAbsorbents);
+            spi.ApplyEvent(SpiEvent.Exit);
+
+            Assert.AreEqual(OutcomeType.Partial,
+                spi.EvaluateOutcome(Input(pressRunning: false, contained: false, allTasks: false)));
+            Assert.AreEqual(19f, spi.Decision, Tolerance);
+            Assert.AreEqual(3, spi.Execution);
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadMissingAlarm.ToString()));
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadMissingIsolation.ToString()));
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadMissingContainment.ToString()));
+        }
+
+        [Test]
+        public void PatternSelector_NeverRepeatsBackToBack_CyclesAllThree_AndPersistsAcrossReload()
+        {
+            string tempPath = Path.Combine(Path.GetTempPath(), "ml_pattern_test_" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                var rng = new System.Random(12345);
+                Func<int, int> nextInt = max => rng.Next(max);
+
+                int previous = -1;
+                for (int cycle = 0; cycle < 10; cycle++)
+                {
+                    var seenInCycle = new HashSet<int>();
+                    for (int step = 0; step < 3; step++)
+                    {
+                        // Reload from disk every single run to prove JSON persistence across sessions.
+                        var selector = new MachineLockPatternSelector(tempPath, 3, nextInt);
+                        int chosen = selector.NextPattern();
+
+                        Assert.That(chosen, Is.InRange(0, 2));
+                        Assert.AreNotEqual(previous, chosen,
+                            $"Back-to-back repeat at cycle {cycle} step {step}: {chosen}");
+                        seenInCycle.Add(chosen);
+                        previous = chosen;
+                    }
+                    Assert.AreEqual(3, seenInCycle.Count,
+                        $"Every 3-run cycle must visit all 3 Layout Patterns (cycle {cycle}).");
+                }
+
+                // Forced pattern override must return the forced index without corrupting saved state.
+                var forcedSelector = new MachineLockPatternSelector(tempPath, 3, nextInt);
+                int beforeForced = forcedSelector.LastPatternIndex;
+                Assert.AreEqual(2, forcedSelector.NextPattern(forcedPatternIndex: 2));
+                Assert.AreEqual(beforeForced, forcedSelector.LastPatternIndex);
+
+                // Corrupt JSON file must recover gracefully without throwing.
+                File.WriteAllText(tempPath, "{ not valid json !!!");
+                var recovered = new MachineLockPatternSelector(tempPath, 3, nextInt);
+                Assert.That(recovered.NextPattern(), Is.InRange(0, 2));
+            }
+            finally
+            {
+                if (File.Exists(tempPath)) File.Delete(tempPath);
             }
         }
 

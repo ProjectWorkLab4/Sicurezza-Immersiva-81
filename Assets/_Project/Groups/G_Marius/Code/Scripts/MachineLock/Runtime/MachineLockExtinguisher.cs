@@ -36,14 +36,11 @@ namespace SI81.MachineLock
         [Tooltip("Steam burst clip.")]
         [SerializeField] private AudioClip steamBurstClip;
 
-        private float lastHoverTime = float.NegativeInfinity;
-
         private void OnEnable()
         {
             if (extinguisherInteractable != null)
             {
                 extinguisherInteractable.SelectEntered += OnExtinguisherSelected;
-                extinguisherInteractable.HoverEntered += OnExtinguisherHovered;
             }
         }
 
@@ -52,7 +49,6 @@ namespace SI81.MachineLock
             if (extinguisherInteractable != null)
             {
                 extinguisherInteractable.SelectEntered -= OnExtinguisherSelected;
-                extinguisherInteractable.HoverEntered -= OnExtinguisherHovered;
             }
         }
 
@@ -85,15 +81,6 @@ namespace SI81.MachineLock
         private void OnExtinguisherSelected(Hand hand)
         {
             TriggerSpray();
-        }
-
-        private void OnExtinguisherHovered(Hand hand)
-        {
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < 0.3f) return;
-            lastHoverTime = now;
-            if (HUDService.IsReady)
-                HUDService.ShowActionFeedback(MachineLockTexts.HoverWaterExtinguisher, FeedbackKind.Negative);
         }
     }
 }

@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Document | GDD_MachineLock.md |
-| Version | 1.2 (Issue #35 — ADR-0001..0004) |
+| Version | 1.3 (Issue #36 — ADR-0005 & ADR-0006) |
 | Date | 2026-11-26 |
 | Owner | G_Marius |
-| Status | Approved for implementation — Guided playable, redesigned industrial hall & Quest 3 polish |
+| Status | Approved for implementation — Custom low-poly workshop shell, hero asset cohesion, ISO 7010 signage & exit decision flow |
 | Source brief | Project Work VR — Scenario 5 Machine Lock (ID 8) |
 | Target | Unity 6000.3.14f1, Meta XR Core SDK 209.0.0, OpenXR 1.16.1, Quest 3, controllers only |
 | Playable scope | Guided. Operational and Crisis are locked for this PR; their time logic is implemented and unit-tested. |
@@ -118,8 +118,8 @@ This scenario is educational and does not replace mandatory safety training. The
 - **Situation:** the player enters the stamping room and finds the emergency already in progress.
 - **Tone:** urgent, factual, non-judgmental. The system reports; it does not lecture.
 - **Opening subtitle:** `Sistema`: “Perdita olio a 120 gradi.” then “Pressa in movimento.”
-- **Closing subtitle:** `Preposto`: “Sala in sicurezza? Riferisci.” or “La sala non è ancora sicura.”
-- **No dialogue choices.** The scenario is action-based; `AskDecision` is not used.
+- **Closing subtitle:** `Preposto`: “Sala in sicurezza. Ottimo lavoro.” or “La sala non è ancora sicura.”
+- **Exit confirmation (`AskDecision`):** Activating the west steel exit door panic bar opens the shared `HUD_DecisionPanel` via `ScenarioController.AskDecision` (“Vuoi uscire dal reparto adesso?” → “Sì, esci dal reparto” / “No, resta nella stanza”) before ending the mission (ADR-0006).
 
 ---
 
@@ -149,37 +149,37 @@ These are mandatory. A violation breaks the shared application.
 1. **Weighted SPI.** The common UI normally computes the SPI as the simple average of five dimensions and the guide recommends passing `-1`. This scenario passes an explicit weighted score because the brief defines weights 20/20/40/15/5. The five dimension bars receive normalized 0–100 values. This deviation must be approved by Team Ludovica; if rejected, switch the SPI to equal weights.
 2. **Text-only DPI.** The brief asks for wrist icons; the common HUD has no DPI slot API. This version uses `SetHint` and alerts. A future HUD widget can replace it without changing gameplay logic.
 3. **No padlock prop.** Lockout is an abstract interaction on the panel with a red indicator and feedback. The procedure step and the score are preserved.
-4. **Low-poly Surgical Mask distractor.** `MASCHERINA.fbx` weighs `15,946` triangles for a 24 cm shelf distractor; `MachineLockSceneBuilder` models a crisp pleated blue disposable surgical mask (~72 tris) so the full `PFB_OldIndustrialBuilding` hall stays comfortably under the `100,000`-triangle Quest 3 budget (`90,356` tris).
+4. **Low-poly Surgical Mask distractor.** `MASCHERINA.fbx` weighs `15,946` triangles for a 24 cm shelf distractor; `MachineLockSceneBuilder` models a crisp pleated blue disposable surgical mask (~72 tris) so the full `MESH_WorkshopShell` hall stays well under half of the `100,000`-triangle Quest 3 budget (`~41.4k` tris).
 
 ---
 
 ## 7. Level design
 
-### 7.1 Room & Industrial Hall (ADR-0001)
+### 7.1 Room & Industrial Hall (ADR-0005, supersedes ADR-0001)
 
-- Building shell: Shared `PFB_OldIndustrialBuilding.fbx` + `TEX_OldIndustrialBuilding/` (dedicated scenario-owned URP Lit materials; Android ASTC 1024/2048; 8K displacement map omitted; exterior `building top` roof removed on the scene instance to save 21,748 tris).
-- Active stamping bay: **18.0 m (x) × 11.0 m (z)** (`x ∈ [-9.0, +9.0]`, `z ∈ [-5.5, +5.5]`), ceiling fixtures at `y = 5.45 m`, bounded by shared safety barriers (`MESH_Magazzino_Barriera.fbx`) with scenic workshop shelving, barrels, pallets, and exhaust fan outside the active bay perimeter.
+- Building shell: Scenario-owned Blender-authored **28.0 m × 13.0 m × 6.5 m** Italian industrial stamping workshop shell (`≤ 12,000` tris) textured with PolyHaven CC0 PBR concrete, structural steel I-beams, roof trusses, high clerestory windows, and overhead bay fixtures (replaces `PFB_OldIndustrialBuilding.fbx` to reclaim ~35k+ triangles within the `100,000`-triangle Quest 3 budget).
+- Active stamping bay: **18.0 m (x) × 11.0 m (z)** (`x ∈ [-9.0, +9.0]`, `z ∈ [-5.5, +5.5]`) in the center of the hall, bounded by safety barriers (`MESH_Magazzino_Barriera.fbx`) with rich workshop dressing inside the bay edges (workbenches, tool cabinets, sheet-stock pallets, spill bund drums, bollards, conduits) and a dressed background factory zone beyond the barriers (forklift, loaded racking, crates, compressor/generator).
 - Floor at `y = 0`; the rig uses `CharacterController` and gravity.
-- One wide unobstructed exit portal on the **west** side at `(-9.0, 0, 0)`, opening `2.0 m × 2.5 m`, always open, topped with an illuminated overhead `MESH_ExitBeacon` that turns bright green once `TaskEStop && TaskContainment`.
-- The player spawns just inside the west portal at `(-7.6, 0, 0)`, facing east (`yaw 90°`) toward the press and E-stop pedestal.
-- The exit trigger is at `(-9.0, 0, 0)`, radius `1.15 m`.
+- One industrial steel emergency **Exit Door** on the **west** side at `(-9.0, 0, 0)` with an interactable green **panic bar** (*maniglione antipanico*, no `MESH_DoorRollHousing`), topped with an illuminated overhead `E001`/`E002` exit sign and `MESH_ExitBeacon` that turns bright green once `TaskEStop && TaskContainment`.
+- The player spawns just inside the west exit at `(-7.6, 0, 0)`, facing east (`yaw 90°`) toward the press and E-stop pedestal.
+- Activating the panic bar opens `SCN_Core`'s shared `HUD_DecisionPanel` via `ScenarioController.AskDecision` to confirm leaving; on confirmation, the steel door swings open ~90° and the mission transitions to the Supervisor line and Debrief (ADR-0006).
 - Yellow safety floor lanes frame the spill perimeter, the outer Dry Perimeter walkway, and station aprons.
-- Overhead signs (`STAMPAGGIO`, `QUADRO GENERALE`, `DPI`, `KIT ANTISPANDIMENTO`, `USCITA`) plus flush multi-line Diegetic Plaques (`TEX_Plaque_*`) on every station and PPE bay.
+- Authentic **UNI EN ISO 7010 / D.Lgs. 81/08 Safety Signs** (`W012`, `W017`, `W024`, `W011`, `P011`, `M008`, `M009`, `M013`, `M026`, `F001`, `F005`, `E001`/`E002`) are mounted cleanly on the walls in all difficulty modes, paired with compact brushed-metal **Diegetic Plaques** on the electrical Sub-Stations and press controls only (redundant pixel-art prop plaques removed).
 
 ### 7.2 Press and puddle
 
-- The press is at the **centre** of the bay, footprint **3.0 m × 2.5 m**, height 3.6 m, finished with Polyhaven CC0 `MAT_PressSteel_Green` (`green_metal_rust`), twin hydraulic cylinders, and `MESH_PULSANTI_TEAM.fbx` control details.
-- The puddle is a **ring around the press**: outer footprint up to **7.0 m × 5.0 m**. The press footprint is the inner hole.
+- The press is at the **centre** of the bay, footprint **3.0 m × 2.5 m**, height 4.35 m, built from custom Blender hero meshes (`MESH_HydraulicPressBody.fbx` + `MESH_HydraulicPressRam.fbx`) textured with Polyhaven CC0 `MAT_PressSteel_Green` (`green_metal_rust`), chrome tie rods, twin hydraulic cylinders, cantilevered HMI console, analog 120 °C gauge, and an engraved brushed-aluminum nameplate.
+- The puddle is an organic **4-quadrant SPLAT hot-oil spill** (`MESH_OilPuddleSplat.fbx` derived from `MESH_SPLAT.glb`) around the press with dark glossy wet-oil PBR ripples (`MAT_Oil`): outer footprint up to **7.0 m × 5.0 m**.
 - The **Dry Perimeter** is at least **2.5 m** wide on every side across all three Layout Patterns (A/B/C), guaranteeing comfortable Quest 3 locomotion around the spill.
 - The leak is on the press east manifold at `(2.05, 0.95, 0.55)`; an exposed steel pipe leads directly out to an unmissable bright red pulsing **Valve** at `(4.75, 0.95, 0.55)`, cleanly reachable from the Dry Perimeter without stepping in oil.
 - The press display and thermometer are on the **west face**, visible from the E-stop pedestal.
-- The E-stop mushroom and green `TEST AVVIO` button sit on a free-standing industrial pedestal (`MESH_PULSANTI_TEAM.fbx` + Diegetic Plaque) at `(-5.6, 0, 0)`, facing west directly toward Spawn.
-- The main electrical bay on the **east wall** at `(8.72, 1.28, 0)` is expanded into **three physically separated (≥ 0.88 m), color-coded Sub-Stations**:
-  1. `Main Disconnect Switch` (red/slate, south sub-unit, `Quadro Elettrico.fbx` + `Manopola.fbx`)
-  2. `Lockout Station` (safety-yellow/black, center sub-unit, `MESH_PULSANTI_TEAM.fbx` + red LOCK LED)
-  3. `Voltage Tester` (cyan/blue, north sub-unit, `MESH_RilevatoreDiGas.fbx` + LIVE/ZERO LEDs)
-- The alarm button is mounted on an industrial post on the west-north side at `(-8.50, 1.45, 2.4)`.
-- The wide sliding-door PPE cabinet, red Spill Kit (`MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`), and Water Extinguisher (`Estintore.fbx` + `MESH_Folgorazione_CartelloEstintore.fbx`) are positioned per active Layout Pattern (A/B/C), always facing inward toward the Dry Perimeter.
+- The E-stop mushroom (wired to `SFX_MechanicalButton.wav`) and green `TEST AVVIO` button sit on a free-standing industrial pedestal (`MESH_PULSANTI_TEAM.fbx` + engraved brushed-aluminum plaque) at `(-5.6, 0, 0)`, facing west directly toward Spawn.
+- The main electrical bay on the **east wall** at `(8.72, 1.28, 0)` is expanded into **three physically separated (≥ 0.88 m), cohesive IP65 steel Sub-Stations** with compact recessed pilot LEDs and engraved brushed-aluminum plaques:
+  1. `Main Disconnect Switch` (IP65 enclosure + yellow escutcheon + rotary red throw handle, south sub-unit)
+  2. `Lockout Station` (safety-yellow/slate IP65 enclosure + steel padlock hasp & parked padlock, center sub-unit)
+  3. `Voltage Tester` (authentic industrial voltage tester / multimeter cabinet with probes, dial & LIVE/ZERO LEDs, north sub-unit)
+- The alarm button (looping spatial `SFX_AlarmSiren.wav`) is mounted on an industrial post on the west-north side at `(-8.50, 1.45, 2.4)` beneath an ISO 7010 `F005` wall sign.
+- The wide sliding-door PPE cabinet, red Spill Kit (with un-squashed `MESH_TrafficConeHero`, quilted `MESH_AbsorbentMatHero`, and fabric-sleeved `MESH_AbsorbentSockHero`), and un-squashed `MESH_WaterExtinguisherHero` are positioned per active Layout Pattern (A/B/C), always facing inward toward the Dry Perimeter.
 
 ### 7.3 Top-down reference
 
@@ -200,7 +200,7 @@ z = -5.5  +--------------------------------------------------+
 
 | Element | Position (x, y, z) | Notes |
 |---|---|---|
-| Door / exit | (-9.0, 0, 0) | West portal (2.0 × 2.5 m); trigger radius 1.15 m; overhead `MESH_ExitBeacon` |
+| Door / exit | (-9.0, 0, 0) | Industrial steel exit door with interactable green panic bar (`AskDecision` confirmation → 90° swing-open) + overhead `E001`/`E002` beacon |
 | Spawn | (-7.6, 0, 0) | Facing east (`yaw 90°`) |
 | E-stop pedestal | (-5.6, 0, 0) | Facing west toward spawn; outside puddle |
 | Alarm button | (-8.50, 1.45, 2.4) | West-north post facing east |
@@ -210,7 +210,7 @@ z = -5.5  +--------------------------------------------------+
 | Valve | (4.75, 0.95, 0.55) | East oil pipe, outside puddle, bright red pulsing cue |
 | PPE cabinet (Pattern A) | (2.8, 0, -5.12) | Wide sliding-door cabinet, pattern-dependent |
 | Spill kit (Pattern A) | (-5.2, 0, -4.35) | Red spill-kit bin, pattern-dependent |
-| Water extinguisher (Pattern A) | (4.2, 1.25, 5.22) | North wall, pattern-dependent |
+| Water extinguisher (Pattern A) | (3.75, 1.25, 5.22) | North wall, pattern-dependent |
 | Display | (-1.8, 1.62, -0.95) | Press west face |
 | Thermometer | (-1.6, 1.78, 0.25) | Press west face |
 
@@ -230,12 +230,12 @@ z = -5.5  +--------------------------------------------------+
 
 Fixed: press, E-stop pedestal, alarm post, east electrical bay (3 Sub-Stations), east valve, west exit.
 
-Randomised at start (one of three spacious Layout Patterns in the `18 × 11 m` bay):
+Rotated across consecutive runs via a scenario-local persistent shuffle-bag JSON (`Application.persistentDataPath/machinelock_pattern_state.json`, ADR-0006) so the same Layout Pattern never repeats back-to-back (one of three spacious Layout Patterns in the `18 × 11 m` bay):
 
 | Pattern | PPE cabinet | Spill kit | Extinguisher | Puddle variant |
 |---|---|---|---|---|
-| A | `(2.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, -4.35)` yaw `0°` | `(4.2, 1.25, 5.22)` yaw `180°` | `(0, 0, 0)`, `7.0 × 5.0 m` |
-| B | `(5.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, 4.35)` yaw `180°` | `(0.0, 1.25, 5.22)` yaw `180°` | `(0.5, 0, 0.2)`, `6.6 × 4.8 m` |
+| A | `(2.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, -4.35)` yaw `0°` | `(3.75, 1.25, 5.22)` yaw `180°` | `(0, 0, 0)`, `7.0 × 5.0 m` |
+| B | `(5.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, 4.35)` yaw `180°` | `(0.9, 1.25, 5.22)` yaw `180°` | `(0.5, 0, 0.2)`, `6.6 × 4.8 m` |
 | C | `(-2.5, 0, 5.12)` yaw `180°` | `(4.8, 0, -4.35)` yaw `0°` | `(-6.2, 1.25, -5.22)` yaw `0°` | `(-0.4, 0, -0.25)`, `6.8 × 4.7 m` |
 
 Every pattern maintains at least **2.5 m** of Dry Perimeter on all four sides. The E-stop, alarm, and exit are never blocked.
@@ -247,7 +247,7 @@ Residual energy: **50%** chance the oil is energised at start. The state is inde
 - Baked/static lighting: four ceiling industrial fixtures (`MESH_Magazzino_LuceDaSoffitto.fbx` + baked point lights) plus bright industrial ambient light.
 - One directional fill light (realtime, shadows off) and one realtime red alarm beacon point light (range 8 m, shadows off, disabled at start) — at most 2 realtime lights total and 0–1 shadow casters.
 - Press display: emissive material with a blinking fault pattern (`MAT_HMI_Screen` → `MAT_HMI_Off`).
-- Puddle: dark glossy material (`MAT_Oil`, smoothness 0.92, metallic 0; no planar reflection).
+- Puddle: dark glossy material (`MAT_Oil`, smoothness 0.82, metallic 0.02, ripple normal map; no planar reflection).
 - Steam wisps over the puddle; stronger after water contact.
 - Performance budget: ≤ 100k triangles, ≤ 2 realtime lights, ≤ 1 shadow caster, ≤ 200 particles/system, ≤ 4 play-on-awake particle systems, textures 1024/2048 ASTC (displacement maps omitted).
 
@@ -283,7 +283,7 @@ No A/X mapping. No `OVRInput`. No XRI.
 | Cone | `MachineLockCone` | Grab / release | Snaps to nearest cone marker within 0.6 m | 4/4: containment part |
 | Absorbent mat/sock | `MachineLockAbsorbent` | Grab / release | Snaps to coverage zone within 0.6 m | 4/4: containment part |
 | Water extinguisher | `MachineLockExtinguisher` | Select | Sprays water; steam/smoke burst | Critical: Safety -5, Decision -10 |
-| Exit | `ScenarioTrigger` | walk | Ends mission if press is stopped | +1 Execution; evaluates outcome |
+| Exit door panic bar | `MachineLockExitDoor` (`Interactable`) | Select / Grab | Opens `HUD_DecisionPanel` confirmation; on Yes, swings door open and ends mission (Early Exit allowed anytime) | +1 Execution when safe; missing tasks & running press penalized in Debrief |
 
 ### 8.3 Snap rules
 
@@ -312,10 +312,10 @@ To avoid overlapping 3D cards and depth clipping against walls without modifying
 | Spill kit | ContextHelp | Kit antispandimento | Afferra con Grip coni, tappeti e sacchi |
 | Valve | ContextHelp | Valvola olio | Chiudi per fermare la perdita |
 | Extinguisher | ContextHelp | Estintore ad acqua | Non usare su olio o quadro |
-| Exit | Interaction | Uscita | — |
+| Exit | ContextHelp | Uscita di emergenza | Usa il maniglione (TRIGGER o GRIP) |
 
-2. **Flush multi-line Diegetic Plaques (`TEX_Plaque_*`)** mounted directly on each of the 3 electrical Sub-Stations, E-stop pedestal, Alarm, Valve, Spill Kit, Extinguisher, Exit header, and all 6 PPE bays (plus an `EquippedBadge` shelf indicator).
-3. **Throttled hover Action Feedback (`Interactable.HoverEntered`)** emitting the exact control/item name, slot, and live state (including `"<Nome DPI> indossato"` when hovering a worn PPE bay).
+2. **Crisp UNI EN ISO 7010 / D.Lgs. 81/08 Safety Signs (`TEX_IsoSign_*`)** visible in all difficulty modes (`W012`, `W017`, `W024`, `W011`, `P011`, `M008`, `M009`, `M013`, `M026`, `PpeBoard`, `F001`, `F005`, `E001`, `E002`), paired with compact engraved brushed-aluminum **Diegetic Plaques** on the 3 electrical Sub-Stations, E-stop pedestal, press nameplate, and department header (redundant pixel-font prop plaques and banners removed; PPE shelf retains anti-aliased `EquippedBadge` indicators).
+3. **Dwell-gated hover Action Feedback (`MachineLockHoverFeedback`)** limited strictly to the 6 PPE cabinet bays and 3 electrical Sub-Stations: requires a continuous `0.55 s` ray dwell (cancels immediately on `HoverExited` or selection so grazing/turning never fires haptics or banners) plus a `4.0 s` global cross-object cooldown (`6.0 s` same-text repeat cooldown). All other stations rely on silent 3D World Labels, ISO 7010 signage, and engraved brushed-metal plaques.
 
 Risk labels: press, thermometer and puddle are within 4 m of each other — exactly the maximum of 3. Do not add another Risk anchor near the press.
 
@@ -386,7 +386,7 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
   - `Mascherina chirurgica` — Face (replaced by Face Shield).
 - Because both distractors share slots with required correct items, equipping all 4 correct items always clears `HasWrongPpeEquipped` with zero soft-lock states.
 - The cabinet is a wide shallow (`1.80 × 2.05 × 0.44 m`) non-blocking sliding-door locker. Selecting it slides both doors open and immediately disables the door colliders so they never block the player's body or raycasts.
-- Each of the 6 bays has a flush Diegetic Plaque, throttled hover Action Feedback showing the item name and slot, and an `EquippedBadge` shelf status; hovering an already-worn bay emits `"<Nome DPI> indossato"`.
+- Each of the 6 bays has throttled hover Action Feedback showing the item name and slot, and an anti-aliased `EquippedBadge` shelf status; hovering an already-worn bay emits `"<Nome DPI> indossato"`.
 - Selecting an item equips it:
   - If the slot is empty, the item visuals hide (collider stays hoverable, `Selectable = false`), its `EquippedBadge` shows, and the slot is filled.
   - If the slot is occupied, the previous item reappears in the cabinet and the new item equips.
@@ -402,7 +402,7 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
 - The valve is on the pipe near the east wall, outside the puddle.
 - Selecting the valve rotates it 90°, stops the jet, plays a metal squeak, and stops puddle growth.
 - Closing the valve gives no score, but produces a good-practice debrief line if closed before handover.
-- The puddle visual is split into four quadrant meshes; each absorbent hides one quadrant.
+- The puddle visual is split into four organic SPLAT quadrant meshes (`MESH_PuddleQuadrantNE/NW/SE/SW`); each absorbent hides one quadrant.
 - The puddle hazard trigger covers the oil area; it is disabled when all four absorbents are placed.
 
 ### 9.8 Containment and delimitation
@@ -428,15 +428,19 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
 - The label warns “Non usare su olio o quadro” in Guided.
 - This is the critical distractor; it must remain visually available and not hidden.
 
-### 9.10 Exit and handover
+### 9.10 Exit and handover (ADR-0006)
 
-- The exit is a `ScenarioTrigger` at the west door, radius 1.0 m, `once = false`.
-- If the press is running: `Alert("Non puoi uscire\nLa pressa è ancora in moto")`; no end.
-- If the press is stopped: the Preposto subtitle plays, then `EndMission` is called once.
+- The west exit is an interactive hinged steel door (`MachineLockExitDoor`) with an EN 1125 green **panic bar** (`Interactable` accepting both Select/Trigger and Grab/Grip with `FollowsHand = false`; legacy `ScenarioTrigger` removed).
+- Activating the panic bar opens `SCN_Core`'s shared `HUD_DecisionPanel` via `ScenarioController.AskDecision`:
+  - Question: “Vuoi uscire dal reparto adesso?”
+  - Option 0: “Sì, esci dal reparto” → unlatches door, disables door leaf collider, smoothly swings door leaf 90° outward into the illuminated west vestibule, plays the Preposto closing line, and calls `EndMission` once.
+  - Option 1: “No, resta nella stanza” → closes the popup; the door stays shut and the mission continues uninterrupted.
+- **Early Exit is permitted at any time**, including while the press is still running:
+  - Leaving with the press running applies `SpiEvent.MissingEStop` (-20 Safety, -40 Decision, Time bonus forfeited, `OutcomeType.Negative`, zero score in Operational/Crisis, and critical debrief line `"! Hai lasciato il reparto con la pressa ancora in funzione → rischio grave"`).
+  - Leaving with the press stopped but missing non-critical tasks applies each missing-task penalty at handover and yields `OutcomeType.Partial`.
 - The Preposto line depends on the result:
-  - Safe: “Sala in sicurezza. Ottimo lavoro.”
-  - Unsafe: “La sala non è ancora sicura.”
-- If the player exits with missing non-critical tasks, the outcome is Partial and the missing penalties are applied at that moment.
+  - Safe (`Positive`): “Sala in sicurezza. Ottimo lavoro.”
+  - Incomplete or Unsafe (`Partial` / `Negative`): “La sala non è ancora sicura.”
 
 ### 9.11 Observation and Awareness
 
@@ -624,6 +628,7 @@ It owns the five dimensions, weights, time modes, penalties, outcome and debrief
 | Touch live puddle even with full PPE | -10 | Critical shock |
 | Use water extinguisher | -10 | Critical |
 | Try-start before isolation | -10 | Critical |
+| Exit with press still running (Early Exit) | -20 Safety / -40 Decision (critical) | Permitted anytime via confirmation popup; forces Negative outcome (0 / severe fail in non-Guided) and adds critical debrief row |
 | Exit without alarm | -8 | At handover |
 | Exit without main off | -2 | At handover |
 | Exit without lockout | -2 | At handover |
@@ -689,8 +694,8 @@ Time = 0 if elapsed >= T_limit
 | Realistic/Stress: timer expires with press running or area not contained | Negative, Time = 0 |
 | Timeout with press stopped (any mode) | Partial |
 | Timeout with press running | Negative — Bad Ending 2 |
-| Exit with press running | Blocked; mission continues |
-| Exit with missing non-critical tasks | Partial |
+| Early Exit with press running | Negative (critical debrief row: left room with press still running; zero / severe penalty in Operational & Crisis; ADR-0006) |
+| Early Exit with press stopped but missing tasks | Partial (penalized per missed task in Debrief; in Operational/Crisis heavy penalties may yield low score) |
 | Exit with all tasks | Positive |
 
 In Guided, critical errors never end the mission immediately. They apply penalties, damage feedback and a respawn, and the player can continue. The final outcome can still be Partial; it cannot be Positive after a critical error.

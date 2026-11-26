@@ -12,7 +12,7 @@ namespace SI81.MachineLock.EditorTools
     /// <summary>
     /// Read-only Editor CLI auditing utilities for Scenario 08 (Machine Lock): geometry &amp; triangle-budget
     /// inspection and offscreen PNG camera captures for visual verification before building an APK.
-    /// Invoked via <c>scripts/unity-run.ps1 inspect-scene</c> or <c>capture-views</c>.
+    /// Invoked via <c>scripts/unity-run.ps1 inspect-scene</c> or <c>capture-views</c>, or via Unity Pipeline.
     /// </summary>
     public static class MachineLockAuditCli
     {
@@ -22,7 +22,7 @@ namespace SI81.MachineLock.EditorTools
 
         /// <summary>
         /// Logs total triangle count, top-25 MeshFilter triangle consumers in SCN_MachineLock, and
-        /// PFB_OldIndustrialBuilding horizontal slab elevations and inner wall clearances.
+        /// MESH_WorkshopShell bounds.
         /// </summary>
         [MenuItem("SI81/MachineLock/Audit/Inspect Scene Geometry & Triangles")]
         public static void InspectScene()
@@ -48,7 +48,7 @@ namespace SI81.MachineLock.EditorTools
                 for (int i = 0; i < top; i++)
                     Debug.Log($"{LOG_PREFIX}TOP{i + 1:00}: {counts[i].Value,6} tris | {counts[i].Key}");
 
-                InspectBuildingShell(scene);
+                InspectWorkshopShell(scene);
             }
             finally
             {
@@ -57,7 +57,7 @@ namespace SI81.MachineLock.EditorTools
         }
 
         /// <summary>
-        /// Renders six offscreen 1280x720 PNG views of SCN_MachineLock into Logs/previews/ using a
+        /// Renders eight offscreen 1280x720 PNG views of SCN_MachineLock into Logs/previews/ using a
         /// temporary camera that is destroyed before closing the scene. Must run without -nographics.
         /// </summary>
         [MenuItem("SI81/MachineLock/Audit/Capture Scene Preview PNGs")]
@@ -87,12 +87,14 @@ namespace SI81.MachineLock.EditorTools
 
             var shots = new (string FileName, Vector3 Position, Vector3 LookAt)[]
             {
-                ("01_spawn_view.png",     new Vector3(-7.6f, 1.65f,  0.0f), new Vector3( 0.0f, 1.50f,  0.0f)),
-                ("02_electrical_bay.png", new Vector3( 5.4f, 1.55f,  0.0f), new Vector3( 8.7f, 1.35f,  0.0f)),
-                ("03_ppe_cabinet.png",    new Vector3( 2.8f, 1.45f, -2.2f), new Vector3( 2.8f, 1.20f, -5.1f)),
-                ("04_valve_and_pipe.png", new Vector3( 3.2f, 1.65f,  3.1f), new Vector3( 4.6f, 0.95f,  0.55f)),
-                ("05_west_exit.png",      new Vector3(-4.6f, 1.65f,  0.8f), new Vector3(-9.0f, 1.75f,  0.6f)),
-                ("06_topdown_bay.png",    new Vector3( 0.0f, 14.5f, -0.5f), new Vector3( 0.0f, 0.00f,  0.0f))
+                ("01_spawn_view.png",       new Vector3(-7.6f, 1.65f,  0.0f), new Vector3( 0.0f, 1.55f,  0.0f)),
+                ("02_electrical_bay.png",   new Vector3( 5.3f, 1.55f,  0.0f), new Vector3( 8.8f, 1.45f,  0.0f)),
+                ("03_ppe_and_iso_south.png",new Vector3( 1.2f, 1.60f, -1.3f), new Vector3( 1.5f, 1.45f, -5.4f)),
+                ("04_oil_splat_valve.png",  new Vector3( 3.0f, 1.80f,  3.5f), new Vector3( 2.2f, 0.70f,  0.2f)),
+                ("05_west_exit_door.png",   new Vector3(-6.3f, 1.55f,  0.3f), new Vector3(-9.0f, 1.50f,  0.1f)),
+                ("06_spill_kit_props.png",  new Vector3(-4.2f, 1.35f, -2.0f), new Vector3(-5.2f, 0.55f, -4.35f)),
+                ("07_north_extinguisher.png",new Vector3( 2.8f, 1.65f,  2.2f), new Vector3( 3.2f, 1.55f,  5.45f)),
+                ("08_hall_overview.png",    new Vector3(-7.2f, 4.60f, -4.2f), new Vector3( 4.5f, 1.30f,  0.8f))
             };
 
             try
@@ -114,6 +116,30 @@ namespace SI81.MachineLock.EditorTools
                     Debug.Log($"{LOG_PREFIX}PREVIEW {filePath}");
                 }
 
+                // Shot 09: Open PPE cabinet sliding doors temporarily to inspect all 6 hero PPE 3D models up close.
+                foreach (GameObject root in scene.GetRootGameObjects())
+                {
+                    MachineLockPpeCabinet cab = root.GetComponentInChildren<MachineLockPpeCabinet>(true);
+                    if (cab == null) continue;
+                    Transform doorL = cab.transform.Find("MESH_PpeCabinet_DoorLeft");
+                    Transform doorR = cab.transform.Find("MESH_PpeCabinet_DoorRight");
+                    if (doorL != null) doorL.gameObject.SetActive(false);
+                    if (doorR != null) doorR.gameObject.SetActive(false);
+                    cam.fieldOfView = 52f;
+                    Vector3 cabPos = cab.transform.position;
+                    camObj.transform.position = cabPos + new Vector3(0f, 1.25f, 1.85f);
+                    camObj.transform.LookAt(cabPos + new Vector3(0f, 1.12f, 0f), Vector3.up);
+                    cam.Render();
+                    tex.ReadPixels(new Rect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT), 0, 0);
+                    tex.Apply(false, false);
+                    string ppeFile = Path.Combine(outDir, "09_ppe_cabinet_closeup.png");
+                    File.WriteAllBytes(ppeFile, tex.EncodeToPNG());
+                    Debug.Log($"{LOG_PREFIX}PREVIEW {ppeFile}");
+                    if (doorL != null) doorL.gameObject.SetActive(true);
+                    if (doorR != null) doorR.gameObject.SetActive(true);
+                    break;
+                }
+
                 RenderTexture.active = prevActive;
                 cam.targetTexture = null;
             }
@@ -127,19 +153,20 @@ namespace SI81.MachineLock.EditorTools
             }
         }
 
-        private static void InspectBuildingShell(Scene scene)
+        private static void InspectWorkshopShell(Scene scene)
         {
             foreach (GameObject root in scene.GetRootGameObjects())
             {
                 foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
                 {
-                    if (t.name != "PFB_OldIndustrialBuilding") continue;
+                    if (t.name != "MESH_WorkshopShell") continue;
                     foreach (MeshRenderer mr in t.GetComponentsInChildren<MeshRenderer>(true))
                     {
                         MeshFilter mf = mr.GetComponent<MeshFilter>();
                         if (mf == null || mf.sharedMesh == null) continue;
                         Bounds b = mr.bounds;
-                        Debug.Log($"{LOG_PREFIX}SHELL '{mr.name}' WorldMin={b.min} WorldMax={b.max} Size={b.size}");
+                        int tris = mf.sharedMesh.triangles.Length / 3;
+                        Debug.Log($"{LOG_PREFIX}SHELL '{mr.name}' Tris={tris} WorldMin={b.min} WorldMax={b.max} Size={b.size}");
                     }
                     return;
                 }

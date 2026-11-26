@@ -29,7 +29,6 @@ namespace SI81.MachineLock
 
         private const float DEFAULT_SNAP_RADIUS = 0.6f;
         private const int FREEZE_FRAMES = 2;
-        private const float HOVER_THROTTLE_SECONDS = 0.35f;
 
         [Header("Item")]
         [Tooltip("Kind of absorbent: mat or sock.")]
@@ -54,16 +53,12 @@ namespace SI81.MachineLock
         private Interactable wiredInteractable;
         private Rigidbody body;
         private int freezeFrames;
-        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>Mat or sock.</summary>
         public AbsorbentKind Kind => absorbentKind;
 
         /// <summary>true after the item snapped to a zone. A placed item cannot be grabbed again.</summary>
         public bool Snapped { get; private set; }
-
-        /// <summary>Most recent hover Action Feedback string emitted for this absorbent.</summary>
-        public string LastHoverFeedback { get; private set; } = string.Empty;
 
         /// <summary>
         /// Ensures physical collisions with the active player <see cref="CharacterController"/> are ignored
@@ -193,7 +188,6 @@ namespace SI81.MachineLock
             if (interactable == null || wiredInteractable == interactable) return;
             Unwire();
             wiredInteractable = interactable;
-            wiredInteractable.HoverEntered += OnHoverEntered;
             wiredInteractable.GrabEntered += OnGrabEntered;
             wiredInteractable.GrabExited += OnGrabExited;
         }
@@ -201,23 +195,9 @@ namespace SI81.MachineLock
         private void Unwire()
         {
             if (wiredInteractable == null) return;
-            wiredInteractable.HoverEntered -= OnHoverEntered;
             wiredInteractable.GrabEntered -= OnGrabEntered;
             wiredInteractable.GrabExited -= OnGrabExited;
             wiredInteractable = null;
-        }
-
-        private void OnHoverEntered(Hand hand)
-        {
-            if (Snapped) return;
-            float now = Time.unscaledTime;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS) return;
-            lastHoverTime = now;
-            LastHoverFeedback = absorbentKind == AbsorbentKind.Mat
-                ? MachineLockTexts.HoverAbsorbentMat
-                : MachineLockTexts.HoverAbsorbentSock;
-            if (HUDService.IsReady)
-                HUDService.ShowActionFeedback(LastHoverFeedback, FeedbackKind.Neutral);
         }
 
         private void OnGrabEntered(Hand hand)

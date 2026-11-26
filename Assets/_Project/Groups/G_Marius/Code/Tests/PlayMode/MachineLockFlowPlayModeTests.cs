@@ -65,6 +65,7 @@ namespace SI81.MachineLock.Tests
         public void SetUp()
         {
             Time.timeScale = 1f;
+            MachineLockHoverFeedback.ResetGlobalCooldown();
 
             config = TrackAsset(ScriptableObject.CreateInstance<MachineLockConfig>());
 
@@ -900,11 +901,25 @@ namespace SI81.MachineLock.Tests
 
             cabinet.Cabinet.Open();
 
-            // Hover before equipping reports Italian name and slot.
+            // Brief ray graze (< dwell) followed by HoverExit must NOT emit spam feedback.
             InvokeInteractableHover(cabinet.SafetyBoots.Interactable, Hand.Right);
+            yield return new WaitForSecondsRealtime(0.15f);
+            InvokeInteractableHoverExit(cabinet.SafetyBoots.Interactable, Hand.Right);
+            Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Is.Empty,
+                "Brief hover graze below dwell threshold must not trigger ActionFeedback spam.");
+
+            // Deliberate continuous dwell (>= 0.55 s) reports Italian name and slot.
+            InvokeInteractableHover(cabinet.SafetyBoots.Interactable, Hand.Right);
+            yield return new WaitForSecondsRealtime(MachineLockHoverFeedback.DEFAULT_DWELL_SECONDS + 0.08f);
             Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Does.Contain("Scarpe antinfortunistiche S3"));
             Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Does.Contain(MachineLockTexts.PpeSlotFeet));
             Assert.That(cabinet.SafetyBoots.Item.IsEquippedShelfStatusVisible, Is.False);
+
+            // Global cooldown blocks immediate cross-item hover spam right after an emission.
+            InvokeInteractableHover(cabinet.HeatGloves.Interactable, Hand.Right);
+            yield return new WaitForSecondsRealtime(MachineLockHoverFeedback.DEFAULT_DWELL_SECONDS + 0.08f);
+            Assert.That(cabinet.HeatGloves.Item.LastHoverFeedback, Is.Empty,
+                "Global hover cooldown must suppress rapid cross-item hover toasts.");
 
             // Equip both distractors first.
             Assert.That(cabinet.Cabinet.Equip(cabinet.LatexGloves.Item), Is.True);
@@ -925,8 +940,10 @@ namespace SI81.MachineLock.Tests
             Assert.That(cabinet.Cabinet.HasFullPpe, Is.True);
             Assert.That(cabinet.Cabinet.CorrectCount, Is.EqualTo(4));
 
-            // Hovering equipped Safety Boots flips to "<Nome DPI> indossato" and shelf status badge is visible.
+            // After cooldown elapses, deliberate hover on equipped Safety Boots flips to "<Nome DPI> indossato".
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(cabinet.SafetyBoots.Interactable, Hand.Right);
+            yield return new WaitForSecondsRealtime(MachineLockHoverFeedback.DEFAULT_DWELL_SECONDS + 0.08f);
             Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Is.EqualTo("Scarpe antinfortunistiche S3 indossato"));
             Assert.That(cabinet.SafetyBoots.Item.IsEquippedShelfStatusVisible, Is.True);
             Assert.That(cabinet.SafetyBoots.Interactable.Selectable, Is.False);
@@ -992,28 +1009,56 @@ namespace SI81.MachineLock.Tests
 
             panel.Panel.InitializeState(false);
 
+            float dwellWait = MachineLockHoverFeedback.DEFAULT_DWELL_SECONDS + 0.08f;
+
+            // Brief graze does not emit.
             InvokeInteractableHover(panel.MainSwitch, Hand.Right);
+            yield return new WaitForSecondsRealtime(0.15f);
+            InvokeInteractableHoverExit(panel.MainSwitch, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.Empty);
+
+            // Deliberate dwell emits MainSwitch ON, then global cooldown suppresses immediate Lockout hover.
+            InvokeInteractableHover(panel.MainSwitch, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverMainSwitchOn));
 
             InvokeInteractableHover(panel.Lockout, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverMainSwitchOn),
+                "Global cooldown must prevent rapid Sub-Station hover spam.");
+
+            // Verify live state hover texts across transitions once cooldown resets.
+            MachineLockHoverFeedback.ResetGlobalCooldown();
+            InvokeInteractableHover(panel.Lockout, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutBlocked));
 
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(panel.Tester, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverTesterLivePanel));
 
             panel.Panel.SetMainPower(false);
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(panel.MainSwitch, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverMainSwitchOff));
 
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(panel.Lockout, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutReady));
 
             panel.Panel.ApplyLockout();
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(panel.Lockout, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutApplied));
 
             panel.Panel.ReadTester();
+            MachineLockHoverFeedback.ResetGlobalCooldown();
             InvokeInteractableHover(panel.Tester, Hand.Right);
+            yield return new WaitForSecondsRealtime(dwellWait);
             Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverTesterZeroConfirmed));
             yield return null;
         }
@@ -1197,23 +1242,61 @@ namespace SI81.MachineLock.Tests
         }
 
         /// <summary>
-        /// The exit is blocked while the press runs; after the E-stop a handover without the alarm and
-        /// without containment is Partial and carries both missing-task penalties.
+        /// Early Exit while the press is still running is permitted (ADR-0006): it ends the mission
+        /// Negative with the critical debrief row, severe Safety/Decision penalties, and zero score in
+        /// Operational mode.
         /// </summary>
         [UnityTest]
-        public IEnumerator Flow_ExitBlockedWhilePressRunning_MissingAlarmAndContainmentYieldPartial()
+        public IEnumerator Flow_EarlyExitWhilePressRunning_EndsNegativeWithCriticalDebrief()
+        {
+            // Guided Early Exit with press still running -> Negative + CriticalMissingEStop.
+            MachineLockScenario guided = CreateScenario(DifficultyLevel.Guided);
+            CreatePress(guided);
+            yield return null;
+
+            guided.NotifyExitReached();
+            Assert.That(guided.TaskExit, Is.True, "Early Exit must be allowed even while the press runs.");
+            Assert.That(guided.Spi.CriticalOccurred, Is.True);
+            Assert.That(HasDebrief(guided, DebriefLineId.CriticalMissingEStop), Is.True);
+
+            yield return new WaitForSeconds(2.7f);
+
+            Assert.That(guided.HasEnded, Is.True);
+            Assert.That(MissionSession.LastResult, Is.Not.Null);
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Negative));
+            Assert.That(MissionSession.LastResult.SafetyScore, Is.EqualTo(0));
+            DestroyTrackedObjects();
+
+            // Operational Early Exit with partial progress (observed + alarm) still yields 0 Negative.
+            MachineLockScenario operational = CreateScenario(DifficultyLevel.Operational);
+            CreatePress(operational);
+            AlarmFixture alarm = CreateAlarm(operational);
+            yield return null;
+
+            for (int i = 0; i < ObservationIds.Length; i++) operational.NotifyObservation(ObservationIds[i]);
+            alarm.Alarm.Raise();
+            operational.NotifyExitReached();
+
+            yield return new WaitForSeconds(2.7f);
+
+            Assert.That(operational.HasEnded, Is.True);
+            Assert.That(MissionSession.LastResult, Is.Not.Null);
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Negative));
+            Assert.That(MissionSession.LastResult.SafetyScore, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// After pressing E-stop, a handover without the alarm and without containment ends Partial
+        /// and carries both missing-task penalties.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Flow_ExitAfterEStopWithMissingAlarmAndContainment_YieldsPartialWithPenalties()
         {
             MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
             PressFixture press = CreatePress(scenario);
             PanelFixture panel = CreatePanel(scenario, press.Press);
             CabinetFixture cabinet = CreateCabinet(scenario, false);
             yield return null;
-
-            scenario.NotifyExitReached();
-
-            Assert.That(scenario.TaskExit, Is.False, "The exit is blocked while the press runs.");
-            Assert.That(scenario.Spi.TaskExit, Is.False);
-            Assert.That(scenario.HasEnded, Is.False);
 
             press.Press.PressEStop();
             panel.Panel.SetMainPower(false);
@@ -1240,6 +1323,189 @@ namespace SI81.MachineLock.Tests
             Assert.That(HasDebrief(scenario, DebriefLineId.BadMissingAlarm), Is.True);
             Assert.That(HasDebrief(scenario, DebriefLineId.BadMissingContainment), Is.True);
             Assert.That(MissionSession.LastResult.SafetyScore, Is.LessThan(95));
+        }
+
+        /// <summary>
+        /// Activating the west exit door panic bar via Select (Trigger) or Grab (Grip) opens the shared
+        /// HUD_DecisionPanel: selecting No keeps the door shut and the mission running; selecting Yes
+        /// disables the door collider, swings the steel leaf open ~90 degrees, and completes the exit.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ExitDoor_PanicBarSelectAndGrab_OpensDecisionPanel_NoStays_YesSwingsOpenAndEndsMission()
+        {
+#if UNITY_EDITOR
+            GameObject decisionPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Project/Home/UI/Prefabs/HUD/HUD_DecisionPanel.prefab");
+            Assert.That(decisionPrefab, Is.Not.Null, "HUD_DecisionPanel.prefab must exist in Home/UI.");
+
+            GameObject decisionInstance = UnityEngine.Object.Instantiate(decisionPrefab);
+            roots.Add(decisionInstance);
+            DecisionPanel decisionPanel = decisionInstance.GetComponent<DecisionPanel>();
+            Assert.That(decisionPanel, Is.Not.Null);
+
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            CreatePress(scenario);
+
+            GameObject doorRoot = NewRoot("TEST_ExitDoor");
+            GameObject doorLeaf = new GameObject("MESH_SteelExitDoorLeaf");
+            doorLeaf.transform.SetParent(doorRoot.transform, false);
+            BoxCollider leafCollider = doorLeaf.AddComponent<BoxCollider>();
+
+            GameObject panicBarObj = new GameObject("MESH_PanicBar");
+            panicBarObj.transform.SetParent(doorLeaf.transform, false);
+            panicBarObj.AddComponent<BoxCollider>();
+            Interactable panicBar = panicBarObj.AddComponent<Interactable>();
+            WireBool(panicBar, "canSelect", true);
+            WireBool(panicBar, "canGrab", true);
+            WireBool(panicBar, "followsHand", false);
+
+            MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
+            WireObject(exitDoor, "scenario", scenario);
+            WireObject(exitDoor, "panicBarInteractable", panicBar);
+            WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
+            WireObject(exitDoor, "doorLeafCollider", leafCollider);
+            WireFloat(exitDoor, "openAngleDegrees", 90f);
+            WireFloat(exitDoor, "openDurationSeconds", 0.15f);
+            doorRoot.SetActive(true);
+            yield return null;
+
+            // Hovering the exit door panic bar must remain silent (relies on 3D LabelAnchor + E001/E002 signs).
+            InvokeInteractableHover(panicBar, Hand.Right);
+            Assert.That(exitDoor.IsConfirmationOpen, Is.False);
+
+            // Select (Trigger) opens the shared DecisionPanel.
+            MethodInfo selectEnter = typeof(Interactable).GetMethod("SelectEnter", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo grabEnter = typeof(Interactable).GetMethod("GrabEnter", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo chooseMethod = typeof(DecisionPanel).GetMethod("Choose", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(selectEnter, Is.Not.Null);
+            Assert.That(grabEnter, Is.Not.Null);
+            Assert.That(chooseMethod, Is.Not.Null);
+
+            selectEnter.Invoke(panicBar, new object[] { Hand.Right });
+            Assert.That(exitDoor.IsConfirmationOpen, Is.True, "Select on panic bar must open confirmation.");
+            Assert.That(decisionPanel.IsOpen, Is.True, "Shared HUD_DecisionPanel must open.");
+
+            // Option 1 ("No, resta nella stanza") cancels without opening the door or ending the mission.
+            chooseMethod.Invoke(decisionPanel, new object[] { 1 });
+            Assert.That(exitDoor.IsConfirmationOpen, Is.False);
+            Assert.That(exitDoor.IsOpened, Is.False);
+            Assert.That(leafCollider.enabled, Is.True);
+            Assert.That(scenario.TaskExit, Is.False);
+            Assert.That(scenario.HasEnded, Is.False);
+            Assert.That(Quaternion.Angle(Quaternion.identity, doorLeaf.transform.localRotation), Is.LessThan(0.5f));
+
+            // Grab (Grip) also opens the shared DecisionPanel cleanly (without FollowsHand).
+            grabEnter.Invoke(panicBar, new object[] { Hand.Left });
+            Assert.That(exitDoor.IsConfirmationOpen, Is.True, "Grab on panic bar must also open confirmation.");
+            Assert.That(decisionPanel.IsOpen, Is.True);
+
+            // Option 0 ("Sì, esci dal reparto") swings the steel leaf +90 deg outward (-X) and completes the exit.
+            chooseMethod.Invoke(decisionPanel, new object[] { 0 });
+            Assert.That(leafCollider.enabled, Is.False, "Door collider must disable while swinging open.");
+            Assert.That(panicBar.Selectable, Is.False);
+            Assert.That(panicBar.Grabbable, Is.False);
+
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(exitDoor.IsOpened, Is.True);
+            Assert.That(Quaternion.Angle(Quaternion.identity, doorLeaf.transform.localRotation), Is.EqualTo(90f).Within(1.0f));
+            Vector3 swungFreeEdge = doorLeaf.transform.TransformPoint(new Vector3(0f, 1.2f, -1.88f));
+            Assert.That(swungFreeEdge.x, Is.LessThan(doorLeaf.transform.position.x - 1.5f),
+                "Hinged door leaf must swing outward along -X into the west vestibule, never inward.");
+            Assert.That(scenario.TaskExit, Is.True);
+
+            yield return new WaitForSeconds(2.7f);
+            Assert.That(scenario.HasEnded, Is.True);
+            Assert.That(MissionSession.LastResult, Is.Not.Null);
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Negative),
+                "Early Exit through the panic bar with press running must yield Negative.");
+#else
+            Assert.Ignore("HUD_DecisionPanel prefab test requires the Editor AssetDatabase.");
+            yield return null;
+#endif
+        }
+
+        /// <summary>
+        /// Completing the full safe LOTO + PPE + containment procedure and exiting through the physical
+        /// panic bar -> HUD_DecisionPanel confirmation swings the door outward (-X) and ends Positive.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ExitDoor_FullSafeProcedure_PanicBarConfirm_SwingsOutwardAndEndsPositive()
+        {
+#if UNITY_EDITOR
+            GameObject decisionPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Project/Home/UI/Prefabs/HUD/HUD_DecisionPanel.prefab");
+            Assert.That(decisionPrefab, Is.Not.Null);
+
+            GameObject decisionInstance = UnityEngine.Object.Instantiate(decisionPrefab);
+            roots.Add(decisionInstance);
+            DecisionPanel decisionPanel = decisionInstance.GetComponent<DecisionPanel>();
+            Assert.That(decisionPanel, Is.Not.Null);
+
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            AlarmFixture alarm = CreateAlarm(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            CabinetFixture cabinet = CreateCabinet(scenario, false);
+            SpillFixture spill = CreateSpill(scenario, true);
+            ValveFixture valve = CreateValve(scenario, spill.Spill);
+
+            GameObject doorRoot = NewRoot("TEST_ExitDoorPositive");
+            GameObject doorLeaf = new GameObject("MESH_SteelExitDoorLeaf");
+            doorLeaf.transform.SetParent(doorRoot.transform, false);
+            BoxCollider leafCollider = doorLeaf.AddComponent<BoxCollider>();
+
+            GameObject panicBarObj = new GameObject("MESH_PanicBar");
+            panicBarObj.transform.SetParent(doorLeaf.transform, false);
+            panicBarObj.AddComponent<BoxCollider>();
+            Interactable panicBar = panicBarObj.AddComponent<Interactable>();
+            WireBool(panicBar, "canSelect", true);
+            WireBool(panicBar, "canGrab", true);
+            WireBool(panicBar, "followsHand", false);
+
+            MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
+            WireObject(exitDoor, "scenario", scenario);
+            WireObject(exitDoor, "panicBarInteractable", panicBar);
+            WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
+            WireObject(exitDoor, "doorLeafCollider", leafCollider);
+            WireFloat(exitDoor, "openAngleDegrees", 90f);
+            WireFloat(exitDoor, "openDurationSeconds", 0.15f);
+            doorRoot.SetActive(true);
+            yield return null;
+
+            for (int i = 0; i < ObservationIds.Length; i++) scenario.NotifyObservation(ObservationIds[i]);
+            press.Press.PressEStop();
+            alarm.Alarm.Raise();
+            panel.Panel.SetMainPower(false);
+            panel.Panel.ApplyLockout();
+            panel.Panel.ForceZeroEnergy();
+            panel.Panel.ReadTester();
+            press.Press.TryStart();
+            cabinet.Cabinet.Open();
+            for (int i = 0; i < cabinet.CorrectItems.Length; i++) cabinet.Cabinet.Equip(cabinet.CorrectItems[i].Item);
+            valve.Valve.Close();
+            PlaceAllContainment(spill);
+
+            MethodInfo selectEnter = typeof(Interactable).GetMethod("SelectEnter", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo chooseMethod = typeof(DecisionPanel).GetMethod("Choose", BindingFlags.Instance | BindingFlags.NonPublic);
+            selectEnter.Invoke(panicBar, new object[] { Hand.Right });
+            Assert.That(decisionPanel.IsOpen, Is.True);
+            chooseMethod.Invoke(decisionPanel, new object[] { 0 });
+
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(exitDoor.IsOpened, Is.True);
+            Vector3 swungFreeEdge = doorLeaf.transform.TransformPoint(new Vector3(0f, 1.2f, -1.88f));
+            Assert.That(swungFreeEdge.x, Is.LessThan(doorLeaf.transform.position.x - 1.5f),
+                "Positive exit must swing the door leaf outward along -X.");
+
+            yield return new WaitForSeconds(2.7f);
+            Assert.That(scenario.HasEnded, Is.True);
+            Assert.That(MissionSession.LastResult, Is.Not.Null);
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Positive));
+            Assert.That(MissionSession.LastResult.SafetyScore, Is.GreaterThanOrEqualTo(95));
+#else
+            Assert.Ignore("HUD_DecisionPanel prefab test requires the Editor AssetDatabase.");
+            yield return null;
+#endif
         }
 
         /// <summary>
@@ -1378,8 +1644,12 @@ namespace SI81.MachineLock.Tests
             Assert.That(Mathf.Abs(Mathf.DeltaAngle(spawn.transform.eulerAngles.y, 90f)), Is.LessThan(0.1f),
                 "MNG_SpawnPoint must face 90 degrees.");
 
-            Transform building = FindInScene(scene, "PFB_OldIndustrialBuilding");
-            Assert.That(building, Is.Not.Null, "PFB_OldIndustrialBuilding shell must be present in SCN_MachineLock.");
+            Transform building = FindInScene(scene, "MESH_WorkshopShell");
+            Assert.That(building, Is.Not.Null, "MESH_WorkshopShell must be present in SCN_MachineLock (ADR-0005).");
+            Assert.That(FindInScene(scene, "PFB_OldIndustrialBuilding"), Is.Null,
+                "PFB_OldIndustrialBuilding must be replaced by MESH_WorkshopShell.");
+            Assert.That(FindInScene(scene, "MESH_DoorRollHousing"), Is.Null,
+                "MESH_DoorRollHousing must be removed from the west exit door.");
 
             var serializedScenario = new SerializedObject(scenario);
             SerializedProperty spawnReference = serializedScenario.FindProperty("spawnPoint");
@@ -1418,8 +1688,20 @@ namespace SI81.MachineLock.Tests
             Assert.That(CountComponentsInScene<MachineLockSnapZone>(scene), Is.GreaterThanOrEqualTo(8));
             Assert.That(CountComponentsInScene<MachineLockObservationTarget>(scene), Is.EqualTo(ObservationIds.Length));
             Assert.That(CountComponentsInScene<MachineLockDamageFeedback>(scene), Is.GreaterThanOrEqualTo(1));
-            Assert.That(CountComponentsInScene<ScenarioTrigger>(scene), Is.GreaterThanOrEqualTo(1),
-                "ZONE_Exit needs a ScenarioTrigger wired to NotifyExitReached.");
+            Assert.That(CountComponentsInScene<MachineLockExitDoor>(scene), Is.EqualTo(1),
+                "West exit door needs a MachineLockExitDoor component (ADR-0006).");
+            Assert.That(CountComponentsInScene<ScenarioTrigger>(scene), Is.EqualTo(0),
+                "Legacy walk-into ScenarioTrigger must be removed in favour of MachineLockExitDoor.");
+
+            foreach (string qName in new[] { "MESH_PuddleQuadrantNE", "MESH_PuddleQuadrantNW", "MESH_PuddleQuadrantSE", "MESH_PuddleQuadrantSW" })
+            {
+                Transform q = FindInScene(scene, qName);
+                Assert.That(q, Is.Not.Null, qName + " is missing from VFX_OilPuddle.");
+                MeshRenderer mr = q.GetComponentInChildren<MeshRenderer>(true);
+                Assert.That(mr, Is.Not.Null, qName + " must have a MeshRenderer.");
+                Assert.That(mr.sharedMaterial != null && mr.sharedMaterial.name == "MAT_Oil", Is.True,
+                    qName + " must render with MAT_Oil.");
+            }
 
             Transform cabinet = FindInScene(scene, "MESH_PpeCabinet");
             Transform spillKit = FindInScene(scene, "MESH_SpillKit");
@@ -2066,6 +2348,15 @@ namespace SI81.MachineLock.Tests
             Assert.That(enter, Is.Not.Null, "Interactable.HoverEnter was not found.");
             if (exit != null) exit.Invoke(interactable, new object[] { hand });
             enter.Invoke(interactable, new object[] { hand });
+        }
+
+        /// <summary>Invokes the internal HoverExit transition on a shared Interactable.</summary>
+        private static void InvokeInteractableHoverExit(Interactable interactable, Hand hand)
+        {
+            Assert.That(interactable, Is.Not.Null);
+            MethodInfo exit = typeof(Interactable).GetMethod("HoverExit", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(exit, Is.Not.Null, "Interactable.HoverExit was not found.");
+            exit.Invoke(interactable, new object[] { hand });
         }
 
         /// <summary>Minimal in-memory IUISettingsStore for testing accessibility.reduce_flashes.</summary>

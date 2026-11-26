@@ -14,7 +14,6 @@ namespace SI81.MachineLock
     [AddComponentMenu("SI81/MachineLock/Machine Lock Valve")]
     public sealed class MachineLockValve : MonoBehaviour
     {
-        private const float HOVER_THROTTLE_SECONDS = 0.3f;
         private const float PULSE_SPEED = 3.5f;
 
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
@@ -53,13 +52,10 @@ namespace SI81.MachineLock
         private Quaternion rotationTarget;
         private float rotationElapsed;
         private bool rotating;
-        private float lastHoverTime = float.NegativeInfinity;
         private MaterialPropertyBlock pulseBlock;
 
         /// <summary>true after the valve was closed. Closing is idempotent.</summary>
         public bool IsClosed { get; private set; }
-        /// <summary>Most recent hover Action Feedback emitted for this valve.</summary>
-        public string LastHoverFeedback { get; private set; } = string.Empty;
 
         /// <summary>
         /// Closes the valve: turns the wheel, disables selection, stops the visual pulse, plays the squeak
@@ -158,32 +154,18 @@ namespace SI81.MachineLock
             Unwire();
             wiredInteractable = interactable;
             wiredInteractable.SelectEntered += OnSelected;
-            wiredInteractable.HoverEntered += OnHovered;
         }
 
         private void Unwire()
         {
             if (wiredInteractable == null) return;
             wiredInteractable.SelectEntered -= OnSelected;
-            wiredInteractable.HoverEntered -= OnHovered;
             wiredInteractable = null;
         }
 
         private void OnSelected(Hand hand)
         {
             Close();
-        }
-
-        private void OnHovered(Hand hand)
-        {
-            float now = Time.unscaledTime;
-            string text = IsClosed ? MachineLockTexts.HoverValveClosed : MachineLockTexts.HoverValveOpen;
-            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS && LastHoverFeedback == text)
-                return;
-            lastHoverTime = now;
-            LastHoverFeedback = text;
-            if (HUDService.IsReady)
-                HUDService.ShowActionFeedback(text, IsClosed ? FeedbackKind.Positive : FeedbackKind.Neutral);
         }
 
         private void PlayOneShot(AudioClip clip)

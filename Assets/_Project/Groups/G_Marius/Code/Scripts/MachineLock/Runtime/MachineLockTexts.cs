@@ -122,6 +122,8 @@ namespace SI81.MachineLock
         public const string HoverAlarm = "Allarme reparto — TRIGGER per chiamare i soccorsi";
         /// <summary>Hover feedback for the water extinguisher distractor.</summary>
         public const string HoverWaterExtinguisher = "Estintore ad acqua — PERICOLO su olio bollente";
+        /// <summary>Hover feedback for the exit door panic bar.</summary>
+        public const string HoverExitPanicBar = "Maniglione antipanico — TRIGGER o GRIP per uscire";
 
         // ------------------------------------------------------------------ Spill and containment
 
@@ -153,10 +155,12 @@ namespace SI81.MachineLock
 
         // ------------------------------------------------------------------ Exit and time
 
-        /// <summary>Exit blocked alert title.</summary>
-        public const string ExitBlocked = "Non puoi uscire";
-        /// <summary>Exit blocked alert detail.</summary>
-        public const string ExitBlocked2 = "La pressa è ancora in moto.";
+        /// <summary>Exit confirmation question shown on HUD_DecisionPanel (ADR-0006).</summary>
+        public const string ExitConfirmQuestion = "Vuoi uscire dal reparto adesso?";
+        /// <summary>Exit confirmation affirmative option.</summary>
+        public const string ExitConfirmYes = "Sì, esci dal reparto";
+        /// <summary>Exit confirmation cancel option.</summary>
+        public const string ExitConfirmNo = "No, resta nella stanza";
         /// <summary>Supervisor line after a safe handover.</summary>
         public const string PrepostoSafe = "Sala in sicurezza. Ottimo lavoro.";
         /// <summary>Supervisor line after an unsafe handover.</summary>
@@ -202,7 +206,7 @@ namespace SI81.MachineLock
         /// <summary>Partial containment hint format: {0} cones, {1} absorbents.</summary>
         public const string HintContainmentPartialFormat = "Coni {0}/4 · Assorbenti {1}/4";
         /// <summary>Hint after containment is complete.</summary>
-        public const string HintExit = "Esci dalla porta ovest e avvisa il preposto";
+        public const string HintExit = "Usa il maniglione della porta ovest per uscire";
 
         // ------------------------------------------------------------------ HUD sound events
 
@@ -241,6 +245,8 @@ namespace SI81.MachineLock
         public const string DebriefCriticalWrongPpe = "Contatto con olio e DPI non idonei → ustione";
         /// <summary>Critical line: Bad Ending 2.</summary>
         public const string DebriefCriticalInaction = BadEnding2;
+        /// <summary>Critical line: Early Exit while press is still running (ADR-0006).</summary>
+        public const string DebriefCriticalMissingEStop = "Hai lasciato il reparto con la pressa ancora in funzione → rischio grave";
         /// <summary>Bad line: no alarm.</summary>
         public const string DebriefBadMissingAlarm = "Allarme non dato → reparto non avvisato";
         /// <summary>Bad line: missing main off or lockout.</summary>
@@ -273,6 +279,7 @@ namespace SI81.MachineLock
                 case DebriefLineId.CriticalPressContact: return DebriefCriticalPressContact;
                 case DebriefLineId.CriticalWrongPpe: return DebriefCriticalWrongPpe;
                 case DebriefLineId.CriticalInaction: return DebriefCriticalInaction;
+                case DebriefLineId.CriticalMissingEStop: return DebriefCriticalMissingEStop;
                 case DebriefLineId.BadMissingAlarm: return DebriefBadMissingAlarm;
                 case DebriefLineId.BadMissingIsolation: return DebriefBadMissingIsolation;
                 case DebriefLineId.BadMissingContainment: return DebriefBadMissingContainment;

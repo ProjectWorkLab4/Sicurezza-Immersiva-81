@@ -5,8 +5,9 @@ using UnityEngine;
 namespace SI81.Tiziano.Evacuation.Integration
 {
     /// <summary>
-    /// Adapter: inoltra gli eventi di SI81.Interaction.Interactable al ScenarioInteractable di gruppo.
-    /// La scena non ha raggi, input o RayInteractor locali: usa solo quelli del rig condiviso.
+    /// Ponte tra il rig condiviso e `ScenarioInteractable`: la presa con l'impugnatura
+    /// equivale all'attivazione, senza far seguire l'oggetto alla mano. Hover e trigger
+    /// sono già inoltrati da `ScenarioInteractable`, quindi non vengono duplicati qui.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(SI81.Interaction.Interactable))]
@@ -17,8 +18,6 @@ namespace SI81.Tiziano.Evacuation.Integration
         [SerializeField] private SI81.Interaction.Interactable interactable;
         [Tooltip("Superficie di interazione di gruppo da alimentare.")]
         [SerializeField] private ScenarioInteractable scenario;
-        [Tooltip("true = il select segnala un'ispezione (piante), false = un'attivazione.")]
-        [SerializeField] private bool inspectOnSelect;
 
         private void Awake()
         {
@@ -36,56 +35,25 @@ namespace SI81.Tiziano.Evacuation.Integration
             interactable.Selectable = scenario.Activatable || scenario.Inspectable;
             interactable.Grabbable = scenario.Grabbable;
             interactable.FollowsHand = false;
-
-            interactable.HoverEntered += HandleHoverEnter;
-            interactable.HoverExited += HandleHoverExit;
-            interactable.SelectEntered += HandleSelectEnter;
             interactable.GrabEntered += HandleGrabEnter;
-            interactable.GrabExited += HandleGrabExit;
         }
 
         private void OnDisable()
         {
             if (interactable == null)
                 return;
-            interactable.HoverEntered -= HandleHoverEnter;
-            interactable.HoverExited -= HandleHoverExit;
-            interactable.SelectEntered -= HandleSelectEnter;
+
             interactable.GrabEntered -= HandleGrabEnter;
-            interactable.GrabExited -= HandleGrabExit;
         }
 
-        /// <summary>Inoltra l'inizio hover.</summary>
-        private void HandleHoverEnter(Hand hand)
-        {
-            scenario.RaiseHoverEnter();
-        }
-
-        /// <summary>Inoltra la fine hover.</summary>
-        private void HandleHoverExit(Hand hand)
-        {
-            scenario.RaiseHoverExit();
-        }
-
-        /// <summary>Trasforma il select del rig in ispezione o attivazione.</summary>
-        private void HandleSelectEnter(Hand hand)
-        {
-            if (inspectOnSelect)
-                scenario.RaiseInspected();
-            else
-                scenario.RaiseActivated();
-        }
-
-        /// <summary>Inoltra l'inizio presa.</summary>
+        /// <summary>Trasforma la presa dell'impugnatura in attivazione dell'oggetto.</summary>
         private void HandleGrabEnter(Hand hand)
         {
-            scenario.RaiseGrabbed();
-        }
+            if (scenario == null)
+                return;
 
-        /// <summary>Inoltra la fine presa.</summary>
-        private void HandleGrabExit(Hand hand)
-        {
-            scenario.RaiseReleased();
+            UnityEngine.Debug.Log($"[EV] Grab -> Activate: {name}");
+            scenario.RaiseActivated();
         }
     }
 }

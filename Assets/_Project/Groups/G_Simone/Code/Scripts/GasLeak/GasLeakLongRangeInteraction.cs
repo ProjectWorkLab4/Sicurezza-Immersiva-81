@@ -1,11 +1,12 @@
+using System.Reflection;
 using SI81.Input;
 using SI81.Interaction;
 using SI81.Rig;
 using UnityEngine;
 
 /// <summary>
-/// Makes the oversized Gas Leak room playable: the shared RayInteractor reaches 5 m, but the
-/// imported room places the detector and the windows far from the spawn point.
+/// Makes the oversized Gas Leak room playable: the shared RayInteractor reaches 10 m in this
+/// scenario, but the imported room places the detector and the windows far from the spawn point.
 ///
 /// This component listens to the same InputService actions as the shared interactor and casts a
 /// second, longer ray only for targets beyond the shared range. Near targets are left to the
@@ -18,8 +19,8 @@ public sealed class GasLeakLongRangeInteraction : MonoBehaviour
 {
     const int HIT_BUFFER_SIZE = 16;
 
-    [Tooltip("Distanza già coperta dal RayInteractor condiviso: sotto questa soglia non intervene.")]
-    [SerializeField] float sharedRange = 5f;
+    [Tooltip("Distanza coperta dal RayInteractor condiviso in questo scenario: sotto questa soglia non intervene.")]
+    [SerializeField] float sharedRange = 10f;
     [Tooltip("Portata del raggio aggiuntivo per gli oggetti lontani dello scenario.")]
     [SerializeField] float maxDistance = 100f;
 
@@ -36,6 +37,10 @@ public sealed class GasLeakLongRangeInteraction : MonoBehaviour
     readonly bool[] bodyUsedGravity = new bool[2];
 
     InputService subscribed;
+    bool _rangeCondivisaApplicata;
+
+    static readonly FieldInfo CAMPO_DISTANZA = typeof(RayInteractor).GetField(
+        "maxDistance", BindingFlags.Instance | BindingFlags.NonPublic);
 
     void OnEnable()
     {
@@ -44,9 +49,43 @@ public sealed class GasLeakLongRangeInteraction : MonoBehaviour
 
     void Start()
     {
+        ApplicaRangeCondivisa();
+
         if (subscribed == null)
         {
             Subscribe(InputService.Instance);
+        }
+    }
+
+    /// <summary>Raddoppia la portata del raggio condiviso senza modificare i file comuni.</summary>
+    void ApplicaRangeCondivisa()
+    {
+        if (_rangeCondivisaApplicata || CAMPO_DISTANZA == null)
+        {
+            return;
+        }
+
+        RayInteractor[] interattori = FindObjectsByType<RayInteractor>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (interattori.Length == 0)
+        {
+            return;
+        }
+
+        foreach (RayInteractor interattore in interattori)
+        {
+            CAMPO_DISTANZA.SetValue(interattore, sharedRange);
+        }
+
+        _rangeCondivisaApplicata = true;
+    }
+
+    /// <summary>Riprova finché il rig condiviso non è stato caricato.</summary>
+    void Update()
+    {
+        if (!_rangeCondivisaApplicata)
+        {
+            ApplicaRangeCondivisa();
         }
     }
 

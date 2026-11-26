@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using SI81.Ludovica.ElectricShock;
 using SI81.UI;
 using UnityEngine;
 
@@ -41,6 +42,14 @@ namespace G_Ludovica.ForkliftChaos
         [SerializeField] private GameObject barrierVisual;
         [SerializeField] private GameObject conesVisual;
         [SerializeField] private GameObject colleagueVisual;
+        [Tooltip("Dove i colleghi si fermano se il capo turno li ha avvisati (corridoio, prima delle corsie).")]
+        [SerializeField] private Transform colleagueStopPoint;
+        [Tooltip("Ingresso della corsia 1 e punto dentro la corsia: se nessuno li ferma i colleghi entrano (scenario fallito).")]
+        [SerializeField] private Transform[] colleagueLanePath;
+        [Tooltip("Uscita dei colleghi quando tornano indietro.")]
+        [SerializeField] private Transform colleagueExitPoint;
+        [Tooltip("Oltre questa z un collega e' dentro la corsia.")]
+        [SerializeField] private float laneEntryZ = 9.6f;
         [SerializeField] private GameObject m2WarningShadow;
         [SerializeField] private GameObject pallet1;
         [SerializeField] private GameObject pallet2;
@@ -228,14 +237,12 @@ namespace G_Ludovica.ForkliftChaos
                 : Random.Range(replay.colleagueCountMin, replay.colleagueCountMax + 1);
             pa02High = replay.pa02High;
 
-            if (pallet2 != null && pa02High)
-                pallet2.transform.position += new Vector3(0f, 0f, 3.5f);
+            // Varianti di posizione disattivate dopo la review: il secondo pallet sta sul suo rack in corsia 2 (con la sua zona di
+            // caduta) e la radio sullo scaffale nel corridoio; spostarli li lascerebbe a mezz'aria.
 
-            if (radioPickup != null && replay.rackEast)
-                radioPickup.transform.position += new Vector3(3f, 0f, 0f);
-
-            if (colleagueVisual != null && colleagueCount <= 1)
-                colleagueVisual.transform.localScale = new Vector3(0.6f, 1f, 0.6f);
+            // Un solo collega: il secondo resta spento.
+            if (colleagueVisual != null && colleagueCount <= 1 && colleagueVisual.transform.childCount > 1)
+                colleagueVisual.transform.GetChild(1).gameObject.SetActive(false);
         }
 
         private void ResolveHead()
@@ -296,6 +303,10 @@ namespace G_Ludovica.ForkliftChaos
         protected override void OnDestroy()
         {
             StopAllCoroutines();
+            // Radio o barriera agganciate alla testa sono figlie del rig (scena core): vanno via con lo scenario, altrimenti
+            // restano attaccate al giocatore dopo Ricomincia / Esci.
+            foreach (var carried in new[] { radioPickup, barrierPickup })
+                if (carried != null && carried.scene != gameObject.scene) Destroy(carried);
             base.OnDestroy();
         }
 
@@ -431,12 +442,19 @@ namespace G_Ludovica.ForkliftChaos
             }
             else if (action == ForkliftChaosAction.PickupBarrier && barrierPicked && !barrierPlaced)
             {
-                if (barrierPlacement != null && barrierPickup != null &&
-                    Vector3.Distance(barrierPickup.transform.position, barrierPlacement.position) < 1.2f)
+                // Grab-and-put: la barriera si posa lasciandola sulla zona blu davanti alle corsie 2 e 3 (larga ~5 m).
+                if (barrierPlacement != null && barrierPickup != null && OnBarrierDropZone(barrierPickup.transform.position))
                     HandleInteraction(ForkliftChaosAction.PlaceBarrier);
                 else
-                    Feedback("Rilascia la barriera vicino alla linea BL-01, oppure premi il grilletto sul cartello 'Posa barriera'.", FeedbackKind.Neutral);
+                    Feedback("Porta la barriera sulla zona blu davanti alle corsie 2 e 3 e lascia il GRIP.", FeedbackKind.Neutral);
             }
+        }
+
+        /// <summary>true se il punto è sulla zona di posa della barriera: entro 2,7 m lungo la linea e 1,3 m di profondità.</summary>
+        private bool OnBarrierDropZone(Vector3 p)
+        {
+            Vector3 d = p - barrierPlacement.position;
+            return Mathf.Abs(d.x) < 2.7f && Mathf.Abs(d.z) < 1.3f;
         }
 
         // =====================================================================
@@ -465,7 +483,7 @@ namespace G_Ludovica.ForkliftChaos
                     {
                         barrierPicked = true;
                         if (source == null || !source.IsHeld) AttachBarrierToHead();
-                        Feedback("Barriera in mano: posala sulla linea BL-01.", FeedbackKind.Positive);
+                        Feedback("Barriera in mano: portala sulla zona blu e lascia il GRIP.", FeedbackKind.Positive);
                     }
                     break;
 
@@ -502,7 +520,7 @@ namespace G_Ludovica.ForkliftChaos
                 case ForkliftChaosAction.PlaceBarrier:
                     if (!barrierPicked)
                     {
-                        Feedback("Prendi prima la barriera dal rack RK-01.", FeedbackKind.Negative);
+                        Feedback("GRIP sulla barriera nel corridoio per prenderla.", FeedbackKind.Negative);
                         break;
                     }
                     if (!barrierPlaced)
@@ -514,6 +532,8 @@ namespace G_Ludovica.ForkliftChaos
                             barrierPickup.transform.SetParent(null, true);
                             barrierPickup.SetActive(false);
                         }
+                        // Barriera posata: la zona blu di posa (con la sua etichetta) non serve piu'.
+                        if (barrierPlacement != null) barrierPlacement.gameObject.SetActive(false);
                         Record("LG-06", "Corsia delimitata: M2 e colleghi non entrano.", ChoiceKind.Correct, "Safety");
                         Feedback("Barriera BL-01 posata.", FeedbackKind.Positive);
                         UpdateObjectives();
@@ -525,6 +545,7 @@ namespace G_Ludovica.ForkliftChaos
                     {
                         conesPlaced = true;
                         if (conesVisual != null) { conesVisual.SetActive(true); LetPlayerPass(conesVisual); }
+                        if (source != null) source.gameObject.SetActive(false);
                         Feedback("Coni posizionati lungo BL-01.", FeedbackKind.Positive);
                         UpdateObjectives();
                     }
@@ -721,8 +742,10 @@ namespace G_Ludovica.ForkliftChaos
             Alert("112 chiamato\nResta vicino a Marco", "ICN_CheckCircle");
             Subtitle("Capo turno", "Ho avvisato il 112. Tieni libera la corsia.", 5f);
             // Arrivo dei soccorsi 60-75 s dopo la chiamata (prima 110-130 s: dopo aver finito i compiti l'attesa era troppo lunga).
-            rescueAt = ElapsedSeconds + Random.Range(RESCUE_MIN_SECONDS, RESCUE_MAX_SECONDS);
-            StartTracked(M2Routine(RandomM2Delay()));
+            float rescueIn = Random.Range(RESCUE_MIN_SECONDS, RESCUE_MAX_SECONDS);
+            rescueAt = ElapsedSeconds + rescueIn;
+            // Il muletto 2 arriva sempre prima dei soccorsi (almeno 15 s prima), anche con l'attesa piu' breve.
+            StartTracked(M2Routine(Mathf.Min(RandomM2Delay(), rescueIn - 15f)));
             StartTracked(RescueRoutine());
             UpdateObjectives();
         }
@@ -916,27 +939,64 @@ namespace G_Ludovica.ForkliftChaos
             Alert("Muletto fermato\nDavanti alla barriera", "ICN_CheckCircle");
         }
 
+        /// <summary>
+        /// I colleghi arrivano dal corridoio e vanno verso la corsia. Se il capo turno e' stato avvisato (radio: CAPO) si fermano
+        /// e tornano indietro; altrimenti entrano nella corsia e lo scenario fallisce (LG-18).
+        /// </summary>
         private IEnumerator ColleaguesRoutine()
         {
             float delay = replay != null ? Random.Range(replay.colleagueArrivalAfterShout.x, replay.colleagueArrivalAfterShout.y) : Random.Range(60f, 90f);
             yield return new WaitForSeconds(delay);
+            if (finished || colleagueVisual == null) yield break;
+
+            colleagueVisual.SetActive(true);
+            var movers = colleagueVisual.GetComponentsInChildren<NpcMover>(false);
+            if (movers.Length == 0) yield break;
+            Subtitle("Ambiente", "[Voci e passi dal corridoio]", 4f);
+            if (!colleaguesHeld) Alert("Colleghi in arrivo\nStanno andando verso la corsia", "ICN_Warning");
+
+            // Verso il punto di sosta nel corridoio, uno accanto all'altro.
+            for (int i = 0; i < movers.Length; i++)
+                if (colleagueStopPoint != null) movers[i].WalkPath(new[] { colleagueStopPoint.position + Side(i, movers.Length) }, 0f, null);
+            // Arrivano comunque fino al punto di sosta: li' si vede se il capo turno li ha fermati.
+            while (!finished && movers.Any(m => m.IsMoving)) yield return null;
             if (finished) yield break;
 
-            if (barrierPlaced || colleaguesHeld)
+            if (!colleaguesHeld && colleagueLanePath != null && colleagueLanePath.Length > 0)
             {
-                if (!colleaguesHeld) Record("LG-17", "Colleghi fermati dalla barriera.", ChoiceKind.Correct, "Safety");
-                Feedback("Colleghi tenuti fuori dalla corsia.", FeedbackKind.Positive);
-                yield break;
+                // Nessuno li ha fermati: proseguono dritti nella corsia.
+                for (int i = 0; i < movers.Length; i++)
+                    movers[i].WalkPath(colleagueLanePath.Where(t => t != null).Select(t => t.position + Side(i, movers.Length) * 0.6f), 0f, null);
+                while (!finished && !colleaguesHeld)
+                {
+                    if (movers.Any(m => m.transform.position.z > laneEntryZ))
+                    {
+                        colleaguesEntered = true;
+                        Record("LG-18", "Colleghi entrati in corsia senza che il capo turno li fermasse: livello fallito.", ChoiceKind.Critical, "Safety");
+                        Alert("Colleghi in corsia\nNessuno li ha fermati", "ICN_Warning_Filled");
+                        Finish();
+                        yield break;
+                    }
+                    if (!movers.Any(m => m.IsMoving)) break;
+                    yield return null;
+                }
+                if (finished || !colleaguesHeld) yield break;
             }
 
-            colleaguesEntered = true;
-            corridorBlocked = true;
-            rescueExtraDelay = 60f;
-            if (colleagueVisual != null) colleagueVisual.SetActive(true);
-            Record("LG-18", "Colleghi entrati: soccorsi ritardati, niente Successo.", ChoiceKind.Risky, "Decision");
-            Alert("Colleghi in corsia\n[Voci e passi dal corridoio]", "ICN_Warning");
-            Subtitle("Ambiente", "[Voci e passi dal corridoio]", 4f);
+            // Capo turno avvisato: si fermano, poi tornano indietro ed escono.
+            foreach (var m in movers) m.Stop();
+            Subtitle("Capo turno", "Fermi! Restate fuori dalla corsia, tornate indietro.", 4f);
+            Feedback("Colleghi fermati dal capo turno.", FeedbackKind.Positive);
+            yield return new WaitForSeconds(2.5f);
+            if (finished) yield break;
+            for (int i = 0; i < movers.Length; i++)
+                if (colleagueExitPoint != null) movers[i].WalkPath(new[] { colleagueExitPoint.position + Side(i, movers.Length) }, 0f, null);
+            while (!finished && movers.Any(m => m.IsMoving)) yield return null;
+            if (!finished) colleagueVisual.SetActive(false);
         }
+
+        /// <summary>Scostamento laterale (asse z) per non sovrapporre i colleghi che camminano insieme.</summary>
+        private static Vector3 Side(int i, int count) => new Vector3(0f, 0f, (i - (count - 1) * 0.5f) * 0.8f);
 
         private IEnumerator BlindCornerCheckRoutine()
         {
@@ -1043,16 +1103,16 @@ namespace G_Ludovica.ForkliftChaos
 
         private static readonly string[] HintTexts =
         {
-            "Osserva Marco e il muletto",
-            "Spegni il muletto 1",
-            "Prendi radio e barriera",
-            "Chiama il 112 e il capo turno",
-            "Posiziona la barriera",
-            "Posiziona i coni",
-            "Valuta Marco",
-            "Tratta la ferita",
-            "Rianima Marco (massaggio e DAE)",
-            "Ferma il muletto 2",
+            "Osserva Marco (corsia 3) e il muletto",
+            "GRILLETTO sul muletto 1: spegnilo",
+            "GRIP: prendi radio e barriera (blu)",
+            "GRILLETTO sui tasti radio: 112 e CAPO",
+            "GRIP: barriera sulla zona blu, poi lascia",
+            "GRILLETTO sul blocco verde: coni",
+            "GRILLETTO: VALUTA Marco",
+            "GRILLETTO: TRATTA la ferita",
+            "GRILLETTO: RIANIMA (massaggio e DAE)",
+            "GRILLETTO sul muletto 2 (corsia 1)",
             "Attendi i soccorsi vicino a Marco"
         };
 
@@ -1222,20 +1282,38 @@ namespace G_Ludovica.ForkliftChaos
             }
         }
 
+        /// <summary>
+        /// Secondo pallet (sul rack in corsia 2): cade a terra ma non fa fallire lo scenario e non blocca la corsia di passaggio;
+        /// resta una penalita' di sicurezza nel debrief.
+        /// </summary>
         private void TriggerPallet2Fall(bool underPlayer)
         {
             if (pallet2Fallen) return;
             pallet2Fallen = true;
-            corridorBlocked = true;
-            rescueExtraDelay = Mathf.Max(rescueExtraDelay, 60f);
-            if (pallet2 != null) pallet2.transform.Rotate(-24f, 0f, 0f);
-            Record("LG-20", "Corsia ostrutta: soccorsi ritardati di 60 s.", ChoiceKind.Risky, "Safety");
-            Alert("Corsia ostruita\nSoccorsi ritardati", "ICN_Warning_Filled");
-            if (underPlayer)
+            if (pallet2 != null)
             {
-                Record("EV-07", "Giocatore colpito dal secondo pallet.", ChoiceKind.Critical, "Safety");
-                Finish();
+                Vector3 start = pallet2.transform.position;
+                StartTracked(Pallet2DropRoutine(start, new Vector3(start.x, pallet1GroundY, start.z)));
             }
+            Record("LG-20", "Pallet caduto in corsia 2: nessun ferito, corsia di passaggio libera.", ChoiceKind.Risky, "Safety");
+            Alert("Pallet caduto\nCorsia 2, nessun ferito", "ICN_Warning_Filled");
+        }
+
+        private IEnumerator Pallet2DropRoutine(Vector3 start, Vector3 landing)
+        {
+            Quaternion from = pallet2.transform.rotation;
+            Quaternion to = from * Quaternion.Euler(-38f, 0f, 0f);
+            float t = 0f;
+            while (t < 0.7f && pallet2 != null)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / 0.7f);
+                pallet2.transform.SetPositionAndRotation(Vector3.Lerp(start, landing, k * k), Quaternion.Slerp(from, to, k));
+                yield return null;
+            }
+            if (pallet2 == null) yield break;
+            pallet2.transform.SetPositionAndRotation(landing, to);
+            PlaySfx("SFX_FKC_PalletImpact", 1f);
         }
 
         private void CheckSlippery()
@@ -1286,10 +1364,10 @@ namespace G_Ludovica.ForkliftChaos
 
             bool critical = records.Any(r => r.Kind == ChoiceKind.Critical);
             bool assisted = spoken && breathingChecked && ((woundPressed && covered) || (cprStarted && aedUsed));
-            bool accessFree = !colleaguesEntered && !pallet2Fallen;
+            bool accessFree = !colleaguesEntered;
             bool success = !critical && !timeout && rescueArrived && barrierPlaced && m1Stopped &&
                            accessFree && assisted && !marcoMoved && !rescueDelayed && !m2Hit &&
-                           (m2Stopped || !m2Started);
+                           (m2Stopped || !m2Horn);
             OutcomeType outcome = critical || timeout || m2Hit ? OutcomeType.Negative :
                                   success ? OutcomeType.Positive : OutcomeType.Partial;
 
@@ -1318,7 +1396,7 @@ namespace G_Ludovica.ForkliftChaos
             if (!called112) decision -= 25;
             if (!calledForeman) decision -= 8;
             if (colleaguesEntered) decision -= 12;
-            if (!m2Stopped && m2Started) decision -= 20;
+            if (!m2Stopped && m2Horn) decision -= 20;
             if (!spoken || !breathingChecked) execution -= 15;
             if (!woundPressed || !covered) execution -= 12;
             if (apnea && !cprStarted) execution -= 35;

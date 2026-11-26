@@ -222,7 +222,13 @@ namespace G_Ludovica.ForkliftChaos
 
             used = true;
             scenario.HandleInteraction(action, this);
-            if (once) ApplyInteractableFlags();
+            if (once)
+            {
+                ApplyInteractableFlags();
+                // Azione fatta: l'etichetta della UI comune ("TRIGGER Interagisci") non deve restare sopra il blocco.
+                var prompt = GetComponent<LabelAnchor>();
+                if (prompt != null && prompt.Kind == LabelKind.Interaction) prompt.enabled = false;
+            }
         }
 
         /// <summary>Allinea select/grab dell'<see cref="Interactable"/> al tipo di azione.</summary>

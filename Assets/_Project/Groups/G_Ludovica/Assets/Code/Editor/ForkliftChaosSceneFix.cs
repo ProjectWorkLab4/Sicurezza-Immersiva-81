@@ -26,7 +26,7 @@ namespace G_Ludovica.Editor
             ConfigureSpawnPoint();
             GameObject marco = ReplaceMarco();
             ReplaceOperator();
-            ReplaceColleagues();
+            // ReplaceColleagues(): disattivato, i colleghi ora li costruisce ForkliftChaosReviewFix (camminano e si fermano).
             GameObject rescueTeam = CreateRescueTeam();
             ReplaceForklifts();
             ConfigureInteractables();

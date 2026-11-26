@@ -238,8 +238,22 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var pb = new GameObject("PB01_EmergencyStop").transform;
             pb.SetParent(gen, false);
             pb.position = key != null ? key.GetComponent<Renderer>().bounds.center : P(20f, 9.1f, 0.6f);
+            // Collider della chiave sporgente di 15 cm dalla faccia del generatore più vicina: il raggio condiviso prende il
+            // collider più vicino, e un collider a filo (o dentro) quello del generatore perde contro il generatore.
             var pbCollider = pb.gameObject.AddComponent<BoxCollider>();
-            pbCollider.size = Vector3.one * 0.14f;
+            Bounds genBounds = RendererBounds(genModel);
+            Vector3 k = pb.position;
+            float[] gaps = { k.x - genBounds.min.x, genBounds.max.x - k.x, k.z - genBounds.min.z, genBounds.max.z - k.z };
+            Vector3[] normals = { Vector3.left, Vector3.right, Vector3.back, Vector3.forward };
+            int face = 0;
+            for (int i = 1; i < 4; i++) if (gaps[i] < gaps[face]) face = i;
+            const float KEY_PROTRUDE = 0.15f;
+            float depth = gaps[face] + KEY_PROTRUDE + 0.05f;
+            Vector3 worldCenter = k + normals[face] * (KEY_PROTRUDE + gaps[face] - depth * 0.5f);
+            Vector3 worldSize = new Vector3(normals[face].x != 0f ? depth : 0.2f, 0.2f, normals[face].z != 0f ? depth : 0.2f);
+            pbCollider.center = pb.InverseTransformPoint(worldCenter);
+            Vector3 localSize = pb.InverseTransformVector(worldSize);
+            pbCollider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
             var stop = pb.gameObject.AddComponent<EmergencyStopButton>();
             SetField(stop, "cap", key);
             var stopSo = new SerializedObject(stop);
@@ -247,7 +261,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             stopSo.FindProperty("keyTurnedEuler").vector3Value = Vector3.zero;
             stopSo.ApplyModifiedPropertiesWithoutUndo();
             SetInteractable(stop, "Chiave di arresto", key != null ? key.GetComponent<Renderer>() : null);
-            Label(pb.gameObject, LabelKind.Interaction, "Chiave di arresto", "Grilletto: gira la chiave e ferma il generatore", new Vector3(0f, 0.25f, 0f));
+            Label(pb.gameObject, LabelKind.Interaction, "Chiave di arresto", "Grilletto: gira la chiave e ferma il generatore", new Vector3(0f, 0.25f, 0f), triggerPrompt: true);
 
             var cableRoot = Root("CB01_LiveCable", hazards, 18.8f, 8.5f);
             var sockets = FindChild(genModel.transform, "Prese");
@@ -431,7 +445,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             AddCharacter(pm2Root, pm2, true, "Idle", "", 0f);
             AddCapsuleCollider(pm2Root.gameObject);
             SetInteractable(pm2Root.gameObject.AddComponent<ShoutTarget>(), "Paramedico", null);
-            Label(pm2Root.gameObject, LabelKind.Interaction, "Paramedico", "Grilletto: digli di fermarsi", new Vector3(0f, 2.0f, 0f));
+            Label(pm2Root.gameObject, LabelKind.Interaction, "Paramedico", "Grilletto: digli di fermarsi", new Vector3(0f, 2.0f, 0f), triggerPrompt: true);
             pm2Root.gameObject.SetActive(false);
 
             // MNG_Scenario
@@ -661,7 +675,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             radioCollider.size = Vector3.Max(radioCollider.size, new Vector3(0.15f, 0.22f, 0.15f));
             var r = root.gameObject.AddComponent<EmergencyRadio>();
             SetInteractable(r, "Radio 112", null);
-            Label(root.gameObject, LabelKind.Interaction, "Radio", "Grilletto: chiama il 112", new Vector3(0f, 0.35f, 0f));
+            // Etichetta 0,6 m sopra la base: più in basso il pannello entra nella radio e nel rack.
+            Label(root.gameObject, LabelKind.Interaction, "Radio", "Grilletto: chiama il 112", new Vector3(0f, 0.6f, 0f), triggerPrompt: true);
             return r;
         }
 
@@ -675,7 +690,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             AddCapsuleCollider(root.gameObject);
             // Grilletto puntando il collega = "Fermi! Allontanatevi!" (A/X e B/Y non sono disponibili nell'input condiviso).
             SetInteractable(root.gameObject.AddComponent<ShoutTarget>(), "Collega", null);
-            Label(root.gameObject, LabelKind.Interaction, "Collega", "Grilletto: Fermi! Allontanatevi!", new Vector3(0f, 2.0f, 0f));
+            Label(root.gameObject, LabelKind.Interaction, "Collega", "Grilletto: Fermi! Allontanatevi!", new Vector3(0f, 2.0f, 0f), triggerPrompt: true);
             return root.gameObject.AddComponent<Bystander>();
         }
 
@@ -693,6 +708,15 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             ("ShockLying", "Anim_Pm1_Hurt", false),
             ("ShockRescued", "Anim_Pm1_Rescued", false),
             ("Kneel", "Anim_Pm2_Rescue", false)
+        };
+
+        /// <summary>
+        /// Tratti ripetuti avanti e indietro (s), misurati sull'altezza della testa: Anim_Pm2_Rescue è in ginocchio da 0,7 a
+        /// 3,5 s, poi si rialza; senza questo PM-2 resterebbe in piedi immobile accanto al collega.
+        /// </summary>
+        private static readonly Dictionary<string, Vector2> CLIP_LOOP_RANGES = new Dictionary<string, Vector2>
+        {
+            { "Kneel", new Vector2(0.8f, 3.4f) }
         };
 
         /// <summary>
@@ -759,6 +783,9 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
                 var e = entries.GetArrayElementAtIndex(i);
                 e.FindPropertyRelative("Key").stringValue = key;
                 e.FindPropertyRelative("Clip").objectReferenceValue = clip;
+                Vector2 range = CLIP_LOOP_RANGES.TryGetValue(key, out var r) ? r : Vector2.zero;
+                e.FindPropertyRelative("LoopStart").floatValue = range.x;
+                e.FindPropertyRelative("LoopEnd").floatValue = range.y;
                 e.FindPropertyRelative("Loop").boolValue = loop;
                 e.FindPropertyRelative("ModelOffset").vector3Value = offset;
                 if (key == (string.IsNullOrEmpty(startKey) ? idleKey : startKey)) startOffset = offset;
@@ -868,8 +895,11 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Debug.Log("[SI81 ElectricShock] Missione 10 nel catalogo, scena nelle Build Settings.");
         }
 
-        /// <summary>Etichetta nel mondo della UI comune (LabelAnchor) con testo in italiano.</summary>
-        private static void Label(GameObject go, LabelKind kind, string title, string detail, Vector3 offset)
+        /// <summary>
+        /// Etichetta nel mondo della UI comune (LabelAnchor) con testo in italiano. I prompt Interaction mostrano tasto e verbo
+        /// dalle chiavi della UI (vuote = GRIP / Afferra): con <paramref name="triggerPrompt"/> mostrano TRIGGER / Interagisci.
+        /// </summary>
+        private static void Label(GameObject go, LabelKind kind, string title, string detail, Vector3 offset, bool triggerPrompt = false)
         {
             var anchor = go.AddComponent<LabelAnchor>();
             var so = new SerializedObject(anchor);
@@ -877,6 +907,11 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             so.FindProperty("title").stringValue = title;
             so.FindProperty("detail").stringValue = detail;
             so.FindProperty("offset").vector3Value = offset;
+            if (triggerPrompt)
+            {
+                so.FindProperty("buttonKey").stringValue = "hud.prompt.button.trigger";
+                so.FindProperty("actionKey").stringValue = "hud.prompt.action.interact";
+            }
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 

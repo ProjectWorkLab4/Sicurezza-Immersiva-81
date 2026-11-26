@@ -76,8 +76,9 @@ namespace SI81.Ludovica.ElectricShock
         }
 
         /// <summary>Dopo 3 s di grilletto inizia a seguire il giocatore.</summary>
-        private void Update()
+        protected override void Update()
         {
+            base.Update();
             if (!holding || Time.time - holdStart < holdToEscort) return;
             holding = false;
             var head = PlayerLocator.Head;

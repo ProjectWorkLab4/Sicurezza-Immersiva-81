@@ -143,8 +143,9 @@ namespace SI81.Ludovica.ElectricShock
         }
 
         /// <summary>
-        /// Evidenziazione (Guided): emissione gialla. Usa copie runtime dei materiali (i materiali dei modelli importati
-        /// hanno l'emissione spenta e non si modificano gli asset condivisi).
+        /// Evidenziazione (Guided): l'oggetto pulsa piano col suo stesso colore (un estintore rosso resta rosso).
+        /// Usa copie runtime dei materiali (i materiali dei modelli importati hanno l'emissione spenta e non si modificano
+        /// gli asset condivisi).
         /// </summary>
         /// <param name="on">true = evidenziato.</param>
         public void SetHighlight(bool on)
@@ -161,9 +162,27 @@ namespace SI81.Ludovica.ElectricShock
                     foreach (var m in highlightMaterials[i]) m.EnableKeyword("_EMISSION");
                 }
             }
-            var color = on ? new Color(0.9f, 0.8f, 0.1f) * 1.5f : Color.black;
+            if (!on) ApplyGlow(0f);
+        }
+
+        /// <summary>Pulsazione dell'evidenziazione (circa 1 al secondo, tra il 10% e il 45% del colore base).</summary>
+        protected virtual void Update()
+        {
+            if (highlighted) ApplyGlow(Mathf.Lerp(0.1f, 0.45f, 0.5f + 0.5f * Mathf.Sin(Time.time * 6f)));
+        }
+
+        /// <summary>Emissione = colore base del materiale x intensità.</summary>
+        private void ApplyGlow(float intensity)
+        {
+            if (highlightMaterials == null) return;
             foreach (var set in highlightMaterials)
-                if (set != null) foreach (var m in set) m.SetColor("_EmissionColor", color);
+                if (set != null)
+                    foreach (var m in set)
+                    {
+                        if (m == null) continue;
+                        Color baseColor = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : Color.white;
+                        m.SetColor("_EmissionColor", baseColor * intensity);
+                    }
         }
 
         /// <summary>Appoggia l'oggetto dritto sul pavimento nella posizione attuale.</summary>

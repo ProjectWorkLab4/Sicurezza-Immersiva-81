@@ -25,6 +25,13 @@ namespace SI81.Ludovica.ElectricShock
             public bool Loop;
             /// <summary>Posizione locale del modello durante la clip (piedi o corpo appoggiati a terra, centrati).</summary>
             public Vector3 ModelOffset;
+            /// <summary>Inizio del tratto ripetuto (s), se <see cref="LoopEnd"/> &gt; 0.</summary>
+            public float LoopStart;
+            /// <summary>
+            /// Fine del tratto ripetuto (s); 0 = nessuno. Arrivata qui la clip va avanti e indietro tra LoopStart e LoopEnd
+            /// (es. PM-2 resta inginocchiato e si muove invece di rialzarsi e restare immobile).
+            /// </summary>
+            public float LoopEnd;
         }
 
         [Tooltip("Animator sul modello (senza controller).")]
@@ -48,6 +55,9 @@ namespace SI81.Ludovica.ElectricShock
         [Tooltip("Distanza tra l'osso più basso e il pavimento (spessore di suola o schiena), in metri.")]
         [SerializeField] private float groundClearance = 0.06f;
 
+        /// <summary>Velocità del tratto ripetuto avanti e indietro (più lenta: movimento calmo).</summary>
+        private const double PING_PONG_SPEED = 0.7d;
+
         private PlayableGraph graph;
         private AnimationClipPlayable playable;
         private AnimationClipPlayable fromPlayable;
@@ -63,6 +73,8 @@ namespace SI81.Ludovica.ElectricShock
 
         /// <summary>Nome della clip in riproduzione.</summary>
         public string CurrentKey => current != null ? current.Key : "";
+        /// <summary>Tempo della clip in riproduzione (s).</summary>
+        public double ClipTime => playable.IsValid() ? playable.GetTime() : 0d;
 
         /// <summary>Crea il grafo e avvia la clip iniziale.</summary>
         private void Start()
@@ -125,6 +137,14 @@ namespace SI81.Ludovica.ElectricShock
         {
             if (!graph.IsValid() || current == null) return;
             UpdateBlend();
+            if (current.LoopEnd > 0f && !onceActive)
+            {
+                double t = playable.GetTime();
+                double speed = playable.GetSpeed();
+                if (speed > 0d && t >= current.LoopEnd) playable.SetSpeed(-PING_PONG_SPEED);
+                else if (speed < 0d && t <= current.LoopStart) playable.SetSpeed(PING_PONG_SPEED);
+                return;
+            }
             double length = current.Clip != null ? current.Clip.length : 0d;
             bool finished = length > 0d && playable.GetTime() >= length;
 

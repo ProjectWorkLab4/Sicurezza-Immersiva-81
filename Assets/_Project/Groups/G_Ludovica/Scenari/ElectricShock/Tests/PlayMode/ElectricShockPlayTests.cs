@@ -342,5 +342,96 @@ namespace SI81.Ludovica.ElectricShock.Tests
             Assert.Less(Mathf.Abs(rig.TrackingOrigin.position.y - origin.y), 0.05f, "Il rig sta cadendo");
             Assert.Greater(rig.TrackingOrigin.position.y, -0.1f, "Rig sotto il pavimento");
         }
+
+        /// <summary>
+        /// Raggio vero (come il RayInteractor: vince il collider più vicino) da 1,5 m davanti al generatore, anche di sbieco:
+        /// colpisce la chiave, non il generatore.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Ray_FromFrontOfGenerator_HitsKeyFirst()
+        {
+            yield return null;
+            var key = d.Get<EmergencyStopButton>("emergencyStop");
+            var gen = d.Get<GeneratorUnit>("generator");
+            Vector3 keyPos = key.transform.position;
+            Vector3 outward = keyPos - gen.GetComponent<Collider>().bounds.center;
+            outward.y = 0f;
+            outward = Mathf.Abs(outward.x) > Mathf.Abs(outward.z) ? new Vector3(Mathf.Sign(outward.x), 0f, 0f) : new Vector3(0f, 0f, Mathf.Sign(outward.z));
+            foreach (float yaw in new[] { 0f, 30f, -30f })
+            {
+                Vector3 from = keyPos + Quaternion.Euler(0f, yaw, 0f) * outward * 1.5f + Vector3.up * 0.6f;
+                var hits = Physics.RaycastAll(from, (keyPos - from).normalized, 5f, ~0, QueryTriggerInteraction.Ignore);
+                Assert.Greater(hits.Length, 0, "Il raggio non colpisce nulla (yaw " + yaw + ")");
+                var nearest = hits.OrderBy(h => h.distance).First();
+                Assert.AreEqual(key.gameObject, nearest.collider.gameObject, "Yaw " + yaw + ": il raggio colpisce " + nearest.collider.name);
+            }
+        }
+
+        /// <summary>I colleghi fermati a voce escono senza sovrapporsi (distanza minima 0,45 m nei primi 6 s).</summary>
+        [UnityTest]
+        public IEnumerator Shout_ColleaguesLeaveWithoutOverlapping()
+        {
+            var by = Object.FindObjectsByType<Bystander>(FindObjectsSortMode.None).Where(b => b.isActiveAndEnabled).ToArray();
+            Assert.GreaterOrEqual(by.Length, 2);
+            d.Teleport(12f, 8f, 90f);
+            yield return null;
+            d.Shout();
+            float minDist = float.MaxValue;
+            float until = Time.time + 6f;
+            while (Time.time < until)
+            {
+                for (int i = 0; i < by.Length; i++)
+                    for (int j = i + 1; j < by.Length; j++)
+                    {
+                        Vector3 a = by[i].transform.position, b = by[j].transform.position;
+                        minDist = Mathf.Min(minDist, new Vector2(a.x - b.x, a.z - b.z).magnitude);
+                    }
+                yield return null;
+            }
+            Assert.Greater(minDist, 0.45f, "Colleghi sovrapposti: distanza minima " + minDist.ToString("F2") + " m");
+        }
+
+        /// <summary>
+        /// Fine con PM-2: dopo aver portato via PM-1 raggiunge il collega, resta inginocchiato (testa sotto 1,3 m) e si muove
+        /// (non una statua) per almeno 4 s prima che il livello si chiuda.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Pm2_AtVictim_KneelsAndKeepsMoving()
+        {
+            d.Shout();
+            var powder = d.Extinguisher(ExtinguisherAgent.Powder);
+            d.Grab(powder);
+            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            yield return new WaitForSeconds(2.5f);
+            yield return d.SprayFire(powder, 2f, 6f);
+            d.Release(powder);
+            d.Teleport(10f, 12f, 0f);
+            d.Set("paramedicArrivalTime", d.Scenario.ElapsedSeconds + 0.2f);
+            float until = Time.time + 60f;
+            while (Time.time < until && d.Scenario.IsRunning && d.Get<object>("pm2").ToString() != "AtVictim") yield return null;
+            Assert.AreEqual("AtVictim", d.Get<object>("pm2").ToString(), "PM-2 non ha raggiunto il collega");
+
+            var pm2 = d.Get<NpcMover>("arrivingParamedic");
+            var anim = pm2.GetComponent<CharacterAnimator>();
+            Assert.AreEqual("Kneel", anim.CurrentKey);
+            // Il tratto in ginocchio di Anim_Pm2_Rescue va da 0,8 a 3,4 s: la clip deve andare avanti e indietro lì dentro
+            // (prima restava ferma sull'ultimo fotogramma, in piedi).
+            yield return new WaitForSeconds(1.5f);
+            double minT = double.MaxValue, maxT = double.MinValue;
+            float sampleUntil = Time.time + 6f;
+            while (Time.time < sampleUntil)
+            {
+                Assert.IsTrue(d.Scenario.IsRunning, "Il livello si è chiuso subito: PM-2 non si vede al lavoro");
+                double t = anim.ClipTime;
+                minT = System.Math.Min(minT, t); maxT = System.Math.Max(maxT, t);
+                yield return null;
+                if (Time.time - (sampleUntil - 6f) > 2f) break;
+            }
+            Assert.GreaterOrEqual(minT, 0.75d, "La clip è uscita dal tratto in ginocchio");
+            Assert.LessOrEqual(maxT, 3.6d, "La clip è arrivata alla parte in cui si rialza (da 3,7 s)");
+            Assert.Greater(maxT - minT, 0.3d, "La clip è ferma (statua)");
+            yield return d.WaitEnd(10f);
+            Assert.AreEqual(OutcomeType.Partial, d.Outcome, "Varco aperto: esito Parziale");
+        }
     }
 }

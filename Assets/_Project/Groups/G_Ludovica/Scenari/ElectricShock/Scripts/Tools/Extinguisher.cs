@@ -217,8 +217,9 @@ namespace SI81.Ludovica.ElectricShock
         }
 
         /// <summary>Spruzzo continuo mentre il grilletto è premuto.</summary>
-        private void Update()
+        protected override void Update()
         {
+            base.Update();
             if (spraying) SprayTick(Time.deltaTime);
         }
     }

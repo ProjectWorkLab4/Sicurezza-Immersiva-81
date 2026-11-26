@@ -101,8 +101,9 @@ namespace SI81.Ludovica.ElectricShock
         public void MarkWorsened() => IsWorsened = true;
 
         /// <summary>Trascinamento mentre il grip è tenuto: il collega segue la mano a terra.</summary>
-        private void Update()
+        protected override void Update()
         {
+            base.Update();
             if (!IsHeld || IsLive) return;
             var hand = PlayerLocator.HandAnchor(HeldHand);
             if (hand == null) return;

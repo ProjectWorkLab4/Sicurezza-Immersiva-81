@@ -113,6 +113,7 @@ namespace SI81.Ludovica.ElectricShock
         private float pm2AtVictimSince = -1f;
         /// <summary>Secondi massimi di attesa di PM-2 accanto al collega prima di chiudere il livello.</summary>
         private const float PM2_MAX_WAIT = 30f;
+        private const float PM2_MIN_TENDING = 5f;
 
         // Snapshot dell'avviso di esplosione (LG-16)
         private bool warnPlayerInside;
@@ -450,7 +451,9 @@ namespace SI81.Ludovica.ElectricShock
                 bool escorting = paramedicInShock.IsEscorted && !paramedicInShock.IsSafe;
                 bool assisting = PlayerLocator.Head != null && victim.ConsciousnessChecked && !stayedWithVictim
                     && Vector3.Distance(PlayerLocator.Feet, Flat(victim.transform.position)) <= settings.StayDistance;
-                if ((!escorting && !assisting) || t - pm2AtVictimSince >= PM2_MAX_WAIT)
+                // Almeno qualche secondo con PM-2 al lavoro accanto al collega prima del Debrief.
+                bool seen = t - pm2AtVictimSince >= PM2_MIN_TENDING;
+                if ((seen && !escorting && !assisting) || t - pm2AtVictimSince >= PM2_MAX_WAIT)
                 {
                     Subtitle("PM-2", "Ci penso io, grazie.");
                     Finish("assistenza conclusa da PM-2");
@@ -711,6 +714,30 @@ namespace SI81.Ludovica.ElectricShock
             RefreshObjective();
         }
 
+        private const float EVACUATION_LANE_WIDTH = 0.7f;
+        private const float EVACUATION_STAGGER = 0.5f;
+
+        /// <summary>
+        /// Percorso spostato di lato (corsia): ogni punto si sposta perpendicolare al tratto; se il punto spostato esce dalla
+        /// NavMesh resta quello originale.
+        /// </summary>
+        private static Vector3[] LanePath(Vector3[] path, float offset)
+        {
+            if (Mathf.Approximately(offset, 0f) || path.Length == 0) return path;
+            var result = new Vector3[path.Length];
+            for (int j = 0; j < path.Length; j++)
+            {
+                Vector3 dir = j < path.Length - 1 ? path[j + 1] - path[j] : (j > 0 ? path[j] - path[j - 1] : Vector3.forward);
+                dir.y = 0f;
+                Vector3 side = dir.sqrMagnitude > 1e-6f ? new Vector3(dir.z, 0f, -dir.x).normalized : Vector3.right;
+                Vector3 candidate = path[j] + side * offset;
+                result[j] = UnityEngine.AI.NavMesh.SamplePosition(candidate, out var hit, 0.3f, UnityEngine.AI.NavMesh.AllAreas)
+                    ? new Vector3(hit.position.x, path[j].y, hit.position.z)
+                    : path[j];
+            }
+            return result;
+        }
+
         /// <summary>Il giocatore parla: ferma i colleghi e li manda al punto di raccolta, ferma PM-2 (LG-14).</summary>
         private void OnShout(Vector3 headPosition, Vector3 forward)
         {
@@ -719,11 +746,14 @@ namespace SI81.Ludovica.ElectricShock
             float t = ElapsedSeconds;
             bool anyone = false;
             var path = exitPath.Select(p => p.position).ToArray();
-            foreach (var b in AllBystanders())
+            var leaving = AllBystanders().Where(b =>
+                Vector3.Distance(Flat(headPosition), Flat(b.transform.position)) <= settings.ShoutRange
+                && b.Current != Bystander.State.Evacuated && b.Current != Bystander.State.Evacuating && b.Current != Bystander.State.Injured).ToList();
+            for (int i = 0; i < leaving.Count; i++)
             {
-                if (Vector3.Distance(Flat(headPosition), Flat(b.transform.position)) > settings.ShoutRange) continue;
-                if (b.Current == Bystander.State.Evacuated || b.Current == Bystander.State.Evacuating || b.Current == Bystander.State.Injured) continue;
-                b.Evacuate(path);
+                // Una corsia per collega (0,7 m l'una dall'altra) e partenze sfalsate di 0,5 s: non si sovrappongono correndo.
+                float lane = (i - (leaving.Count - 1) * 0.5f) * EVACUATION_LANE_WIDTH;
+                leaving[i].Evacuate(LanePath(path, lane), i * EVACUATION_STAGGER);
                 anyone = true;
             }
             if (anyone)

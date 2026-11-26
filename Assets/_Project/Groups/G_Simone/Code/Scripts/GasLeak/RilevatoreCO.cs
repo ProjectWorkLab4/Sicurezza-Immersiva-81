@@ -107,11 +107,7 @@ public class RilevatoreCO : MonoBehaviour
 
         if (display != null)
         {
-            string stato = ValoreCorrente < sogliaAttenzione
-                ? "ARIA PULITA"
-                : ValoreCorrente < sogliaAllarme ? "ATTENZIONE" : "CO ALTO";
-
-            display.text = $"CO\n{Mathf.RoundToInt(ValoreCorrente)} ppm\n{stato}";
+            display.text = $"{Mathf.RoundToInt(ValoreCorrente)} ppm";
             display.color = colore;
         }
 

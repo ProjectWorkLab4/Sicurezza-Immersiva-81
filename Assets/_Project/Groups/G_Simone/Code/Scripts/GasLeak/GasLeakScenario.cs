@@ -24,6 +24,8 @@ public sealed class GasLeakScenario : ScenarioController
     [SerializeField] bool debugMode;
 
     readonly bool[] _obiettiviCompletati = new bool[NUMERO_OBIETTIVI];
+    bool _sequenzaCorretta = true;
+    int _prossimoObiettivoAtteso;
     bool _rilevatoreSegnalato;
     bool _stufettaSegnalata;
     int _finestreSegnalate;
@@ -73,6 +75,8 @@ public sealed class GasLeakScenario : ScenarioController
     /// <summary>Avvia il gameplay e le prime indicazioni della UI comune.</summary>
     protected override void OnScenarioStarted()
     {
+        _sequenzaCorretta = true;
+        _prossimoObiettivoAtteso = 0;
         _rilevatoreSegnalato = false;
         _stufettaSegnalata = false;
         _finestreSegnalate = 0;
@@ -95,7 +99,6 @@ public sealed class GasLeakScenario : ScenarioController
         }
 
         SetPhase(PHASE_SCAN);
-        Subtitle("Caposquadra", "Due colleghi hanno mal di testa e nausea: può essere monossido.", 6f);
         SetHint("Riconosci i sintomi e usa il rilevatore CO");
     }
 
@@ -120,16 +123,28 @@ public sealed class GasLeakScenario : ScenarioController
         }
 
         SincronizzaObiettivi();
-        SetPhase(PHASE_RESOLUTION);
-        ImpostaTestoCriterio(esito);
 
-        EndMission(ToOutcome(esito), -1, CalcolaDimensioni(esito), CostruisciDebrief(esito));
+        bool fuoriOrdine = !_sequenzaCorretta;
+        if (fuoriOrdine && esito == EsitoScenario.SuccessoCompleto)
+        {
+            esito = EsitoScenario.SuccessoParziale;
+        }
+
+        SetPhase(PHASE_RESOLUTION);
+        ImpostaTestoCriterio(esito, fuoriOrdine);
+
+        EndMission(ToOutcome(esito), -1, CalcolaDimensioni(esito, fuoriOrdine), CostruisciDebrief(esito, fuoriOrdine));
     }
 
     /// <summary>Costruisce le righe del debrief con azione e conseguenza.</summary>
-    List<string> CostruisciDebrief(EsitoScenario esito)
+    List<string> CostruisciDebrief(EsitoScenario esito, bool fuoriOrdine)
     {
         var righe = new List<string>();
+
+        if (fuoriOrdine)
+        {
+            righe.Add(DebriefLinePrefix.BAD + "Hai completato i passi fuori ordine → sequenza non rispettata");
+        }
 
         if (gestore != null && gestore.Recap != null)
         {
@@ -258,6 +273,15 @@ public sealed class GasLeakScenario : ScenarioController
         }
 
         _obiettiviCompletati[indice] = true;
+        if (indice == _prossimoObiettivoAtteso)
+        {
+            _prossimoObiettivoAtteso++;
+        }
+        else
+        {
+            _sequenzaCorretta = false;
+        }
+
         Feedback(TestoObiettivo(indice), FeedbackKind.Positive);
 
         if (indice < NUMERO_OBIETTIVI - 1)
@@ -361,7 +385,7 @@ public sealed class GasLeakScenario : ScenarioController
     }
 
     /// <summary>Calcola le cinque dimensioni usate dalla UI comune per lo SPI.</summary>
-    int[] CalcolaDimensioni(EsitoScenario esito)
+    int[] CalcolaDimensioni(EsitoScenario esito, bool fuoriOrdine)
     {
         bool colleghiRiconosciuti = gestore != null && gestore.CollegaAvvisato;
         bool rilevatore = gestore != null && gestore.RilevatoreUsato;
@@ -382,6 +406,13 @@ public sealed class GasLeakScenario : ScenarioController
             + (!disinfestazione ? 15 : 0) + (!manutenzione ? 15 : 0);
         int esecuzione = 15 + (rilevatore ? 10 : 0) + (finestre ? 20 : 0) + (stufetta ? 20 : 0)
             + (chiamato112 ? 15 : 0) + (uscitoConCollega ? 20 : 0);
+
+        if (fuoriOrdine)
+        {
+            consapevolezza -= 10;
+            decisione -= 15;
+            esecuzione -= 25;
+        }
 
         float durata = 180f;
         if (gestore != null && gestore.Impostazioni != null)
@@ -489,7 +520,7 @@ public sealed class GasLeakScenario : ScenarioController
     }
 
     /// <summary>Aggiorna la didascalia dell'esito con quello che è stato davvero fatto o mancato.</summary>
-    void ImpostaTestoCriterio(EsitoScenario esito)
+    void ImpostaTestoCriterio(EsitoScenario esito, bool fuoriOrdine)
     {
         RipristinaCriteri();
         if (Mission == null || Mission.Criteria == null)
@@ -497,7 +528,7 @@ public sealed class GasLeakScenario : ScenarioController
             return;
         }
 
-        string testo = TestoCriterio(esito);
+        string testo = TestoCriterio(esito, fuoriOrdine);
         if (string.IsNullOrEmpty(testo))
         {
             return;
@@ -515,11 +546,16 @@ public sealed class GasLeakScenario : ScenarioController
     }
 
     /// <summary>Restituisce la spiegazione dell'esito in base allo stato reale del gameplay.</summary>
-    string TestoCriterio(EsitoScenario esito)
+    string TestoCriterio(EsitoScenario esito, bool fuoriOrdine)
     {
         if (gestore == null)
         {
             return null;
+        }
+
+        if (fuoriOrdine)
+        {
+            return "Passi completati fuori ordine → esito parziale";
         }
 
         switch (esito)

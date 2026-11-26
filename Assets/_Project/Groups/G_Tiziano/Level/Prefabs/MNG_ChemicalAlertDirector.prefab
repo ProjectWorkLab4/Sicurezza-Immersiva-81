@@ -51,6 +51,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b484d29349d4e3a48a3d876de3bbd857, type: 2}
   - {fileID: 11400000, guid: 5ad019fec37259e4db3d3f02d1c087d0, type: 2}
   - {fileID: 11400000, guid: e5fd55f40d8981846b82a2b900626e18, type: 2}
+  playerHealth: {fileID: 0}
+  ventilationEscalation: {fileID: 0}
+  cleanupSystem: {fileID: 0}
+  ventilationSystem: {fileID: 0}
+  puddle: {fileID: 0}
+  sdsItem: {fileID: 0}
+  playerPPEState: {fileID: 0}
+  guidedHighlightTargets: []
+  operationalDistractors: []
+  disturbanceController: {fileID: 0}
 --- !u!114 &1382993043801478316
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81,4 +91,5 @@ MonoBehaviour:
   director: {fileID: 0}
   terminal: {fileID: 0}
   escalation: {fileID: 0}
-  audioLoop: {fileID: 0}
+  audioLoop: {fileID: 8300000, guid: f12103212e85e59498dfa95e1418bb26, type: 3}
+  loopSource: {fileID: 0}

@@ -20,6 +20,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         [SerializeField] private VentTerminal terminal;
         [SerializeField] private VentilationEscalation escalation;
         [SerializeField] private AudioClip audioLoop;
+        [SerializeField] private AudioSource loopSource;
 
         private State state;
 
@@ -52,6 +53,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 terminal.TurnedOn -= HandleTerminalTurnedOn;
             if (director != null)
                 director.PhaseChanged -= HandlePhaseChanged;
+            StopLoop();
         }
 
         /// <summary>Turns ventilation on and stops the hidden escalation.</summary>
@@ -70,12 +72,14 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public void TurnOff()
         {
             state = State.Off;
+            StopLoop();
         }
 
         /// <summary>Resets terminal, state and escalation.</summary>
         public void ResetState()
         {
             state = State.Off;
+            StopLoop();
             if (terminal != null)
                 terminal.ResetTerminal();
             if (escalation != null)
@@ -90,14 +94,39 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private void SetOn()
         {
             if (state == State.On)
+            {
+                PlayLoop();
                 return;
+            }
 
             state = State.On;
             if (escalation != null)
                 escalation.StopEscalation();
             if (director != null)
                 director.NotifyVentilationActivated();
+            PlayLoop();
             UnityEngine.Debug.Log($"[CA] VentilationSystem: On; escalation stopped.");
+        }
+
+        private void PlayLoop()
+        {
+            if (loopSource == null)
+                loopSource = GetComponent<AudioSource>();
+            if (loopSource == null || audioLoop == null)
+                return;
+
+            loopSource.clip = audioLoop;
+            loopSource.loop = true;
+            if (!loopSource.isPlaying)
+                loopSource.Play();
+        }
+
+        private void StopLoop()
+        {
+            if (loopSource == null)
+                loopSource = GetComponent<AudioSource>();
+            if (loopSource != null && loopSource.isPlaying)
+                loopSource.Stop();
         }
 
         private void HandlePhaseChanged(ChemicalAlertDirector.Phase phase)

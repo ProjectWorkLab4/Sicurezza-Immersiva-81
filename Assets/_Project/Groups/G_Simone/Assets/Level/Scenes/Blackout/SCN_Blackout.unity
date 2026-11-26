@@ -192,6 +192,10 @@ PrefabInstance:
       propertyPath: suonoTosse
       value: 
       objectReference: {fileID: 8300000, guid: b66d583cd37ea48418806173977f2af9, type: 3}
+    - target: {fileID: 4972555274786639804, guid: a826411f12ee6db408debfbe6eabfd85, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 5d4fa40ac11aba149abccbec9302e9af, type: 2}
     - target: {fileID: 7095944475137727226, guid: a826411f12ee6db408debfbe6eabfd85, type: 3}
       propertyPath: contorniGuidati.Array.size
       value: 7

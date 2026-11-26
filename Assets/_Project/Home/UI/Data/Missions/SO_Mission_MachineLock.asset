@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
   Id: 08
   Title: Machine Lock
-  Context: "Ruolo: manutentore. Una pressa si \xE8 bloccata durante il ciclo. Prima
-    di intervenire applica la procedura di blocco e segnalazione, verifica l'assenza
-    di energia residua e solo dopo libera il pezzo."
+  Context: "Ruolo: operatore di reparto. Entri nella sala di stampaggio: la pressa
+    da 250 t lavora in modo anomalo, l'olio idraulico a 120 \xB0C perde da un tubo
+    e una pozza calda circonda la macchina. Metti in sicurezza la sala e avvisa il
+    preposto."
   Icon: {fileID: 21300000, guid: 0acc98d6bd765994582b461821be6b22, type: 3}
   Image: {fileID: 0}
   GradientTop: {r: 0.24705882, g: 0.2901961, b: 0.33333334, a: 1}
@@ -24,27 +25,26 @@ MonoBehaviour:
   Complexity: 4
   SceneName: SCN_MachineLock
   Objectives:
-  - Ferma la macchina
-  - Applica il lucchetto di blocco
-  - Verifica l'energia residua
-  - Libera il pezzo incastrato
+  - Ferma la pressa e allarma
+  - Isola l'energia e blocca
+  - Indossa i DPI e contiene
+  - Esci e avvisa il preposto
   Criteria:
   - Outcome: 0
-    Text: Procedura completa e pezzo liberato
+    Text: Procedura completa e area sicura
   - Outcome: 1
-    Text: Procedura incompleta, nessun danno
+    Text: Area non delimitata o DPI incompleti
   - Outcome: 2
-    Text: Intervento a macchina attiva
+    Text: Macchina ancora attiva o errore grave
   Levels:
   - Level: 1
     UnlockedByDefault: 1
     TimeLimitSecondsOverride: 0
   - Level: 2
-    UnlockedByDefault: 1
+    UnlockedByDefault: 0
     TimeLimitSecondsOverride: 0
   - Level: 3
-    UnlockedByDefault: 1
-    TimeLimitSecondsOverride: 0
+    UnlockedByDefault: 0
+    TimeLimitSecondsOverride: 480
   IsTraining: 0
-  DesignerNote: '(esempio) Contenuto segnaposto: il team proprietario lo sostituisce
-    e toglie questo marcatore.'
+  DesignerNote: "Guided vertical slice \u2014 G_Marius. GDD: Docs/MachineLock/GDD_MachineLock.md."

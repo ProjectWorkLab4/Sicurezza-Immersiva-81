@@ -54,6 +54,8 @@ namespace SI81.ManDown
         public const string CONSCIOUSNESS_RESULT = "NPC incosciente";
         /// <summary>Azione: verifica della respirazione.</summary>
         public const string ACTION_BREATHING_CHECK = "BREATHING_CHECK";
+        /// <summary>Azione: scelta logica della posizione dell'NPC (indipendente dalla posa visiva).</summary>
+        public const string ACTION_POSITION_CHOICE = "POSITION_CHOICE";
         /// <summary>Risultato registrato della verifica della respirazione: normale.</summary>
         public const string BREATHING_RESULT_NORMAL = "normal";
         /// <summary>Risultato registrato della verifica della respirazione: assente o anomala.</summary>
@@ -90,6 +92,8 @@ namespace SI81.ManDown
         public const string ACTION_FINAL_ASSISTANCE_START = "FINAL_ASSISTANCE_START";
         /// <summary>Azione: assistenza completata.</summary>
         public const string ACTION_ASSISTANCE_COMPLETED = "ASSISTANCE_COMPLETED";
+        /// <summary>Messaggio condiviso di arrivo simulato dei soccorsi (solo se il 112 è stato chiamato).</summary>
+        public const string RESCUE_ARRIVED_INFO = "I soccorsi sono arrivati.";
 
         // =================================================================
         // Inspector
@@ -114,6 +118,9 @@ namespace SI81.ManDown
         [Tooltip("Durata della breve fase finale di assistenza. 0 = conclusione esplicita (valore didattico da validare).")]
         [Min(0f)]
         [SerializeField] private float finalAssistanceDurationSeconds = 0f;
+        [Tooltip("Durata del monitoraggio finale nel ramo con respirazione normale, in secondi (valore richiesto: 15).")]
+        [Min(1f)]
+        [SerializeField] private float monitoringDurationSeconds = 15f;
 
         [Header("RCP — ricezione risultati (nessuna validazione in questo task)")]
         [Tooltip("Compressioni valide richieste per la RCP iniziale quando il DAE è disponibile.")]
@@ -138,6 +145,10 @@ namespace SI81.ManDown
 
         private readonly List<ManDownActionRecord> actions = new List<ManDownActionRecord>();
         private readonly List<ManDownCprResult> cprResults = new List<ManDownCprResult>();
+        private readonly List<ManDownPositionChoiceRecord> positionChoices = new List<ManDownPositionChoiceRecord>();
+        private readonly List<ManDownPositionChoiceRecord> positionErrors = new List<ManDownPositionChoiceRecord>();
+        private readonly List<ManDownPositionChoiceRecord> positionCorrections = new List<ManDownPositionChoiceRecord>();
+        private readonly List<ManDownBreathingAssessmentRecord> breathingAssessments = new List<ManDownBreathingAssessmentRecord>();
         private readonly List<string> failureCauses = new List<string>();
         private readonly List<string> penalties = new List<string>();
         private readonly HashSet<ManDownCprPhase> completedCprPhases = new HashSet<ManDownCprPhase>();
@@ -151,6 +162,11 @@ namespace SI81.ManDown
         private bool consciousnessChecked;
         private bool breathingChecked;
         private float breathingAssessedAt = -1f;
+        private float lastCorrectPositionAt = -1f;
+        private ManDownPositionChoice lastCorrectPosition = ManDownPositionChoice.None;
+        private bool reassessedAfterLastCorrectPosition;
+        private float lastReassessmentAt = -1f;
+        private bool lastReassessmentValid;
         private bool call112Made;
         private bool cprStarted;
         private bool aedActivated;
@@ -163,10 +179,16 @@ namespace SI81.ManDown
         private bool cprPoorQuality;
         private bool aedIncorrectUse;
         private bool incompatibleProcedure;
+        private ManDownPositionChoice currentPosition = ManDownPositionChoice.None;
+        private ManDownPositionChoiceRecord firstCorrectChoice;
         private float missionStartTime;
         private ManDownPhase phase = ManDownPhase.NotStarted;
         private ManDownScenarioResult lastResult;
         private Coroutine finalAssistanceRoutine;
+        private Coroutine finalMonitoringRoutine;
+        private bool finalMonitoringStarted;
+        private bool finalMonitoringCompleted;
+        private float finalMonitoringStartedAt = -1f;
 
         // =================================================================
         // Eventi per le future classi
@@ -178,6 +200,10 @@ namespace SI81.ManDown
         public event Action ConsciousnessAssessed;
         /// <summary>Verifica della respirazione completata (true = anormale).</summary>
         public event Action<bool> BreathingAssessed;
+        /// <summary>Una scelta logica di posizione è stata registrata.</summary>
+        public event Action<ManDownPositionChoiceRecord> PositionChoiceRecorded;
+        /// <summary>Una valutazione della respirazione (iniziale o successiva) è stata registrata.</summary>
+        public event Action<ManDownBreathingAssessmentRecord> BreathingAssessmentRecorded;
         /// <summary>Chiamata al 112 registrata.</summary>
         public event Action EmergencyCalled;
         /// <summary>RCP avviata.</summary>
@@ -202,6 +228,10 @@ namespace SI81.ManDown
         public event Action MonitoringCompleted;
         /// <summary>Fase finale di assistenza avviata.</summary>
         public event Action FinalAssistanceStarted;
+        /// <summary>Monitoraggio finale avviato (riutilizzabile anche dal ramo RCP/DAE).</summary>
+        public event Action FinalMonitoringStarted;
+        /// <summary>Monitoraggio finale interrotto da un cambio di posizione o da un reset.</summary>
+        public event Action FinalMonitoringStopped;
         /// <summary>Ogni voce aggiunta al registro azioni.</summary>
         public event Action<ManDownActionRecord> ActionRecorded;
         /// <summary>Scenario concluso: risultato congelato (prima della chiusura della sessione comune).</summary>
@@ -243,6 +273,80 @@ namespace SI81.ManDown
         public ManDownBreathingBranch BreathingBranch => !breathingChecked
             ? ManDownBreathingBranch.NotAssessed
             : breathingAbnormal ? ManDownBreathingBranch.AbsentOrAbnormal : ManDownBreathingBranch.Normal;
+
+        /// <summary>
+        /// Posizione logica corrente dell'NPC. È indipendente dalla posa visiva: viene aggiornata anche quando
+        /// la posa corrispondente non è stata configurata. None significa "nessuna scelta, posizione iniziale".
+        /// </summary>
+        public ManDownPositionChoice CurrentPosition => currentPosition;
+
+        /// <summary>Registro completo delle scelte di posizione, in ordine cronologico.</summary>
+        public IReadOnlyList<ManDownPositionChoiceRecord> PositionChoices => positionChoices;
+
+        /// <summary>Scelte di posizione valutate come errate o inappropriate. Gli errori non vengono mai cancellati.</summary>
+        public IReadOnlyList<ManDownPositionChoiceRecord> PositionErrors => positionErrors;
+
+        /// <summary>Correzioni registrate: scelte corrette effettuate dopo almeno un errore.</summary>
+        public IReadOnlyList<ManDownPositionChoiceRecord> PositionCorrections => positionCorrections;
+
+        /// <summary>Prima scelta corretta della partita; null se non ce n'è ancora una.</summary>
+        public ManDownPositionChoiceRecord FirstCorrectChoice => firstCorrectChoice;
+
+        /// <summary>Posizione della prima scelta corretta; None se assente.</summary>
+        public ManDownPositionChoice FirstCorrectPosition => firstCorrectChoice != null
+            ? firstCorrectChoice.SelectedPosition
+            : ManDownPositionChoice.None;
+
+        /// <summary>Timestamp della prima scelta corretta; -1 se assente.</summary>
+        public float FirstCorrectAt => firstCorrectChoice != null ? firstCorrectChoice.Timestamp : -1f;
+
+        /// <summary>Storico completo delle valutazioni della respirazione, in ordine cronologico.</summary>
+        public IReadOnlyList<ManDownBreathingAssessmentRecord> BreathingAssessments => breathingAssessments;
+
+        /// <summary>Numero di valutazioni della respirazione (la prima è quella iniziale).</summary>
+        public int BreathingAssessmentCount => breathingAssessments.Count;
+
+        /// <summary>Ultima valutazione registrata; null se non ce n'è ancora una.</summary>
+        public ManDownBreathingAssessmentRecord LastBreathingAssessment => breathingAssessments.Count > 0
+            ? breathingAssessments[breathingAssessments.Count - 1]
+            : null;
+
+        /// <summary>Posizione corretta più recente; None se non è ancora stata scelta una posizione corretta.</summary>
+        public ManDownPositionChoice LastCorrectPosition => lastCorrectPositionAt >= 0f ? lastCorrectPosition : ManDownPositionChoice.None;
+
+        /// <summary>Timestamp dell'ultimo posizionamento corretto; -1 se assente.</summary>
+        public float LastCorrectPositionAt => lastCorrectPositionAt;
+
+        /// <summary>true se il giocatore ha rivalutato la respirazione dopo l'ultimo posizionamento corretto.</summary>
+        public bool ReassessedAfterLastCorrectPosition => reassessedAfterLastCorrectPosition;
+
+        /// <summary>Timestamp dell'ultima rivalutazione successiva a un posizionamento corretto; -1 se assente.</summary>
+        public float LastReassessmentAt => lastReassessmentAt;
+
+        /// <summary>
+        /// true se esiste una rivalutazione dopo l'ultimo posizionamento corretto che sia ancora valida per la
+        /// posizione corrente. Viene azzerato da ogni nuovo posizionamento effettivo.
+        /// </summary>
+        public bool HasValidReassessmentAfterCorrectPosition => reassessedAfterLastCorrectPosition && lastReassessmentValid;
+
+        /// <summary>
+        /// Dati già nel formato previsto dalla futura timeline del Debrief, limitati a 8 voci come da guida UI.
+        /// Non vengono passati alla UI in questo task.
+        /// </summary>
+        public IReadOnlyList<ManDownChoiceData> PositionChoiceDebriefData
+        {
+            get
+            {
+                var data = new List<ManDownChoiceData>(Mathf.Min(8, positionChoices.Count));
+                for (int i = 0; i < positionChoices.Count && i < 8; i++)
+                {
+                    ManDownPositionChoiceRecord record = positionChoices[i];
+                    data.Add(new ManDownChoiceData(record.Timestamp, record.ActionText, record.ConsequenceText, record.Kind));
+                }
+                return data;
+            }
+        }
+
         /// <summary>112 chiamato.</summary>
         public bool IsCall112Made => call112Made;
         /// <summary>RCP avviata o risultato RCP ricevuto.</summary>
@@ -261,6 +365,14 @@ namespace SI81.ManDown
         public bool TimedOut => timedOut;
         /// <summary>Durata massima configurata in secondi.</summary>
         public float MissionDurationSeconds => missionDurationSeconds;
+        /// <summary>Durata configurata del monitoraggio finale, in secondi.</summary>
+        public float MonitoringDurationSeconds => monitoringDurationSeconds;
+        /// <summary>true se il monitoraggio finale è in corso.</summary>
+        public bool IsFinalMonitoringActive => finalMonitoringStarted && !finalMonitoringCompleted && AcceptsActions;
+        /// <summary>true se il monitoraggio finale è stato completato.</summary>
+        public bool FinalMonitoringCompleted => finalMonitoringCompleted;
+        /// <summary>Timestamp di inizio dell'ultimo monitoraggio finale; -1 se non è mai partito.</summary>
+        public float FinalMonitoringStartedAt => finalMonitoringStartedAt;
         /// <summary>Secondi dall'inizio effettivo della missione.</summary>
         public float MissionElapsedSeconds => initialized && !concluded ? Time.time - missionStartTime : lastResult != null ? lastResult.ElapsedSeconds : 0f;
         /// <summary>Registro azioni in sola lettura.</summary>
@@ -325,6 +437,7 @@ namespace SI81.ManDown
             bool restart = initialized && !concluded && isActiveAndEnabled;
 
             StopFinalAssistanceRoutine();
+            StopFinalMonitoring();
             ClearRuntimeData();
             initialized = false;
             phase = ManDownPhase.NotStarted;
@@ -342,6 +455,7 @@ namespace SI81.ManDown
         protected override void OnDestroy()
         {
             StopFinalAssistanceRoutine();
+            StopFinalMonitoring();
             ClearEvents();
             base.OnDestroy();
         }
@@ -384,10 +498,13 @@ namespace SI81.ManDown
         {
             if (!AcceptsActions) return;
 
-            if (!breathingChecked)
+            bool isInitial = !breathingChecked;
+            float timestamp = Time.time - missionStartTime;
+
+            if (isInitial)
             {
                 breathingChecked = true;
-                breathingAssessedAt = Time.time - missionStartTime;
+                breathingAssessedAt = timestamp;
                 RecordAction(ACTION_BREATHING_CHECK, true, true, breathingAbnormal ? BREATHING_RESULT_ABNORMAL : BREATHING_RESULT_NORMAL);
 
                 if (breathingAbnormal && (sidePositionPlaced || monitoringCompleted)) incompatibleProcedure = true;
@@ -398,8 +515,174 @@ namespace SI81.ManDown
                     ChangePhase(breathingAbnormal ? ManDownPhase.Cpr : ManDownPhase.Assistance);
             }
 
-            // Ripetizione consentita: stesso risultato e stesso timestamp, senza una seconda voce nel registro.
+            // Ogni valutazione ha una voce propria nello storico: la prima è iniziale, le altre sono rivalutazioni.
+            bool followsCorrectPosition = lastCorrectPositionAt >= 0f && timestamp >= lastCorrectPositionAt;
+            var assessment = new ManDownBreathingAssessmentRecord(
+                breathingAssessments.Count + 1, timestamp, breathingAbnormal, currentPosition, followsCorrectPosition);
+            breathingAssessments.Add(assessment);
+
+            if (followsCorrectPosition)
+            {
+                reassessedAfterLastCorrectPosition = true;
+                lastReassessmentAt = timestamp;
+                lastReassessmentValid = true;
+            }
+
+            // Il vecchio evento resta per compatibilità; il nuovo evento distingue iniziale e rivalutazioni.
             BreathingAssessed?.Invoke(breathingAbnormal);
+            BreathingAssessmentRecorded?.Invoke(assessment);
+        }
+
+        /// <summary>
+        /// Registra la scelta logica della posizione dell'NPC, indipendentemente dalla disponibilità della posa
+        /// visiva. La laterale di sicurezza è corretta solo con respirazione normale; le altre quattro posizioni
+        /// (gambe sollevate, prona, seduta e ritorno alla partenza supina) sono sempre errate; con respirazione
+        /// assente o anomala tutte e cinque sono inappropriate.
+        ///
+        /// Una chiamata ripetuta con la stessa posizione di quella corrente viene ignorata (duplicato della
+        /// stessa interazione). Gli errori già registrati restano sempre nel registro: una scelta corretta
+        /// successiva viene segnata come correzione senza cancellarli. Non cambia fase, timer, penalità o
+        /// punteggio: prepara soltanto i dati per il futuro scoring.
+        /// </summary>
+        /// <param name="choice">Posizione scelta dal giocatore.</param>
+        /// <returns>Il record creato, oppure null se la scelta non è stata accettata.</returns>
+        public ManDownPositionChoiceRecord ChoosePosition(ManDownPositionChoice choice)
+        {
+            if (!AcceptsActions) return null;
+            if (choice == currentPosition) return null;
+
+            ManDownPositionChoice previous = currentPosition;
+            float timestamp = Time.time - missionStartTime;
+
+            // La condizione respiratoria è stabilita all'inizio della partita dal controller autorevole:
+            // la correttezza della scelta non dipende da quando (o se) il giocatore l'ha valutata.
+            ManDownPositionOutcome outcome = choice == ManDownPositionChoice.SidePosition && !breathingAbnormal
+                ? ManDownPositionOutcome.Correct
+                : ManDownPositionOutcome.Incorrect;
+
+            bool isCorrection = outcome == ManDownPositionOutcome.Correct && positionErrors.Count > 0;
+            string breathingNote = breathingAbnormal ? "abnormal" : "normal";
+            string note = $"from={previous}, breathing={breathingNote}";
+
+            string actionText;
+            string consequenceText;
+            ManDownChoiceKind kind;
+            BuildChoiceTexts(choice, outcome, breathingNote, out actionText, out consequenceText, out kind);
+
+            var record = new ManDownPositionChoiceRecord(
+                choice, previous, timestamp, phase, outcome, isCorrection, note,
+                actionText, consequenceText, kind);
+
+            positionChoices.Add(record);
+            RecordAction(ACTION_POSITION_CHOICE, true, outcome == ManDownPositionOutcome.Correct, note);
+
+            if (outcome == ManDownPositionOutcome.Incorrect)
+                positionErrors.Add(record);
+            else if (outcome == ManDownPositionOutcome.Correct)
+            {
+                if (firstCorrectChoice == null) firstCorrectChoice = record;
+                if (isCorrection) positionCorrections.Add(record);
+            }
+
+            currentPosition = choice;
+
+            // Un cambio effettivo di posizione rende non valide le rivalutazioni fatte nella posizione precedente.
+            for (int i = 0; i < breathingAssessments.Count; i++)
+                breathingAssessments[i].ValidForCurrentPosition = false;
+            reassessedAfterLastCorrectPosition = false;
+            lastReassessmentAt = -1f;
+            lastReassessmentValid = false;
+
+            if (outcome == ManDownPositionOutcome.Correct)
+            {
+                lastCorrectPositionAt = timestamp;
+                lastCorrectPosition = choice;
+            }
+
+            // Ramo con respirazione normale: la posizione laterale corretta avvia il monitoraggio finale.
+            // Un cambio effettivo verso una posizione non corretta lo interrompe; ripristinare la laterale
+            // lo riavvia completo. La rivalutazione respiratoria e la chiamata al 112 non lo toccano.
+            if (IsFinalMonitoringActive && outcome != ManDownPositionOutcome.Correct)
+                StopFinalMonitoring();
+            else if (outcome == ManDownPositionOutcome.Correct && !breathingAbnormal)
+                StartFinalMonitoring();
+
+            PositionChoiceRecorded?.Invoke(record);
+            return record;
+        }
+
+        /// <summary>
+        /// Porta temporaneamente la HUD comune nella fase Decision mentre è aperto il popup di posizionamento.
+        /// Non cambia la fase logica dello scenario né avanza obiettivi.
+        /// </summary>
+        public void SetDecisionPhase()
+        {
+            if (!AcceptsActions) return;
+            SetPhase(PHASE_DECISION);
+        }
+
+        /// <summary>Ripristina la fase HUD coerente con la fase logica corrente dopo la chiusura di un popup.</summary>
+        public void RestoreActionPhase()
+        {
+            if (concluded || phase == ManDownPhase.NotStarted) return;
+            if (finalMonitoringStarted && !finalMonitoringCompleted) return; // resta in PHASE_RESOLUTION
+            SetPhase(PhaseKeyFor(phase));
+        }
+
+        /// <summary>
+        /// Prepara azione e conseguenza per la futura timeline del Debrief, rispettando i limiti della guida UI
+        /// (60 e 40 caratteri). Non chiama la UI e non calcola punteggi.
+        /// </summary>
+        private static void BuildChoiceTexts(
+            ManDownPositionChoice choice,
+            ManDownPositionOutcome outcome,
+            string breathingNote,
+            out string actionText,
+            out string consequenceText,
+            out ManDownChoiceKind kind)
+        {
+            switch (choice)
+            {
+                case ManDownPositionChoice.None:
+                    actionText = "Hai riportato la persona in posizione iniziale supina.";
+                    break;
+                case ManDownPositionChoice.SidePosition:
+                    actionText = "Hai messo la persona in posizione laterale di sicurezza.";
+                    break;
+                case ManDownPositionChoice.LegsRaised:
+                    actionText = "Hai sollevato le gambe della persona.";
+                    break;
+                case ManDownPositionChoice.Prone:
+                    actionText = "Hai messo la persona prona.";
+                    break;
+                case ManDownPositionChoice.Seated:
+                    actionText = "Hai messo la persona seduta.";
+                    break;
+                default:
+                    actionText = "Hai scelto una posizione.";
+                    break;
+            }
+
+            if (outcome == ManDownPositionOutcome.Correct)
+            {
+                consequenceText = "Respirazione normale: posa appropriata.";
+                kind = ManDownChoiceKind.Good;
+            }
+            else if (breathingNote == "abnormal")
+            {
+                consequenceText = "Respirazione anomala: posa non indicata.";
+                kind = ManDownChoiceKind.Critical;
+            }
+            else if (breathingNote == "normal")
+            {
+                consequenceText = "Respirazione normale: posa non indicata.";
+                kind = ManDownChoiceKind.Bad;
+            }
+            else
+            {
+                consequenceText = "Posizione non indicata.";
+                kind = ManDownChoiceKind.Bad;
+            }
         }
 
         /// <summary>Chiamata simulata al 112. Indipendente dalle altre azioni e non obbligatoria per proseguire.</summary>
@@ -572,6 +855,65 @@ namespace SI81.ManDown
         }
 
         /// <summary>
+        /// Avvia il monitoraggio finale della durata configurata. È richiamato dal ramo con respirazione normale
+        /// quando il giocatore sceglie la posizione laterale, ma è un'API pubblica riutilizzabile dal futuro ramo
+        /// RCP/DAE. Non tocca il timer comune, non avanza obiettivi e non mostra un secondo timer nell'HUD:
+        /// imposta solo la fase condivisa PHASE_RESOLUTION per la durata del monitoraggio.
+        /// Una nuova chiamata mentre è già attivo non riavvia il conteggio.
+        /// </summary>
+        public void StartFinalMonitoring()
+        {
+            if (!AcceptsActions || finalMonitoringStarted && !finalMonitoringCompleted) return;
+
+            finalMonitoringStarted = true;
+            finalMonitoringCompleted = false;
+            finalMonitoringStartedAt = Time.time - missionStartTime;
+            RecordAction(ACTION_FINAL_ASSISTANCE_START, true, true, "normal_breathing_monitoring");
+            SetPhase(PHASE_RESOLUTION);
+            FinalMonitoringStarted?.Invoke();
+
+            if (Application.isPlaying)
+                finalMonitoringRoutine = StartCoroutine(FinalMonitoringDelay());
+        }
+
+        /// <summary>
+        /// Interrompe il monitoraggio finale senza concludere la missione. Usato quando il giocatore cambia
+        /// effettivamente posizione scegliendo una posizione non corretta, e dal reset.
+        /// </summary>
+        public void StopFinalMonitoring()
+        {
+            if (finalMonitoringRoutine != null)
+            {
+                StopCoroutine(finalMonitoringRoutine);
+                finalMonitoringRoutine = null;
+            }
+            if (!finalMonitoringStarted || finalMonitoringCompleted) return;
+
+            finalMonitoringStarted = false;
+            FinalMonitoringStopped?.Invoke();
+        }
+
+        /// <summary>
+        /// Chiamato allo scadere della durata configurata: comunica l'arrivo simulato dei soccorsi solo se il
+        /// 112 è stato chiamato, poi conclude con le API provvisorie già presenti. Non inventa criteri di scoring.
+        /// </summary>
+        private void MonitoringElapsed()
+        {
+            if (!AcceptsActions || !finalMonitoringStarted || finalMonitoringCompleted) return;
+
+            finalMonitoringCompleted = true;
+            if (call112Made) Alert(RESCUE_ARRIVED_INFO);
+            CompleteFinalAssistance();
+        }
+
+        private IEnumerator FinalMonitoringDelay()
+        {
+            yield return new WaitForSeconds(Mathf.Max(0.01f, monitoringDurationSeconds));
+            finalMonitoringRoutine = null;
+            MonitoringElapsed();
+        }
+
+        /// <summary>
         /// Avvia la breve fase finale di assistenza. Con durata &gt; 0 la conclusione è automatica; con 0 resta
         /// esplicita tramite <see cref="CompleteFinalAssistance"/>.
         /// </summary>
@@ -731,6 +1073,9 @@ namespace SI81.ManDown
             if (concluded) return;
             safetyScore = Mathf.Clamp(safetyScore, 0, 100);
 
+            // Il timeout generale ha la precedenza: in qualunque caso il monitoraggio viene annullato.
+            StopFinalMonitoring();
+
             failureCauses.Clear();
             penalties.Clear();
 
@@ -755,9 +1100,13 @@ namespace SI81.ManDown
             bool rescue = call112Made;
             float elapsed = Time.time - missionStartTime;
 
+            bool reassessmentMissing = lastCorrectPosition != ManDownPositionChoice.None &&
+                                       breathingAssessments.Count > 0 &&
+                                       !HasValidReassessmentAfterCorrectPosition;
             var result = new ManDownScenarioResult(
                 outcome, safetyScore, dimensions, failureCauses, penalties, rescue, elapsed,
-                breathingAbnormal, aedAvailable, call112Made, timedOut);
+                breathingAbnormal, aedAvailable, call112Made, timedOut,
+                finalMonitoringCompleted, breathingAssessments.Count, lastCorrectPositionAt, reassessmentMissing);
 
             lastResult = result;
             concluded = true;
@@ -888,6 +1237,10 @@ namespace SI81.ManDown
             if (rescue)
                 lines.Add(DebriefLinePrefix.GOOD + "Soccorsi simulati in arrivo dopo la chiamata al 112.");
 
+            if (lastCorrectPosition != ManDownPositionChoice.None && breathingAssessments.Count > 0 &&
+                !HasValidReassessmentAfterCorrectPosition)
+                lines.Add(DebriefLinePrefix.BAD + "Rivalutazione della respirazione non effettuata dopo il posizionamento.");
+
             return lines;
         }
 
@@ -911,6 +1264,10 @@ namespace SI81.ManDown
         {
             actions.Clear();
             cprResults.Clear();
+            positionChoices.Clear();
+            positionErrors.Clear();
+            positionCorrections.Clear();
+            breathingAssessments.Clear();
             failureCauses.Clear();
             penalties.Clear();
             completedCprPhases.Clear();
@@ -923,6 +1280,11 @@ namespace SI81.ManDown
             consciousnessChecked = false;
             breathingChecked = false;
             breathingAssessedAt = -1f;
+            lastCorrectPositionAt = -1f;
+            lastCorrectPosition = ManDownPositionChoice.None;
+            reassessedAfterLastCorrectPosition = false;
+            lastReassessmentAt = -1f;
+            lastReassessmentValid = false;
             call112Made = false;
             cprStarted = false;
             aedActivated = false;
@@ -930,11 +1292,17 @@ namespace SI81.ManDown
             cprResumed = false;
             sidePositionPlaced = false;
             monitoringCompleted = false;
+            finalMonitoringRoutine = null;
+            finalMonitoringStarted = false;
+            finalMonitoringCompleted = false;
+            finalMonitoringStartedAt = -1f;
             finalAssistanceStarted = false;
             assistanceCompleted = false;
             cprPoorQuality = false;
             aedIncorrectUse = false;
             incompatibleProcedure = false;
+            currentPosition = ManDownPositionChoice.None;
+            firstCorrectChoice = null;
         }
 
         private void ClearEvents()
@@ -942,6 +1310,8 @@ namespace SI81.ManDown
             PhaseChanged = null;
             ConsciousnessAssessed = null;
             BreathingAssessed = null;
+            PositionChoiceRecorded = null;
+            BreathingAssessmentRecorded = null;
             EmergencyCalled = null;
             CprStarted = null;
             CprResultRegistered = null;
@@ -954,6 +1324,8 @@ namespace SI81.ManDown
             SidePositionPlaced = null;
             MonitoringCompleted = null;
             FinalAssistanceStarted = null;
+            FinalMonitoringStarted = null;
+            FinalMonitoringStopped = null;
             ActionRecorded = null;
             MissionConcluded = null;
         }

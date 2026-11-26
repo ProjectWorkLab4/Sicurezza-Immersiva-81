@@ -72,6 +72,174 @@ namespace SI81.ManDown
         AbsentOrAbnormal
     }
 
+    /// <summary>
+    /// Posizione logica selezionata dal giocatore per l'NPC. È indipendente dalla posa visiva applicata
+    /// da <see cref="ManDownPoseController"/>: una scelta può essere registrata anche se la posa non esiste.
+    /// </summary>
+    public enum ManDownPositionChoice
+    {
+        /// <summary>Nessuna scelta effettuata: posizione iniziale supina.</summary>
+        None,
+        /// <summary>Posizione laterale di sicurezza.</summary>
+        SidePosition,
+        /// <summary>Gambe sollevate.</summary>
+        LegsRaised,
+        /// <summary>Posizione prona.</summary>
+        Prone,
+        /// <summary>Posizione seduta.</summary>
+        Seated
+    }
+
+    /// <summary>Esito decisionale di una scelta di posizione, valutato rispetto alla respirazione.</summary>
+    public enum ManDownPositionOutcome
+    {
+        /// <summary>Laterale di sicurezza con respirazione normale: scelta corretta.</summary>
+        Correct,
+        /// <summary>Scelta errata oppure inappropriata per la respirazione rilevata.</summary>
+        Incorrect
+    }
+
+    /// <summary>
+    /// Tipo di una voce pronta per la futura timeline delle scelte del Debrief. I valori ricalcano
+    /// le icone delle righe di debrief; la conversione a ChoiceKind avverrà quando l'API comune sarà
+    /// disponibile. Non viene chiamato alcun metodo UI in questo task.
+    /// </summary>
+    public enum ManDownChoiceKind
+    {
+        /// <summary>Scelta corretta.</summary>
+        Good,
+        /// <summary>Scelta errata recuperabile.</summary>
+        Bad,
+        /// <summary>Scelta inappropriata con respirazione assente o anomala.</summary>
+        Critical
+    }
+
+    /// <summary>
+    /// Una scelta di posizione registrata dal controller. Conserva la posizione selezionata e quella
+    /// precedente, il timestamp e la valutazione decisionale; non modifica la rappresentazione visiva.
+    /// </summary>
+    public sealed class ManDownPositionChoiceRecord
+    {
+        /// <summary>Posizione scelta dal giocatore.</summary>
+        public ManDownPositionChoice SelectedPosition { get; }
+        /// <summary>Posizione logica dell'NPC prima della scelta.</summary>
+        public ManDownPositionChoice PreviousPosition { get; }
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float Timestamp { get; }
+        /// <summary>Fase logica al momento della scelta.</summary>
+        public ManDownPhase Phase { get; }
+        /// <summary>Correttezza della scelta rispetto alla respirazione conosciuta.</summary>
+        public ManDownPositionOutcome Outcome { get; }
+        /// <summary>True se la scelta corretta corregge un errore precedente ancora registrato.</summary>
+        public bool IsCorrection { get; }
+        /// <summary>Nota tecnica, non mostrata al giocatore.</summary>
+        public string Note { get; }
+        /// <summary>Azione in seconda persona per la futura timeline del Debrief (al massimo 60 caratteri).</summary>
+        public string ActionText { get; }
+        /// <summary>Conseguenza breve per la futura timeline del Debrief (al massimo 40 caratteri).</summary>
+        public string ConsequenceText { get; }
+        /// <summary>Tipo previsto per la futura timeline del Debrief.</summary>
+        public ManDownChoiceKind Kind { get; }
+
+        internal ManDownPositionChoiceRecord(
+            ManDownPositionChoice selectedPosition,
+            ManDownPositionChoice previousPosition,
+            float timestamp,
+            ManDownPhase phase,
+            ManDownPositionOutcome outcome,
+            bool isCorrection,
+            string note,
+            string actionText,
+            string consequenceText,
+            ManDownChoiceKind kind)
+        {
+            SelectedPosition = selectedPosition;
+            PreviousPosition = previousPosition;
+            Timestamp = timestamp;
+            Phase = phase;
+            Outcome = outcome;
+            IsCorrection = isCorrection;
+            Note = note;
+            ActionText = actionText;
+            ConsequenceText = consequenceText;
+            Kind = kind;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{SelectedPosition} @ {Timestamp:F2}s (from={PreviousPosition}, outcome={Outcome}, correction={IsCorrection})";
+        }
+    }
+
+    /// <summary>
+    /// Una valutazione della respirazione. La prima è l'iniziale; le successive sono rivalutazioni.
+    /// Ogni voce conserva il timestamp e la posizione logica dell'NPC al momento della verifica.
+    /// </summary>
+    public sealed class ManDownBreathingAssessmentRecord
+    {
+        /// <summary>Numero progressivo della valutazione nella partita (1 = iniziale).</summary>
+        public int Sequence { get; }
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float Timestamp { get; }
+        /// <summary>true solo per la prima valutazione della partita.</summary>
+        public bool IsInitial => Sequence == 1;
+        /// <summary>true se la respirazione era assente o anomala.</summary>
+        public bool Abnormal { get; }
+        /// <summary>Posizione logica dell'NPC al momento della valutazione.</summary>
+        public ManDownPositionChoice PositionAtAssessment { get; }
+        /// <summary>true se la valutazione è avvenuta dopo un posizionamento corretto.</summary>
+        public bool FollowsCorrectPosition { get; }
+        /// <summary>
+        /// true finché non viene effettuato un nuovo posizionamento: una rivalutazione non resta valida
+        /// per una posizione diversa da quella in cui è stata fatta.
+        /// </summary>
+        public bool ValidForCurrentPosition { get; internal set; }
+
+        internal ManDownBreathingAssessmentRecord(
+            int sequence, float timestamp, bool abnormal, ManDownPositionChoice positionAtAssessment,
+            bool followsCorrectPosition)
+        {
+            Sequence = sequence;
+            Timestamp = timestamp;
+            Abnormal = abnormal;
+            PositionAtAssessment = positionAtAssessment;
+            FollowsCorrectPosition = followsCorrectPosition;
+            ValidForCurrentPosition = true;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"#{Sequence} @ {Timestamp:F2}s (initial={IsInitial}, abnormal={Abnormal}, " +
+                   $"position={PositionAtAssessment}, afterCorrect={FollowsCorrectPosition}, valid={ValidForCurrentPosition})";
+        }
+    }
+
+    /// <summary>
+    /// Dato grezzo già nel formato previsto da <c>RecordChoice</c>, da passare alla UI comune quando
+    /// l'API sarà implementata. Non viene usato adesso per calcolare punteggi.
+    /// </summary>
+    public readonly struct ManDownChoiceData
+    {
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float ElapsedSeconds { get; }
+        /// <summary>Azione in seconda persona, al massimo 60 caratteri.</summary>
+        public string Action { get; }
+        /// <summary>Conseguenza breve, al massimo 40 caratteri.</summary>
+        public string Consequence { get; }
+        /// <summary>Tipo della scelta per la timeline del Debrief.</summary>
+        public ManDownChoiceKind Kind { get; }
+
+        public ManDownChoiceData(float elapsedSeconds, string action, string consequence, ManDownChoiceKind kind)
+        {
+            ElapsedSeconds = elapsedSeconds;
+            Action = action;
+            Consequence = consequence;
+            Kind = kind;
+        }
+    }
+
     /// <summary>Come determinare la disponibilità iniziale del DAE.</summary>
     public enum ManDownAedAvailabilityMode
     {
@@ -171,6 +339,17 @@ namespace SI81.ManDown
         public bool EmergencyCalled { get; }
         /// <summary>true se il timer è scaduto.</summary>
         public bool TimedOut { get; }
+        /// <summary>true se il monitoraggio finale è stato completato (ramo con respirazione normale).</summary>
+        public bool FinalMonitoringCompleted { get; }
+        /// <summary>Numero di valutazioni della respirazione registrate nella partita.</summary>
+        public int BreathingAssessmentCount { get; }
+        /// <summary>Timestamp dell'ultimo posizionamento corretto; -1 se assente.</summary>
+        public float LastCorrectPositionAt { get; }
+        /// <summary>
+        /// true se era prevista una rivalutazione dopo il posizionamento corretto ma non è stata effettuata
+        /// (dato grezzo per il futuro scoring; non modifica il punteggio provvisorio).
+        /// </summary>
+        public bool ReassessmentAfterCorrectPositionMissing { get; }
 
         internal ManDownScenarioResult(
             OutcomeType outcome,
@@ -183,7 +362,11 @@ namespace SI81.ManDown
             bool breathingAbnormal,
             bool aedAvailable,
             bool emergencyCalled,
-            bool timedOut)
+            bool timedOut,
+            bool finalMonitoringCompleted,
+            int breathingAssessmentCount,
+            float lastCorrectPositionAt,
+            bool reassessmentAfterCorrectPositionMissing)
         {
             Outcome = outcome;
             Score = score;
@@ -196,6 +379,10 @@ namespace SI81.ManDown
             AedAvailable = aedAvailable;
             EmergencyCalled = emergencyCalled;
             TimedOut = timedOut;
+            FinalMonitoringCompleted = finalMonitoringCompleted;
+            BreathingAssessmentCount = breathingAssessmentCount;
+            LastCorrectPositionAt = lastCorrectPositionAt;
+            ReassessmentAfterCorrectPositionMissing = reassessmentAfterCorrectPositionMissing;
         }
     }
 }

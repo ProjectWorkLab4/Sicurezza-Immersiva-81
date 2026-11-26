@@ -29,6 +29,9 @@ namespace SI81.ManDown
         [Tooltip("Etichetta Interaction del telefono, nascosta durante la presa e dopo la chiamata.")]
         [SerializeField] private LabelAnchor label;
 
+        // true mentre il telefono è afferrato: l'etichetta resta nascosta anche dopo un "No".
+        private bool isGrabbed;
+
         /// <summary>Si iscrive alla richiesta del telefono e all'avvio della missione.</summary>
         private void OnEnable()
         {
@@ -49,7 +52,23 @@ namespace SI81.ManDown
         /// <summary>Apre il popup comune quando il telefono richiede l'interazione.</summary>
         private void OnInteractionRequested()
         {
-            if (phone == null || scenario == null || phone.IsCallMade || !scenario.IsRunning) return;
+            if (phone == null || scenario == null) return;
+
+            // Stato globale: dopo un "Sì" accettato nessun telefono deve aprire il popup.
+            if (phone.IsCallMade || scenario.IsCall112Made || !scenario.IsRunning)
+            {
+                phone.AnswerNo();
+                return;
+            }
+
+            // Il pannello decisionale è condiviso: una seconda Show() sovrascriverebbe la callback del popup
+            // già aperto (per esempio quello delle posizioni), lasciandone uno stato pendente per sempre.
+            DecisionPanel openPanel = FindFirstObjectByType<DecisionPanel>(FindObjectsInactive.Include);
+            if (openPanel != null && openPanel.IsOpen)
+            {
+                phone.AnswerNo();
+                return;
+            }
 
             if (!scenario.AskDecision(QUESTION, OPTIONS, OnDecision, 0f))
             {
@@ -82,32 +101,41 @@ namespace SI81.ManDown
             ApplyLabelState();
         }
 
-        /// <summary>Ripristina l'etichetta all'inizio di ogni missione.</summary>
+        /// <summary>
+        /// Ripristina l'etichetta all'inizio di ogni missione. Non legge lo stato dello scenario perché
+        /// <see cref="MissionSession.Started"/> arriva prima dell'inizializzazione del controller: una nuova
+        /// partita non ha mai una chiamata registrata.
+        /// </summary>
         private void OnMissionStarted()
         {
-            ApplyLabelState();
+            isGrabbed = false;
+            if (label != null) label.Suppressed = false;
         }
 
         /// <summary>Nasconde l'etichetta mentre il telefono è afferrato.</summary>
         public void SuppressLabel()
         {
+            isGrabbed = true;
             if (label != null) label.Suppressed = true;
         }
 
-        /// <summary>Rimostra l'etichetta, salvo dopo una chiamata già confermata.</summary>
+        /// <summary>Rimostra l'etichetta al rilascio, salvo dopo una chiamata già confermata.</summary>
         public void ShowLabel()
         {
+            isGrabbed = false;
             ApplyLabelState();
         }
 
         /// <summary>
-        /// Applica lo stato dell'etichetta: dopo il 112 chiamato resta nascosta su tutti i telefoni,
-        /// perché lo stato autorevole è `ManDownScenario.IsCall112Made`.
+        /// Applica lo stato dell'etichetta: resta nascosta durante la presa e dopo il 112 chiamato,
+        /// perché lo stato autorevole è `ManDownScenario.IsCall112Made` per tutti i telefoni.
         /// </summary>
         private void ApplyLabelState()
         {
             if (label == null) return;
-            label.Suppressed = (scenario != null && scenario.IsCall112Made) || (phone != null && phone.IsCallMade);
+            label.Suppressed = isGrabbed
+                || (scenario != null && scenario.IsCall112Made)
+                || (phone != null && phone.IsCallMade);
         }
     }
 }

@@ -9,10 +9,11 @@ namespace SI81.ManDown
     /// Zona fisica davanti alla bocca dell'NPC per la valutazione della respirazione. Il BoxCollider trigger
     /// definisce il volume: la presenza è rilevata confrontando la posa delle sole due mani del rig condiviso
     /// con i bounds del collider, senza raycast, senza pulsanti e senza considerare altri oggetti.
-    /// Richiede che lo stesso controller resti dentro per un tempo configurabile; uscire o cambiare mano
-    /// azzera il conteggio. Al completamento chiama <see cref="ManDownNpc.AssessBreathing"/>: la logica e la
-    /// registrazione restano quelle di <see cref="ManDownScenario"/>. Non aggiunge etichette, suggerimenti o
-    /// indicatori di avanzamento e non dipende da input locale, rig locale o UI personalizzata.
+    /// È disponibile solo dopo la verifica della coscienza. Richiede che lo stesso controller resti dentro
+    /// per un tempo configurabile; uscire, cambiare mano, aprire un popup o cambiare posa azzera il conteggio.
+    /// Dopo la chiusura del popup un controller ancora dentro avvia un nuovo conteggio completo senza dover
+    /// uscire e rientrare. Al completamento chiama <see cref="ManDownNpc.AssessBreathing"/>: logica, storico e
+    /// registrazione restano quelli di <see cref="ManDownScenario"/>. Nessuna etichetta, suggerimento o UI propria.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(BoxCollider))]
@@ -55,6 +56,7 @@ namespace SI81.ManDown
         private void OnEnable()
         {
             MissionSession.Started += OnMissionStarted;
+            if (npc != null) npc.PositionApplied += OnPositionApplied;
             ResetDwell();
         }
 
@@ -62,6 +64,7 @@ namespace SI81.ManDown
         private void OnDisable()
         {
             MissionSession.Started -= OnMissionStarted;
+            if (npc != null) npc.PositionApplied -= OnPositionApplied;
         }
 
         /// <summary>
@@ -70,7 +73,16 @@ namespace SI81.ManDown
         /// </summary>
         private void Update()
         {
-            if (npc == null || zone == null || !zone.enabled)
+            if (npc == null || zone == null || !zone.enabled || !npc.IsConsciousnessAssessed)
+            {
+                ResetDwell();
+                return;
+            }
+
+            // Il pannello decisionale è condiviso: con qualsiasi popup aperto il tempo non deve accumularsi,
+            // altrimenti la valutazione finisce durante un'altra scelta e le callback si sovrappongono.
+            // Senza pannello non si completa: non si registra una valutazione il cui esito non può essere mostrato.
+            if (npc.IsPopupActive || !npc.IsDecisionPanelAvailable)
             {
                 ResetDwell();
                 return;
@@ -79,7 +91,7 @@ namespace SI81.ManDown
             bool leftInside = IsControllerInside(Hand.Left);
             bool rightInside = IsControllerInside(Hand.Right);
 
-            // Nessuna mano oppure entrambe: non c'è un singolo controller da conteggiare.
+            // Nessuna mano oppure entrambe: non c'è un singolo controller da conteggiare e il tempo non corre.
             if (leftInside == rightInside)
             {
                 ResetDwell();
@@ -94,7 +106,13 @@ namespace SI81.ManDown
                 completed = false;
             }
 
-            if (completed) return;
+            // Dopo un completamento il popup si chiude e il conteggio riparte da zero con lo stesso controller
+            // ancora dentro: non serve uscire e rientrare per una nuova valutazione.
+            if (completed)
+            {
+                ResetDwell();
+                return;
+            }
 
             dwellSeconds += Time.deltaTime;
             if (dwellSeconds < Mathf.Max(0.1f, requiredDwellSeconds)) return;
@@ -125,6 +143,15 @@ namespace SI81.ManDown
             activeHand = Hand.Any;
             dwellSeconds = 0f;
             completed = false;
+        }
+
+        /// <summary>
+        /// Cambio di posa dell'NPC: il trigger si è spostato con lo scheletro, quindi il conteggio in corso
+        /// viene invalidato e riparte da zero senza richiedere l'uscita del controller.
+        /// </summary>
+        private void OnPositionApplied()
+        {
+            ResetDwell();
         }
 
         /// <summary>Riarmatura a ogni nuova missione, senza toccare lo scenario.</summary>

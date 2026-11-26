@@ -1,18 +1,21 @@
 using System;
+using SI81.Rig;
 using SI81.UI;
 using UnityEngine;
 
 namespace SI81.ManDown
 {
     /// <summary>
-    /// Telefono della chiamata simulata al 112. Si occupa soltanto dello stato della chiamata e della
-    /// sequenza richiesta/risposta: non conosce input VR, popup, UI, scenario, scoring né la scena.
-    /// Una richiesta solleva <see cref="InteractionRequested"/>: un componente futuro aprirà il popup
-    /// comune e richiamerà <see cref="AnswerYes"/> oppure <see cref="AnswerNo"/>. Solo "Sì" porta allo
-    /// stato <see cref="CallState.Made"/>; "No" lascia il telefono disponibile per una nuova interazione.
-    /// A ogni nuova partita <see cref="ResetPhone"/> ripristina stato, posa e fisica: si aggancia
+    /// Telefono della chiamata simulata al 112. Lo stato della chiamata è globale e autorevole in
+    /// <see cref="ManDownScenario.IsCall112Made"/>: tutti i telefoni lo leggono, quindi dopo un "Sì" nessuno
+    /// apre più il popup. Il componente si occupa solo della sequenza richiesta/risposta: non conosce input VR,
+    /// popup, UI, scoring né la scena. Una richiesta solleva <see cref="InteractionRequested"/>: il ponte
+    /// <see cref="ManDownPhoneUi"/> apre il popup comune e richiama <see cref="AnswerYes"/> oppure <see cref="AnswerNo"/>.
+    /// Solo "Sì" porta allo stato <see cref="CallState.Made"/>; "No" lascia tutti i telefoni disponibili per un
+    /// nuovo tentativo. A ogni nuova partita <see cref="ResetPhone"/> ripristina stato, posa e fisica: si aggancia
     /// all'evento comune <see cref="MissionSession.Started"/>, quindi funziona anche quando la scena
-    /// di scenario non viene scaricata al ritorno dalla Home.
+    /// di scenario non viene scaricata al ritorno dalla Home. Ignora selettivamente le sole collisioni fisiche
+    /// con i collider del corpo del rig condiviso, senza toccare la collision matrix globale.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/Man Down/Phone")]
@@ -27,6 +30,10 @@ namespace SI81.ManDown
             Made
         }
 
+        [Header("Riferimenti di scena")]
+        [Tooltip("Controller della missione: è la fonte autorevole dello stato globale della chiamata.")]
+        [SerializeField] private ManDownScenario scenario;
+
         /// <summary>Richiesta di interazione: il ricevente aprirà il popup decisionale.</summary>
         public event Action InteractionRequested;
 
@@ -36,11 +43,17 @@ namespace SI81.ManDown
         /// <summary>Risposta "No": nessuna registrazione, il telefono resta utilizzabile.</summary>
         public event Action CallDeclined;
 
-        /// <summary>Stato corrente della chiamata.</summary>
-        public CallState CurrentCallState { get; private set; }
+        /// <summary>
+        /// Stato corrente della chiamata, derivato dallo stato globale di <see cref="ManDownScenario"/>.
+        /// Tutti i telefoni condividono quindi lo stesso esito: dopo un "Sì" nessuno è più disponibile.
+        /// </summary>
+        public CallState CurrentCallState => IsCallMade ? CallState.Made : CallState.NotMade;
 
-        /// <summary>True se la chiamata è già stata registrata.</summary>
-        public bool IsCallMade => CurrentCallState == CallState.Made;
+        /// <summary>
+        /// True se la chiamata è già stata registrata. Lo stato autorevole è <see cref="ManDownScenario.IsCall112Made"/>;
+        /// il flag locale resta solo come ripiego quando il riferimento allo scenario non è collegato.
+        /// </summary>
+        public bool IsCallMade => (scenario != null && scenario.IsCall112Made) || callMadeLocally;
 
         /// <summary>True se è stata emessa una richiesta in attesa di risposta.</summary>
         public bool IsAwaitingResponse { get; private set; }
@@ -50,6 +63,9 @@ namespace SI81.ManDown
         private Quaternion initialRotation;
         private Rigidbody body;
         private bool poseCaptured;
+
+        // Ripiego locale: usato solo se il riferimento allo scenario non è collegato.
+        private bool callMadeLocally;
 
         /// <summary>
         /// Chiede di interagire con il telefono. Se non ci sono ascoltatori la richiesta non viene emessa:
@@ -75,7 +91,7 @@ namespace SI81.ManDown
             if (IsCallMade) return false;
 
             IsAwaitingResponse = false;
-            CurrentCallState = CallState.Made;
+            callMadeLocally = true;
             CallConfirmed?.Invoke();
             return true;
         }
@@ -123,12 +139,53 @@ namespace SI81.ManDown
                 poseCaptured = true;
             }
             MissionSession.Started += OnMissionStarted;
+            RigRegistration.Registered += OnRigRegistered;
+            IgnorePlayerBodyCollisions();
         }
 
         /// <summary>Si scollega dall'evento di sessione quando il componente si disattiva.</summary>
         private void OnDisable()
         {
             MissionSession.Started -= OnMissionStarted;
+            RigRegistration.Registered -= OnRigRegistered;
+        }
+
+        /// <summary>
+        /// Applica l'ignore selettivo se il rig condiviso si registra dopo il telefono (scene caricate in additivo).
+        /// </summary>
+        private void OnRigRegistered(RigRegistration rig)
+        {
+            if (rig != null) IgnorePlayerBodyCollisions(rig);
+        }
+
+        /// <summary>
+        /// Ignora solo le collisioni fisiche tra i collider di questo telefono e quelli del corpo del giocatore.
+        /// Raycast, GRIP, rilascio, gravità e collisioni con ambiente/oggetti restano invariati; non si tocca la
+        /// collision matrix globale, quindi la soluzione è locale allo scenario e compatibile con il rig condiviso.
+        /// </summary>
+        private void IgnorePlayerBodyCollisions()
+        {
+            IgnorePlayerBodyCollisions(RigRegistration.Instance);
+        }
+
+        /// <summary>Versione con rig esplicito, usata anche al momento della registrazione tardiva del rig.</summary>
+        private void IgnorePlayerBodyCollisions(RigRegistration rig)
+        {
+            if (rig == null) return;
+
+            Collider[] playerColliders = rig.GetComponentsInChildren<Collider>(true);
+            if (playerColliders.Length == 0) return;
+
+            Collider[] phoneColliders = GetComponents<Collider>();
+            for (int i = 0; i < phoneColliders.Length; i++)
+            {
+                if (phoneColliders[i] == null) continue;
+                for (int j = 0; j < playerColliders.Length; j++)
+                {
+                    if (playerColliders[j] != null)
+                        Physics.IgnoreCollision(phoneColliders[i], playerColliders[j], true);
+                }
+            }
         }
 
         /// <summary>Ripristina stato, posa e fisica iniziali per una nuova partita.</summary>
@@ -142,7 +199,7 @@ namespace SI81.ManDown
                 poseCaptured = true;
             }
 
-            CurrentCallState = CallState.NotMade;
+            callMadeLocally = false;
             IsAwaitingResponse = false;
             transform.SetPositionAndRotation(initialPosition, initialRotation);
 

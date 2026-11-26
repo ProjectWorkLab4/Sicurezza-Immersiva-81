@@ -60,7 +60,7 @@ namespace SI81.UI.EditorTools
             new SampleMission { Id = "04", Title = "Chemical Alert", SceneName = "SCN_ChemicalAlert", IconName = "ICN_Science",
                 TopHex = "#24805C", BottomHex = "#76C98A", Complexity = 4,
                 Context = "Ruolo: operatore di laboratorio. Un contenitore perde un liquido sconosciuto sul banco. Leggi l'etichetta, indossa i DPI giusti, isola la zona e avvisa il responsabile prima di pulire.",
-                Objectives = new[] { "Allontanati e avvisa tutti", "Leggi l'etichetta di pericolo", "Indossa i DPI corretti", "Isola l'area della fuoriuscita" },
+                Objectives = new[] { "Accendi ventilazione", "Leggi SDS", "Recupera DPI", "Contieni la sostanza" },
                 Criteria = new[] { "Area isolata con i DPI corretti", "Area isolata, DPI incompleti", "Contatto con la sostanza" } },
             new SampleMission { Id = "07", Title = "Forklift Chaos", SceneName = "SCN_ForkliftChaos", IconName = "ICN_Forklift",
                 TopHex = "#2B4A86", BottomHex = "#5B86B5", Complexity = 3,

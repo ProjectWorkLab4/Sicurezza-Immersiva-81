@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5509920145901073410}
   - component: {fileID: 5668755261914860969}
   - component: {fileID: 3194375938080473553}
+  - component: {fileID: 5459030162783956745}
   m_Layer: 0
   m_Name: PPEObject
   m_TagString: Untagged
@@ -79,8 +80,8 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
+  m_UseGravity: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
@@ -99,6 +100,7 @@ MonoBehaviour:
   grabbable: 1
   activatable: 1
   inspectable: 1
+  interactionEnabled: 1
   onGrabbed:
     m_PersistentCalls:
       m_Calls: []
@@ -133,10 +135,40 @@ MonoBehaviour:
   interactable: {fileID: 5668755261914860969}
   director: {fileID: 0}
   itemData: {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
-  equipZones:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  ppeState: {fileID: 0}
+--- !u!114 &5459030162783956745
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2294257840733585984}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 1
+  canGrab: 1
+  followsHand: 1
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3017126758028353242
 GameObject:
   m_ObjectHideFlags: 0

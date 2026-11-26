@@ -46,8 +46,6 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         [SerializeField] private Puddle puddle;
         [SerializeField] private SdsItem sdsItem;
         [SerializeField] private PlayerPPEState playerPPEState;
-        [SerializeField] private ScenarioInputBindings inputBindings;
-        [SerializeField] private SI81.Input.Hand hintController = SI81.Input.Hand.Right;
         [SerializeField] private ScenarioInteractable[] guidedHighlightTargets = new ScenarioInteractable[0];
         [SerializeField] private ScenarioInteractable[] operationalDistractors = new ScenarioInteractable[0];
         [SerializeField] private DisturbanceController disturbanceController;
@@ -56,6 +54,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         private ChemicalAlertConfig activeConfiguration;
         private Phase phase;
         private float timeRemaining;
+        private float scenarioDurationSeconds = 180f;
+        private bool scenarioTimerEnabled = true;
         private int hearts;
         private Outcome? outcome;
         private ScenarioResult lastResult;
@@ -129,6 +129,14 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public bool IsVentilationOn => ventilationSystem != null && ventilationSystem.IsOn;
         /// <summary>Gets whether the SDS information panel is currently open.</summary>
         public bool IsSdsPanelOpen => sdsPanelOpen;
+        /// <summary>Gets whether ventilation has been activated in the current run.</summary>
+        public bool VentilationActivated => ventilationActivated;
+        /// <summary>Gets whether the SDS has been read in the current run.</summary>
+        public bool SdsWasRead => sdsRead;
+        /// <summary>Gets whether the required PPE set has been acquired.</summary>
+        public bool RequiredPpeAcquired => playerPPEState != null && playerPPEState.HasAllRequiredProtection;
+        /// <summary>Gets whether the spill is contained, absorbed and covered.</summary>
+        public bool SpillSecured => lossContained && cleanupComplete && (puddle == null || puddle.Covered);
 
         /// <summary>Publishes current health to the UI/Game System boundary.</summary>
         public void NotifyHeartsChanged(int value)
@@ -199,16 +207,16 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             if (difficulty == Difficulty.Guided && activeConfiguration != null &&
                 activeConfiguration.HintsEnabled)
             {
-                if (inputBindings != null && inputBindings.GetHintDown(hintController))
-                    RequestHint();
-
                 if (Time.time - lastCorrectProgressTime >= activeConfiguration.HintIdleSeconds)
                     EmitNextHint("idle");
             }
 
-            timeRemaining = Mathf.Max(0f, timeRemaining - Time.deltaTime);
-            if (timeRemaining <= 0f && ActiveConfigDefeatsOnTimeout())
-                ForceTimeUp();
+            if (scenarioTimerEnabled)
+            {
+                timeRemaining = Mathf.Max(0f, timeRemaining - Time.deltaTime);
+                if (timeRemaining <= 0f && ActiveConfigDefeatsOnTimeout())
+                    ForceTimeUp();
+            }
         }
 
         /// <summary>Advances one phase in the documented scenario order.</summary>
@@ -238,6 +246,18 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public void SetDifficulty(Difficulty value)
         {
             difficulty = value;
+            ChemicalAlertConfig configuration = FindConfiguration(value);
+            scenarioDurationSeconds = configuration == null ? 180f : configuration.TotalDurationSeconds;
+            scenarioTimerEnabled = true;
+            ResetScenario();
+        }
+
+        /// <summary>Configura il livello e il timer in base alla sessione della UI comune.</summary>
+        public void ConfigureForMission(Difficulty value, bool timerEnabled, float durationSeconds)
+        {
+            difficulty = value;
+            scenarioTimerEnabled = timerEnabled;
+            scenarioDurationSeconds = Mathf.Max(0.1f, durationSeconds);
             ResetScenario();
         }
 
@@ -367,7 +387,7 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
             sdsPanelOpen = false;
             activeConfiguration = FindConfiguration(difficulty);
             phase = Phase.Briefing;
-            timeRemaining = activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds;
+            timeRemaining = scenarioDurationSeconds;
             hearts = activeConfiguration == null ? 3 : activeConfiguration.Hearts;
             if (playerHealth != null)
                 playerHealth.ResetState();
@@ -508,7 +528,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 lossContained,
                 cleanupComplete,
                 ventilationFailed,
-                activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds);
+                scenarioDurationSeconds,
+                difficulty != Difficulty.Guided);
 
             SetPhase(Phase.ResultHandoff);
             ResultReady?.Invoke(lastResult);
@@ -585,7 +606,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                 lossContained,
                 cleanupComplete,
                 ventilationFailed,
-                activeConfiguration == null ? 180f : activeConfiguration.TotalDurationSeconds);
+                scenarioDurationSeconds,
+                difficulty != Difficulty.Guided);
             CompleteResult(result.Outcome, ventilationFailed, result);
         }
 

@@ -7,6 +7,7 @@ using SI81.Tiziano.ChemicalAlert.Data;
 using SI81.Tiziano.ChemicalAlert.Core;
 using SI81.Tiziano.ChemicalAlert.Systems;
 using SI81.Tiziano.ChemicalAlert.Interaction;
+using SI81.Rig;
 
 namespace SI81.Tiziano.ChemicalAlert.Debug
 {
@@ -15,7 +16,6 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
     /// </summary>
     public sealed class DebugCommands : MonoBehaviour
     {
-        [SerializeField] private Transform rigRoot;
         [SerializeField] private Transform teleportMarker;
         [SerializeField] private Transform[] teleportMarkers = new Transform[0];
         [SerializeField] private string markerName = "DebugSpawnMarker";
@@ -86,6 +86,7 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             Register("U", "stampa cuori salute", PrintHealthState);
             Register("1", "riempi perimetro spill", FillSpillPerimeter);
             Register("2", "stampa stato perimetro", PrintSpillPerimeterState);
+            Register("5", "simula contatto salsicciotto-pozza", SimulateSausagePuddleContact);
             Register("3", "completa cleanup debug", CompleteCleanupDebug);
             Register("4", "stampa stato cleanup", PrintCleanupState);
             Register("6", "stampa esito e recap", PrintResultRecap);
@@ -96,6 +97,7 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             Register("F6", "avanza replay di 5s per la seconda perdita", AdvanceSecondSpillDebugTime);
             Register("F8", "fissa seed replay (valore Inspector)", FixReplaySeed);
             Register("F9", "rimuove seed fisso replay", ClearReplaySeed);
+            Register("F7", "stampa stato ventole", PrintVentilationFanState);
         }
 
         private void Update()
@@ -164,9 +166,6 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
 
         private void ResolveReferences()
         {
-            if (rigRoot == null)
-                rigRoot = transform.root;
-
             if (teleportMarker == null && !string.IsNullOrWhiteSpace(markerName))
             {
                 GameObject marker = GameObject.Find(markerName);
@@ -211,7 +210,8 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
         public void TeleportRigToMarker()
         {
             ResolveReferences();
-            if (rigRoot == null)
+            RigRegistration rig = RigRegistration.Instance;
+            if (rig == null)
             {
                 UnityEngine.Debug.LogError("[CA] DebugCommands: teletrasporto impossibile, riferimenti mancanti.");
                 return;
@@ -234,8 +234,8 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 return;
             }
 
-            rigRoot.SetPositionAndRotation(target.position, target.rotation);
-            UnityEngine.Debug.Log($"[CA] Debug teleport: {rigRoot.name} -> {target.name}");
+            rig.TeleportTo(target.position, target.rotation);
+            UnityEngine.Debug.Log($"[CA] Debug teleport: {rig.name} -> {target.name}");
         }
 
         /// <summary>Logs the reset hook without changing scenario gameplay state.</summary>
@@ -472,6 +472,21 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
                 escalation.PrintState(UnityEngine.Debug.Log);
         }
 
+        /// <summary>Prints the state of every ventilation fan.</summary>
+        [ContextMenu("Print ventilation fan state")]
+        public void PrintVentilationFanState()
+        {
+            VentilationFan[] fans = FindObjectsByType<VentilationFan>(FindObjectsSortMode.None);
+            if (fans.Length == 0)
+            {
+                UnityEngine.Debug.LogError("[CA] DebugCommands: nessuna VentilationFan in scena.");
+                return;
+            }
+
+            foreach (VentilationFan fan in fans)
+                fan.PrintState(UnityEngine.Debug.Log);
+        }
+
         /// <summary>Simulates the same Inspected event used by the SDS interaction.</summary>
         [ContextMenu("Simulate SDS inspection")]
         public void SimulateSdsInspection()
@@ -585,6 +600,21 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
             PerimeterSlots perimeter = FindFirstObjectByType<PerimeterSlots>();
             if (perimeter != null)
                 perimeter.PrintState(UnityEngine.Debug.Log);
+        }
+
+        /// <summary>Simulates a sausage/puddle collider contact and the automatic placement.</summary>
+        [ContextMenu("Simulate sausage puddle contact")]
+        public void SimulateSausagePuddleContact()
+        {
+            SpillSausage sausage = FindFirstObjectByType<SpillSausage>();
+            if (sausage == null)
+            {
+                UnityEngine.Debug.LogError("[CA] DebugCommands: SpillSausage non trovato.");
+                return;
+            }
+
+            bool placed = sausage.TryAutoPlaceOnPuddleContact();
+            UnityEngine.Debug.Log($"[CA] Sausage puddle-contact auto-place: {placed}; slot={(sausage.PlacedSlot == null ? "none" : sausage.PlacedSlot.name)}.");
         }
 
         /// <summary>Runs the complete perimeter and absorption debug sequence.</summary>
@@ -764,7 +794,8 @@ namespace SI81.Tiziano.ChemicalAlert.Debug
         [ContextMenu("Print state")]
         public void PrintState()
         {
-            string rig = rigRoot == null ? "null" : rigRoot.position.ToString();
+            RigRegistration sharedRig = RigRegistration.Instance;
+            string rig = sharedRig == null ? "null" : sharedRig.transform.position.ToString();
             string marker = teleportMarker == null ? "null" : teleportMarker.position.ToString();
             int markerCount = teleportMarkers == null ? 0 : teleportMarkers.Length;
             UnityEngine.Debug.Log($"[CA] Debug state: rig={rig}; marker={marker}; markers={markerCount}; commands={commands.Count}");

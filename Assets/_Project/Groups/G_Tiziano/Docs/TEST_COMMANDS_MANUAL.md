@@ -2,7 +2,7 @@
 
 Questo manuale documenta i **controlli del giocatore** (Meta Quest 3 / Meta XR Simulator) e i **comandi di debug** da tastiera e `ContextMenu` (attivi solo in Editor e Development Build tramite `DebugCommands` su `OVRCameraRig`).
 
-**Ultimo aggiornamento:** 2026-11-24 — allineato alle regole a ordine libero (3 DPI × 2 copie, anello singolo, 3 fogli, esito automatico) e ai 38 comandi registrati.
+**Ultimo aggiornamento:** 2026-11-25 — allineato alle regole a ordine libero (3 DPI × 1 copia sul ripiano centrale, anello singolo, 2 fogli, esito automatico), ai comandi registrati, ai fix di accessibilità (SDS/cabinet/kit/pulsante ventole non afferrabili, ventole code-driven, auto-posa salsicciotto), al pulsante hint Guided e ai check obiettivi reali in Pausa/polso.
 
 > **Nota importante per l'uso con Meta XR Simulator:** quando la finestra esterna del Meta XR Simulator ha il focus del sistema operativo, Unity disabilita `Keyboard.current` nella Game View (`PointersAndKeyboardsRespectGameViewFocus`) e intercetta i tasti `1/2/3/WASD`. Per usare i tasti da tastiera di `DebugCommands`, **cliccare prima sulla Game View di Unity**, oppure eseguire qualsiasi comando dal menu **`OVRCameraRig > DebugCommands > ContextMenu (⋮)`** nell'Inspector (che funziona sempre, anche senza focus sulla Game View).
 
@@ -15,32 +15,32 @@ Tutti gli input dei controller passano esclusivamente da `ScenarioInputBindings`
 | Azione Giocatore | Input Controller (`OVRInput`) | Comportamento in Scena |
 |---|---|---|
 | **Hover** | Avvicinare la mano (`LTouch` o `RTouch`) entro `0.12 m` da un oggetto | Emette `HoverEnter` / `HoverExit` sul `ScenarioInteractable` più vicino. |
-| **Grab (Afferra)** | Premere e tenere premuto **Grip** (`Button.PrimaryHandTrigger`) | Afferra `SDSItem`, `PPEItemObject`, `SpillSausage`, `AbsorbentSheet`. **I DPI vengono acquisiti al Grab**, non al rilascio. |
-| **Release (Rilascia)** | Rilasciare **Grip** (`Button.PrimaryHandTrigger`) | Rilascia l'oggetto; l'anello si aggancia al `PerimeterSlot` entro `0.35 m`, il foglio si posa sulla pozzanghera entro `0.75 m`. |
-| **Activate (Attiva)** | Premere **Trigger** (`Button.PrimaryIndexTrigger`) a mano libera su un oggetto in hover | Attiva `VentilationButton` (`VentTerminal`), `PPECabinet`, `SpillKit`; su SDS già letta apre/chiude il pannello. |
-| **Inspect (Ispeziona SDS)** | Portare l'SDS afferrata entro `0.35 m` davanti al visore (`CenterEyeAnchor`, `dot >= 0.5`) | Emette `SdsRead` e registra `sds.inspect`. |
+| **Grab (Afferra)** | Premere e tenere premuto **Grip** (`Button.PrimaryHandTrigger`) | Afferra `PPEItemObject`, `SpillSausage`, `AbsorbentSheet`. **I DPI vengono acquisiti al Grab**, non al rilascio. `SDSItem`, `PPECabinet`, `SpillKit` e `VentilationButton` non sono più afferrabili. |
+| **Release (Rilascia)** | Rilasciare **Grip** (`Button.PrimaryHandTrigger`) | Rilascia l'oggetto; il salsicciotto si aggancia allo slot se i collider salsicciotto/pozza si toccano (altrimenti entro `0.35 m` dallo slot), il foglio si posa sulla pozzanghera entro `0.75 m`. Il salsicciotto posato ha scala visiva dimezzata (4,5 invece di 9). |
+| **Activate (Attiva)** | Premere **Trigger** (`Button.PrimaryIndexTrigger`) a mano libera su un oggetto in hover | Attiva `VentilationButton` (`VentTerminal`): ferma l'escalation e avvia la rotazione delle due ventole (`MESH_VENTOLA_TEAM`/`MESH_VENTOLA_EAST`, 180°/s, senza Animator). Su SDS legge la scheda e apre/chiude il pannello. `PPECabinet` e `SpillKit` non hanno più collider ray-target: non bloccano DPI/fogli e non sono attivabili col raggio. |
+| **Inspect (Ispeziona SDS)** | Puntare l'SDS e premere **Trigger** | Legge la scheda (`SdsRead`, `sds.inspect`); un secondo Trigger apre/chiude il pannello. Non serve più avvicinarla al visore. |
 | **Chiudi pannello SDS** | Premere **B** sul controller destro (`RawButton.B` su `RTouch`) | `SdsPanelDismissRequested` → il pannello viene nascosto. In alternativa, riattivare l'SDS. |
 | **Richiesta Hint (solo Guided)** | Premere **A** sul controller destro (`Button.One` su `RTouch`) in fase `Action` | Richiede il prossimo hint ordinato (`HintRequested(key)`). |
 
-**DPI obbligatori:** guanti chimici (`chemical.gloves`), respiratore (`respirator`), visiera (`face.shield`). Il mobiletto contiene 2 copie corrette per tipo; raccoglierne una disabilita la gemella.
+**DPI obbligatori:** guanti chimici (`chemical.gloves`), respiratore (`respirator`), visiera (`face.shield`). Il mobiletto contiene 1 copia corretta per tipo, tutte sul ripiano centrale (il più raggiungibile).
 
 ---
 
 ## 2. Tabella Completa dei Comandi di Debug (`DebugCommands`)
 
-Ogni comando può essere invocato premendo il **tasto** (Game View in focus) oppure tramite **`OVRCameraRig > DebugCommands > ContextMenu (⋮)`**. Il tasto `5` (vecchia uscita safe) **non esiste più**: non produce alcun log.
+Ogni comando può essere invocato premendo il **tasto** (Game View in focus) oppure tramite **`OVRCameraRig > DebugCommands > ContextMenu (⋮)`**. Il tasto `5` ora simula il contatto tra i collider di salsicciotto e pozzanghera.
 
 ### 2.1 Generali, Navigazione e Diagnostica
 | Tasto | Voce ContextMenu | Cosa fa | Risultato / Log atteso in Console `[CA]` |
 |---|---|---|---|
-| `H` | `Print command list` | Elenca i 38 comandi registrati. | `[CA] Debug commands: ...` |
+| `H` | `Print command list` | Elenca i 40 comandi registrati. | `[CA] Debug commands: ...` |
 | `T` | `Teleport rig to marker` | Teletrasporta il rig in ciclo sui marker: `SPAWN_Player`, `POS_Barrel`, `POS_Puddle`, `POS_VentButton`, `POS_Truck`, `POS_SDS`, `POS_PPECabinet`, `POS_SpillKit`, `ZONE_SpillArea`. | `[CA] Debug teleport: OVRCameraRig -> <MarkerName>` |
-| `P` | `Print state` | Stampa posizione rig, marker corrente, numero marker e numero comandi. | `[CA] Debug state: rig=...; marker=...; markers=9; commands=38` |
+| `P` | `Print state` | Stampa posizione rig, marker corrente, numero marker e numero comandi. | `[CA] Debug state: rig=...; marker=...; markers=9; commands=40` |
 | `C` | `Print Chemical Alert configs` | Stampa durata, soglie ventilazione, jitter, cuori e punti dei 3 config. | `[CA] Config Guided: ...`, `[CA] Config Operational: ...`, `[CA] Config Crisis: ...` |
 | `O` | `Run OutcomeEvaluator SelfCheck` | Esegue i 9 test deterministici dell'`OutcomeEvaluator`. | `[CA] T06 SelfCheck: 9/9 PASS` e `[CA] T06 SelfCheck result: PASS` |
-| `7` | `RunSmokeTest` | Esegue la partita perfetta in 7 passi: `1/7` ventilazione, `2/7` SDS, `3/7` DPI, `4/7` perimetro (anello singolo), `5/7` fogli, `6/7` assorbimento `4.5 s`, `7/7` esito automatico. | `[CA] SmokeTest 1/7..7/7: PASS` e `[CA] SmokeTest summary: 7/7 PASS` (`Success`, `100/100/0/100/100`) |
+| `7` | `RunSmokeTest` | Esegue la partita perfetta in 7 passi: `1/7` ventilazione, `2/7` SDS, `3/7` DPI, `4/7` perimetro (anello singolo), `5/7` fogli, `6/7` assorbimento `2 s`, `7/7` esito automatico. | `[CA] SmokeTest 1/7..7/7: PASS` e `[CA] SmokeTest summary: 7/7 PASS` (`Success`, `100/100/0/100/100`) |
 | `X` | `Reset ChemicalAlertDirector three times` | Esegue 3 reset consecutivi per verificare l'idempotenza. | `[CA] Director reset x3.` + `[CA] Director state: ...` |
-| `R` | `Reset ChemicalAlertDirector` | Resetta lo scenario e avvia un nuovo replay direttamente in `Action`. | `[CA] ReplayStart: ...` e `[CA] Director reset.` |
+| `R` | `Reset ChemicalAlertDirector` | Resetta lo scenario e avvia un nuovo replay direttamente in `Action`; le ventole si fermano e tornano all'orientamento iniziale. | `[CA] ReplayStart: ...`, `[CA] Director reset.`, `[CA] Ventilation fan stopped: MESH_VENTOLA_*` |
 
 ### 2.2 Regia, Fasi, Difficoltà ed Esiti (`ChemicalAlertDirector`)
 | Tasto | Voce ContextMenu | Cosa fa | Risultato / Log atteso in Console `[CA]` |
@@ -62,17 +62,18 @@ Ogni comando può essere invocato premendo il **tasto** (Game View in focus) opp
 | `F9` | `Use random replay seed` | Torna a seed casuali e riavvia lo scenario. | `[CA] Replay seed unlocked; starting a random replay.` |
 
 **Log atteso di `ReplayStart`:** `seed=<int>; fixed=<True|False>; variant=variantA|B|C; SDS=chemical.sds.variantX.title; requiredPPE=chemical.gloves,respirator,face.shield; secondSpillWindow=20.00-40.00s; scheduledAt=<20.00-40.00>s.`
-**Validazione armadietto:** `[CA] PPE cabinet validated: 3 required types, 2 interactive copies each; no decoys.`
+**Validazione armadietto:** `[CA] PPE cabinet validated: 3 required types, 1 interactive copy each on the middle shelf; no decoys.`
 
 ### 2.4 Ventilazione, SDS e DPI
 | Tasto | Voce ContextMenu | Cosa fa | Risultato / Log atteso in Console `[CA]` |
 |---|---|---|---|
-| `V` | `Activate ventilation` | Accende `VentilationButton` e ferma l'escalation nascosta. | `[CA] Ventilation turned on: VentilationButton`, `[CA] VentilationSystem: On; escalation stopped.` |
+| `V` | `Activate ventilation` | Accende `VentilationButton`, ferma l'escalation nascosta e avvia le ventole. | `[CA] Ventilation turned on: VentilationButton`, `[CA] VentilationSystem: On; escalation stopped.`, `[CA] Ventilation fan started: MESH_VENTOLA_*` |
+| `F7` | `Print ventilation fan state` | Stampa lo stato di rotazione delle ventole. | `[CA] Ventilation fan: MESH_VENTOLA_*; spinning=True\|False; terminalOn=True\|False; speed=180 deg/s.` |
 | `E` | `Advance ventilation escalation 20s` | Avanza di `20 s` l'escalation (richiede `Action` e ventilazione spenta). | A `~40 s`: `Ventilation cough`; a `~60 s`: `Ventilation toxic stage`; a `~80 s`: `Ventilation loss` |
 | `M` | `Set ventilation debug multiplier x10` | Imposta il moltiplicatore dell'escalation a `×10`. | `[CA] Ventilation debug multiplier: x10.` |
 | `Y` | `Print ventilation stage` | Stampa stadio, tempo, progresso e soglie. | `[CA] Ventilation escalation: stage=...; thresholds=...` |
 | `Q` | `Simulate SDS inspection` | Simula la lettura della SDS per la variante corrente. | `[CA] SdsRead: SDSItem; variant=variantA\|B\|C` |
-| `B` | `Toggle PPE cabinet` | Apre/chiude l'armadietto DPI. | `[CA] PPE cabinet opened\|closed: PPECabinet` |
+| `B` | `Toggle PPE cabinet` | Apre/chiude l'armadietto DPI **solo via debug**: in VR il cabinet non è più un target del raggio. | `[CA] PPE cabinet opened\|closed: PPECabinet` |
 | `K` | `Equip correct PPE set` | Acquisisce i 3 DPI corretti della variante attiva. | `[CA] PPE acquired: <id>; count=N/3.` e `[CA] PPE state: acquired=3/3; ... requiredSet(...)=True` |
 | `J` | `Equip decoy PPE set` | Non più supportato: segnala che non esistono decoy. | `[CA] PPE debug: no decoy set is configured in the current gameplay.` |
 | `W` | `Print PPE state` | Stampa DPI acquisiti e completezza del set. | `[CA] PPE state: acquired=.../3; mask=...; gloves=...; eyes=...; requiredSet(...)=...` |
@@ -84,8 +85,9 @@ Ogni comando può essere invocato premendo il **tasto** (Game View in focus) opp
 |---|---|---|---|
 | `1` | `Fill spill perimeter` | Posiziona l'unico `SpillSausage_0` nell'unico `PerimeterSlot_0`. | `[CA] Perimeter slot filled: 1/1`, `[CA] Puddle contained=True; radius=...`, `[CA] Perimeter complete: puddle contained.` |
 | `2` | `Print spill perimeter state` | Stampa slot occupati e stato di contenimento. | `[CA] Perimeter: filled=1/1; complete=True; contained=True` |
-| `3` | `Complete cleanup debug` | Completa perimetro (se serve), posa i 3 fogli e avanza l'assorbimento di `4.5 s`. | `[CA] Absorption started: sheets=3; duration=4.50s.`, `[CA] Puddle absorption completed: radius=0.`, `[CA] CleanupComplete: absorbed=3/3.` |
-| `4` | `Print cleanup state` | Stampa fogli posati, assorbiti, contenimento e completamento. | `[CA] Cleanup: placed=.../3; absorbed=...; contained=...; absorptionStarted=...; complete=...` |
+| `5` | `Simulate sausage puddle contact` | Verifica l'auto-posa quando i collider di salsicciotto e pozzanghera si toccano (portare prima il salsicciotto sulla pozzanghera). | `[CA] Sausage auto-placed on puddle contact: SpillSausage_0`, `[CA] Sausage puddle-contact auto-place: True; slot=PerimeterSlot_0.` |
+| `3` | `Complete cleanup debug` | Completa perimetro (se serve), posa i 2 fogli richiesti e avanza l'assorbimento di `2 s`. | `[CA] Absorbent sheet placed: 1/2` → `2/2`, scala pozza `50%` → `0%`, `[CA] Absorption started: sheets=2; duration=2.00s.`, `[CA] CleanupComplete: absorbed=2/2.` |
+| `4` | `Print cleanup state` | Stampa fogli posati, assorbiti, contenimento e completamento. | `[CA] Cleanup: placed=.../2; absorbed=...; contained=...; absorptionStarted=...; complete=...` |
 
 ### 2.6 Comandi Legacy su `TestCube` (non più in scena)
 `TestCube` è stato rimosso: questi comandi restano registrati ma producono un errore di riferimento. Servono solo come diagnostica dello strato `ScenarioInteractable`.
@@ -104,8 +106,9 @@ Ogni comando può essere invocato premendo il **tasto** (Game View in focus) opp
 ### 3.1 Smoke test completo (ripetibile)
 1. Avviare il Play Mode e svuotare la Console.
 2. Premere `R` (reset) → premere `7` (o `ContextMenu > RunSmokeTest`).
-3. Verificare `[CA] SmokeTest summary: 7/7 PASS` e `[CA] ResultReady: outcome=Success; actions=9; scores=100/100/0/100/100`.
+3. Verificare `[CA] SmokeTest summary: 7/7 PASS` e `[CA] ResultReady: outcome=Success; actions=8; scores=100/100/0/100/100`.
 4. Ripetere `R` → `7` altre due volte: ogni run deve dare `7/7 PASS`, `Success`, 3 cuori, 3 DPI, pozzanghera contenuta/coperta, cleanup completo.
+5. Nota Guided: il profilo ha `hearts=0` perché non prevede un sistema di salute; la valutazione ignora gli HP e l'esito atteso resta `Success` quando tutti i passi sono corretti.
 
 ### 3.2 Determinismo del replay
 1. Premere `F8`: la Console mostra `Replay seed fixed: 81081` e un nuovo `ReplayStart` con `fixed=True`.
@@ -119,7 +122,7 @@ Ogni comando può essere invocato premendo il **tasto** (Game View in focus) opp
 3. Verificare `[CA] SecondSpill: seed=81081; elapsed=30.00s; puddleExpanded=True; variant=variantB.` e `[CA] Puddle second-spill growth: active=True; multiplier=2.00`.
 4. Premere `1`: l'anello singolo contiene la pozzanghera (`1/1`, `contained=True`).
 5. Premere `2` e attendere/avanzare: il raggio non cresce più (`delta 0`).
-6. Premere `3`: assorbimento `4.5 s`, `CleanupComplete`; attendere `~2 s` e premere `6` per il recap: `event.second_spill` deve comparire tra le azioni.
+6. Premere `3`: assorbimento `2 s`, `CleanupComplete`; attendere `~2 s` e premere `6` per il recap: `event.second_spill` deve comparire tra le azioni.
 
 ### 3.4 Difficoltà
 - `D` fino a `Guided`: highlight `#E69F00` sugli oggetti, `8` emette `HintRequested`, `Z` emette `DangerDetected` senza perdere cuori; `F` forza comunque il timeout.
@@ -140,6 +143,13 @@ Ogni comando può essere invocato premendo il **tasto** (Game View in focus) opp
 
 ### 3.7 Reset e idempotenza
 - `X` esegue 3 reset consecutivi e stampa lo stato: dopo il comando la partita è in `Phase.Action`, `outcome=None`, `actions=0`, timer a `180 s`.
+
+### 3.8 Obiettivi reali, hint 3D e debrief con fogli
+1. In Guided il pulsante `OBJ_HintButton3D` deve essere visibile e selezionabile; il popup evento della HUD mostra il prossimo obiettivo globale con una spiegazione pratica quando si richiede un hint o si completa un obiettivo.
+2. Esegui `V`, `Q`, `K`: polso e menu Pausa devono mostrare `Accendi ventilazione` e `Leggi SDS` come **Done**, `Recupera DPI` come **Current**, `Contieni la sostanza` come **Todo**.
+3. Premi `1`, poi posa manualmente 2 fogli sulla pozza: la scala x/z scende gradualmente in ~2 s per foglio (`1.5` → `0.75` → `0`). `AbsorbentSheet_2` è disattivato nella scena: il suo collider non intercetta più il raggio dei due fogli utilizzabili.
+4. Al termine dell'assorbimento (`2 s`) e del ritardo automatico (`2 s`) compare il debrief; in Pausa tutti e 4 gli obiettivi risultano **Done** e il popup hint riporta `Obiettivi completati: area messa in sicurezza.`
+5. Con `D` porta il livello a Operational/Crisis: pulsante e collider dell'hint devono sparire; nessun popup obiettivo viene mostrato.
 
 ---
 

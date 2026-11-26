@@ -9,7 +9,10 @@ namespace SI81.Tiziano.ChemicalAlert.Core
     /// </summary>
     public sealed class OutcomeEvaluator
     {
-        /// <summary>Evaluates the final outcome and five dimension sub-scores.</summary>
+        /// <summary>
+        /// Evaluates the final outcome and five dimension sub-scores.
+        /// Set <paramref name="evaluateHearts"/> to false for difficulty levels without a health system.
+        /// </summary>
         public ScenarioResult Evaluate(
             ActionLog actionLog,
             int heartsRemaining,
@@ -17,13 +20,15 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             bool lossContained,
             bool cleanupComplete,
             bool ventilationFailed,
-            float totalDurationSeconds = 180f)
+            float totalDurationSeconds = 180f,
+            bool evaluateHearts = true)
         {
             ActionLog log = actionLog ?? new ActionLog();
             bool allActionsCorrect = log.Count > 0 && log.Entries.All(entry => entry.IsCorrect);
             Outcome outcome;
 
-            if (heartsRemaining <= 0 || timeRemainingSeconds <= 0f || ventilationFailed)
+            bool heartsFailed = evaluateHearts && heartsRemaining <= 0;
+            if (heartsFailed || timeRemainingSeconds <= 0f || ventilationFailed)
                 outcome = Outcome.Failure;
             else if (allActionsCorrect && lossContained && cleanupComplete)
                 outcome = Outcome.Success;
@@ -37,7 +42,8 @@ namespace SI81.Tiziano.ChemicalAlert.Core
                 lossContained,
                 cleanupComplete,
                 ventilationFailed,
-                totalDurationSeconds);
+                totalDurationSeconds,
+                evaluateHearts);
 
             return new ScenarioResult(outcome, scores, log);
         }
@@ -79,6 +85,16 @@ namespace SI81.Tiziano.ChemicalAlert.Core
                 true,
                 true,
                 false), Outcome.Failure, output, ref passed, ref total);
+
+            CheckCase("guided_ignores_zero_hearts", Evaluate(
+                CreateCorrectLog(),
+                0,
+                120f,
+                true,
+                true,
+                false,
+                180f,
+                false), Outcome.Success, output, ref passed, ref total);
 
             CheckCase("failure_timeout", Evaluate(
                 CreateCorrectLog(),
@@ -133,7 +149,8 @@ namespace SI81.Tiziano.ChemicalAlert.Core
             bool lossContained,
             bool cleanupComplete,
             bool ventilationFailed,
-            float totalDurationSeconds)
+            float totalDurationSeconds,
+            bool evaluateHearts)
         {
             var scores = new Dictionary<Dimension, int>();
             foreach (Dimension dimension in Enum.GetValues(typeof(Dimension)))
@@ -145,7 +162,7 @@ namespace SI81.Tiziano.ChemicalAlert.Core
                 scores[dimension] = score;
             }
 
-            if (heartsRemaining < 3)
+            if (evaluateHearts && heartsRemaining < 3)
                 scores[Dimension.Safety] = Math.Min(scores[Dimension.Safety], Math.Max(0, heartsRemaining * 33));
 
             if (ventilationFailed)

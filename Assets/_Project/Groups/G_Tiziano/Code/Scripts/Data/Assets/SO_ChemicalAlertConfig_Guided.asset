@@ -45,8 +45,8 @@ MonoBehaviour:
   secondSpillWindowEndSeconds: 40
   secondSpillGrowthMultiplier: 2
   secondSpillAudio: {fileID: 0}
-  requiredAbsorbentSheetCount: 3
-  absorptionDurationSeconds: 4.5
+  requiredAbsorbentSheetCount: 2
+  absorptionDurationSeconds: 2
   successDelaySeconds: 2
   defeatOnTimeout: 0
   successPoints: 0

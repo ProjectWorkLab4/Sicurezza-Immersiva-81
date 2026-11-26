@@ -86,7 +86,9 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.isKinematic = false;
+                // L'SDS è un oggetto a sola attivazione: resta ancorato dov'è stato posizionato.
+                body.isKinematic = true;
+                body.useGravity = false;
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }

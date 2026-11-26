@@ -98,7 +98,7 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.isKinematic = false;
+                body.isKinematic = true;
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }

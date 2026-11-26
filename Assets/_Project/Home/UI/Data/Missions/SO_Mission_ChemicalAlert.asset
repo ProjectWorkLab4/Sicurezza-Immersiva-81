@@ -24,10 +24,10 @@ MonoBehaviour:
   Complexity: 4
   SceneName: SCN_ChemicalAlert
   Objectives:
-  - Allontanati e avvisa tutti
-  - Leggi l'etichetta di pericolo
-  - Indossa i DPI corretti
-  - Isola l'area della fuoriuscita
+  - Accendi ventilazione
+  - Leggi SDS
+  - Recupera DPI
+  - Contieni la sostanza
   Criteria:
   - Outcome: 0
     Text: Area isolata con i DPI corretti
@@ -46,5 +46,5 @@ MonoBehaviour:
     UnlockedByDefault: 1
     TimeLimitSecondsOverride: 0
   IsTraining: 0
-  DesignerNote: '(esempio) Contenuto segnaposto: il team proprietario lo sostituisce
-    e toglie questo marcatore.'
+  DesignerNote: 'Obiettivi allineati al gameplay Chemical Alert: ventilazione, SDS,
+    DPI, contenimento.'

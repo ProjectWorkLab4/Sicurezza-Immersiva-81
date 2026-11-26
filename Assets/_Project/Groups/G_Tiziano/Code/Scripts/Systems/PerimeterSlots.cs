@@ -27,7 +27,9 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
         public int SlotCount => slots == null ? 0 : slots.Length;
 
         /// <summary>Tries to snap a released sausage to the nearest free slot.</summary>
-        public bool TryPlace(SpillSausage sausage)
+        /// <param name="sausage">Sausage to place.</param>
+        /// <param name="maxDistanceOverride">Optional snap range override; a negative value uses each slot's SnapDistance.</param>
+        public bool TryPlace(SpillSausage sausage, float maxDistanceOverride = -1f)
         {
             if (sausage == null || slots == null || director != null && director.Outcome.HasValue)
                 return false;
@@ -40,7 +42,8 @@ namespace SI81.Tiziano.ChemicalAlert.Systems
                     continue;
 
                 float distance = Vector3.Distance(sausage.transform.position, slot.transform.position);
-                if (distance <= slot.SnapDistance && distance < nearestDistance)
+                float snapDistance = maxDistanceOverride >= 0f ? maxDistanceOverride : slot.SnapDistance;
+                if (distance <= snapDistance && distance < nearestDistance)
                 {
                     nearest = slot;
                     nearestDistance = distance;

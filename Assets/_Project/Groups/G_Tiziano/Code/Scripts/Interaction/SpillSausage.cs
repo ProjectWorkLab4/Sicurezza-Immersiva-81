@@ -12,12 +12,15 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         [SerializeField] private PerimeterSlots perimeterSlots;
         [SerializeField] private ChemicalAlertDirector director;
         [SerializeField] private Transform visual;
+        [SerializeField] private Collider puddleCollider;
         [SerializeField, Min(1f)] private float placedVisualScaleFactor = 9f;
 
         private Transform initialParent;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
         private Vector3 initialVisualScale;
+        private bool initialKinematic;
+        private bool initialUseGravity;
         private PerimeterSlot placedSlot;
 
         /// <summary>Gets the current occupying slot.</summary>
@@ -36,6 +39,13 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             initialPosition = transform.position;
             initialRotation = transform.rotation;
             initialVisualScale = visual == null ? Vector3.one : visual.localScale;
+
+            Rigidbody body = GetComponent<Rigidbody>();
+            if (body != null)
+            {
+                initialKinematic = body.isKinematic;
+                initialUseGravity = body.useGravity;
+            }
         }
 
         private void OnEnable()
@@ -55,9 +65,31 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
         }
 
         /// <summary>Tries to place this sausage in a nearby free slot.</summary>
-        public bool TryAutoPlace()
+        /// <param name="ignoreSnapDistance">When true, the nearest free slot is used regardless of its SnapDistance.</param>
+        public bool TryAutoPlace(bool ignoreSnapDistance = false)
         {
-            return perimeterSlots != null && perimeterSlots.TryPlace(this);
+            if (perimeterSlots == null)
+                return false;
+            return ignoreSnapDistance
+                ? perimeterSlots.TryPlace(this, float.MaxValue)
+                : perimeterSlots.TryPlace(this);
+        }
+
+        /// <summary>Places the sausage when its collider touches the puddle collider.</summary>
+        public bool TryAutoPlaceOnPuddleContact()
+        {
+            if (IsPlaced)
+                return false;
+
+            Collider sausageCollider = GetComponent<Collider>();
+            if (sausageCollider == null || puddleCollider == null || !puddleCollider.enabled ||
+                !sausageCollider.bounds.Intersects(puddleCollider.bounds))
+                return false;
+
+            bool placed = TryAutoPlace(true);
+            if (placed)
+                UnityEngine.Debug.Log($"[CA] Sausage auto-placed on puddle contact: {name}");
+            return placed;
         }
 
         /// <summary>Attaches this sausage to a perimeter slot.</summary>
@@ -95,7 +127,8 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
             Rigidbody body = GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.isKinematic = false;
+                body.isKinematic = initialKinematic;
+                body.useGravity = initialUseGravity;
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }
@@ -103,6 +136,10 @@ namespace SI81.Tiziano.ChemicalAlert.Interaction
 
         private void HandleReleased(ScenarioInteractable source)
         {
+            // Contact check first: the player only needs to bring the sausage near the puddle.
+            if (TryAutoPlaceOnPuddleContact())
+                return;
+
             TryAutoPlace();
         }
 

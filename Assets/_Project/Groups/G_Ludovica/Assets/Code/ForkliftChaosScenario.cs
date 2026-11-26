@@ -144,6 +144,8 @@ namespace G_Ludovica.ForkliftChaos
         // Suggerimenti guidati in sequenza: uno alla volta, max ~60 caratteri.
         private int lastHintStep = -1;
         private int lastRescueCountdown = -1;
+        private const float RESCUE_MIN_SECONDS = 60f;
+        private const float RESCUE_MAX_SECONDS = 75f;
 
         private readonly List<ChoiceRecord> records = new List<ChoiceRecord>();
         private readonly List<Coroutine> routines = new List<Coroutine>();
@@ -522,7 +524,7 @@ namespace G_Ludovica.ForkliftChaos
                     if (!conesPlaced)
                     {
                         conesPlaced = true;
-                        if (conesVisual != null) conesVisual.SetActive(true);
+                        if (conesVisual != null) { conesVisual.SetActive(true); LetPlayerPass(conesVisual); }
                         Feedback("Coni posizionati lungo BL-01.", FeedbackKind.Positive);
                         UpdateObjectives();
                     }
@@ -645,7 +647,23 @@ namespace G_Ludovica.ForkliftChaos
 
         private void SetBarrierActive(bool active)
         {
-            if (barrierVisual != null) barrierVisual.SetActive(active);
+            if (barrierVisual == null) return;
+            barrierVisual.SetActive(active);
+            if (active) LetPlayerPass(barrierVisual);
+        }
+
+        /// <summary>
+        /// Barriera e coni delimitano l'area ma non devono bloccare il giocatore: i collider restano (raggio e logica),
+        /// solo il corpo del rig (CharacterController) li attraversa. Va richiamato dopo ogni SetActive(true):
+        /// Unity dimentica IgnoreCollision quando un collider viene disattivato.
+        /// </summary>
+        private void LetPlayerPass(GameObject go)
+        {
+            var body = head != null ? head.GetComponentInParent<CharacterController>() : null;
+            if (body == null) body = FindFirstObjectByType<CharacterController>();
+            if (body == null || go == null) return;
+            foreach (var c in go.GetComponentsInChildren<Collider>(true))
+                if (c != body) Physics.IgnoreCollision(body, c, true);
         }
 
         private void SetM2Warning(bool active)
@@ -702,9 +720,8 @@ namespace G_Ludovica.ForkliftChaos
 
             Alert("112 chiamato\nResta vicino a Marco", "ICN_CheckCircle");
             Subtitle("Capo turno", "Ho avvisato il 112. Tieni libera la corsia.", 5f);
-            // Arrivo dei soccorsi ~2 minuti dopo la chiamata: abbastanza per completare il soccorso
-            // senza trasformare l'attesa in un tempo morto di 5 minuti.
-            rescueAt = ElapsedSeconds + Random.Range(110f, 130f);
+            // Arrivo dei soccorsi 60-75 s dopo la chiamata (prima 110-130 s: dopo aver finito i compiti l'attesa era troppo lunga).
+            rescueAt = ElapsedSeconds + Random.Range(RESCUE_MIN_SECONDS, RESCUE_MAX_SECONDS);
             StartTracked(M2Routine(RandomM2Delay()));
             StartTracked(RescueRoutine());
             UpdateObjectives();
@@ -1057,8 +1074,6 @@ namespace G_Ludovica.ForkliftChaos
         private void UpdateHints()
         {
             if (!IsRunning || finished) return;
-            // Dopo la chiamata al 112 il polso mostra il conto alla rovescia dei soccorsi.
-            if (rescueAt > 0f && !rescueArrived) return;
             int step = HintStep();
             if (step == lastHintStep) return;
             lastHintStep = step;
@@ -1066,15 +1081,23 @@ namespace G_Ludovica.ForkliftChaos
         }
 
         /// <summary>Conto alla rovescia dei soccorsi sul polso, aggiornato una volta al secondo.</summary>
+        /// <remarks>
+        /// Riga dedicata del polso (HUDService.SetCountdown): visibile in tutti i livelli e non sovrascritta dai suggerimenti.
+        /// Non usa il timer missione, che alla scadenza farebbe fallire la missione.
+        /// </remarks>
         private void UpdateRescueCountdown()
         {
-            if (rescueAt <= 0f || rescueArrived || finished) return;
+            if (rescueAt <= 0f) return;
+            if (rescueArrived || finished)
+            {
+                if (lastRescueCountdown != -2) { HUDService.SetCountdown(string.Empty); lastRescueCountdown = -2; }
+                return;
+            }
             float remaining = Mathf.Max(0f, rescueAt + rescueExtraDelay - ElapsedSeconds);
             int seconds = Mathf.CeilToInt(remaining);
             if (seconds == lastRescueCountdown) return;
             lastRescueCountdown = seconds;
-            string next = HintTexts[HintStep()];
-            SetHint("Soccorsi " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + " · " + next);
+            HUDService.SetCountdown("Soccorsi " + (seconds / 60) + ":" + (seconds % 60).ToString("00"));
         }
 
         private void UpdateHeadSpeed()
@@ -1259,6 +1282,7 @@ namespace G_Ludovica.ForkliftChaos
             finished = true;
             SetPhase(PHASE_RESOLUTION);
             SetM2Warning(false);
+            HUDService.SetCountdown(string.Empty);
 
             bool critical = records.Any(r => r.Kind == ChoiceKind.Critical);
             bool assisted = spoken && breathingChecked && ((woundPressed && covered) || (cprStarted && aedUsed));

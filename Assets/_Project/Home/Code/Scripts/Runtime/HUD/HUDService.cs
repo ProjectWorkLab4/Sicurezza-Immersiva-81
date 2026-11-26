@@ -18,6 +18,7 @@ namespace SI81.UI
         private static string pendingObjective;
         private static string pendingPhase;
         private static string pendingHint;
+        private static string pendingCountdown;
         private static LevelConfig pendingLevel;
         private static bool warnedNotReady;
 
@@ -52,6 +53,7 @@ namespace SI81.UI
             if (pendingObjective != null) root.SetObjective(pendingObjective);
             if (pendingPhase != null) root.SetPhase(pendingPhase);
             if (pendingHint != null) root.SetHint(pendingHint);
+            if (pendingCountdown != null) root.SetCountdown(pendingCountdown);
             Ready?.Invoke();
         }
 
@@ -157,6 +159,17 @@ namespace SI81.UI
         {
             pendingHint = text;
             if (root != null) root.SetHint(text);
+        }
+
+        /// <summary>
+        /// Conto alla rovescia di scenario sul polso (es. "Soccorsi 1:05"), separato dal timer missione: visibile in tutti
+        /// i livelli e prioritario sul suggerimento. Non fa scadere nulla: lo scenario lo aggiorna e lo svuota. Vuoto = nasconde.
+        /// </summary>
+        /// <param name="text">Testo del conto alla rovescia.</param>
+        public static void SetCountdown(string text)
+        {
+            pendingCountdown = text;
+            if (root != null) root.SetCountdown(text);
         }
 
         /// <summary>

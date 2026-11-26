@@ -233,6 +233,7 @@ namespace SI81.UI
             objectiveInitialized = false;
             lastObjective = null;
             SetHint(string.Empty);
+            SetCountdown(string.Empty);
             SetPhase("hud.phase.scan");
             if (mission.Objectives != null && mission.Objectives.Count > 0) SetObjectiveIndex(0);
             else { SetObjective(string.Empty); SetObjectiveProgress(0, 0); }
@@ -332,6 +333,13 @@ namespace SI81.UI
         public void SetHint(string text)
         {
             if (wrist != null) wrist.SetHint(text);
+        }
+
+        /// <summary>Imposta il conto alla rovescia di scenario sul polso (vuoto = nascosto).</summary>
+        /// <param name="text">Testo.</param>
+        public void SetCountdown(string text)
+        {
+            if (wrist != null) wrist.SetCountdown(text);
         }
 
         /// <summary>Mostra un avviso evento.</summary>

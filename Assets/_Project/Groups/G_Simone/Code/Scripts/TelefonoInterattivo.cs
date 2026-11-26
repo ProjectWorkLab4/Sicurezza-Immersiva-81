@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Text;
+using SI81.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -69,10 +70,14 @@ public class TelefonoInterattivo : MonoBehaviour
     [SerializeField] VRInteractableButton[] pulsantiOpzione = new VRInteractableButton[0];
     [Tooltip("Cornetta: la prima pressione la solleva, la seconda la riappoggia.")]
     [SerializeField] VRInteractableButton cornetta;
-    [Tooltip("Se attivo, riappoggiando la cornetta (fine grab) la chiamata viene chiusa.")]
+    [Tooltip("Vecchia opzione: con la rubrica nella UI comune la cornetta resta sollevata dopo il rilascio.")]
     [SerializeField] bool riponiAlRilascioCornetta = false;
     [Tooltip("Pulsante che chiude la chiamata in corso (opzionale).")]
     [SerializeField] VRInteractableButton pulsanteChiudi;
+
+    [Header("UI comune")]
+    [Tooltip("ScenarioController su MNG_Scenario. Se vuoto viene cercato in scena.")]
+    [SerializeField] ScenarioController scenario;
 
     [Header("Visualizzazione")]
     [Tooltip("Testo TMP sullo schermo del telefono. Opzionale.")]
@@ -115,6 +120,20 @@ public class TelefonoInterattivo : MonoBehaviour
 
     /// <summary>Fired every time the typed number changes.</summary>
     public event Action<string> ComposizioneCambiata;
+
+    /// <summary>Controller della UI comune, cercato in scena se non assegnato.</summary>
+    ScenarioController Controller
+    {
+        get
+        {
+            if (scenario == null)
+            {
+                scenario = FindFirstObjectByType<ScenarioController>(FindObjectsInactive.Include);
+            }
+
+            return scenario;
+        }
+    }
 
     /// <summary>Returns the contact at <paramref name="indice"/>, or null.</summary>
     public Contatto PerIndice(int indice)
@@ -202,6 +221,7 @@ public class TelefonoInterattivo : MonoBehaviour
 
     Coroutine _chiamata;
     int _version;
+    bool _sceltaTramiteUI;
 
     void Awake()
     {
@@ -254,11 +274,62 @@ public class TelefonoInterattivo : MonoBehaviour
         ContattoCorrente = null;
         IndiceCorrente = -1;
         NumeroComposto = string.Empty;
+        _sceltaTramiteUI = false;
 
         PlayClip(suonoSelezione);
         AggiornaInterfaccia();
 
-        ShowOnVRScreen($"Seleziona un numero tra i {rubrica.Length} disponibili.", 4f);
+        MostraRubrica();
+    }
+
+    /// <summary>Mostra la rubrica nel pannello decisione della UI comune.</summary>
+    void MostraRubrica()
+    {
+        if (rubrica == null || rubrica.Length == 0)
+        {
+            return;
+        }
+
+        int count = Mathf.Min(rubrica.Length, 4);
+        string[] opzioni = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            opzioni[i] = $"{i + 1}. {rubrica[i].nome} ({rubrica[i].numero})";
+        }
+
+        ScenarioController controller = Controller;
+        bool aperto = controller != null &&
+                      controller.AskDecision("Quale numero chiami?", opzioni, OnNumeroScelto);
+
+        if (!aperto)
+        {
+            ShowOnVRScreen($"Seleziona un numero tra i {rubrica.Length} disponibili.", 4f);
+            return;
+        }
+
+        // La scelta avviene nel pannello comune: i pulsanti fisici non devono lasciarlo aperto.
+        _sceltaTramiteUI = true;
+        if (pulsantiOpzione != null)
+        {
+            foreach (VRInteractableButton pulsante in pulsantiOpzione)
+            {
+                if (pulsante != null)
+                {
+                    pulsante.SetAvailable(false);
+                }
+            }
+        }
+    }
+
+    /// <summary>Chiama il numero scelto nel pannello della UI comune.</summary>
+    void OnNumeroScelto(int indice)
+    {
+        if (indice < 0)
+        {
+            return;
+        }
+
+        Seleziona(indice);
     }
 
     /// <summary>Hangs up any call and puts the handset back.</summary>
@@ -279,6 +350,7 @@ public class TelefonoInterattivo : MonoBehaviour
         ContattoCorrente = null;
         IndiceCorrente = -1;
         NumeroComposto = string.Empty;
+        _sceltaTramiteUI = false;
 
         AggiornaInterfaccia();
 
@@ -402,8 +474,11 @@ public class TelefonoInterattivo : MonoBehaviour
 
         ContattoCorrente = null;
         IndiceCorrente = -1;
-        StatoCorrente = CornettaSollevata ? Stato.Selezione : Stato.Inattivo;
+        CornettaSollevata = false;
+        StatoCorrente = Stato.Inattivo;
+        _sceltaTramiteUI = false;
         AggiornaInterfaccia();
+        // Dopo la chiamata la rubrica non si riapre: la apre solo una nuova pressione della cornetta.
     }
 
     void StopChiamata()
@@ -417,7 +492,7 @@ public class TelefonoInterattivo : MonoBehaviour
 
     void AggiornaInterfaccia()
     {
-        bool opzioniAttive = StatoCorrente == Stato.Selezione;
+        bool opzioniAttive = StatoCorrente == Stato.Selezione && !_sceltaTramiteUI;
 
         if (pulsantiOpzione != null)
         {
@@ -549,10 +624,9 @@ public class TelefonoInterattivo : MonoBehaviour
 
     void HandleCornettaRilasciata(VRInteractableButton button)
     {
-        if (CornettaSollevata)
-        {
-            RiponiCornetta();
-        }
+        // La cornetta resta sollevata dopo il rilascio: il numero si sceglie nel pannello
+        // della UI comune, che compare dopo aver lasciato il grab. Per riappoggiarla
+        // basta premere di nuovo la cornetta.
     }
 
     void HandleChiudi(VRInteractableButton button)

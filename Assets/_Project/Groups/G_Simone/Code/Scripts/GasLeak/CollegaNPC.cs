@@ -249,6 +249,9 @@ public class CollegaNPC : MonoBehaviour
     /// <summary>Makes him follow the player. Called by the interaction.</summary>
     public void Chiama()
     {
+        // Il riconoscimento dei sintomi vale anche se il collega era già in movimento.
+        gestore?.SegnalaCollegaAvvisato();
+
         if (SegueGiocatore || Svenuto)
         {
             return;
@@ -266,7 +269,6 @@ public class CollegaNPC : MonoBehaviour
             animator.SetTrigger("Segue");
         }
 
-        gestore?.SegnalaCollegaAvvisato();
         onSegue.Invoke();
     }
 

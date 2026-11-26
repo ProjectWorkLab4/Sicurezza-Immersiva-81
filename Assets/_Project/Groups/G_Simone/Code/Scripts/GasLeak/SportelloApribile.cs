@@ -21,7 +21,9 @@ public class SportelloApribile : MonoBehaviour
     [Header("Anta")]
     [Tooltip("Transform dell'anta. Il suo pivot deve stare sulla cerniera.")]
     [SerializeField] Transform anta;
-    [Tooltip("Angolo di apertura in gradi attorno all'asse Y locale.")]
+    [Tooltip("Asse locale di apertura dell'anta.")]
+    [SerializeField] Vector3 asseAperturaLocale = Vector3.up;
+    [Tooltip("Angolo di apertura in gradi attorno all'asse locale selezionato.")]
     [SerializeField] float angoloAperto = 100f;
     [SerializeField] float velocita = 160f;
 
@@ -53,7 +55,10 @@ public class SportelloApribile : MonoBehaviour
         if (anta != null)
         {
             _rotazioneChiusa = anta.localRotation;
-            _rotazioneAperta = _rotazioneChiusa * Quaternion.Euler(0f, angoloAperto, 0f);
+            Vector3 asse = asseAperturaLocale.sqrMagnitude > 0.000001f
+                ? asseAperturaLocale.normalized
+                : Vector3.up;
+            _rotazioneAperta = _rotazioneChiusa * Quaternion.AngleAxis(angoloAperto, asse);
             _target = _rotazioneChiusa;
         }
     }

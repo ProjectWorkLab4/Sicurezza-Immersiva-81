@@ -15,9 +15,9 @@ MonoBehaviour:
   Id: 10
   Title: Electric Shock
   Context: "Sei un lavoratore del turno. Un collega ha preso la scossa da un generatore
-    portatile ed \xE8 a terra, ancora a contatto con il cavo. Vicino c'\xE8 un paramedico
-    sotto shock e sotto il generatore c'\xE8 una pozza di benzina. Isola la zona
-    e metti tutti in salvo."
+    portatile ed \xE8 a terra, ancora a contatto con il cavo. Sotto il generatore
+    c'\xE8 una pozza di benzina. Togli la corrente, isola la zona e porta il collega
+    al sicuro."
   Icon: {fileID: 21300000, guid: 2716816d7f70cec4c94a61a8822e26a9, type: 3}
   Image: {fileID: 0}
   GradientTop: {r: 0.549, g: 0.478, b: 0.071, a: 1}
@@ -25,15 +25,15 @@ MonoBehaviour:
   Complexity: 4
   SceneName: SCN_ElectricShock
   Objectives:
-  - Isola il generatore
-  - Spegni l'incendio
+  - Ferma il generatore
   - Evacua e isola la zona
-  - Assisti collega e paramedico
+  - Spegni l'incendio
+  - Porta il collega al sicuro
   Criteria:
   - Outcome: 0
-    Text: Generatore spento, tutti in salvo
+    Text: Corrente tolta, fuoco spento, tutti al sicuro
   - Outcome: 1
-    Text: Generatore spento, zona non isolata
+    Text: Zona aperta o collega non al sicuro
   - Outcome: 2
     Text: Persone ferite o estintore errato
   Levels:

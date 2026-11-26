@@ -18,8 +18,8 @@ MonoBehaviour:
   BlastRadius: 7
   BystanderAttemptTime: {x: 40, y: 70}
   BystanderHesitation: 8
-  ParamedicAfterCall: {x: 75, y: 120}
-  ParamedicWithoutCall: 150
+  ParamedicAfterCall: {x: 30, y: 45}
+  ParamedicWithoutCall: 90
   HarmfulAirSeconds: 20
   StayWithVictimSeconds: 10
   StayDistance: 2

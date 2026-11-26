@@ -5,8 +5,8 @@
     { "id": "LG-03", "phrase": "Al {t} hai chiuso il varco con la barriera. Conseguenza: nessuno poteva entrare nella zona non sicura.", "whatYouCouldDo": "" },
     { "id": "LG-04", "phrase": "Al {t} il varco era aperto all'arrivo di PM-2. Conseguenza: {esito}.", "whatYouCouldDo": "Le barriere sono nel rack RK-01." },
     { "id": "LG-05", "phrase": "Al {t} hai chiamato il 112. Conseguenza: i soccorsi sono arrivati dopo {s} s.", "whatYouCouldDo": "" },
-    { "id": "LG-06", "phrase": "Al {t} hai preparato l'estintore prima di togliere la corrente. Conseguenza: eri pronto quando la pozza si è accesa{dettaglio}.", "whatYouCouldDo": "" },
-    { "id": "LG-07", "phrase": "Al {t} hai premuto l'arresto senza un estintore. Conseguenza: la pozza si è accesa dopo 2 s e hai perso circa 13 s per spegnere il fuoco.", "whatYouCouldDo": "Prendere l'estintore prima dell'arresto." },
+    { "id": "LG-06", "phrase": "Al {t} avevi già un estintore in mano quando la pozza ha preso fuoco. Conseguenza: eri pronto a spegnerlo{dettaglio}.", "whatYouCouldDo": "" },
+    { "id": "LG-07", "phrase": "Al {t} la pozza ha preso fuoco e non avevi un estintore. Conseguenza: hai perso tempo a prenderlo mentre il fuoco cresceva.", "whatYouCouldDo": "Dopo aver isolato la zona prendi un estintore a polvere o CO2: l'incendio parte subito dopo." },
     { "id": "LG-08", "phrase": "Al {t} hai toccato il collega con la corrente ancora presente. Conseguenza: folgorazione, livello fallito.", "whatYouCouldDo": "Prima girare la chiave di arresto del generatore (PB-01), poi il soccorso." },
     { "id": "LG-09", "phrase": "Al {t} hai tolto la corrente. Conseguenza: il soccorso era possibile e i colleghi non sono stati folgorati.", "whatYouCouldDo": "" },
     { "id": "LG-10", "phrase": "Il generatore era ancora acceso al {t}. Conseguenza: la pozza si è accesa con la corrente presente e la zona è diventata pericolosa.", "whatYouCouldDo": "La chiave di arresto PB-01 sul generatore era a 12 m da te." },
@@ -18,23 +18,24 @@
     { "id": "LG-16", "phrase": "Al {t} hai sentito il sibilo e hai scelto {scelta}. Conseguenza: {esito}.", "whatYouCouldDo": "Entro 12 s si fa una sola cosa tra ritirarsi, portare via PM-1, spostare il collega." },
     { "id": "LG-17", "phrase": "Al {t} eri a meno di 7 m dal generatore. Conseguenza: ferito dalla vampata, livello fallito.", "whatYouCouldDo": "Allontanarsi oltre 7 m appena si sente il sibilo." },
     { "id": "LG-18", "phrase": "Al {t} hai controllato che il collega fosse cosciente e respirasse. Conseguenza: sapevi di poterlo assistere senza spostarlo.", "whatYouCouldDo": "" },
-    { "id": "LG-19", "phrase": "Il collega è rimasto senza assistenza. Conseguenza: esito Parziale.", "whatYouCouldDo": "Restare con lui e controllare coscienza e respiro." },
+    { "id": "LG-19", "phrase": "Il collega non è stato portato nella zona sicura. Conseguenza: esito Parziale.", "whatYouCouldDo": "Spento il fuoco, afferralo col grip e trascinalo nella zona sicura verde." },
     { "id": "LG-20", "phrase": "Al {t} {chi} PM-1 al punto sicuro. Conseguenza: PM-1 era fuori dal raggio della vampata.", "whatYouCouldDo": "" },
     { "id": "LG-21", "phrase": "Al {t} hai premuto l'arresto senza osservare la scena. Conseguenza: non sapevi della pozza di benzina e l'accensione ti ha sorpreso.", "whatYouCouldDo": "Osservare cavo, pozza e persone prima di agire." },
     { "id": "LG-22", "phrase": "Al {t} sei rimasto troppo a lungo nel fumo. Conseguenza: hai respirato aria nociva.", "whatYouCouldDo": "Uscire dalla zona del fumo o spegnere prima il fuoco." },
     { "id": "LG-23", "phrase": "Al {t} PM-2 è entrato con la zona non sicura. Conseguenza: seconda vittima, livello fallito.", "whatYouCouldDo": "Chiudere il varco con le barriere o dirgli di fermarsi." },
     { "id": "LG-24", "phrase": "Al {t} hai toccato il cavo sotto tensione. Conseguenza: folgorazione, livello fallito.", "whatYouCouldDo": "Non toccare cavo e vittima finché la corrente non è tolta." },
     { "id": "LG-25", "phrase": "Al {t} il collega era nel raggio della vampata. Conseguenza: le sue condizioni sono peggiorate, livello fallito.", "whatYouCouldDo": "Spegnere il fuoco in tempo o, durante l'avviso, spostare il collega oltre 7 m." },
-    { "id": "LG-26", "phrase": "Al {t} altre persone erano nel raggio della vampata. Conseguenza: feriti, livello fallito.", "whatYouCouldDo": "Allontanare le persone e spegnere il fuoco in tempo." }
+    { "id": "LG-26", "phrase": "Al {t} altre persone erano nel raggio della vampata. Conseguenza: feriti, livello fallito.", "whatYouCouldDo": "Allontanare le persone e spegnere il fuoco in tempo." },
+    { "id": "LG-27", "phrase": "Al {t} hai portato il collega nella zona sicura. Conseguenza: era lontano dal generatore e dalla benzina.", "whatYouCouldDo": "" }
   ],
   "correctPath": [
     "1. Osserva cavo, pozza e persone.",
-    "2. Allontana i colleghi, chiudi il varco BL-10, chiama il 112.",
-    "3. Prendi un estintore a polvere o CO2 e leggi l'etichetta.",
-    "4. Gira la chiave di arresto del generatore (PB-01).",
-    "5. Spegni il fuoco.",
-    "6. Controlla che l'area sia sicura (corrente tolta, fuoco spento).",
-    "7. Assisti il collega: coscienza, respiro, resta con lui.",
-    "8. Porta PM-1 al punto sicuro o lascialo a PM-2."
+    "2. Gira la chiave di arresto del generatore (PB-01): corrente tolta.",
+    "3. Fai allontanare i colleghi verso il punto di raccolta e chiama il 112.",
+    "4. Isola la zona: 3 barriere sul varco DR-03, lascia libero il passaggio.",
+    "5. Prendi un estintore a polvere o CO2 e leggi l'etichetta.",
+    "6. Quando la pozza prende fuoco, spegnilo.",
+    "7. Trascina il collega nella zona sicura verde.",
+    "8. Fai entrare il paramedico dal passaggio: mette in sicurezza il generatore e assiste il collega."
   ]
 }

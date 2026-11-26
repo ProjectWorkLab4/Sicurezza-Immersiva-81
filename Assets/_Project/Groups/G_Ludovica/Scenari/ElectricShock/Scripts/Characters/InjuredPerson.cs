@@ -1,6 +1,7 @@
 using System;
 using SI81.Input;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace SI81.Ludovica.ElectricShock
 {
@@ -112,7 +113,30 @@ namespace SI81.Ludovica.ElectricShock
             Vector3 to = target - Flat(pos);
             if (to.magnitude < dragDistance) return;
             Vector3 step = Vector3.ClampMagnitude(to, dragSpeed * Time.deltaTime);
-            transform.position = pos + step;
+            Vector3 next = pos + step;
+            // Trascinato resta sul pavimento percorribile: non attraversa pareti, generatore ne' barriere posate (che scavano la NavMesh).
+            // Fuori dal pavimento percorribile (es. NavMesh non ancora aggiornata) non si muove: mai attraverso una parete.
+            if (!NavMesh.SamplePosition(pos, out var from, 0.5f, NavMesh.AllAreas)) return;
+            if (NavMesh.Raycast(from.position, new Vector3(next.x, from.position.y, next.z), out var hit, NavMesh.AllAreas))
+                next = new Vector3(hit.position.x, pos.y, hit.position.z);
+            transform.position = new Vector3(next.x, pos.y, next.z);
+        }
+
+        /// <summary>
+        /// Afferrato: il suo NavMeshObstacle (che fa girare gli NPC attorno a lui) si spegne, altrimenti il punto in cui si trova
+        /// sarebbe un buco nella NavMesh e il controllo delle pareti durante il trascinamento non funzionerebbe.
+        /// </summary>
+        protected override void OnGrabStart(Hand hand)
+        {
+            var obstacle = GetComponent<NavMeshObstacle>();
+            if (obstacle != null) obstacle.enabled = false;
+        }
+
+        /// <summary>Lasciato: l'ostacolo torna attivo dove si trova ora.</summary>
+        protected override void OnGrabEnd(Hand hand)
+        {
+            var obstacle = GetComponent<NavMeshObstacle>();
+            if (obstacle != null) obstacle.enabled = true;
         }
 
         /// <summary>Proietta un punto sul piano orizzontale.</summary>

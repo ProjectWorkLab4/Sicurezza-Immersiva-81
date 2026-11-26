@@ -1,6 +1,7 @@
 using SI81.Input;
 using SI81.Interaction;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SI81.Ludovica.ElectricShock
 {
@@ -41,6 +42,8 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Configura l'Interactable condiviso e si iscrive ai suoi eventi.</summary>
         protected virtual void Awake()
         {
+            homeScene = gameObject.scene;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
             interactable = GetComponent<Interactable>();
             interactable.Selectable = IsSelectable;
             interactable.Grabbable = IsGrabbable;
@@ -54,6 +57,7 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Si disiscrive e libera i materiali di evidenziazione.</summary>
         protected virtual void OnDestroy()
         {
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
             if (interactable != null)
             {
                 interactable.SelectEntered -= BeginSelect;
@@ -64,6 +68,17 @@ namespace SI81.Ludovica.ElectricShock
             if (highlightMaterials != null)
                 foreach (var set in highlightMaterials)
                     if (set != null) foreach (var m in set) if (m != null) Destroy(m);
+        }
+
+        private Scene homeScene;
+
+        /// <summary>
+        /// Ricomincia / esci con un oggetto in mano: l'oggetto e' figlio della mano del rig (scena core) e sopravvivrebbe allo
+        /// scaricamento del suo scenario, restando attaccato al giocatore nella partita successiva. Si distrugge con la sua scena.
+        /// </summary>
+        private void OnSceneUnloaded(Scene scene)
+        {
+            if (this != null && scene == homeScene) Destroy(gameObject);
         }
 
         /// <summary>Grilletto premuto puntando l'oggetto (o simulato dai test).</summary>

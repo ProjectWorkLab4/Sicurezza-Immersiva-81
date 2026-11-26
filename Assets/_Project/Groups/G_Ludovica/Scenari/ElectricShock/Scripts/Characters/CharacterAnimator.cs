@@ -125,6 +125,22 @@ namespace SI81.Ludovica.ElectricShock
         /// <param name="key">Nome breve della clip.</param>
         public void SetIdleKey(string key) => idleKey = key;
 
+        private float idleSpeed = 1f;
+        private bool idleRandomPhase;
+
+        /// <summary>Idle piu' lento e con fase casuale (personaggi fermi vicini che non respirano in sincronia).</summary>
+        /// <param name="speed">Velocita' della clip di riposo (1 = normale).</param>
+        public void SetIdleVariation(float speed)
+        {
+            idleSpeed = Mathf.Max(0.1f, speed);
+            idleRandomPhase = true;
+            if (current != null && current.Key == idleKey && playable.IsValid())
+            {
+                playable.SetSpeed(idleSpeed);
+                if (current.Clip != null) playable.SetTime(UnityEngine.Random.value * current.Clip.length);
+            }
+        }
+
         /// <summary>Toglie la clip forzata: torna a seguire il movimento.</summary>
         public void Release()
         {
@@ -141,8 +157,8 @@ namespace SI81.Ludovica.ElectricShock
             {
                 double t = playable.GetTime();
                 double speed = playable.GetSpeed();
-                if (speed > 0d && t >= current.LoopEnd) playable.SetSpeed(-PING_PONG_SPEED);
-                else if (speed < 0d && t <= current.LoopStart) playable.SetSpeed(PING_PONG_SPEED);
+                if (speed > 0d && t >= current.LoopEnd) { playable.SetTime(current.LoopEnd); playable.SetSpeed(-PING_PONG_SPEED); }
+                else if (speed < 0d && t <= current.LoopStart) { playable.SetTime(current.LoopStart); playable.SetSpeed(PING_PONG_SPEED); }
                 return;
             }
             double length = current.Clip != null ? current.Clip.length : 0d;
@@ -224,7 +240,8 @@ namespace SI81.Ludovica.ElectricShock
             }
             playable = AnimationClipPlayable.Create(graph, entry.Clip);
             playable.SetApplyFootIK(false);
-            playable.SetSpeed(key == moveKey ? moveClipSpeed : 1d);
+            playable.SetSpeed(key == moveKey ? moveClipSpeed : key == idleKey ? idleSpeed : 1d);
+            if (key == idleKey && idleRandomPhase && entry.Clip != null) playable.SetTime(UnityEngine.Random.value * entry.Clip.length);
             graph.Connect(playable, 0, mixer, 1);
             blend = fromPlayable.IsValid() ? 0f : 1f;
             mixer.SetInputWeight(0, 1f - blend);

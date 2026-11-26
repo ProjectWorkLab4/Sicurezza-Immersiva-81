@@ -93,7 +93,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
             var lines = table.BuildLines(log, false);
             Assert.AreEqual(DebriefPhraseTable.MAX_LINES, lines.Count);
             Assert.IsTrue(lines.Any(l => l.StartsWith(DebriefLinePrefix.CRITICAL)));
-            Assert.IsTrue(lines.Last().Contains("senza assistenza"));
+            Assert.IsTrue(lines.Last().Contains("zona sicura"));
         }
 
         /// <summary>Valori dei livelli come nella specifica §9.</summary>

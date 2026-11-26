@@ -55,9 +55,9 @@ namespace SI81.Ludovica.ElectricShock
         [Tooltip("Esitazione dei colleghi dal grido alla camminata.")]
         public float BystanderHesitation = 8f;
         [Tooltip("Arrivo di PM-2 dopo la chiamata al 112 (min, max).")]
-        public Vector2 ParamedicAfterCall = new Vector2(75f, 120f);
+        public Vector2 ParamedicAfterCall = new Vector2(30f, 45f);
         [Tooltip("Arrivo di PM-2 senza chiamata.")]
-        public float ParamedicWithoutCall = 150f;
+        public float ParamedicWithoutCall = 90f;
         [Tooltip("Esposizione al fumo prima della penalità.")]
         public float HarmfulAirSeconds = 20f;
         [Tooltip("Tempo vicino al collega per 'restare con lui'.")]

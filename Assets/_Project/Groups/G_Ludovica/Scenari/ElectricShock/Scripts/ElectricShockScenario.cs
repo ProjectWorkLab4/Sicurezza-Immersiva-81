@@ -7,7 +7,8 @@ namespace SI81.Ludovica.ElectricShock
 {
     /// <summary>
     /// Scenario 10 · Electric Shock (Folgorazione), versione LITE. Va su MNG_Scenario.
-    /// Ordine obbligato dalla scena: prima la corrente (PB-01), poi il fuoco (la pozza si accende all'arresto), poi il soccorso.
+    /// Ordine (dopo la review esterna): 1) ferma il generatore (PB-01); 2) fai evacuare i colleghi e isola la zona con 3 barriere,
+    /// lasciando il passaggio; 3) a zona isolata la pozza prende fuoco: spegnilo; 4) trascina il collega nella zona sicura.
     /// Gestisce tempi, eventi EV-10-01...07, Registro delle scelte LG-01...21, esiti (Positivo / Parziale / Negativo)
     /// e chiude con EndMission una sola volta.
     /// </summary>
@@ -45,13 +46,14 @@ namespace SI81.Ludovica.ElectricShock
         [SerializeField] private Bystander[] bystanders;
         [Tooltip("Terzo collega (solo Crisis).")]
         [SerializeField] private Bystander extraBystander;
-        [SerializeField] private ParamedicInShock paramedicInShock;
+        [Tooltip("Punto davanti al generatore dove PM-2 lo mette in sicurezza prima di soccorrere il collega.")]
+        [SerializeField] private Transform paramedicGeneratorPoint;
         [Tooltip("PM-2 (inattivo fino all'arrivo).")]
         [SerializeField] private NpcMover arrivingParamedic;
 
         [Header("Punti")]
         [SerializeField] private Transform safePoint;
-        [Tooltip("Distanza dal centro di SAFE-01 entro cui PM-1 è al sicuro (m).")]
+        [Tooltip("Distanza dal centro di SAFE-01 entro cui il collega è al sicuro (m).")]
         [SerializeField] private float safePointRadius = 2f;
         [Tooltip("Punto di raccolta AP-02.")]
         [SerializeField] private Transform assemblyPoint;
@@ -95,6 +97,12 @@ namespace SI81.Ludovica.ElectricShock
         private bool poolSmellAnnounced;
         private float stayTimer;
         private bool stayedWithVictim;
+        private bool victimSafe;
+        private float pm2EnteredAt = -1f;
+        /// <summary>Senza varco chiuso la pozza si accende comunque questi secondi dopo l'arresto.</summary>
+        private const float IGNITION_FALLBACK_AFTER_STOP = 40f;
+        /// <summary>Secondi dopo l'ingresso di PM-2 oltre i quali va dal collega anche se non e' in zona sicura.</summary>
+        private const float PM2_WAIT_FOR_VICTIM = 45f;
         private int hintsGiven;
         private readonly HashSet<string> hintsShown = new HashSet<string>();
         private float nextDistractorAt = 30f;
@@ -107,7 +115,11 @@ namespace SI81.Ludovica.ElectricShock
         private ChoiceLogEntry callEntry;
 
         // PM-2
-        private enum ParamedicState { NotArrived, Walking, WaitingAtGate, Entering, LeadingPm1, GoingToVictim, AtVictim }
+        private enum ParamedicState { NotArrived, Walking, WaitingAtGate, SecuringGenerator, Entering, GoingToVictim, AtVictim }
+        /// <summary>Secondi in cui PM-2 lavora sul generatore (messa in sicurezza).</summary>
+        private const float PM2_GENERATOR_SECONDS = 4f;
+        /// <summary>Velocita' di PM-2 dall'ingresso al varco (m/s).</summary>
+        private const float PM2_ARRIVAL_SPEED = 2f;
         private ParamedicState pm2 = ParamedicState.NotArrived;
         private bool pm2ToldToStop;
         private float pm2AtVictimSince = -1f;
@@ -117,7 +129,6 @@ namespace SI81.Ludovica.ElectricShock
 
         // Snapshot dell'avviso di esplosione (LG-16)
         private bool warnPlayerInside;
-        private bool warnPm1Safe;
         private bool warnVictimMoved;
 
         /// <summary>Registro delle scelte (lettura, per test e debrief).</summary>
@@ -189,11 +200,10 @@ namespace SI81.Ludovica.ElectricShock
         {
             var body = PlayerLocator.Body;
             if (body == null) return;
-            var roots = new List<Component> { victim, paramedicInShock, arrivingParamedic, cable, radio };
+            var roots = new List<Component> { victim, arrivingParamedic, cable, radio };
             roots.AddRange(bystanders);
             if (extraBystander != null) roots.Add(extraBystander);
             roots.AddRange(extinguishers);
-            roots.AddRange(FindObjectsByType<BarrierPanel>(FindObjectsInactive.Include, FindObjectsSortMode.None));
             foreach (var r in roots)
             {
                 if (r == null) continue;
@@ -213,7 +223,6 @@ namespace SI81.Ludovica.ElectricShock
             victim.PositionedChanged += () => Feedback("Collega in posizione", FeedbackKind.Positive);
             radio.Called += OnRadioCall;
             barrierLine.ClosedChanged += OnBarrierChanged;
-            paramedicInShock.EscortStarted += () => Feedback("PM-1 ti segue", FeedbackKind.Neutral);
             foreach (var e in extinguishers)
             {
                 e.AutoReadLabel = level.AutoReadLabel;
@@ -246,6 +255,7 @@ namespace SI81.Ludovica.ElectricShock
             UpdateExplosion(t);
             UpdateHarmfulAir();
             UpdateVictimCare();
+            UpdateVictimSafety(t);
             UpdateBystanders(t);
             UpdateParamedics(t);
             UpdateHints(t);
@@ -277,10 +287,19 @@ namespace SI81.Ludovica.ElectricShock
                 log.RecordOnce(t, "LG-02", ChoiceOutcome.Missed, ScoreDimension.Awareness);
         }
 
-        /// <summary>Scintilla sulla pozza: 2 s dopo l'arresto, oppure a T_ign con la corrente presente (EV-10-03).</summary>
+        /// <summary>
+        /// Scintilla sulla pozza (EV-10-03): 2 s dopo che la zona e' isolata (generatore fermo e varco chiuso); senza varco chiuso
+        /// 40 s dopo l'arresto; con la corrente ancora presente a T_ign.
+        /// </summary>
         private void UpdateIgnition(float t)
         {
             if (ignitedAt >= 0f) return;
+            if (pendingIgnitionAt < 0f && !generator.IsRunning
+                && (barrierLine.IsClosed || (stopTime >= 0f && t - stopTime >= IGNITION_FALLBACK_AFTER_STOP)))
+            {
+                pendingIgnitionAt = t + settings.IgnitionAfterStop;
+                ElectricShockHud.Line("", "[Una scintilla dal generatore cade verso la pozza di benzina]");
+            }
             if (pendingIgnitionAt >= 0f && t >= pendingIgnitionAt)
             {
                 Ignite(t);
@@ -299,6 +318,11 @@ namespace SI81.Ludovica.ElectricShock
             ignitedAt = t;
             pendingIgnitionAt = -1f;
             fire.Ignite();
+            if (CurrentlyHeldExtinguisher() != null)
+            {
+                preparedEntry = log.RecordOnce(t, "LG-06", ChoiceOutcome.Correct, ScoreDimension.Decision);
+                if (preparedEntry != null) preparedEntry.Context["dettaglio"] = "";
+            }
             SetPhase(PHASE_ACTION);
             Alert("Incendio\nLa benzina sotto il generatore ha preso fuoco");
             Subtitle("Collega", "Fuoco! La benzina!");
@@ -318,7 +342,6 @@ namespace SI81.Ludovica.ElectricShock
                 warningStarted = true;
                 warningAt = t;
                 warnPlayerInside = PlayerInBlast();
-                warnPm1Safe = paramedicInShock.IsSafe;
                 warnVictimMoved = !InBlast(victim.transform.position);
                 fuelTank.StartWarning(settings.ExplosionWarning, level.TankSwelling, level.BlastRing);
                 Subtitle("", "[Il serbatoio sibila: allontanati]");
@@ -358,7 +381,6 @@ namespace SI81.Ludovica.ElectricShock
             }
             if (pm2 != ParamedicState.NotArrived && InBlast(arrivingParamedic.transform.position)) otherInjured = true;
             if (otherInjured) log.Record(t, "LG-26", ChoiceOutcome.CriticalError, ScoreDimension.Safety);
-            // PM-1 nel raggio: solo ferita psicologica, non incide sull'esito (specifica §8).
 
             Finish("esplosione");
         }
@@ -371,7 +393,6 @@ namespace SI81.Ludovica.ElectricShock
             bool good = true;
             if (fire.WasExtinguished) choice = "di spegnere il fuoco";
             else if (warnPlayerInside && !PlayerInBlast()) choice = "di ritirarti oltre 7 m";
-            else if (!warnPm1Safe && paramedicInShock.IsSafe) choice = "di portare via PM-1";
             else if (!warnVictimMoved && !InBlast(victim.transform.position)) choice = "di spostare il collega";
             else { choice = "di restare dov'eri"; good = false; }
 
@@ -408,6 +429,18 @@ namespace SI81.Ludovica.ElectricShock
             RefreshObjective();
         }
 
+        /// <summary>Collega trascinato nella zona sicura SAFE-01 (LG-27): ultimo obiettivo.</summary>
+        private void UpdateVictimSafety(float t)
+        {
+            if (victimSafe || victim.IsLive || safePoint == null) return;
+            if (Vector3.Distance(Flat(victim.transform.position), Flat(safePoint.position)) > safePointRadius) return;
+            victimSafe = true;
+            log.RecordOnce(t, "LG-27", ChoiceOutcome.Correct, ScoreDimension.Execution);
+            Feedback("Collega nella zona sicura", FeedbackKind.Positive);
+            SetPhase(PHASE_RESOLUTION);
+            RefreshObjective();
+        }
+
         /// <summary>Colleghi che tentano di aiutare la vittima (EV-10-02).</summary>
         private void UpdateBystanders(float t)
         {
@@ -433,27 +466,17 @@ namespace SI81.Ludovica.ElectricShock
         /// <summary>Arrivo e comportamento di PM-2 (EV-10-07).</summary>
         private void UpdateParamedics(float t)
         {
-            if (safePoint != null && !paramedicInShock.IsSafe && Vector3.Distance(Flat(paramedicInShock.transform.position), Flat(safePoint.position)) <= safePointRadius)
-            {
-                bool byPm2 = arrivingParamedic != null && paramedicInShock.GetComponent<NpcMover>().FollowTarget == arrivingParamedic.transform;
-                paramedicInShock.MarkSafe(byPm2 ? "pm2" : "player");
-                var e = log.RecordOnce(t, "LG-20", ChoiceOutcome.Correct, ScoreDimension.Decision);
-                if (e != null) e.Context["chi"] = byPm2 ? "PM-2 ha portato" : "hai portato";
-                Feedback("PM-1 al punto sicuro", FeedbackKind.Positive);
-                RefreshObjective();
-                if (pm2 == ParamedicState.LeadingPm1) SendPm2ToVictim();
-            }
+            // PM-2 ha messo in sicurezza il generatore: va dal collega quando e' nella zona sicura (o dopo 45 s se il giocatore non ce lo porta).
+            if (pm2 == ParamedicState.Entering && !victim.IsHeld && (victimSafe || t - pm2EnteredAt >= PM2_WAIT_FOR_VICTIM))
+                SendPm2ToVictim();
 
-            // PM-2 accanto al collega: chiude il livello quando il giocatore non sta più accompagnando PM-1
-            // né assistendo il collega (al massimo dopo 30 s).
+            // PM-2 accanto al collega: chiude il livello quando il giocatore non lo sta trascinando (al massimo dopo 30 s).
             if (pm2 == ParamedicState.AtVictim)
             {
-                bool escorting = paramedicInShock.IsEscorted && !paramedicInShock.IsSafe;
-                bool assisting = PlayerLocator.Head != null && victim.ConsciousnessChecked && !stayedWithVictim
-                    && Vector3.Distance(PlayerLocator.Feet, Flat(victim.transform.position)) <= settings.StayDistance;
+                bool assisting = victim.IsHeld;
                 // Almeno qualche secondo con PM-2 al lavoro accanto al collega prima del Debrief.
                 bool seen = t - pm2AtVictimSince >= PM2_MIN_TENDING;
-                if ((seen && !escorting && !assisting) || t - pm2AtVictimSince >= PM2_MAX_WAIT)
+                if ((seen && !assisting) || t - pm2AtVictimSince >= PM2_MAX_WAIT)
                 {
                     Subtitle("PM-2", "Ci penso io, grazie.");
                     Finish("assistenza conclusa da PM-2");
@@ -479,7 +502,8 @@ namespace SI81.Ludovica.ElectricShock
             arrivingParamedic.gameObject.SetActive(true);
             arrivingParamedic.transform.position = paramedicPath[0].position;
             Subtitle("", "[Voci e passi dall'ingresso]");
-            arrivingParamedic.WalkPath(paramedicPath.Skip(1).Select(p => p.position), 0f, OnPm2AtGate);
+            // Arriva di corsa dall'ingresso al varco (2 m/s invece di 1,4).
+            arrivingParamedic.WalkPath(paramedicPath.Skip(1).Select(p => p.position), PM2_ARRIVAL_SPEED, OnPm2AtGate);
         }
 
         /// <summary>PM-2 davanti al varco DR-03: decide se fermarsi o entrare.</summary>
@@ -513,26 +537,38 @@ namespace SI81.Ludovica.ElectricShock
             Finish("PM-2 in zona non sicura");
         }
 
-        /// <summary>PM-2 entra: porta via PM-1 se serve, poi va dal collega.</summary>
+        /// <summary>PM-2 entra dal passaggio: prima mette in sicurezza il generatore, poi va dal collega.</summary>
         private void Pm2Enter()
         {
-            pm2 = ParamedicState.Entering;
-            if (!paramedicInShock.IsSafe && !paramedicInShock.IsEscorted)
+            pm2 = ParamedicState.SecuringGenerator;
+            HidePrompt(arrivingParamedic);
+            var route = EntryRoute();
+            if (paramedicGeneratorPoint != null) route = route.Append(paramedicGeneratorPoint.position);
+            arrivingParamedic.WalkPath(route, 0f, () =>
             {
-                pm2 = ParamedicState.LeadingPm1;
-                var route = EntryRoute().Append(paramedicInShock.transform.position + Vector3.left);
-                arrivingParamedic.WalkPath(route, 0f, () =>
-                {
-                    if (finished) return;
-                    // Nel frattempo il giocatore può averlo già portato via: in quel caso PM-2 va dal collega.
-                    if (paramedicInShock.IsSafe || paramedicInShock.IsEscorted) { SendPm2ToVictim(); return; }
-                    Subtitle("PM-2", "Collega, vieni con me.");
-                    paramedicInShock.FollowTarget(arrivingParamedic.transform);
-                    arrivingParamedic.WalkPath(new[] { safePoint.position }, 0.8f, null);
-                });
-                return;
+                if (finished) return;
+                StartCoroutine(SecureGeneratorRoutine());
+            });
+        }
+
+        /// <summary>PM-2 lavora qualche secondo sul generatore, poi resta pronto per il collega.</summary>
+        private System.Collections.IEnumerator SecureGeneratorRoutine()
+        {
+            var anim = arrivingParamedic.GetComponent<CharacterAnimator>();
+            if (paramedicGeneratorPoint != null)
+            {
+                Vector3 look = generator.transform.position - arrivingParamedic.transform.position;
+                look.y = 0f;
+                if (look.sqrMagnitude > 0.01f) arrivingParamedic.transform.rotation = Quaternion.LookRotation(look);
             }
-            SendPm2ToVictim();
+            if (anim != null) anim.Force("Work");
+            Subtitle("PM-2", "Metto in sicurezza il generatore.");
+            yield return new WaitForSeconds(PM2_GENERATOR_SECONDS);
+            if (anim != null) anim.Release();
+            if (finished) yield break;
+            Subtitle("PM-2", "Generatore sicuro. Dov'è il ferito?");
+            pm2 = ParamedicState.Entering;
+            pm2EnteredAt = ElapsedSeconds;
         }
 
         /// <summary>PM-2 raggiunge il collega: fine dell'assistenza e chiusura del livello.</summary>
@@ -540,7 +576,9 @@ namespace SI81.Ludovica.ElectricShock
         {
             pm2 = ParamedicState.GoingToVictim;
             bool outside = arrivingParamedic.transform.position.x < barrierLine.transform.position.x + 0.5f;
-            var route = (outside ? EntryRoute() : Enumerable.Empty<Vector3>()).Append(victimApproachPoint.position + Vector3.right * 0.7f);
+            // Accanto al collega dove si trova ora (di solito nella zona sicura, dove l'ha trascinato il giocatore).
+            Vector3 target = victimSafe ? victim.transform.position + Vector3.right * 0.8f : victimApproachPoint.position + Vector3.right * 0.7f;
+            var route = (outside ? EntryRoute() : Enumerable.Empty<Vector3>()).Append(target);
             arrivingParamedic.WalkPath(route, 0f, () =>
             {
                 if (finished) return;
@@ -562,10 +600,11 @@ namespace SI81.Ludovica.ElectricShock
             if (level.MaxHints == 0 || t < level.FirstHintDelay) return;
             if (level.MaxHints > 0 && hintsGiven >= level.MaxHints) return;
             string hint = null;
-            if (generator.IsRunning) hint = "Prima togli la corrente.";
-            else if (fire.IsBurning && CurrentlyHeldExtinguisher() == null) hint = "Prepara un estintore.";
-            else if (fire.WasExtinguished && !barrierLine.IsClosed) hint = "Chiudi il varco con le barriere.";
-            else if (fire.WasExtinguished && !victim.ConsciousnessChecked) hint = "Controlla coscienza e respiro del collega.";
+            if (generator.IsRunning) hint = "Gira la chiave del generatore (grilletto).";
+            else if (!ColleaguesOut()) hint = "Grilletto su un collega: fallo allontanare.";
+            else if (!barrierLine.IsClosed) hint = "Grip: 3 barriere sui segni gialli del varco.";
+            else if (!fire.WasExtinguished && CurrentlyHeldExtinguisher() == null) hint = "Prendi un estintore a polvere o CO2.";
+            else if (fire.WasExtinguished && !victimSafe) hint = "Grip sul collega: trascinalo nella zona verde.";
             if (hint == null || !hintsShown.Add(hint)) return;
             hintsGiven++;
             SetHint(hint);
@@ -584,7 +623,7 @@ namespace SI81.Ludovica.ElectricShock
         // Eventi degli oggetti
         // =====================================================================
 
-        /// <summary>PB-01 premuto: corrente tolta, scintilla sulla pozza dopo 2 s (LG-06/07/09/21).</summary>
+        /// <summary>PB-01 premuto: corrente tolta (LG-09/21). La pozza si accende quando la zona e' isolata (UpdateIgnition).</summary>
         private void OnEmergencyStop()
         {
             if (finished || !generator.IsRunning) return;
@@ -601,21 +640,17 @@ namespace SI81.Ludovica.ElectricShock
             else if (observed && t - LastObservedAt() <= settings.TimelyStopAfterObserve)
                 log.Record(t, "LG-09", ChoiceOutcome.Correct, ScoreDimension.Time);
 
-            var held = CurrentlyHeldExtinguisher();
-            if (held != null)
-            {
-                preparedEntry = log.Record(t, "LG-06", ChoiceOutcome.Correct, ScoreDimension.Decision);
-                preparedEntry.Context["dettaglio"] = "";
-            }
-            else log.Record(t, "LG-07", ChoiceOutcome.Risky, ScoreDimension.Decision);
-
-            if (ignitedAt < 0f)
-            {
-                pendingIgnitionAt = t + settings.IgnitionAfterStop;
-                ElectricShockHud.Line("", "[Una scintilla cade verso la pozza di benzina]");
-            }
             SetHighlights(false);
+            HidePrompt(emergencyStop);
             RefreshObjective();
+        }
+
+        /// <summary>Spegne l'etichetta "cosa fare" di un oggetto gia' usato (UI comune).</summary>
+        private static void HidePrompt(Component c)
+        {
+            if (c == null) return;
+            var a = c.GetComponent<LabelAnchor>();
+            if (a != null && a.Kind == LabelKind.Interaction) a.enabled = false;
         }
 
         /// <summary>Cavo toccato con la corrente presente: giocatore folgorato.</summary>
@@ -697,6 +732,7 @@ namespace SI81.Ludovica.ElectricShock
             if (finished) return;
             float t = ElapsedSeconds;
             callTime = t;
+            HidePrompt(radio);
             callEntry = log.RecordOnce(t, "LG-05", ChoiceOutcome.Correct, ScoreDimension.Decision);
             Subtitle("112", "112, qual è l'emergenza?");
             Subtitle("Tu", "Un collega folgorato e un incendio al generatore.");
@@ -727,6 +763,8 @@ namespace SI81.Ludovica.ElectricShock
             var result = new Vector3[path.Length];
             for (int j = 0; j < path.Length; j++)
             {
+                // In fila indiana nel passaggio tra le barriere: corsie solo alla partenza e al punto di raccolta.
+                if (j != 0 && j != path.Length - 1) { result[j] = path[j]; continue; }
                 Vector3 dir = j < path.Length - 1 ? path[j + 1] - path[j] : (j > 0 ? path[j] - path[j - 1] : Vector3.forward);
                 dir.y = 0f;
                 Vector3 side = dir.sqrMagnitude > 1e-6f ? new Vector3(dir.z, 0f, -dir.x).normalized : Vector3.right;
@@ -790,7 +828,7 @@ namespace SI81.Ludovica.ElectricShock
             foreach (var b in AllBystanders()) b.GetComponent<NpcMover>().Stop();
             if (arrivingParamedic != null) arrivingParamedic.Stop();
 
-            bool assisted = victim.ConsciousnessChecked && stayedWithVictim;
+            bool assisted = victimSafe;
             if (!generator.IsRunning && !assisted && !log.HasCriticalError()) log.RecordOnce(t, "LG-19", ChoiceOutcome.Missed, ScoreDimension.Execution);
 
             bool injuries = playerInjured || victimInjured || otherInjured || secondVictim || waterUsed;
@@ -801,14 +839,14 @@ namespace SI81.Ludovica.ElectricShock
             OutcomeType outcome;
             if (injuries || log.HasCriticalError()) outcome = OutcomeType.Negative;
             else if (generator.IsRunning && !isolated && exploded) outcome = OutcomeType.Negative;
-            else if (!generator.IsRunning && evacuated && fireOut && isolated && assisted && paramedicInShock.IsSafe) outcome = OutcomeType.Positive;
+            else if (!generator.IsRunning && evacuated && fireOut && isolated && assisted) outcome = OutcomeType.Positive;
             else outcome = OutcomeType.Partial;
 
             int[] dims = log.ComputeDimensions();
             var lines = phrases.BuildLines(log, Level == DifficultyLevel.Guided);
             if (reason == "tempo scaduto") lines.Add(DebriefLinePrefix.BAD + "Tempo scaduto prima di completare la missione.");
 
-            Debug.Log($"[SI81 ElectricShock] Fine: {reason}. Generatore fermo {!generator.IsRunning}, zona isolata {isolated}, persone evacuate {evacuated}, fuoco spento {fireOut}, collega assistito {assisted}, PM-1 al sicuro {paramedicInShock.IsSafe}.");
+            Debug.Log($"[SI81 ElectricShock] Fine: {reason}. Generatore fermo {!generator.IsRunning}, zona isolata {isolated}, persone evacuate {evacuated}, fuoco spento {fireOut}, collega in zona sicura {assisted}.");
             Debug.Log("[SI81 ElectricShock] Percorso corretto:\n" + string.Join("\n", phrases.correctPath));
             EndMission(outcome, -1, dims, lines);
         }
@@ -822,11 +860,14 @@ namespace SI81.Ludovica.ElectricShock
         {
             int next;
             if (generator.IsRunning) next = 0;
-            else if (fire.IsBurning || ignitedAt < 0f) next = 1;
-            else if (!barrierLine.IsClosed || !AllBystanders().All(b => b.Current == Bystander.State.Evacuated || b.Current == Bystander.State.Evacuating)) next = 2;
+            else if (!ColleaguesOut() || !barrierLine.IsClosed) next = 1;
+            else if (!fire.WasExtinguished) next = 2;
             else next = 3;
             if (next != CurrentObjectiveIndex) SetObjective(next);
         }
+
+        /// <summary>true se tutti i colleghi sono usciti o stanno uscendo verso il punto di raccolta.</summary>
+        private bool ColleaguesOut() => AllBystanders().All(b => b.Current == Bystander.State.Evacuated || b.Current == Bystander.State.Evacuating);
 
         /// <summary>Evidenzia PB-01 e gli estintori corretti (Guided).</summary>
         private void SetHighlights(bool on)
@@ -835,8 +876,8 @@ namespace SI81.Ludovica.ElectricShock
             foreach (var e in extinguishers) e.SetHighlight(on && e.IsCorrectType);
         }
 
-        /// <summary>true se la zona è sicura: corrente tolta e nessun fuoco acceso o in arrivo.</summary>
-        private bool ZoneSafe() => !generator.IsRunning && !fire.IsBurning && pendingIgnitionAt < 0f && (ignitedAt < 0f || fire.WasExtinguished) && !exploded;
+        /// <summary>true se la zona è sicura: corrente tolta e incendio (che parte sempre dopo l'isolamento) già spento.</summary>
+        private bool ZoneSafe() => !generator.IsRunning && ignitedAt >= 0f && fire.WasExtinguished && !fire.IsBurning && !exploded;
 
         /// <summary>true se il giocatore è nel raggio della vampata.</summary>
         private bool PlayerInBlast() => PlayerLocator.Head != null && InBlast(PlayerLocator.Feet);

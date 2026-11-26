@@ -34,20 +34,27 @@ namespace SI81.Ludovica.ElectricShock.Tests
             yield return null;
         }
 
-        /// <summary>Percorso corretto in Guided: Positivo, tutte le scelte corrette, nessun errore.</summary>
+        /// <summary>
+        /// Percorso corretto in Guided (nuovo ordine): generatore, colleghi, 112, 3 barriere, estintore pronto, incendio spento,
+        /// collega trascinato nella zona sicura, PM-1 al sicuro. Positivo, nessuna scelta sbagliata.
+        /// </summary>
         [UnityTest]
         public IEnumerator CorrectPath_IsPositive()
         {
             yield return d.ObserveScene();
+            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            Assert.IsFalse(d.Get<GeneratorUnit>("generator").IsRunning);
+            d.Teleport(14f, 6f, 90f);
             d.Shout();
-            d.CloseBarriers();
             d.Get<EmergencyRadio>("radio").Call();
             var powder = d.Extinguisher(ExtinguisherAgent.Powder);
             d.Grab(powder);
             powder.ReadLabel();
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            yield return new WaitForSeconds(3f);
+            Assert.IsFalse(d.Get<FireSource>("fire").IsBurning, "Senza varco chiuso l'incendio non parte subito");
+            d.CloseBarriers();
             yield return new WaitForSeconds(2.5f);
-            Assert.IsTrue(d.Get<FireSource>("fire").IsBurning, "La pozza deve accendersi 2 s dopo l'arresto");
+            Assert.IsTrue(d.Get<FireSource>("fire").IsBurning, "La pozza deve accendersi 2 s dopo l'isolamento");
             yield return d.SprayFire(powder, 2f, 6f);
             Assert.IsTrue(d.Get<FireSource>("fire").WasExtinguished);
             d.Release(powder);
@@ -55,19 +62,18 @@ namespace SI81.Ludovica.ElectricShock.Tests
             var victim = d.Get<InjuredPerson>("victim");
             d.Teleport(16f, 6.6f, 0f);
             victim.BeginSelect(Hand.Right);
-            victim.BeginSelect(Hand.Right);
-            Assert.IsTrue(victim.ConsciousnessChecked && victim.Positioned, "Grilletto: prima coscienza e respiro, poi posizione");
-            yield return new WaitForSeconds(11f);
-            d.Get<ParamedicInShock>("paramedicInShock").FollowTarget(d.Head);
+            Assert.IsTrue(victim.ConsciousnessChecked);
             var safe = d.Get<Transform>("safePoint").position;
-            d.Teleport(safe.x, safe.z, 0f);
-            yield return new WaitForSeconds(12f);
-            Assert.IsTrue(d.Get<ParamedicInShock>("paramedicInShock").IsSafe, "PM-1 deve arrivare al punto sicuro");
+            yield return d.DragVictimTo(safe);
+            yield return null;
+            Assert.IsTrue(d.Logged("LG-27"), "Il collega deve essere nella zona sicura");
+
+            d.Teleport(safe.x, safe.z - 1.5f, 0f);
 
             d.Set("paramedicArrivalTime", d.Scenario.ElapsedSeconds + 0.5f);
-            yield return d.WaitEnd(40f);
+            yield return d.WaitEnd(60f);
             Assert.AreEqual(OutcomeType.Positive, d.Outcome);
-            foreach (var id in new[] { "LG-01", "LG-03", "LG-05", "LG-06", "LG-09", "LG-12", "LG-13", "LG-14", "LG-18", "LG-20" })
+            foreach (var id in new[] { "LG-01", "LG-03", "LG-05", "LG-06", "LG-09", "LG-12", "LG-13", "LG-14", "LG-18", "LG-27" })
                 Assert.IsTrue(d.Logged(id), id + " non registrato");
             Assert.IsFalse(d.Scenario.Log.Entries.Any(e => e.Outcome != ChoiceOutcome.Correct), "Nessuna scelta sbagliata nel percorso corretto");
         }
@@ -99,7 +105,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         {
             var water = d.Extinguisher(ExtinguisherAgent.Water);
             d.Grab(water);
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             yield return d.SprayFire(water, 2f, 1.5f);
             Assert.AreEqual(OutcomeType.Negative, d.Outcome);
@@ -112,7 +118,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         {
             var co2 = d.Extinguisher(ExtinguisherAgent.CO2);
             d.Grab(co2);
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             yield return d.SprayFire(co2, 0.6f, 6f);
             Assert.IsTrue(d.Get<FireSource>("fire").WasExtinguished);
@@ -143,11 +149,11 @@ namespace SI81.Ludovica.ElectricShock.Tests
         }
 
         /// <summary>
-        /// PM-2 con varco chiuso e zona non sicura si ferma; quando la zona è sicura entra (le barriere si aprono e si richiudono),
-        /// porta via PM-1 e raggiunge il collega.
+        /// PM-2 con varco chiuso e zona non sicura si ferma; a incendio spento entra dal passaggio (le barriere non si aprono),
+        /// mette in sicurezza il generatore e poi va dal collega.
         /// </summary>
         [UnityTest]
-        public IEnumerator Pm2_WaitsAtClosedBarrier_ThenLeadsPm1()
+        public IEnumerator Pm2_WaitsAtClosedBarrier_ThenSecuresGenerator()
         {
             d.CloseBarriers();
             var barrier = Object.FindObjectsByType<BarrierPanel>(FindObjectsSortMode.None).First(b => b.SlotIndex == 0);
@@ -158,26 +164,30 @@ namespace SI81.Ludovica.ElectricShock.Tests
 
             var powder = d.Extinguisher(ExtinguisherAgent.Powder);
             d.Grab(powder);
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             yield return d.SprayFire(powder, 2f, 6f);
             d.Release(powder);
             d.Teleport(10f, 12f, 0f);
 
             float maxOpen = 0f;
-            var pm1 = d.Get<ParamedicInShock>("paramedicInShock");
-            float until = Time.time + 40f;
-            while (Time.time < until && d.Get<object>("pm2").ToString() != "AtVictim" && d.Scenario.IsRunning)
+            bool securing = false;
+            var pm2 = d.Get<NpcMover>("arrivingParamedic");
+            var line = d.Get<BarrierSnapLine>("barrierLine");
+            bool crossedPanel = false;
+            float until = Time.time + 60f;
+            while (Time.time < until && d.Scenario.IsRunning && d.Get<object>("pm2").ToString() != "AtVictim")
             {
                 maxOpen = Mathf.Max(maxOpen, Quaternion.Angle(closed, barrier.transform.rotation));
+                if (d.Get<object>("pm2").ToString() == "SecuringGenerator" && pm2.GetComponent<CharacterAnimator>().CurrentKey == "Work") securing = true;
+                if (!line.AllowPass(pm2.transform.position, pm2.transform.position)) crossedPanel = true;
                 yield return null;
             }
-            Assert.Greater(maxOpen, 60f, "Le barriere devono aprirsi per far passare PM-2");
-            Assert.IsTrue(pm1.IsSafe, "PM-2 deve portare PM-1 al punto sicuro");
-            Assert.AreEqual("pm2", pm1.SavedBy);
-            yield return new WaitForSeconds(2f);
-            Assert.Less(Quaternion.Angle(closed, barrier.transform.rotation), 1f, "Le barriere devono richiudersi");
-            Assert.IsTrue(d.Get<BarrierSnapLine>("barrierLine").IsClosed);
+            Assert.Less(maxOpen, 1f, "Le barriere posate non si aprono");
+            Assert.IsFalse(crossedPanel, "PM-2 non deve passare sopra una barriera");
+            Assert.IsTrue(securing, "PM-2 deve mettere in sicurezza il generatore");
+            Assert.AreEqual("AtVictim", d.Get<object>("pm2").ToString(), "Poi PM-2 va dal collega");
+            Assert.IsTrue(line.IsClosed);
         }
 
         /// <summary>Varco aperto e zona non sicura all'arrivo di PM-2: seconda vittima, Negativo (LG-23).</summary>
@@ -195,7 +205,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         [UnityTest]
         public IEnumerator Explosion_PlayerInsideRadius_IsNegative()
         {
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             d.Set("explosionDelay", d.Scenario.ElapsedSeconds - d.Get<float>("ignitedAt") + 2f);
             d.Teleport(19f, 7f, 0f);
@@ -210,7 +220,7 @@ namespace SI81.Ludovica.ElectricShock.Tests
         {
             d.Teleport(15f, 5f, 90f);
             d.Shout();
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             d.Set("explosionDelay", d.Scenario.ElapsedSeconds - d.Get<float>("ignitedAt") + 13f);
             yield return new WaitForSeconds(2f);
@@ -225,29 +235,6 @@ namespace SI81.Ludovica.ElectricShock.Tests
             Assert.AreEqual(OutcomeType.Partial, d.Outcome);
             var lg16 = d.Scenario.Log.Entries.First(e => e.ActionId == "LG-16");
             Assert.AreEqual(ChoiceOutcome.Correct, lg16.Outcome);
-        }
-
-        /// <summary>PM-1 che segue il giocatore gira attorno al generatore invece di attraversarlo (NavMesh).</summary>
-        [UnityTest]
-        public IEnumerator Pm1_FollowsAroundGenerator()
-        {
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
-            var pm1 = d.Get<ParamedicInShock>("paramedicInShock");
-            // Ingombro reale del generatore (collider del modello), alzato per il controllo sul piano.
-            var generatorBounds = d.Get<GeneratorUnit>("generator").GetComponent<BoxCollider>().bounds;
-            generatorBounds = new Bounds(new Vector3(generatorBounds.center.x, 0.5f, generatorBounds.center.z), new Vector3(generatorBounds.size.x, 2f, generatorBounds.size.z));
-            d.Teleport(20f, 12.5f, 180f);
-            pm1.FollowTarget(d.Head);
-            bool crossed = false;
-            float until = Time.time + 20f;
-            while (Time.time < until)
-            {
-                var p = pm1.transform.position;
-                if (generatorBounds.Contains(new Vector3(p.x, 0.5f, p.z))) crossed = true;
-                yield return null;
-            }
-            Assert.IsFalse(crossed, "PM-1 ha attraversato il generatore");
-            Assert.Less(Vector3.Distance(pm1.transform.position, new Vector3(20f, 0f, 12.5f)), 2.5f, "PM-1 deve raggiungere il giocatore");
         }
 
         /// <summary>Grilletto sull'estintore al rack legge l'etichetta; afferrato va in mano con l'ugello in avanti.</summary>
@@ -401,13 +388,14 @@ namespace SI81.Ludovica.ElectricShock.Tests
             d.Shout();
             var powder = d.Extinguisher(ExtinguisherAgent.Powder);
             d.Grab(powder);
-            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            d.StopAndIsolate();
             yield return new WaitForSeconds(2.5f);
             yield return d.SprayFire(powder, 2f, 6f);
             d.Release(powder);
+            yield return d.DragVictimTo(d.Get<Transform>("safePoint").position);
             d.Teleport(10f, 12f, 0f);
             d.Set("paramedicArrivalTime", d.Scenario.ElapsedSeconds + 0.2f);
-            float until = Time.time + 60f;
+            float until = Time.time + 90f;
             while (Time.time < until && d.Scenario.IsRunning && d.Get<object>("pm2").ToString() != "AtVictim") yield return null;
             Assert.AreEqual("AtVictim", d.Get<object>("pm2").ToString(), "PM-2 non ha raggiunto il collega");
 
@@ -431,7 +419,42 @@ namespace SI81.Ludovica.ElectricShock.Tests
             Assert.LessOrEqual(maxT, 3.6d, "La clip è arrivata alla parte in cui si rialza (da 3,7 s)");
             Assert.Greater(maxT - minT, 0.3d, "La clip è ferma (statua)");
             yield return d.WaitEnd(10f);
-            Assert.AreEqual(OutcomeType.Partial, d.Outcome, "Varco aperto: esito Parziale");
+            Assert.AreEqual(OutcomeType.Positive, d.Outcome, "Tutto fatto: Positivo");
+        }
+
+        /// <summary>Nuovo ordine: dopo l'arresto la pozza non si accende finché la zona non è isolata (al massimo 40 s).</summary>
+        [UnityTest]
+        public IEnumerator Fire_StartsAfterIsolation_OrFallback()
+        {
+            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            yield return new WaitForSeconds(10f);
+            Assert.IsFalse(d.Get<FireSource>("fire").IsBurning, "Niente incendio prima dell'isolamento");
+            yield return new WaitForSeconds(33f);
+            Assert.IsTrue(d.Get<FireSource>("fire").IsBurning, "Senza isolamento la pozza si accende comunque dopo 40 s");
+        }
+
+        /// <summary>Collega trascinato nella zona sicura: LG-27, obiettivo 4 attivo/completo.</summary>
+        [UnityTest]
+        public IEnumerator VictimDraggedToSafeZone_IsRecorded()
+        {
+            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            yield return null;
+            yield return d.DragVictimTo(d.Get<Transform>("safePoint").position);
+            yield return null;
+            Assert.IsTrue(d.Logged("LG-27"));
+            Assert.IsTrue(d.Scenario.IsRunning);
+        }
+
+        /// <summary>Il collega trascinato verso una parete si ferma al bordo del pavimento percorribile: non la attraversa.</summary>
+        [UnityTest]
+        public IEnumerator DraggedVictim_DoesNotCrossWalls()
+        {
+            d.Get<EmergencyStopButton>("emergencyStop").Press();
+            yield return null;
+            // Parete Middle_A sulla x = 13 (z 2-6): la linea dal collega a (9; 2,8) la incrocia a z = 5,6, sotto il varco.
+            yield return d.DragVictimTo(new Vector3(9f, 0f, 2.8f), 0.3f, 12f);
+            var v = d.Get<InjuredPerson>("victim").transform.position;
+            Assert.Greater(v.x, 13.1f, "Il collega e' passato attraverso la parete (x = " + v.x.ToString("F2") + ")");
         }
     }
 }

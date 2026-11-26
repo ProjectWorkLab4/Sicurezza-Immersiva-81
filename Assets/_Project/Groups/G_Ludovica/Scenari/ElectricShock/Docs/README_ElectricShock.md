@@ -4,6 +4,19 @@ Gruppo **G_Ludovica**. Implementazione della specifica `10_Electric_Shock_LITE_s
 Stato: logica completa, **collegato alla UI comune** (missione 10 nel catalogo, Home → Mission Brief → scenario → Debrief),
 **rig e controlli condivisi** del `main` (`SI81.Input`, `SI81.Rig`, `SI81.Interaction`), alcuni modelli ancora segnaposto.
 
+## Review esterna (26/11/2026): nuovo ordine
+
+1. **Ferma il generatore** (grilletto sulla chiave PB-01).
+2. **Evacua e isola la zona**: grilletto su un collega ("Fermi! Allontanatevi!"), poi **3 barriere** (grip) sui segni gialli del varco DR-03: la parte nord del varco resta un **passaggio** libero (scritta "PASSAGGIO" a terra) per colleghi e PM-2.
+3. **Spegni l'incendio**: la pozza prende fuoco 2 s dopo che la zona è isolata (generatore fermo e varco chiuso); senza varco chiuso parte comunque 40 s dopo l'arresto.
+4. **Porta il collega al sicuro**: grip sul collega e trascinalo nella **ZONA SICURA** verde (SAFE-01, cartello e scritta a terra). Il punto di raccolta dei colleghi (AP-02) ha il cartello "PUNTO DI RACCOLTA".
+
+La UI comune ammette al massimo 4 obiettivi: evacuazione e barriere stanno nello stesso obiettivo; i passi sono nei suggerimenti.
+PM-1 (paramedico sotto shock) è stato tolto. PM-2 arriva dopo la chiamata, entra dal passaggio solo a incendio spento, mette in sicurezza il generatore (circa 4 s) e poi va dal collega nella zona sicura (o dopo 45 s).
+Le barriere posate sono solide per il giocatore e scavano la NavMesh: colleghi e PM-2 passano solo dal passaggio, le barriere non si aprono più.
+Tetto sopra le due stanze (senza ombre). I colleghi al punto di raccolta si girano verso la zona e respirano con un idle più lento e sfasato.
+Nuovo ID di debrief: LG-27 (collega portato nella zona sicura); LG-19 ora vuol dire "collega non portato nella zona sicura".
+
 ## Cartelle
 
 | Percorso | Contenuto |
@@ -46,10 +59,9 @@ Levetta sinistra = cammina (verso lo sguardo) · levetta destra = gira di 45° �
 | --- | --- |
 | PB-01 chiave del generatore | grilletto = gira la chiave, il generatore si ferma |
 | Estintori (rack RK-02) | grilletto = leggi l'etichetta · grip tenuto = in mano · con l'estintore in mano, grilletto tenuto = spruzza · lascia il grip = lo posa |
-| Barriere (rack RK-01) | grip tenuto = in mano · lasciale vicino ai segni gialli sul varco DR-03 (si agganciano) |
+| Barriere (rack RK-01) | grip tenuto = in mano · lasciale sui 3 segni gialli del varco DR-03 (si agganciano), il resto del varco è il passaggio |
 | Radio RD-01 | grilletto = chiama il 112 |
-| Collega VT-01 | grilletto la 1ª volta = coscienza e respiro · grilletto la 2ª volta = posizione · grip tenuto = trascina verso di te · restare entro 2 m per 10 s = "resta con lui" |
-| PM-1 | grilletto tenuto 3 s = ti segue; portalo al cerchio verde SAFE-01 |
+| Collega VT-01 | grip tenuto = trascinalo (seguendo la mano) fino alla ZONA SICURA verde · grilletto = coscienza e respiro, poi posizione |
 | Colleghi BY-01/02/03, PM-2 | grilletto puntando una persona = "Fermi! Allontanatevi!" (vale per tutti entro 15 m) |
 
 Toccare cavo o collega (grilletto o grip) con la corrente presente = folgorazione (errore critico).

@@ -29,7 +29,8 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         private const string ICON = "Assets/_Project/Home/Art/Textures/Icons/ICN_ElectricBolt.png";
         private const string MODELS = "Assets/_Project/Shared/Art/Models/";
         /// <summary>Numero di barriere da 0,75 m (MESH_Magazzino_Barriera) per chiudere i 4 m del varco DR-03.</summary>
-        private const int BARRIER_COUNT = 5;
+        /// <summary>3 barriere da 0,75 m: chiudono la parte sud del varco DR-03 e lasciano libero il passaggio (z 8,4-10).</summary>
+        private const int BARRIER_COUNT = 3;
 
         private static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
 
@@ -218,9 +219,17 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             var safe = Marker("SAFE01_SafePoint", points, 14.5f, 4f, 3f, 3f, "SafeZone", true);
             var assembly = Marker("AP02_AssemblyPoint", points, 3f, 8f, 4f, 4f, "SafeZone", false);
             var victimApproach = Point("PT_VictimApproach", points, 16f, 6.7f);
-            var exit = new[] { Point("PT_Exit_1", points, 14.5f, 6f), Point("PT_Exit_2", points, 13.8f, 8f), Point("PT_Exit_3", points, 12f, 8f), Point("PT_Exit_4", points, 6f, 8f), Point("PT_Exit_5", points, 3f, 8f) };
-            var zoneEntry = new[] { Point("PT_ZoneEntry_1", points, 13.8f, 8f), Point("PT_ZoneEntry_2", points, 14.5f, 6f) };
-            var pm2Path = new[] { Point("PT_PM2_Spawn", points, 1f, 8f), Point("PT_PM2_DR01", points, 6f, 8f), Point("PT_PM2_Gate", points, 12.3f, 8f) };
+            // Colleghi e PM-2 attraversano il varco dal passaggio lasciato libero dalle barriere (z 9,2).
+            var exit = new[] { Point("PT_Exit_1", points, 14.5f, 6f), Point("PT_Exit_2", points, 13.8f, 9.2f), Point("PT_Exit_3", points, 12f, 9.2f), Point("PT_Exit_4", points, 6f, 8f), Point("PT_Exit_5", points, 3f, 8f) };
+            var zoneEntry = new[] { Point("PT_ZoneEntry_1", points, 13.8f, 9.2f), Point("PT_ZoneEntry_2", points, 14.5f, 6f) };
+            var pm2Path = new[] { Point("PT_PM2_Spawn", points, 1f, 8f), Point("PT_PM2_DR01", points, 6f, 8f), Point("PT_PM2_Gate", points, 12.3f, 9.2f) };
+
+            // Segnaletica sempre visibile (tutti i livelli): dove le persone sono al sicuro e dove resta il passaggio.
+            Sign(safe, "SGN_SafeZone", "ZONA SICURA", 14.5f, 5.7f, 0f);
+            FloorText(safe, "TXT_SafeZone", "ZONA SICURA", 14.5f, 4f, new Vector2(20f, 8f));
+            Sign(assembly, "SGN_AssemblyPoint", "PUNTO DI RACCOLTA", 3f, 10.3f, 0f);
+            FloorText(assembly, "TXT_AssemblyPoint", "PUNTO DI\nRACCOLTA", 3f, 8f, new Vector2(10f, 8f));
+            FloorText(points, "TXT_Passage", "PASSAGGIO", 13.6f, 9.2f, new Vector2(20f, 9.2f));
 
             // Generatore, pulsante, cavo
             var hazards = new GameObject("HZD_Hazards").transform;
@@ -385,7 +394,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             };
 
             MarkNotWalkable(Box("PLACEHOLDER_RackBarriersRadio", tools, P(11.8f, 10.6f, 0.45f), new Vector3(0.9f, 0.9f, 1.2f), "Rack", true));
-            // Barriere: 5 pezzi da 0,75 m (MESH_Magazzino_Barriera) in fila vicino al rack, da portare sul varco DR-03.
+            // Barriere: 3 pezzi da 0,75 m (MESH_Magazzino_Barriera) in fila vicino al rack, da portare sul varco DR-03.
             var barriers = new BarrierPanel[BARRIER_COUNT];
             for (int i = 0; i < BARRIER_COUNT; i++)
                 barriers[i] = MakeBarrier(tools, $"BAR{i + 1}_Barrier", P(9.2f + i * 0.8f, 13.3f), 0f);
@@ -404,7 +413,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             SetArray(line, "slots", lineSlots);
             SetArray(line, "barriers", barriers);
             SetArray(line, "slotMarkers", markers);
-            Label(lineRoot.gameObject, LabelKind.ContextHelp, "Varco DR-03", "Grip: porta le barriere sui segni gialli", new Vector3(0f, 1.2f, 0f));
+            Label(lineRoot.gameObject, LabelKind.ContextHelp, "Varco DR-03", "Grip: 3 barriere sui segni gialli, lascia libero il passaggio", new Vector3(0f, 1.2f, 0f));
 
             // Persone
             var people = new GameObject("CHR_People").transform;
@@ -422,23 +431,13 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             victimObstacle.center = new Vector3(0f, 0.17f, 0f);
             victimObstacle.size = new Vector3(1.8f, 0.35f, 0.5f);
             victimObstacle.carving = true;
-            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente. Grilletto: coscienza e respiro, poi posizione", new Vector3(0f, 0.6f, 0f));
+            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente. Grip: trascinalo nella zona sicura verde", new Vector3(0f, 0.6f, 0f));
 
             var by1 = MakeBystander(people, "BY01_Colleague", 14.1f, 4f);
             var by2 = MakeBystander(people, "BY02_Colleague", 15.4f, 4.2f);
             var by3 = MakeBystander(people, "BY03_Colleague", 16.6f, 4.3f);
             AddObservable(by1.gameObject, "people");
 
-            var pm1Root = Root("PM1_ParamedicInShock", people, 22f, 5f);
-            pm1Root.rotation = Quaternion.Euler(0f, 180f, 0f);
-            var pm1Mover = pm1Root.gameObject.AddComponent<NpcMover>();
-            // Paramedico sotto shock a terra (clip Pm1_Hurt); quando lo accompagni si rialza (Pm1_Rescued) e cammina.
-            AddCharacter(pm1Root, pm1Mover, true, "Idle", "ShockLying", 0f);
-            var pm1Collider = pm1Root.gameObject.AddComponent<BoxCollider>();
-            pm1Collider.center = new Vector3(0f, 0.3f, 0f);
-            pm1Collider.size = new Vector3(0.9f, 0.6f, 1.9f);
-            var pm1 = pm1Root.gameObject.AddComponent<ParamedicInShock>();
-            SetInteractable(pm1, "Paramedico sotto shock", null);
 
             var pm2Root = Root("PM2_ArrivingParamedic", people, 1f, 8f);
             var pm2 = pm2Root.gameObject.AddComponent<NpcMover>();
@@ -472,7 +471,7 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             so.FindProperty("victim").objectReferenceValue = victim;
             Assign(so.FindProperty("bystanders"), new Object[] { by1, by2 });
             so.FindProperty("extraBystander").objectReferenceValue = by3;
-            so.FindProperty("paramedicInShock").objectReferenceValue = pm1;
+            so.FindProperty("paramedicGeneratorPoint").objectReferenceValue = Point("PT_PM2_Generator", points, 19.9f, 8.2f);
             so.FindProperty("arrivingParamedic").objectReferenceValue = pm2;
             so.FindProperty("safePoint").objectReferenceValue = safe;
             so.FindProperty("assemblyPoint").objectReferenceValue = assembly;
@@ -610,6 +609,10 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             Wall(env, "West_B", 6f, 10f, 6f, 14f, h, t);
             Wall(env, "Middle_A", 13f, 2f, 13f, 6f, h, t);
             Wall(env, "Middle_B", 13f, 10f, 13f, 14f, h, t);
+
+            // Tetto sopra le due stanze, appoggiato sulle pareti; non proietta ombre, cosi' la luce direzionale illumina l'interno.
+            var roof = Box("ENV_Roof", env, new Vector3(18f, h + 0.05f, 8f), new Vector3(24f + t, 0.1f, 12f + t), "Rack", false);
+            roof.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         /// <summary>Parete tra due punti della mappa.</summary>
@@ -657,6 +660,13 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             root.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
             var model = PlaceModel("MESH_Magazzino_Barriera", root, pos, yaw, 1f, true);
             AddBoundsCollider(root.gameObject, model);
+            // Posata e ferma scava la NavMesh: colleghi e PM-2 calcolano il percorso attorno alle barriere (passaggio libero).
+            var obstacle = root.gameObject.AddComponent<NavMeshObstacle>();
+            obstacle.shape = NavMeshObstacleShape.Box;
+            obstacle.center = new Vector3(0f, 0.35f, 0f);
+            obstacle.size = new Vector3(0.75f, 0.7f, 0.32f);
+            obstacle.carving = true;
+            obstacle.carveOnlyStationary = true;
             var b = root.gameObject.AddComponent<BarrierPanel>();
             SetInteractable(b, "Barriera", null);
             return b;
@@ -724,6 +734,16 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         /// Animator senza controller e CharacterAnimator con la correzione di posizione calcolata per ogni clip
         /// (le clip spostano il corpo rispetto al pivot: qui lo si riporta a terra e centrato sulla radice).
         /// </summary>
+        /// <summary>
+        /// Lavoratore animato (Anim_Folgorazione_Worker con le stesse clip e colori di questo scenario) sotto <paramref name="root"/>:
+        /// usato anche da altri scenari del gruppo (es. i colleghi di Forklift Chaos).
+        /// </summary>
+        public static CharacterAnimator AddWorkerCharacter(Transform root, NpcMover mover, string idleKey, float yaw)
+        {
+            if (!mats.ContainsKey("CharSkin")) BuildMaterials();
+            return AddCharacter(root, mover, false, idleKey, "", yaw);
+        }
+
         private static CharacterAnimator AddCharacter(Transform root, NpcMover mover, bool paramedic, string idleKey, string startKey, float yaw)
         {
             string path = MODELS + CHARACTER_MODEL + ".fbx";
@@ -837,17 +857,18 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
             m.Id = "10";
             m.Title = "Electric Shock";
             m.Context = "Sei un lavoratore del turno. Un collega ha preso la scossa da un generatore portatile ed è a terra, ancora a contatto con il cavo. "
-                + "Vicino c'è un paramedico sotto shock e sotto il generatore c'è una pozza di benzina. Isola la zona e metti tutti in salvo.";
+                + "Sotto il generatore c'è una pozza di benzina. Togli la corrente, isola la zona e porta il collega al sicuro.";
             m.Icon = AssetDatabase.LoadAssetAtPath<Sprite>(ICON);
             m.GradientTop = new Color(0.549f, 0.478f, 0.071f, 1f);
             m.GradientBottom = new Color(0.851f, 0.769f, 0.227f, 1f);
             m.Complexity = 4;
             m.SceneName = "SCN_ElectricShock";
-            m.Objectives = new List<string> { "Isola il generatore", "Spegni l'incendio", "Evacua e isola la zona", "Assisti collega e paramedico" };
+            // Massimo 4 obiettivi (UI comune): evacuazione e barriere stanno nello stesso obiettivo, i passi sono nei suggerimenti.
+            m.Objectives = new List<string> { "Ferma il generatore", "Evacua e isola la zona", "Spegni l'incendio", "Porta il collega al sicuro" };
             m.Criteria = new List<CompletionCriterion>
             {
-                new CompletionCriterion { Outcome = OutcomeType.Positive, Text = "Generatore spento, tutti in salvo" },
-                new CompletionCriterion { Outcome = OutcomeType.Partial, Text = "Generatore spento, zona non isolata" },
+                new CompletionCriterion { Outcome = OutcomeType.Positive, Text = "Corrente tolta, fuoco spento, tutti al sicuro" },
+                new CompletionCriterion { Outcome = OutcomeType.Partial, Text = "Zona aperta o collega non al sicuro" },
                 new CompletionCriterion { Outcome = OutcomeType.Negative, Text = "Persone ferite o estintore errato" }
             };
             m.Levels = new List<MissionLevel>
@@ -1050,6 +1071,52 @@ namespace SI81.Ludovica.ElectricShock.EditorTools
         private static Transform Point(string name, Transform parent, float x, float y) => Root(name, parent, x, y);
 
         /// <summary>Marcatore piatto a terra (zona sicura, punto di raccolta).</summary>
+        /// <summary>Cartello in piedi (palo + pannello verde) con il testo su entrambe le facce.</summary>
+        private static void Sign(Transform parent, string name, string text, float x, float y, float yaw)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.SetPositionAndRotation(P(x, y, 0f), Quaternion.Euler(0f, yaw, 0f));
+            Box("PLACEHOLDER_Post", root, new Vector3(0f, 0.9f, 0f), new Vector3(0.06f, 1.8f, 0.06f), "Rack", false);
+            Box("PLACEHOLDER_Panel", root, new Vector3(0f, 1.95f, 0f), new Vector3(1.3f, 0.36f, 0.03f), "SafeZone", false);
+            for (int side = 0; side < 2; side++)
+            {
+                var t = new GameObject(side == 0 ? "TXT_Front" : "TXT_Back").transform;
+                t.SetParent(root, false);
+                t.localPosition = new Vector3(0f, 1.95f, side == 0 ? -0.02f : 0.02f);
+                t.localRotation = Quaternion.Euler(0f, side == 0 ? 0f : 180f, 0f);
+                var tmp = t.gameObject.AddComponent<TMPro.TextMeshPro>();
+                tmp.text = text;
+                tmp.fontSize = 2f;
+                tmp.fontStyle = TMPro.FontStyles.Bold;
+                tmp.alignment = TMPro.TextAlignmentOptions.Center;
+                tmp.color = Color.white;
+                tmp.enableWordWrapping = false;
+                tmp.rectTransform.sizeDelta = new Vector2(1.25f, 0.34f);
+                tmp.enableAutoSizing = true;
+                tmp.fontSizeMin = 0.5f;
+                tmp.fontSizeMax = 2f;
+            }
+        }
+
+        /// <summary>Scritta a terra leggibile da chi guarda dal punto <paramref name="readerFrom"/> (coordinate della mappa).</summary>
+        private static void FloorText(Transform parent, string name, string text, float x, float y, Vector2 readerFrom)
+        {
+            var t = new GameObject(name).transform;
+            t.SetParent(parent, false);
+            Vector3 away = P(x, y, 0f) - P(readerFrom.x, readerFrom.y, 0f);
+            float yaw = Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg;
+            t.SetPositionAndRotation(P(x, y, 0.02f), Quaternion.Euler(90f, yaw, 0f));
+            var tmp = t.gameObject.AddComponent<TMPro.TextMeshPro>();
+            tmp.text = text;
+            tmp.fontSize = 3f;
+            tmp.fontStyle = TMPro.FontStyles.Bold;
+            tmp.alignment = TMPro.TextAlignmentOptions.Center;
+            tmp.color = new Color(1f, 1f, 1f, 0.9f);
+            tmp.enableWordWrapping = false;
+            tmp.rectTransform.sizeDelta = new Vector2(2.6f, 1.2f);
+        }
+
         private static Transform Marker(string name, Transform parent, float x, float y, float sx, float sy, string mat, bool round)
         {
             var root = Root(name, parent, x, y);

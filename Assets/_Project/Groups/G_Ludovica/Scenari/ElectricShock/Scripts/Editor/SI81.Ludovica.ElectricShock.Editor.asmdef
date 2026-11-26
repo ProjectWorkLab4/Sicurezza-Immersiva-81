@@ -7,7 +7,8 @@
         "SI81.Input",
         "SI81.Interaction",
         "SI81.Rig",
-        "Unity.AI.Navigation"
+        "Unity.AI.Navigation",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

@@ -58,17 +58,32 @@ namespace SI81.Ludovica.ElectricShock
         {
             if (Current == State.Injured || Current == State.Evacuating || Current == State.Evacuated) return;
             Current = State.Evacuating;
+            // Gia' fermato: il prompt "Grilletto: Fermi!" non serve piu'.
+            var prompt = GetComponent<SI81.UI.LabelAnchor>();
+            if (prompt != null) prompt.enabled = false;
             var anim = GetComponent<CharacterAnimator>();
             if (anim != null) anim.SetIdleKey("Idle");
             if (delay > 0f) StartCoroutine(EvacuateAfter(exitPath, delay));
-            else mover.WalkPath(exitPath, 0f, () => Current = State.Evacuated);
+            else mover.WalkPath(exitPath, 0f, OnEvacuated);
+        }
+
+        /// <summary>
+        /// Arrivato al punto di raccolta: si gira verso la zona dell'incidente (come chi aspetta notizie) e respira con un idle
+        /// rallentato e sfasato rispetto agli altri, invece di restare girato verso il muro in sincronia con i colleghi.
+        /// </summary>
+        private void OnEvacuated()
+        {
+            Current = State.Evacuated;
+            transform.rotation = Quaternion.LookRotation(Vector3.right);
+            var anim = GetComponent<CharacterAnimator>();
+            if (anim != null) anim.SetIdleVariation(UnityEngine.Random.Range(0.7f, 0.85f));
         }
 
         /// <summary>Parte dopo l'attesa, se nel frattempo non è stato ferito.</summary>
         private System.Collections.IEnumerator EvacuateAfter(Vector3[] exitPath, float delay)
         {
             yield return new WaitForSeconds(delay);
-            if (Current == State.Evacuating) mover.WalkPath(exitPath, 0f, () => Current = State.Evacuated);
+            if (Current == State.Evacuating) mover.WalkPath(exitPath, 0f, OnEvacuated);
         }
 
         /// <summary>Segna il collega come ferito e lo ferma.</summary>

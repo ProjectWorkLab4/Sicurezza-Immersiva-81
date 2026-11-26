@@ -140,6 +140,38 @@ namespace SI81.Ludovica.ElectricShock.Tests
             ext.StopSpray();
         }
 
+        /// <summary>Ferma il generatore e chiude il varco: la pozza prende fuoco 2 s dopo (nuovo ordine).</summary>
+        public void StopAndIsolate()
+        {
+            Get<EmergencyStopButton>("emergencyStop").Press();
+            CloseBarriers();
+        }
+
+        /// <summary>
+        /// Afferra il collega col grip e cammina all'indietro verso il punto (x, z del mondo) finché il collega non è entro
+        /// <paramref name="radius"/> m; poi lo lascia.
+        /// </summary>
+        public IEnumerator DragVictimTo(Vector3 target, float radius = 1.2f, float maxSeconds = 30f)
+        {
+            var victim = Get<InjuredPerson>("victim");
+            Vector3 v = victim.transform.position;
+            Vector3 dir = new Vector3(target.x - v.x, 0f, target.z - v.z).normalized;
+            // Il giocatore sta davanti al collega, dalla parte della meta, e lo guarda.
+            body.position = new Vector3(v.x, 0f, v.z) + dir * 1.0f;
+            Head.rotation = Quaternion.LookRotation(-dir);
+            yield return null;
+            victim.BeginGrab(Hand.Right);
+            float until = Time.time + maxSeconds;
+            while (Time.time < until)
+            {
+                Vector3 vp = victim.transform.position;
+                if (new Vector2(vp.x - target.x, vp.z - target.z).magnitude <= radius) break;
+                body.position += dir * 0.7f * Time.deltaTime;
+                yield return null;
+            }
+            victim.EndGrab(Hand.Right);
+        }
+
         /// <summary>Esito dell'ultima missione chiusa (dalla sessione della UI comune).</summary>
         public OutcomeType? Outcome => MissionSession.LastResult != null ? MissionSession.LastResult.Outcome : (OutcomeType?)null;
 

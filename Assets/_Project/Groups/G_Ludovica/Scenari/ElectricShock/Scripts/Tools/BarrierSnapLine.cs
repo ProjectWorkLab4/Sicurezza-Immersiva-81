@@ -121,15 +121,29 @@ namespace SI81.Ludovica.ElectricShock
         public bool AllowPass(Vector3 from, Vector3 to)
         {
             if (!IsClosed) return true;
-            Vector3 c = transform.position;
-            bool onLine = Mathf.Abs(to.x - c.x) < 0.5f && Mathf.Abs(to.z - c.z) < passageHalfWidth;
-            if (!onLine) return true;
-            if (passageFullyOpen && Time.time < passageOpenUntil) return true;
-            RequestPassage();
-            return false;
+            // Blocca solo i passi che attraversano una barriera posata: il tratto di varco senza barriere resta un passaggio libero.
+            // Le barriere posate non si aprono piu': gli NPC passano solo dal passaggio libero (la NavMesh e' scavata
+            // dalle barriere, NavMeshObstacle). Un passo che finirebbe su una barriera viene rifiutato.
+            return !OnPlacedPanel(to);
         }
 
         /// <summary>Apre le barriere per qualche secondo (gli NPC autorizzati passano), poi le richiude.</summary>
+        /// <summary>true se il punto cade su una barriera agganciata (lungo la barriera, piu' il raggio di un NPC).</summary>
+        private bool OnPlacedPanel(Vector3 p)
+        {
+            if (occupants == null) return false;
+            for (int i = 0; i < slots.Length && i < occupants.Length; i++)
+            {
+                if (occupants[i] == null || slots[i] == null) continue;
+                Vector3 d = p - slots[i].position;
+                d.y = 0f;
+                float along = Mathf.Abs(Vector3.Dot(d, slots[i].right));
+                float across = Mathf.Abs(Vector3.Dot(d, slots[i].forward));
+                if (along < panelHalfWidth + 0.25f && across < 0.5f) return true;
+            }
+            return false;
+        }
+
         public void RequestPassage()
         {
             if (Time.time < passageOpenUntil) return;

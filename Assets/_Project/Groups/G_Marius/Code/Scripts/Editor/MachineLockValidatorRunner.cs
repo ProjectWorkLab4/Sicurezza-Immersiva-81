@@ -86,11 +86,13 @@ namespace SI81.MachineLock.EditorTools
                 CheckLights(scene, ref errors);
                 CheckLabelAnchors(scene, ref errors);
                 CheckDryPerimeter(scene, ref errors);
+                CheckWalkableFloorContinuity(scene, ref errors);
                 CheckElectricalAndPpeWiring(scene, ref errors);
                 CheckRuntimeComponents(scene, ref errors);
                 CheckParticles(scene, ref errors);
                 CheckAudioClips(ref errors);
                 CheckDamageProfile(ref errors);
+                CheckDamageFeedbackSerialization(scene, ref errors);
             }
             finally
             {
@@ -640,6 +642,85 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error("SO_MachineLockDamageProfile has no Vignette override.");
             if (!hasAdjustments)
                 errors += Error("SO_MachineLockDamageProfile has no Color Adjustments override.");
+        }
+
+        /// <summary>
+        /// Verifies that solid non-trigger floor colliders exist beneath Spawn, the Dry Perimeter
+        /// corridors, and across the open West doorway alcove up to BOUND_WestBackstop so the
+        /// player cannot drop through the floor when walking into a blocked exit.
+        /// </summary>
+        private static void CheckWalkableFloorContinuity(Scene scene, ref int errors)
+        {
+            var floorColliders = new List<Collider>();
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (Collider col in root.GetComponentsInChildren<Collider>(true))
+                {
+                    if (col == null || !col.enabled || col.isTrigger) continue;
+                    Bounds b = col.bounds;
+                    // Floor slabs sit near y = 0 (top surface within [-0.15, +0.15]).
+                    if (b.max.y >= -0.15f && b.max.y <= 0.15f && b.size.x >= 1.0f && b.size.z >= 1.0f)
+                        floorColliders.Add(col);
+                }
+            }
+
+            Vector3[] probePoints =
+            {
+                MachineLockSceneBuilder.SPAWN_POSITION,
+                new Vector3(0f, 0f, MachineLockSceneBuilder.ROOM_HALF_Z - 0.5f),
+                new Vector3(0f, 0f, -(MachineLockSceneBuilder.ROOM_HALF_Z - 0.5f)),
+                new Vector3(MachineLockSceneBuilder.ROOM_HALF_X - 0.5f, 0f, 0f),
+                new Vector3(-MachineLockSceneBuilder.ROOM_HALF_X, 0f, 0f),
+                new Vector3(-(MachineLockSceneBuilder.ROOM_HALF_X + 0.5f), 0f, 0f),
+                new Vector3(-(MachineLockSceneBuilder.ROOM_HALF_X + 1.0f), 0f, 0f)
+            };
+
+            int covered = 0;
+            foreach (Vector3 pt in probePoints)
+            {
+                bool hit = false;
+                foreach (Collider col in floorColliders)
+                {
+                    Bounds b = col.bounds;
+                    if (pt.x >= b.min.x - 0.01f && pt.x <= b.max.x + 0.01f &&
+                        pt.z >= b.min.z - 0.01f && pt.z <= b.max.z + 0.01f)
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (hit) covered++;
+                else errors += Error($"No walkable floor collider covers probe point {pt}.");
+            }
+
+            Debug.Log($"[MachineLockValidator] FloorContinuity Probes={covered}/{probePoints.Length} FloorColliders={floorColliders.Count}");
+        }
+
+        /// <summary>
+        /// Verifies serialized timing and overlay-material wiring on MachineLockDamageFeedback
+        /// (ADR-0003: fadeIn=0.15s, hold=0.5s, fadeOut=1.5s, non-null overlayMaterialAsset).
+        /// </summary>
+        private static void CheckDamageFeedbackSerialization(Scene scene, ref int errors)
+        {
+            GameObject manager = FindRoot(scene, "MNG_Scenario");
+            MachineLockDamageFeedback feedback = manager != null ? manager.GetComponent<MachineLockDamageFeedback>() : null;
+            if (feedback == null)
+            {
+                errors += Error("MachineLockDamageFeedback is missing on MNG_Scenario.");
+                return;
+            }
+
+            var so = new SerializedObject(feedback);
+            float fadeIn = so.FindProperty("fadeInSeconds").floatValue;
+            float hold = so.FindProperty("holdSeconds").floatValue;
+            float fadeOut = so.FindProperty("fadeOutSeconds").floatValue;
+            UnityEngine.Object overlayMat = so.FindProperty("overlayMaterialAsset").objectReferenceValue;
+
+            Debug.Log($"[MachineLockValidator] DamageFeedback FadeIn={fadeIn:0.00}s Hold={hold:0.00}s FadeOut={fadeOut:0.00}s OverlayMat={(overlayMat != null ? overlayMat.name : "NULL")}");
+            if (overlayMat == null)
+                errors += Error("MachineLockDamageFeedback.overlayMaterialAsset is not assigned.");
+            if (Mathf.Abs(fadeIn - 0.15f) > 0.02f || Mathf.Abs(hold - 0.50f) > 0.05f || Mathf.Abs(fadeOut - 1.50f) > 0.05f)
+                errors += Error($"MachineLockDamageFeedback timings ({fadeIn}/{hold}/{fadeOut}) diverge from spec (0.15/0.50/1.50).");
         }
 
         private static int CountInScene<T>(Scene scene) where T : Component

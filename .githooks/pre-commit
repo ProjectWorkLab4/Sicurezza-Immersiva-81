@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if command -v pwsh >/dev/null 2>&1; then
+  exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$REPO_ROOT/scripts/check-hygiene.ps1" -StagedOnly
+elif command -v powershell.exe >/dev/null 2>&1; then
+  exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$REPO_ROOT/scripts/check-hygiene.ps1" -StagedOnly
+elif command -v powershell >/dev/null 2>&1; then
+  exec powershell -NoProfile -ExecutionPolicy Bypass -File "$REPO_ROOT/scripts/check-hygiene.ps1" -StagedOnly
+fi
+
+# POSIX fallback when PowerShell is unavailable (e.g. Linux/macOS without pwsh)
+if git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json >/dev/null 2>&1; then
+  echo "[SI81 Hygiene] FAILED: collab-proxy found in Packages/." >&2
+  exit 1
+fi
+
+if git grep -n -E '\b(OVRInput|XRGrabInteractable|XRRayInteractable|XRInteractionManager)\b|UnityEngine\.XR\.Interaction' -- 'Assets/_Project/Groups/*/Code/Scripts/' >/dev/null 2>&1; then
+  echo "[SI81 Hygiene] FAILED: banned VR API found in scenario scripts." >&2
+  exit 1
+fi
+
+echo "[SI81 Hygiene] PASS (POSIX fallback)"

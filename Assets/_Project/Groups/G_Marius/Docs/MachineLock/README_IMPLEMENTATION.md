@@ -252,73 +252,13 @@ Interaction pattern for every selectable object: `Interactable` raises select or
 grab; the component calls `MachineLockScenario.Notify*`. No component polls
 input and no component raycasts.
 
-### 5.4 World labels — 11 `LabelAnchor`s, 3 Risk (ADR-0002)
+### 5.4 World labels, Audio & VFX contracts
 
-The validator enforces 11 sparse anchors and at most 3 `LabelKind.Risk`
-(GDD §8.4, `MachineLockValidatorRunner.CheckLabelAnchors`). Electrical panel
-sub-controls are collapsed to one overhead anchor and identified locally via
-flush multi-line Diegetic Plaques (`TEX_Plaque_*`) and live-state hover Action
-Feedback.
+Authoritative inventories live in [`GDD_MachineLock.md`](GDD_MachineLock.md) and [`ASSET_CREDITS.md`](ASSET_CREDITS.md) (single source of truth):
 
-| # | Owner object | Kind | Title |
-|---:|---|---|---|
-| 1 | `MESH_HydraulicPress` | `Risk` | `Pressa in moto` |
-| 2 | Thermometer | `Risk` | `Olio a 120 °C` |
-| 3 | `VFX_OilPuddle` | `Risk` | `Pozza d'olio bollente` |
-| 4 | `ZONE_Exit` / door | `Interaction` | `Uscita` |
-| 5 | E-stop pedestal | `ContextHelp` | `Fungo di emergenza` |
-| 6 | Electrical bay (collapsed) | `ContextHelp` | `Quadro elettrico (LOTO)` |
-| 7 | PPE cabinet | `ContextHelp` | `Armadio DPI` |
-| 8 | Alarm button | `ContextHelp` | `Allarme reparto` |
-| 9 | Valve | `ContextHelp` | `Valvola olio` |
-| 10 | Spill kit | `ContextHelp` | `Kit antispandimento` |
-| 11 | Water extinguisher | `ContextHelp` | `Estintore ad acqua` |
-
-### 5.5 Audio — 16 `SFX_` clips
-
-Clips live in `Audio/Sound/MachineLock/` except the ambient loop in
-`Audio/Music/MachineLock/`. Keep the `SFX_` names; placeholders are CC0 or
-synthesized until final audio arrives.
-
-| # | Clip | Type | Emitter / trigger |
-|---:|---|---|---|
-| 1 | `SFX_PressLoop` | Loop | `MachineLockPress.loopAudio` while running |
-| 2 | `SFX_PressStop` | One-shot | `MachineLockPress.stopClip` on E-stop |
-| 3 | `SFX_EStopClack` | One-shot | `MachineLockPress.clackClip` on E-stop |
-| 4 | `SFX_AlarmButton` | One-shot | `MachineLockAlarm.buttonClip` |
-| 5 | `SFX_AlarmSiren` | Loop | `MachineLockAlarm.sirenAudio` |
-| 6 | `SFX_BreakerOff` | One-shot | `MachineLockEnergyPanel.breakerOffClip` |
-| 7 | `SFX_Lockout` | One-shot | `MachineLockEnergyPanel.lockoutClip` |
-| 8 | `SFX_TesterBeep` | One-shot | `MachineLockEnergyPanel.testerBeepClip` |
-| 9 | `SFX_OilLeak` | Loop | `MachineLockSpillSystem.oilLeakAudio` |
-| 10 | `SFX_ValveTurn` | One-shot | `MachineLockValve.squeakClip` |
-| 11 | `SFX_EquipPpe` | One-shot | `MachineLockPpeCabinet.equipClip` |
-| 12 | `SFX_Snap` | One-shot | Cone and absorbent `snapClip` |
-| 13 | `SFX_SteamBurst` | One-shot | `MachineLockExtinguisher.steamBurstClip` |
-| 14 | `SFX_Shock` | One-shot | `MachineLockDamageFeedback.shockClip` |
-| 15 | `SFX_Burn` | One-shot | `MachineLockDamageFeedback.burnClip` |
-| 16 | `SFX_AmbientFactory` | Loop | `MNG_Audio` room tone |
-
-Sound events with subtitles: alarm siren, steam burst, electric shock
-(`MachineLockTexts.SoundAlarmSiren`, `SoundSteamBurst`, `SoundShock`).
-
-### 5.6 Visual effects — 10 `VFX_` systems
-
-| # | System | Owner | Trigger |
-|---:|---|---|---|
-| 1 | `VFX_OilJet` | `HAZARD_Oil` — `MachineLockSpillSystem.oilJetVfx` | Start, off when the valve closes |
-| 2 | `VFX_OilPuddle` | `HAZARD_Oil` | Start; four glossy quadrant meshes |
-| 3 | `VFX_Steam` | Over the hot oil | Always, stronger after the water extinguisher |
-| 4 | `VFX_Smoke` | `HAZARD_Oil` | Inaction stages at 90 s and 150 s |
-| 5 | `VFX_ElectricalArc` | `MachineLockEnergyPanel.arcVfx` | Live oil contact / tester LIVE |
-| 6 | `VFX_AlarmBeacon` | `MESH_AlarmButton` | Alarm raised: light, rotor, emissive dome |
-| 7 | `VFX_DisplayFault` | Press display | Press running; off when panel opens |
-| 8 | `VFX_WaterSpray` | `MachineLockExtinguisher.waterSprayVfx` | Water extinguisher used |
-| 9 | `VFX_SnapGhost` | `MachineLockSnapZone.ghostVisual` | Holding a valid item near a free zone |
-| 10 | `VFX_DamageVignette` | `MachineLockDamageFeedback.damageVolume` | Critical event; fallback light if URP is not visible |
-
-Budget: ≤ 200 particles per system, ≤ 4 active systems, no per-frame
-allocations.
+- **World labels (`LabelAnchor`, ADR-0002):** 11 sparse anchors, max 3 `LabelKind.Risk` (Press, Thermometer, Puddle), electrical bay collapsed to 1 overhead anchor + 21 flush Diegetic Plaques (`TEX_Plaque_*`) and live-state hover Action Feedback. Full table in [`GDD_MachineLock.md`](GDD_MachineLock.md) §8.4.
+- **Audio (`SFX_*`):** 16 authentic 44.1 kHz mono WAV clips (`Audio/Sound/MachineLock/` + `SFX_AmbientFactory.wav` in `Audio/Music/MachineLock/`); sound-event subtitles on alarm siren, steam burst, and electric shock (`MachineLockTexts.Sound*`). Full attribution and triggers in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.5 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.1.
+- **Visual effects (`VFX_*`):** 10 systems (`VFX_OilJet`, `VFX_OilPuddle`, `VFX_Steam`, `VFX_Smoke`, `VFX_ElectricalArc`, `VFX_AlarmBeacon`, `VFX_DisplayFault`, `VFX_WaterSpray`, `VFX_BaselineMarker`/`VFX_SnapGhost`, `VFX_DamageVignette` + `MAT_DamageOverlay`) + overhead `MESH_ExitBeacon`. Budget enforced by validator: ≤ 200 particles/system, ≤ 4 play-on-awake systems. Full list in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.6 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.2.
 
 ### 5.7 Data assets
 
@@ -449,44 +389,22 @@ evidence is attached to the issue. The full work breakdown is in GDD §15.
 Run every command from the repository root. `Unity.exe` below is a placeholder
 for the local `6000.3.14f1` editor binary; substitute the absolute path.
 
-### 8.1 CLI — build, validator and tests
+### 8.1 CLI — build, validator, tests, previews, and deploy
+
+Use the repo wrapper [`scripts/unity-run.ps1`](../../../../../../scripts/unity-run.ps1) from the repository root (resolves Unity `6000.3.14f1` and ADB automatically, omits `-nographics` on Windows OpenXR PlayMode/preview/APK runs, and restores URP auto-touched Shared materials):
 
 ```powershell
-# Rebuild textures, materials, signs, prefabs, config, mission data and the scene.
-Unity.exe -batchmode -quit -projectPath <repo> `
-  -executeMethod SI81.MachineLock.EditorTools.MachineLockSceneBuilder.BuildFullScene `
-  -logFile Logs/machine-lock-build.log
-
-# Scenario validator. Exits 0 only on zero errors and zero warnings.
-Unity.exe -batchmode -quit -projectPath <repo> `
-  -executeMethod SI81.MachineLock.EditorTools.MachineLockValidatorRunner.ValidateScene `
-  -logFile Logs/machine-lock-validator.log
-
-# Editor score checks (40 assertions).
-Unity.exe -batchmode -nographics -quit -projectPath <repo> `
-  -executeMethod SI81.MachineLock.EditorTools.MachineLockDebugMenu.RunScoreTests `
-  -logFile Logs/machine-lock-debugmenu.log
-
-# EditMode SPI tests (34 tests).
-Unity.exe -batchmode -nographics -projectPath <repo> -runTests -testPlatform EditMode `
-  -testFilter SI81.MachineLock.Tests `
-  -testResults Logs/machine-lock-editmode-tests.xml `
-  -logFile Logs/machine-lock-editmode-tests.log
-
-# PlayMode integration tests (20 tests). Omit -nographics: on Windows machines
-# with Meta Horizon OpenXR runtime installed, -nographics causes
-# xrCreateSession: XR_ERROR_GRAPHICS_DEVICE_INVALID during XR startup.
-Unity.exe -batchmode -projectPath <repo> -runTests -testPlatform PlayMode `
-  -assemblyNames SI81.MachineLock.PlayModeTests `
-  -testResults Logs/machine-lock-playmode-tests.xml `
-  -logFile Logs/machine-lock-playmode-tests.log
-
-# Shared rig regression (25 tests), required before merging any scenario branch.
-# Omit -nographics for the same OpenXR initialization reason above.
-Unity.exe -batchmode -projectPath <repo> -runTests -testPlatform PlayMode `
-  -testFilter SI81.Rig.Tests `
-  -testResults Logs/rig-tests.xml `
-  -logFile Logs/rig-tests.log
+.\scripts\unity-run.ps1 hygiene         # Git-only, banned API, .meta, protected path checks
+.\scripts\unity-run.ps1 build-scene     # Rebuild textures, materials, plaques, prefabs, SCN_MachineLock
+.\scripts\unity-run.ps1 validate        # Validator (Errors=0 Warnings=0, FloorContinuity, 14/14 ASTC)
+.\scripts\unity-run.ps1 score-tests     # Editor score checks (40 assertions)
+.\scripts\unity-run.ps1 editmode        # EditMode SPI tests (37 tests)
+.\scripts\unity-run.ps1 playmode        # PlayMode integration tests (27 tests, no -nographics)
+.\scripts\unity-run.ps1 rig-tests       # Shared rig regression (25 tests, no -nographics)
+.\scripts\unity-run.ps1 inspect-scene   # Triangle budget top-25 & building shell bounds
+.\scripts\unity-run.ps1 capture-views   # Render 6 offscreen 1280x720 preview PNGs to Logs/previews/
+.\scripts\unity-run.ps1 build-apk       # Build Builds/SI81_MachineLock_Quest3.apk
+.\scripts\unity-run.ps1 deploy-apk      # ADB install to connected Quest 3
 ```
 
 What the validator log must contain (`[MachineLockValidator]` lines):

@@ -46,6 +46,8 @@ namespace SI81.MachineLock
         PpeFull,
         /// <summary>Four cones and four absorbents placed (containment complete).</summary>
         ContainmentComplete,
+        /// <summary>Leak valve closed. No score: only one good-practice debrief line (GDD §9.7).</summary>
+        ValveClosed,
         /// <summary>Player left the room and reported to the supervisor.</summary>
         Exit,
         /// <summary>Player approached the puddle danger zone before the E-stop.</summary>
@@ -98,6 +100,8 @@ namespace SI81.MachineLock
         GoodPpe,
         /// <summary>Spill delimited and contained.</summary>
         GoodContainment,
+        /// <summary>Leak valve closed before the handover (good practice, no score).</summary>
+        GoodValveClosed,
         /// <summary>Hot oil burn.</summary>
         CriticalHotOil,
         /// <summary>Live oil shock.</summary>
@@ -224,12 +228,14 @@ namespace SI81.MachineLock
             public DebriefLineId Id;
             public bool Good;
             public bool Critical;
+            public int Priority;
         }
 
         private readonly MachineLockSpiOptions options;
         private readonly List<DebriefEntry> debrief = new List<DebriefEntry>();
         private readonly HashSet<DebriefLineId> addedLines = new HashSet<DebriefLineId>();
         private readonly HashSet<string> observedIds = new HashSet<string>();
+        private readonly HashSet<SpiEvent> appliedPenaltyEvents = new HashSet<SpiEvent>();
 
         private bool taskEStop;
         private bool taskAlarm;
@@ -371,7 +377,8 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Applies a scoring event. Safe to call twice: rewards and debrief lines are added once per run.
+        /// Applies a scoring event. Safe to call twice: rewards, handover penalties and debrief lines
+        /// are added once per run, and repeated calls after the mission end cannot double-count.
         /// </summary>
         /// <param name="evt">Event to apply.</param>
         public void ApplyEvent(SpiEvent evt)
@@ -436,6 +443,10 @@ namespace SI81.MachineLock
                     AddExecution(options.ExecutionExit);
                     break;
 
+                case SpiEvent.ValveClosed:
+                    AddLine(DebriefLineId.GoodValveClosed, true, false, 0);
+                    break;
+
                 case SpiEvent.ApproachBeforeEStop:
                     if (approachBeforeEStopApplied) return;
                     approachBeforeEStopApplied = true;
@@ -449,26 +460,31 @@ namespace SI81.MachineLock
                     break;
 
                 case SpiEvent.MissingAlarm:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingAlarm)) return;
                     AddDecision(-options.MissingAlarmPenalty);
                     AddLine(DebriefLineId.BadMissingAlarm, false, false);
                     break;
 
                 case SpiEvent.MissingMainOff:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingMainOff)) return;
                     AddDecision(-options.MissingMainPenalty);
                     AddLine(DebriefLineId.BadMissingIsolation, false, false);
                     break;
 
                 case SpiEvent.MissingLockout:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingLockout)) return;
                     AddDecision(-options.MissingLockoutPenalty);
                     AddLine(DebriefLineId.BadMissingIsolation, false, false);
                     break;
 
                 case SpiEvent.MissingCones:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingCones)) return;
                     AddDecision(-options.MissingConesPenalty);
                     AddLine(DebriefLineId.BadMissingContainment, false, false);
                     break;
 
                 case SpiEvent.MissingAbsorbents:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.MissingAbsorbents)) return;
                     AddDecision(-options.MissingContainmentPenalty);
                     AddLine(DebriefLineId.BadMissingContainment, false, false);
                     break;
@@ -482,6 +498,7 @@ namespace SI81.MachineLock
                     break;
 
                 case SpiEvent.InactionBadEnding:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.InactionBadEnding)) return;
                     AddDecision(-options.CriticalDecisionPenalty);
                     AddLine(DebriefLineId.CriticalInaction, false, true);
                     CriticalOccurred = true;
@@ -578,8 +595,9 @@ namespace SI81.MachineLock
 
         /// <summary>
         /// Builds the capped debrief list: at most five positive rows and at most four error rows,
-        /// critical rows first. The score already includes every applied penalty; only the visible
-        /// rows are trimmed.
+        /// critical rows first. Entries are kept in chronological order; the trim drops the latest
+        /// entries, never the earlier critical ones. The score already includes every applied penalty;
+        /// only the visible rows are trimmed.
         /// </summary>
         /// <param name="resolve">Maps an id to its Italian text, without prefix.</param>
         /// <returns>Lines with the shared prefix ("+ ", "- ", "! ").</returns>
@@ -597,9 +615,9 @@ namespace SI81.MachineLock
                 else bad.Add(entry);
             }
 
-            if (good.Count > MAX_GOOD_LINES) good.RemoveRange(MAX_GOOD_LINES, good.Count - MAX_GOOD_LINES);
+            if (good.Count > MAX_GOOD_LINES) TrimGoodLines(good);
             if (critical.Count > MAX_ERROR_LINES)
-                critical.RemoveRange(0, critical.Count - MAX_ERROR_LINES);
+                critical.RemoveRange(MAX_ERROR_LINES, critical.Count - MAX_ERROR_LINES);
             int badBudget = MAX_ERROR_LINES - critical.Count;
             if (bad.Count > badBudget) bad.RemoveRange(badBudget, bad.Count - badBudget);
 
@@ -617,6 +635,28 @@ namespace SI81.MachineLock
                 string text = resolve(entry.Id);
                 if (string.IsNullOrEmpty(text)) continue;
                 target.Add(prefix + text);
+            }
+        }
+
+        /// <summary>
+        /// Trims the good rows to the cap, dropping the lowest-priority rows first. The five core
+        /// good-practice rows (E-stop and alarm, isolation, zero energy, PPE, containment) therefore
+        /// always survive when the optional closed-valve row does not fit in the cap.
+        /// </summary>
+        /// <param name="good">Chronological good rows to trim in place.</param>
+        private static void TrimGoodLines(List<DebriefEntry> good)
+        {
+            while (good.Count > MAX_GOOD_LINES)
+            {
+                int target = good.Count - 1;
+                int lowest = good[target].Priority;
+                for (int i = good.Count - 1; i >= 0; i--)
+                {
+                    if (good[i].Priority >= lowest) continue;
+                    lowest = good[i].Priority;
+                    target = i;
+                }
+                good.RemoveAt(target);
             }
         }
 
@@ -657,10 +697,10 @@ namespace SI81.MachineLock
             Execution = Clamp(Execution + delta, 0, EXECUTION_MAX);
         }
 
-        private void AddLine(DebriefLineId id, bool good, bool critical)
+        private void AddLine(DebriefLineId id, bool good, bool critical, int priority = 1)
         {
             if (!addedLines.Add(id)) return;
-            debrief.Add(new DebriefEntry { Id = id, Good = good, Critical = critical });
+            debrief.Add(new DebriefEntry { Id = id, Good = good, Critical = critical, Priority = priority });
         }
 
         private static int Normalize(float value, float max)

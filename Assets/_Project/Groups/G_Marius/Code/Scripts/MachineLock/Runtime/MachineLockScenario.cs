@@ -1,4 +1,5 @@
 using System.Collections;
+using SI81.Rig;
 using SI81.UI;
 using UnityEngine;
 
@@ -32,9 +33,10 @@ namespace SI81.MachineLock
 
     /// <summary>
     /// Orchestrator of the Machine Lock scenario. Lives on MNG_Scenario in SCN_MachineLock.
-    /// It owns the task flags, the derived macro-objectives, the HUD texts, the SPI and the single
-    /// EndMission call. Content components (press, panel, PPE, spill, observation) report through the
-    /// Notify methods; every method is null-safe and idempotent and ignores calls after the end.
+    /// It owns the task flags, the derived macro-objectives, the HUD texts, the SPI, the randomised
+    /// layout, the inaction timer and the single EndMission call. Content components (press, panel, PPE,
+    /// spill, observation) report through the Notify methods; every method is null-safe and idempotent
+    /// and ignores calls after the end.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Scenario")]
@@ -43,9 +45,64 @@ namespace SI81.MachineLock
         /// <summary>Number of derived macro-objectives (one per mission objective).</summary>
         public const int MACRO_COUNT = 4;
 
+        /// <summary>Footprint the puddle quadrant meshes were authored for (GDD §7.6).</summary>
+        private const float PUDDLE_BASE_WIDTH = 7f;
+        /// <summary>Depth the puddle quadrant meshes were authored for (GDD §7.6).</summary>
+        private const float PUDDLE_BASE_LENGTH = 5f;
+        /// <summary>Smoke emission rate of inaction stage 1, in particles per second.</summary>
+        private const float SMOKE_STAGE1_RATE = 25f;
+        /// <summary>Smoke emission rate of inaction stage 2, in particles per second.</summary>
+        private const float SMOKE_STAGE2_RATE = 60f;
+        /// <summary>Seconds each subtitle stays on screen.</summary>
+        private const float LINE_SECONDS = 2.5f;
+
         [Header("Machine Lock")]
         [Tooltip("Tunable Machine Lock values (SO_MachineLockConfig).")]
         [SerializeField] private MachineLockConfig config;
+
+        [Header("Scene wiring")]
+        [Tooltip("Player spawn point used by the Guided respawn after a critical contact.")]
+        [SerializeField] private Transform spawnPointTransform;
+        [Tooltip("Hydraulic press of ENV_Press.")]
+        [SerializeField] private MachineLockPress press;
+        [Tooltip("Department alarm of ENV_Safety.")]
+        [SerializeField] private MachineLockAlarm alarm;
+        [Tooltip("Electrical panel of ENV_Safety.")]
+        [SerializeField] private MachineLockEnergyPanel energyPanel;
+        [Tooltip("PPE cabinet of ENV_Safety.")]
+        [SerializeField] private MachineLockPpeCabinet ppeCabinet;
+        [Tooltip("Hot oil spill system of HAZARD_Oil.")]
+        [SerializeField] private MachineLockSpillSystem spillSystem;
+        [Tooltip("Water extinguisher of ENV_Safety.")]
+        [SerializeField] private MachineLockExtinguisher extinguisher;
+        [Tooltip("Damage feedback (URP vignette plus fallback) of MNG_Scenario.")]
+        [SerializeField] private MachineLockDamageFeedback damageFeedback;
+
+        [Header("Layout patterns (GDD §7.6)")]
+        [Tooltip("Three prop layouts under MNG_LayoutPatterns: PATTERN_A, PATTERN_B, PATTERN_C.")]
+        [SerializeField] private Transform[] layoutPatterns = new Transform[3];
+        [Tooltip("Three puddle footprints under HAZARD_Oil: PATTERN_PuddleA, PATTERN_PuddleB, PATTERN_PuddleC.")]
+        [SerializeField] private Transform[] puddlePatterns = new Transform[3];
+
+        [Header("Moved scene roots")]
+        [Tooltip("PPE cabinet root moved by the layout pattern.")]
+        [SerializeField] private Transform ppeCabinetTransform;
+        [Tooltip("Spill kit root moved by the layout pattern.")]
+        [SerializeField] private Transform spillKitTransform;
+        [Tooltip("Water extinguisher root moved by the layout pattern.")]
+        [SerializeField] private Transform extinguisherTransform;
+        [Tooltip("OBS_PpeCabinet target, kept above the cabinet whatever the layout.")]
+        [SerializeField] private Transform obsPpeCabinetTransform;
+        [Tooltip("VFX_OilPuddle root scaled by the selected puddle pattern.")]
+        [SerializeField] private Transform puddleVisualRoot;
+
+        [Header("VFX and audio")]
+        [Tooltip("Inaction smoke above the press.")]
+        [SerializeField] private ParticleSystem smokeVfx;
+        [Tooltip("Steam over the hot oil puddle.")]
+        [SerializeField] private ParticleSystem steamVfx;
+        [Tooltip("Looping factory room tone of MNG_Audio.")]
+        [SerializeField] private AudioSource ambientAudio;
 
         private MachineLockSpi spi;
         private MachineLockState state = MachineLockState.Intro;
@@ -57,11 +114,16 @@ namespace SI81.MachineLock
         private bool valveClosed;
         private bool actionStarted;
         private Coroutine playingLines;
+        private Coroutine respawnRoutine;
+        private int forcedPatternIndex = -1;
+        private DifficultyLevel? forcedLevel;
 
         /// <summary>Current high-level state.</summary>
         public MachineLockState State => state;
         /// <summary>SPI of the current run; null before the scenario starts.</summary>
         public MachineLockSpi Spi => spi;
+        /// <summary>Config in use, resolved to the GDD defaults when the asset is missing.</summary>
+        public MachineLockConfig Config => ResolveConfig();
         /// <summary>true after <see cref="EndMissionOnce"/>.</summary>
         public bool HasEnded => ended;
         /// <summary>Task flag: E-stop pressed.</summary>
@@ -94,23 +156,45 @@ namespace SI81.MachineLock
         public int ObservedTargets => spi != null ? spi.ObservedTargets : 0;
         /// <summary>Index of the current derived macro-objective, 0 to 4.</summary>
         public int CurrentMacroObjective => currentMacro;
+        /// <summary>
+        /// Number of completed macro-objectives, 0 to <see cref="MACRO_COUNT"/>. Mirrors the derived macro
+        /// list even when the shared controller has not finished its HUD wait, which keeps the mission
+        /// state readable in tests.
+        /// </summary>
+        public new int ObjectivesCompleted => currentMacro;
+        /// <summary>Index of the applied layout pattern, 0 to 2; -1 before the first application.</summary>
+        public int ActivePatternIndex { get; private set; } = -1;
+        /// <summary>Seconds the press kept running without an E-stop (inaction timer, GDD §9.12).</summary>
+        public float InactionElapsedSeconds { get; private set; }
+        /// <summary>Smoke stage reached by the inaction timer: 0 none, 1 stage 1, 2 stage 2.</summary>
+        public int SmokeStage { get; private set; }
+
+        /// <summary>Level used by the run: the forced test level, or the session level.</summary>
+        private DifficultyLevel EffectiveLevel => forcedLevel ?? Level;
 
         /// <summary>
-        /// Starts the scenario: creates the SPI, sets the scan phase, plays the intro subtitles and
-        /// shows the first hint. Called by the base controller once the HUD is ready.
+        /// Starts the scenario: creates the SPI, applies the layout pattern, starts the room tone, sets the
+        /// scan phase, plays the intro subtitles and shows the first hint.
+        /// Called by the base controller once the HUD is ready.
         /// </summary>
         protected override void OnScenarioStarted()
         {
             ended = false;
             state = MachineLockState.Intro;
             currentMacro = 0;
-            spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(Level));
+            InactionElapsedSeconds = 0f;
+            SmokeStage = 0;
+            spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(EffectiveLevel));
             spi.SetElapsed(0f);
+
+            int pattern = forcedPatternIndex >= 0 ? forcedPatternIndex : UnityEngine.Random.Range(0, 3);
+            ApplyLayoutPattern(pattern);
+            StartAmbientAudio();
 
             SetPhase(PHASE_SCAN);
             SetHint(string.Format(MachineLockTexts.HintStartFormat, 0));
             RefreshObjectives();
-            PlayLines(MachineLockTexts.Intro1, MachineLockTexts.Intro2);
+            PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Intro1, MachineLockTexts.Intro2);
         }
 
         /// <summary>
@@ -120,7 +204,7 @@ namespace SI81.MachineLock
         protected override void OnTimerExpired()
         {
             if (ended) return;
-            if (Level == DifficultyLevel.Guided) return;
+            if (EffectiveLevel == DifficultyLevel.Guided) return;
             if (spi != null)
             {
                 spi.SetElapsed(ElapsedSeconds);
@@ -130,21 +214,33 @@ namespace SI81.MachineLock
             EndMissionOnce(EvaluateTimeoutOutcome());
         }
 
+        /// <summary>
+        /// Drives the inaction timer while the press keeps running (GDD §9.12). The timer is stopped by
+        /// any E-stop; it is independent of the level time limit.
+        /// </summary>
+        private void Update()
+        {
+            if (!IsRunning || ended || TaskEStop) return;
+            AdvanceInaction(Time.deltaTime);
+        }
+
         // =====================================================================
         // Task events (GDD §10.5)
         // =====================================================================
 
         /// <summary>
         /// E-stop pressed. Stops motion only: the display stays on and energy is not isolated.
+        /// Cancels the inaction timer and clears the smoke.
         /// </summary>
         public void NotifyEStopPressed()
         {
             if (ended || TaskEStop) return;
             TaskEStop = true;
             actionStarted = true;
+            CancelInaction();
             Apply(SpiEvent.EStop);
             SetPhase(PHASE_ACTION);
-            PlayLines(MachineLockTexts.EStop, MachineLockTexts.EStop2);
+            PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.EStop, MachineLockTexts.EStop2);
             SetHint(MachineLockTexts.HintAlarm);
             RefreshObjectives();
         }
@@ -158,7 +254,7 @@ namespace SI81.MachineLock
             TaskAlarm = true;
             actionStarted = true;
             Apply(SpiEvent.Alarm);
-            PlayLines(MachineLockTexts.Alarm, MachineLockTexts.Alarm2);
+            PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Alarm, MachineLockTexts.Alarm2);
             SetHint(MachineLockTexts.HintMainPower);
             RefreshObjectives();
         }
@@ -172,7 +268,7 @@ namespace SI81.MachineLock
             TaskMainOff = true;
             actionStarted = true;
             Apply(SpiEvent.MainOff);
-            PlayLines(MachineLockTexts.Panel, MachineLockTexts.Panel2);
+            PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Panel, MachineLockTexts.Panel2);
             SetHint(MachineLockTexts.HintLockout);
             RefreshObjectives();
         }
@@ -186,7 +282,7 @@ namespace SI81.MachineLock
             TaskLockout = true;
             actionStarted = true;
             Apply(SpiEvent.Lockout);
-            PlayLines(MachineLockTexts.Lockout, MachineLockTexts.Lockout2);
+            PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Lockout, MachineLockTexts.Lockout2);
             SetHint(MachineLockTexts.HintTester);
             RefreshObjectives();
         }
@@ -197,17 +293,32 @@ namespace SI81.MachineLock
         /// <param name="zero">true when the reading is ZERO.</param>
         public void NotifyTesterRead(bool zero)
         {
+            NotifyTesterRead(zero, null);
+        }
+
+        /// <summary>
+        /// Voltage tester read with the exact display readout (GDD §9.4). The HUD alert reports the same
+        /// text the tester shows, so LIVE and ZERO are never ambiguous.
+        /// </summary>
+        /// <param name="zero">true when the reading is ZERO.</param>
+        /// <param name="readout">Exact tester readout; null or empty falls back to the generic text.</param>
+        public void NotifyTesterRead(bool zero, string readout)
+        {
             if (ended) return;
             if (!zero)
             {
-                Alert(MachineLockTexts.TesterLive + "\n" + MachineLockTexts.TesterLive2);
+                string live = !string.IsNullOrEmpty(readout)
+                    ? readout + "\n" + MachineLockTexts.TesterLive2
+                    : MachineLockTexts.TesterLive + "\n" + MachineLockTexts.TesterLive2;
+                Alert(live);
                 return;
             }
+
             if (TaskTesterZero) return;
             TaskTesterZero = true;
             actionStarted = true;
             Apply(SpiEvent.TesterZero);
-            Alert(MachineLockTexts.TesterZero);
+            Alert(!string.IsNullOrEmpty(readout) ? readout : MachineLockTexts.TesterZero);
             SetHint(MachineLockTexts.HintTryStart);
             RefreshObjectives();
         }
@@ -266,7 +377,9 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// An absorbent mat or sock snapped to a coverage zone.
+        /// An absorbent mat or sock snapped to a coverage zone. The Mat/Sock feedback is emitted once by
+        /// <see cref="MachineLockSpillSystem.RegisterAbsorbent"/>; this method only updates the counters
+        /// and the containment hint.
         /// </summary>
         /// <param name="count">Total number of placed absorbents, 0 to 4.</param>
         public void NotifyAbsorbentPlaced(int count)
@@ -274,25 +387,25 @@ namespace SI81.MachineLock
             if (ended) return;
             absorbentsPlaced = Mathf.Clamp(Mathf.Max(absorbentsPlaced, count), 0, 4);
             actionStarted = true;
-            Feedback(string.Format(MachineLockTexts.HintContainmentPartialFormat, conesPlaced, absorbentsPlaced), FeedbackKind.Positive);
             UpdateContainment();
         }
 
         /// <summary>
-        /// Leak valve closed. No score, but a good-practice debrief line.
+        /// Leak valve closed. No score, but a good-practice debrief line (GDD §9.7).
         /// </summary>
         public void NotifyValveClosed()
         {
             if (ended || valveClosed) return;
             valveClosed = true;
             actionStarted = true;
+            Apply(SpiEvent.ValveClosed);
             Feedback(MachineLockTexts.Valve, FeedbackKind.Positive);
         }
 
         /// <summary>
         /// An observation target was looked at long enough. Each distinct id scores once.
         /// </summary>
-        /// <param name="id">Stable target identifier (press, thermometer, display, puddle, panel, ppe).</param>
+        /// <param name="id">Stable target identifier (press, thermometer, display, puddle, panel, ppe_cabinet).</param>
         public void NotifyObservation(string id)
         {
             if (ended || spi == null) return;
@@ -302,7 +415,8 @@ namespace SI81.MachineLock
 
         /// <summary>
         /// A critical hazard happened. Penalties are applied once per contact, honouring the
-        /// critical cooldown, and the matching alert is shown. In Guided the run continues.
+        /// critical cooldown, and the matching alert is shown. Damage feedback always plays; in Guided the
+        /// player is teleported back to the spawn point after the config delay.
         /// </summary>
         /// <param name="evt">Critical event type.</param>
         public void NotifyCritical(CriticalEvent evt)
@@ -310,10 +424,13 @@ namespace SI81.MachineLock
             if (ended || spi == null) return;
             if (!spi.ApplyCritical(evt, ElapsedSeconds)) return;
 
+            if (damageFeedback != null) damageFeedback.PlayCritical(evt);
+
             switch (evt)
             {
                 case CriticalEvent.LiveOilShock:
                     Alert(MachineLockTexts.Shock + "\n" + MachineLockTexts.Shock2);
+                    if (HUDService.IsReady) HUDService.ShowSoundEvent(MachineLockTexts.SoundShock, true);
                     break;
                 case CriticalEvent.WaterExtinguisher:
                     Alert(MachineLockTexts.Water + "\n" + MachineLockTexts.Water2);
@@ -325,6 +442,8 @@ namespace SI81.MachineLock
                     Alert(MachineLockTexts.HotOil + "\n" + MachineLockTexts.HotOil2);
                     break;
             }
+
+            if (EffectiveLevel == DifficultyLevel.Guided) StartRespawn();
         }
 
         /// <summary>
@@ -340,6 +459,7 @@ namespace SI81.MachineLock
                 return;
             }
             if (TaskExit) return;
+            if (spi == null) return;
 
             TaskExit = true;
             actionStarted = true;
@@ -348,8 +468,172 @@ namespace SI81.MachineLock
             RefreshObjectives();
 
             OutcomeType outcome = spi.EvaluateOutcome(BuildOutcomeInput());
-            PlayLines(outcome == OutcomeType.Positive ? MachineLockTexts.PrepostoSafe : MachineLockTexts.PrepostoUnsafe);
-            StartCoroutine(EndAfterSupervisorLine(outcome));
+            PlayLines(MachineLockTexts.SpeakerSupervisor,
+                outcome == OutcomeType.Positive ? MachineLockTexts.PrepostoSafe : MachineLockTexts.PrepostoUnsafe);
+            if (Application.isPlaying) StartCoroutine(EndAfterSupervisorLine(outcome));
+            else EndMissionOnce(outcome);
+        }
+
+        // =====================================================================
+        // Layout (GDD §7.6)
+        // =====================================================================
+
+        /// <summary>
+        /// Forces the layout pattern used at the next start. 0, 1 and 2 force PATTERN_A, PATTERN_B and
+        /// PATTERN_C and apply them immediately; a negative value randomises again at start.
+        /// </summary>
+        /// <param name="index">0 to 2 to force a pattern, any negative value to randomise.</param>
+        public void SetForcedPatternIndex(int index)
+        {
+            forcedPatternIndex = index;
+            if (index >= 0) ApplyLayoutPattern(index);
+        }
+
+        /// <summary>
+        /// Applies one of the three prop layouts: moves the PPE cabinet, the spill kit and the water
+        /// extinguisher onto the matching markers and rescales the puddle visual. Keeps the observation
+        /// target above the cabinet and the press cutout centred on the machine.
+        /// </summary>
+        /// <param name="index">Pattern index, clamped to the configured patterns.</param>
+        public void ApplyLayoutPattern(int index)
+        {
+            if (layoutPatterns == null || layoutPatterns.Length == 0) return;
+
+            int clamped = Mathf.Clamp(index, 0, layoutPatterns.Length - 1);
+            Transform pattern = layoutPatterns[clamped];
+            if (pattern == null) return;
+
+            ActivePatternIndex = clamped;
+            MoveToMarker(pattern, "MarkerPpeCabinet", ppeCabinetTransform);
+            MoveToMarker(pattern, "MarkerSpillKit", spillKitTransform);
+            MoveToMarker(pattern, "MarkerExtinguisher", extinguisherTransform);
+
+            if (obsPpeCabinetTransform != null && ppeCabinetTransform != null)
+                obsPpeCabinetTransform.position = ppeCabinetTransform.position + Vector3.up;
+
+            ApplyPuddlePattern(clamped);
+        }
+
+        private static void MoveToMarker(Transform pattern, string markerName, Transform target)
+        {
+            if (pattern == null || target == null) return;
+            Transform marker = pattern.Find(markerName);
+            if (marker == null) return;
+            target.SetPositionAndRotation(marker.position, marker.rotation);
+        }
+
+        private void ApplyPuddlePattern(int index)
+        {
+            if (puddleVisualRoot == null || puddlePatterns == null || puddlePatterns.Length == 0) return;
+
+            Transform pattern = puddlePatterns[Mathf.Clamp(index, 0, puddlePatterns.Length - 1)];
+            if (pattern == null) return;
+
+            // The quadrant meshes are authored for a 7 x 5 m footprint. Scaling the root by the ratio of
+            // the pattern extents keeps the press cutout centred on the machine and the dry perimeter
+            // aligned with PATTERN_PuddleA/B/C, without moving any quadrant child by hand.
+            Vector3 extents = pattern.lossyScale;
+            float scaleX = extents.x > 0.0001f ? extents.x / PUDDLE_BASE_WIDTH : 1f;
+            float scaleZ = extents.z > 0.0001f ? extents.z / PUDDLE_BASE_LENGTH : 1f;
+            puddleVisualRoot.SetPositionAndRotation(pattern.position, pattern.rotation);
+            puddleVisualRoot.localScale = new Vector3(scaleX, 1f, scaleZ);
+        }
+
+        // =====================================================================
+        // Tests and debug
+        // =====================================================================
+
+        /// <summary>
+        /// Initialises the run state without SCN_Core, so the orchestrator can be exercised in EditMode
+        /// tests: creates the SPI, clears the task flags, the counters and the inaction timer and applies
+        /// no HUD call.
+        /// </summary>
+        /// <param name="overrideConfig">Config to use, or null to keep the assigned one.</param>
+        /// <param name="overrideLevel">Level used by the run, also for the time limit and respawn rule.</param>
+        public void InitializeForTests(MachineLockConfig overrideConfig, DifficultyLevel overrideLevel)
+        {
+            if (overrideConfig != null) config = overrideConfig;
+            forcedLevel = overrideLevel;
+
+            ended = false;
+            state = MachineLockState.Intro;
+            currentMacro = 0;
+            correctPpeCount = 0;
+            conesPlaced = 0;
+            absorbentsPlaced = 0;
+            valveClosed = false;
+            actionStarted = false;
+            ActivePatternIndex = -1;
+            InactionElapsedSeconds = 0f;
+            SmokeStage = 0;
+            ResetTaskFlags();
+
+            spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(overrideLevel));
+            spi.SetElapsed(0f);
+        }
+
+        /// <summary>
+        /// Advances the inaction timer deterministically, without waiting for real time. Used by the
+        /// EditMode tests of the smoke stages and of Bad Ending 2 (GDD §9.12).
+        /// </summary>
+        /// <param name="deltaSeconds">Seconds to add to the inaction timer.</param>
+        public void TickInactionForTests(float deltaSeconds)
+        {
+            AdvanceInaction(deltaSeconds);
+        }
+
+        // =====================================================================
+        // Inaction (GDD §9.12)
+        // =====================================================================
+
+        private void AdvanceInaction(float deltaSeconds)
+        {
+            if (deltaSeconds <= 0f || ended || TaskEStop) return;
+
+            InactionElapsedSeconds += deltaSeconds;
+            MachineLockConfig resolved = ResolveConfig();
+
+            if (SmokeStage < 1 && InactionElapsedSeconds >= resolved.inactionSmokeSeconds)
+            {
+                SmokeStage = 1;
+                PlaySmoke(SMOKE_STAGE1_RATE);
+                Alert(MachineLockTexts.SmokeStage1 + "\n" + MachineLockTexts.SmokeStage1Detail);
+            }
+
+            if (SmokeStage < 2 && InactionElapsedSeconds >= resolved.inactionSmokeStage2Seconds)
+            {
+                SmokeStage = 2;
+                PlaySmoke(SMOKE_STAGE2_RATE);
+                Alert(MachineLockTexts.SmokeStage2 + "\n" + MachineLockTexts.SmokeStage2Detail);
+            }
+
+            if (InactionElapsedSeconds < resolved.inactionBadEndingSeconds) return;
+            Apply(SpiEvent.InactionBadEnding);
+            EndMissionOnce(OutcomeType.Negative);
+        }
+
+        private void PlaySmoke(float rate)
+        {
+            if (smokeVfx == null) return;
+            if (!smokeVfx.gameObject.activeSelf) smokeVfx.gameObject.SetActive(true);
+            ParticleSystem.EmissionModule emission = smokeVfx.emission;
+            emission.rateOverTime = rate;
+            smokeVfx.Play(true);
+        }
+
+        private void CancelInaction()
+        {
+            InactionElapsedSeconds = 0f;
+            SmokeStage = 0;
+            if (smokeVfx == null) return;
+            smokeVfx.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private void StartAmbientAudio()
+        {
+            if (ambientAudio == null) return;
+            ambientAudio.loop = true;
+            if (!ambientAudio.isPlaying) ambientAudio.Play();
         }
 
         // =====================================================================
@@ -371,6 +655,11 @@ namespace SI81.MachineLock
                 StopCoroutine(playingLines);
                 playingLines = null;
             }
+            if (respawnRoutine != null)
+            {
+                StopCoroutine(respawnRoutine);
+                respawnRoutine = null;
+            }
 
             if (spi == null)
             {
@@ -378,14 +667,35 @@ namespace SI81.MachineLock
                 return;
             }
 
-            spi.SetElapsed(ElapsedSeconds);
+            // Outside a live run (tests, or a mission ended before the HUD was ready) the SPI already holds
+            // the elapsed time: rewriting it would clear a TimedOut flag set by the timeout rule.
+            if (IsRunning) spi.SetElapsed(ElapsedSeconds);
             EndMission(outcome, spi.Spi, spi.Dimensions100(), MachineLockTexts.BuildDebriefLines(spi));
         }
 
         private IEnumerator EndAfterSupervisorLine(OutcomeType outcome)
         {
-            yield return new WaitForSeconds(2.5f);
+            yield return new WaitForSeconds(LINE_SECONDS);
             EndMissionOnce(outcome);
+        }
+
+        private void StartRespawn()
+        {
+            if (!Application.isPlaying) return;
+            if (respawnRoutine != null) StopCoroutine(respawnRoutine);
+            respawnRoutine = StartCoroutine(RespawnRoutine());
+        }
+
+        private IEnumerator RespawnRoutine()
+        {
+            yield return new WaitForSeconds(ResolveConfig().respawnDelaySeconds);
+            respawnRoutine = null;
+            if (ended) yield break;
+
+            RigRegistration rig = RigRegistration.Instance;
+            Transform target = spawnPointTransform;
+            if (rig == null || target == null) yield break;
+            rig.TeleportTo(target.position, Quaternion.Euler(0f, target.eulerAngles.y, 0f));
         }
 
         // =====================================================================
@@ -499,6 +809,19 @@ namespace SI81.MachineLock
             spi.ApplyEvent(evt);
         }
 
+        private void ResetTaskFlags()
+        {
+            TaskEStop = false;
+            TaskAlarm = false;
+            TaskMainOff = false;
+            TaskLockout = false;
+            TaskTesterZero = false;
+            TaskTryStart = false;
+            TaskPpeFull = false;
+            TaskContainment = false;
+            TaskExit = false;
+        }
+
         private MachineLockConfig ResolveConfig()
         {
             if (config != null) return config;
@@ -508,19 +831,21 @@ namespace SI81.MachineLock
             return config;
         }
 
-        private void PlayLines(params string[] lines)
+        private void PlayLines(string speaker, params string[] lines)
         {
+            // Subtitle timing only exists in Play Mode: EditMode tests drive the notify API directly.
+            if (!Application.isPlaying || lines == null || lines.Length == 0) return;
             if (playingLines != null) StopCoroutine(playingLines);
-            playingLines = StartCoroutine(PlayLinesRoutine(lines));
+            playingLines = StartCoroutine(PlayLinesRoutine(speaker, lines));
         }
 
-        private IEnumerator PlayLinesRoutine(string[] lines)
+        private IEnumerator PlayLinesRoutine(string speaker, string[] lines)
         {
             foreach (string line in lines)
             {
                 if (ended) yield break;
-                Subtitle(null, line, 2.5f);
-                yield return new WaitForSeconds(2.5f);
+                Subtitle(speaker, line, LINE_SECONDS);
+                yield return new WaitForSeconds(LINE_SECONDS);
             }
             playingLines = null;
         }

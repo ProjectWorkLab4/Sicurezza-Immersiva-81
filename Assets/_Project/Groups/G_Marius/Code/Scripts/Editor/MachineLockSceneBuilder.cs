@@ -2,21 +2,27 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using SI81.Interaction;
 using SI81.Rig;
 using SI81.UI;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace SI81.MachineLock.EditorTools
 {
     /// <summary>
-    /// Builds the Machine Lock scenario: the mission asset values, the config asset, the blockout
-    /// assets (materials, textures, prefabs) and the full scenario scene. Safe to run again: every
-    /// asset is created or updated in place and the scene content roots are rebuilt, never duplicated.
-    /// Menu: SI81/MachineLock/Build Scene Shell (P1 shell), SI81/MachineLock/Build Full Scene (P2 blockout).
+    /// Builds the Machine Lock scenario: the mission asset values, the config asset, the damage profile,
+    /// the blockout assets (materials, textures, prefabs) and the full scenario scene, including the
+    /// runtime wiring of every interaction, VFX and audio source. Safe to run again: every asset is
+    /// created or updated in place and the scene content roots are rebuilt, never duplicated.
+    /// Menu: SI81/MachineLock/Build Scene Shell (P1 shell), SI81/MachineLock/Build Full Scene (P2–P8).
     /// Batchmode entry points: BuildSceneShell, BuildFullScene.
     /// </summary>
     public static class MachineLockSceneBuilder
@@ -40,6 +46,37 @@ namespace SI81.MachineLock.EditorTools
         public const string MATERIAL_DIR = "Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock";
         /// <summary>Group prefab folder of the Machine Lock scenario.</summary>
         public const string PREFAB_DIR = "Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock";
+        /// <summary>Group audio folder of the one-shot clips.</summary>
+        public const string SOUND_DIR = "Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock";
+        /// <summary>Group audio folder of the ambient loop.</summary>
+        public const string MUSIC_DIR = "Assets/_Project/Groups/G_Marius/Audio/Music/MachineLock";
+        /// <summary>Damage profile asset used by the URP damage volume (GDD §9.13).</summary>
+        public const string DAMAGE_PROFILE_PATH = "Assets/_Project/Groups/G_Marius/Level/Data/SO_MachineLockDamageProfile.asset";
+
+        /// <summary>The sixteen synthesized clips of the GDD §13.1 audio set.</summary>
+        public static readonly string[] AUDIO_CLIPS =
+        {
+            "SFX_PressLoop.wav", "SFX_PressStop.wav", "SFX_EStopClack.wav", "SFX_AlarmButton.wav",
+            "SFX_AlarmSiren.wav", "SFX_BreakerOff.wav", "SFX_Lockout.wav", "SFX_OilLeak.wav",
+            "SFX_ValveTurn.wav", "SFX_TesterBeep.wav", "SFX_EquipPpe.wav", "SFX_Snap.wav",
+            "SFX_SteamBurst.wav", "SFX_Shock.wav", "SFX_Burn.wav"
+        };
+
+        /// <summary>The ambient room tone that lives in the music folder of the group.</summary>
+        public const string AMBIENT_CLIP = "SFX_AmbientFactory.wav";
+
+        /// <summary>Stable identifiers of the six observation targets (GDD §9.11).</summary>
+        public static readonly string[] OBSERVATION_NAMES =
+        {
+            "OBS_Press", "OBS_Thermometer", "OBS_Display", "OBS_Puddle", "OBS_Panel", "OBS_PpeCabinet"
+        };
+
+        /// <summary>Identifiers reported by the observation targets, in <see cref="OBSERVATION_NAMES"/> order.</summary>
+        public static readonly string[] OBSERVATION_IDS =
+        {
+            "press", "thermometer", "display", "puddle", "panel", "ppe_cabinet"
+        };
+
 
         /// <summary>The twelve production-named blockout prefabs (GDD §14.2).</summary>
         public static readonly string[] PREFAB_NAMES =
@@ -103,6 +140,9 @@ namespace SI81.MachineLock.EditorTools
         private static Material matLedGreen;
         private static Material matGhostSnap;
         private static Material matLightFixture;
+        private static Material matHmiOff;
+        private static Material matLedOff;
+        private static Material matParticleSoft;
 
         // ------------------------------------------------------------------ Entry points
 
@@ -166,7 +206,9 @@ namespace SI81.MachineLock.EditorTools
             EnsureTextures();
             EnsureSignTextures();
             EnsureMaterials();
-            EnsurePrefabs();
+            MachineLockAudioClips clips = LoadAudioClips();
+            EnsurePrefabs(clips);
+            VolumeProfile damageProfile = CreateOrUpdateDamageProfile();
 
             UpdateMission();
             MachineLockConfig config = CreateOrUpdateConfig();
@@ -188,12 +230,14 @@ namespace SI81.MachineLock.EditorTools
             BuildRoom(scene);
             BuildPressArea(scene);
             BuildSafetyArea(scene);
-            BuildHazardArea(scene);
+            BuildHazardArea(scene, clips);
             BuildDelimitationArea(scene);
             BuildLayoutPatterns(scene);
-            BuildObservationTargets(scene);
+            BuildObservationTargets(scene, config);
             BuildExit(scene);
-            EnsureMiscRoots(scene);
+            EnsureMiscRoots(scene, clips);
+            ConfigureDamageFeedback(scene, damageProfile, clips);
+            WireScenarioContent(scene, config);
             PlaceLabels(scene);
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -204,8 +248,10 @@ namespace SI81.MachineLock.EditorTools
 
             ApplyBuildSettings();
             Debug.Log($"[MachineLock] Full blockout ready: {SCENE_PATH}. " +
-                      $"{PREFAB_NAMES.Length} prefabs, {AssetDatabase.FindAssets("t:Material", new[] { MATERIAL_DIR }).Length} materials, " +
-                      $"{AssetDatabase.FindAssets("t:Texture2D", new[] { TEXTURE_DIR }).Length} textures.");
+                      $"{PREFAB_NAMES.Length} prefabs, " +
+                      $"{AssetDatabase.FindAssets("t:Material", new[] { MATERIAL_DIR }).Length} materials, " +
+                      $"{AssetDatabase.FindAssets("t:Texture2D", new[] { TEXTURE_DIR }).Length} textures, " +
+                      $"{AUDIO_CLIPS.Length + 1} audio clips.");
         }
 
         private static void GuardPlayMode(string operation)
@@ -622,6 +668,9 @@ namespace SI81.MachineLock.EditorTools
                 new Color(0.05f, 1f, 0.2f) * 2f);
             matLightFixture = LitMaterial("MAT_LightFixture", new Color(0.85f, 0.87f, 0.85f), 0f, 0.4f,
                 new Color(1f, 0.97f, 0.9f) * 2.2f);
+            matHmiOff = LitMaterial("MAT_HMI_Off", new Color(0.015f, 0.015f, 0.018f), 0f, 0.12f);
+            matLedOff = LitMaterial("MAT_LedOff", new Color(0.07f, 0.07f, 0.075f), 0f, 0.35f);
+            matParticleSoft = ParticleMaterial("MAT_ParticleSoft", new Color(0.66f, 0.66f, 0.64f, 0.5f));
 
             matFaceShieldVisor = LitMaterial("MAT_FaceShield_Visor", new Color(0.55f, 0.78f, 0.9f, 0.18f), 0f, 0.95f);
             ConfigureTransparent(matFaceShieldVisor, 0.18f);
@@ -683,6 +732,44 @@ namespace SI81.MachineLock.EditorTools
             return material;
         }
 
+        /// <summary>
+        /// Creates or updates the soft, transparent material shared by every particle system, so the VFX
+        /// render on Quest with the URP Particle/Unlit shader instead of falling back to pink.
+        /// </summary>
+        private static Material ParticleMaterial(string name, Color baseColor)
+        {
+            string path = MATERIAL_DIR + "/" + name + ".mat";
+            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (shader == null) shader = Shader.Find(URP_LIT);
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (shader != null && material.shader != shader)
+            {
+                material.shader = shader;
+            }
+
+            SetColor(material, "_BaseColor", baseColor);
+            SetColor(material, "_Color", baseColor);
+            SetFloat(material, "_Surface", 1f);
+            SetFloat(material, "_Blend", 0f);
+            SetFloat(material, "_SrcBlend", (float)BlendMode.SrcAlpha);
+            SetFloat(material, "_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            SetFloat(material, "_ZWrite", 0f);
+            SetFloat(material, "_SoftParticlesEnabled", 1f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            if (material.HasProperty("_SoftParticlesEnabled")) material.EnableKeyword("_SOFTPARTICLES_ON");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         private static void ConfigureTransparent(Material material, float alpha, Color? emission = null)
         {
             SetFloat(material, "_Surface", 1f);
@@ -724,9 +811,210 @@ namespace SI81.MachineLock.EditorTools
             if (material.HasProperty(property)) material.SetFloat(property, value);
         }
 
+        // ------------------------------------------------------------------ Damage profile (GDD §9.13)
+
+        /// <summary>
+        /// Creates or updates the URP damage profile: a red Vignette plus a mild Color Adjustments
+        /// override. Both volume components are real sub-assets of the profile asset.
+        /// </summary>
+        private static VolumeProfile CreateOrUpdateDamageProfile()
+        {
+            EnsureFolder(DAMAGE_PROFILE_PATH);
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(DAMAGE_PROFILE_PATH);
+            if (profile == null)
+            {
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, DAMAGE_PROFILE_PATH);
+                Debug.Log($"[MachineLock] Created {DAMAGE_PROFILE_PATH}.");
+            }
+
+            Vignette vignette;
+            if (!profile.TryGet(out vignette) || vignette == null)
+            {
+                vignette = ScriptableObject.CreateInstance<Vignette>();
+                vignette.name = "Vignette";
+                vignette.hideFlags = HideFlags.HideInHierarchy;
+                profile.components.Add(vignette);
+                AssetDatabase.AddObjectToAsset(vignette, profile);
+            }
+            vignette.active = true;
+            vignette.color.overrideState = true;
+            vignette.color.value = new Color(0.85f, 0.05f, 0.05f, 1f);
+            vignette.intensity.overrideState = true;
+            vignette.intensity.value = 0.55f;
+            vignette.smoothness.overrideState = true;
+            vignette.smoothness.value = 0.4f;
+
+            ColorAdjustments adjustments;
+            if (!profile.TryGet(out adjustments) || adjustments == null)
+            {
+                adjustments = ScriptableObject.CreateInstance<ColorAdjustments>();
+                adjustments.name = "ColorAdjustments";
+                adjustments.hideFlags = HideFlags.HideInHierarchy;
+                profile.components.Add(adjustments);
+                AssetDatabase.AddObjectToAsset(adjustments, profile);
+            }
+            adjustments.active = true;
+            adjustments.colorFilter.overrideState = true;
+            adjustments.colorFilter.value = Color.white;
+            adjustments.saturation.overrideState = true;
+            adjustments.saturation.value = -15f;
+
+            EditorUtility.SetDirty(vignette);
+            EditorUtility.SetDirty(adjustments);
+            EditorUtility.SetDirty(profile);
+            AssetDatabase.SaveAssets();
+            return profile;
+        }
+
+        // ------------------------------------------------------------------ Audio (GDD §13.1)
+
+        /// <summary>The sixteen clips of the audio set, in the order of <see cref="AUDIO_CLIPS"/>.</summary>
+        private sealed class MachineLockAudioClips
+        {
+            public AudioClip PressLoop;
+            public AudioClip PressStop;
+            public AudioClip EStopClack;
+            public AudioClip AlarmButton;
+            public AudioClip AlarmSiren;
+            public AudioClip BreakerOff;
+            public AudioClip Lockout;
+            public AudioClip OilLeak;
+            public AudioClip ValveTurn;
+            public AudioClip TesterBeep;
+            public AudioClip EquipPpe;
+            public AudioClip Snap;
+            public AudioClip SteamBurst;
+            public AudioClip Shock;
+            public AudioClip Burn;
+            public AudioClip AmbientFactory;
+        }
+
+        /// <summary>
+        /// Loads the sixteen audio clips. A missing clip is a warning in batch mode and an error in an
+        /// interactive full build, so the batch pipeline can report it through the validator.
+        /// </summary>
+        private static MachineLockAudioClips LoadAudioClips()
+        {
+            return new MachineLockAudioClips
+            {
+                PressLoop = LoadAudioClip(SOUND_DIR, "SFX_PressLoop.wav"),
+                PressStop = LoadAudioClip(SOUND_DIR, "SFX_PressStop.wav"),
+                EStopClack = LoadAudioClip(SOUND_DIR, "SFX_EStopClack.wav"),
+                AlarmButton = LoadAudioClip(SOUND_DIR, "SFX_AlarmButton.wav"),
+                AlarmSiren = LoadAudioClip(SOUND_DIR, "SFX_AlarmSiren.wav"),
+                BreakerOff = LoadAudioClip(SOUND_DIR, "SFX_BreakerOff.wav"),
+                Lockout = LoadAudioClip(SOUND_DIR, "SFX_Lockout.wav"),
+                OilLeak = LoadAudioClip(SOUND_DIR, "SFX_OilLeak.wav"),
+                ValveTurn = LoadAudioClip(SOUND_DIR, "SFX_ValveTurn.wav"),
+                TesterBeep = LoadAudioClip(SOUND_DIR, "SFX_TesterBeep.wav"),
+                EquipPpe = LoadAudioClip(SOUND_DIR, "SFX_EquipPpe.wav"),
+                Snap = LoadAudioClip(SOUND_DIR, "SFX_Snap.wav"),
+                SteamBurst = LoadAudioClip(SOUND_DIR, "SFX_SteamBurst.wav"),
+                Shock = LoadAudioClip(SOUND_DIR, "SFX_Shock.wav"),
+                Burn = LoadAudioClip(SOUND_DIR, "SFX_Burn.wav"),
+                AmbientFactory = LoadAudioClip(MUSIC_DIR, AMBIENT_CLIP)
+            };
+        }
+
+        private static AudioClip LoadAudioClip(string directory, string fileName)
+        {
+            string path = directory + "/" + fileName;
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            if (clip != null) return clip;
+
+            string message = $"[MachineLock] Audio clip not found: {path}";
+            if (Application.isBatchMode)
+            {
+                Debug.LogWarning(message);
+                return null;
+            }
+            throw new InvalidOperationException(message);
+        }
+
+        // ------------------------------------------------------------------ Serialized wiring helpers
+
+        private static void SetRef(UnityEngine.Object target, string propertyName, UnityEngine.Object value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.objectReferenceValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetRefArray(UnityEngine.Object target, string propertyName, UnityEngine.Object[] values)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null || !property.isArray)
+                throw new InvalidOperationException($"[MachineLock] Serialized array not found: {target.GetType().Name}.{propertyName}");
+            property.arraySize = values == null ? 0 : values.Length;
+            for (int i = 0; i < property.arraySize; i++) property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetInt(UnityEngine.Object target, string propertyName, int value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.intValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetBool(UnityEngine.Object target, string propertyName, bool value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.boolValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetSerializedFloat(UnityEngine.Object target, string propertyName, float value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.floatValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetText(UnityEngine.Object target, string propertyName, string value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.stringValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        private static void SetVector3(UnityEngine.Object target, string propertyName, Vector3 value)
+        {
+            var so = new SerializedObject(target);
+            SerializedProperty property = so.FindProperty(propertyName);
+            if (property == null)
+                throw new InvalidOperationException($"[MachineLock] Serialized property not found: {target.GetType().Name}.{propertyName}");
+            property.vector3Value = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
         // ------------------------------------------------------------------ Prefabs
 
-        private static void EnsurePrefabs()
+        private static void EnsurePrefabs(MachineLockAudioClips clips)
         {
             // An additive scene needs a saved host scene: batchmode starts on an untitled scene.
             Scene active = SceneManager.GetActiveScene();
@@ -739,18 +1027,18 @@ namespace SI81.MachineLock.EditorTools
             Scene temp = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
             try
             {
-                BuildConePrefab(temp);
-                BuildAbsorbentMatPrefab(temp);
-                BuildAbsorbentSockPrefab(temp);
-                BuildValvePrefab(temp);
-                BuildWaterExtinguisherPrefab(temp);
+                BuildConePrefab(temp, clips);
+                BuildAbsorbentMatPrefab(temp, clips);
+                BuildAbsorbentSockPrefab(temp, clips);
+                BuildValvePrefab(temp, clips);
+                BuildWaterExtinguisherPrefab(temp, clips);
                 BuildIndustrialDoorPrefab(temp);
                 BuildEStopPrefab(temp);
-                BuildAlarmPrefab(temp);
-                BuildElectricalPanelPrefab(temp);
-                BuildPpeCabinetPrefab(temp);
+                BuildAlarmPrefab(temp, clips);
+                BuildElectricalPanelPrefab(temp, clips);
+                BuildPpeCabinetPrefab(temp, clips);
                 BuildSpillKitPrefab(temp);
-                BuildPressPrefab(temp);
+                BuildPressPrefab(temp, clips);
             }
             finally
             {
@@ -802,29 +1090,44 @@ namespace SI81.MachineLock.EditorTools
 
         // -- MESH_Cone ---------------------------------------------------------
 
-        private static void BuildConePrefab(Scene temp)
+        private static void BuildConePrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_Cone");
             AddModelChild(root, "MESH_ConeBody", SHARED_MODEL_DIR + "MESH_Magazzino_Cono.fbx",
                 new Vector3(0.3f, 0.5f, 0.3f), Vector3.zero, true, false, null);
             AddBoxCollider(root, new Vector3(0f, 0.25f, 0f), new Vector3(0.3f, 0.5f, 0.3f));
+
+            Interactable interactable = AddInteractable(root, false, true, true);
+            var cone = root.AddComponent<MachineLockCone>();
+            AudioSource snapAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            SetRef(cone, "interactable", interactable);
+            SetRef(cone, "oneShotAudio", snapAudio);
+            SetRef(cone, "snapClip", clips.Snap);
             SavePrefab(root);
         }
 
         // -- MESH_AbsorbentMat -------------------------------------------------
 
-        private static void BuildAbsorbentMatPrefab(Scene temp)
+        private static void BuildAbsorbentMatPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_AbsorbentMat");
             AddModelChild(root, "MESH_AbsorbentMatBody", SHARED_MODEL_DIR + "MESH_PANNO_ASSORBENTE_TEAM.fbx",
                 new Vector3(1.0f, 0.02f, 0.8f), new Vector3(0f, 0.01f, 0f), false, false, null);
             AddBoxCollider(root, new Vector3(0f, 0.01f, 0f), new Vector3(1.0f, 0.02f, 0.8f));
+
+            Interactable interactable = AddInteractable(root, false, true, true);
+            var absorbent = root.AddComponent<MachineLockAbsorbent>();
+            AudioSource snapAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            SetRef(absorbent, "interactable", interactable);
+            SetRef(absorbent, "oneShotAudio", snapAudio);
+            SetRef(absorbent, "snapClip", clips.Snap);
+            SetInt(absorbent, "absorbentKind", (int)MachineLockAbsorbent.AbsorbentKind.Mat);
             SavePrefab(root);
         }
 
         // -- MESH_AbsorbentSock ------------------------------------------------
 
-        private static void BuildAbsorbentSockPrefab(Scene temp)
+        private static void BuildAbsorbentSockPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_AbsorbentSock");
             var body = AddCylinder(root, "MESH_AbsorbentSockBody", 0.075f, 1.2f,
@@ -835,16 +1138,24 @@ namespace SI81.MachineLock.EditorTools
             collider.height = 1.2f;
             collider.radius = 0.075f;
             collider.center = new Vector3(0f, 0.075f, 0f);
+
+            Interactable interactable = AddInteractable(root, false, true, true);
+            var absorbent = root.AddComponent<MachineLockAbsorbent>();
+            AudioSource snapAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            SetRef(absorbent, "interactable", interactable);
+            SetRef(absorbent, "oneShotAudio", snapAudio);
+            SetRef(absorbent, "snapClip", clips.Snap);
+            SetInt(absorbent, "absorbentKind", (int)MachineLockAbsorbent.AbsorbentKind.Sock);
             SavePrefab(root);
         }
 
         // -- MESH_Valve --------------------------------------------------------
 
-        private static void BuildValvePrefab(Scene temp)
+        private static void BuildValvePrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_Valve");
             AddCylinder(root, "MESH_ValvePipe", 0.09f, 0.5f, Vector3.zero, new Vector3(0f, 0f, 90f), matPolishedSteel, false);
-            AddCylinder(root, "MESH_Valve_Wheel", 0.15f, 0.05f, new Vector3(0f, 0.16f, 0f), Vector3.zero, matEStopRed, false);
+            GameObject wheel = AddCylinder(root, "MESH_Valve_Wheel", 0.15f, 0.05f, new Vector3(0f, 0.16f, 0f), Vector3.zero, matEStopRed, false);
             for (int i = 0; i < 3; i++)
             {
                 float angle = i * 60f;
@@ -853,12 +1164,21 @@ namespace SI81.MachineLock.EditorTools
                 spoke.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
             }
             AddBoxCollider(root, new Vector3(0f, 0.08f, 0f), new Vector3(0.5f, 0.4f, 0.4f));
+
+            Interactable interactable = AddInteractable(root, true, false, false);
+            var valve = root.AddComponent<MachineLockValve>();
+            AudioSource squeakAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            SetRef(valve, "interactable", interactable);
+            SetRef(valve, "wheelTransform", wheel.transform);
+            SetVector3(valve, "rotationAxis", Vector3.up);
+            SetRef(valve, "oneShotAudio", squeakAudio);
+            SetRef(valve, "squeakClip", clips.ValveTurn);
             SavePrefab(root);
         }
 
         // -- MESH_WaterExtinguisher -------------------------------------------
 
-        private static void BuildWaterExtinguisherPrefab(Scene temp)
+        private static void BuildWaterExtinguisherPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_WaterExtinguisher");
             AddModelChild(root, "MESH_ExtinguisherBody", SHARED_PROP_DIR + "Estintore/Estintore.fbx",
@@ -874,6 +1194,17 @@ namespace SI81.MachineLock.EditorTools
             collider.height = 0.6f;
             collider.radius = 0.08f;
             collider.center = Vector3.zero;
+
+            Interactable interactable = AddInteractable(root, true, false, false);
+            var extinguisher = root.AddComponent<MachineLockExtinguisher>();
+            ParticleSystem spray = AddParticles(root, "VFX_WaterSpray", new Vector3(0.16f, 0.55f, 0f), Vector3.zero,
+                matParticleSoft, 100, false, 40f, new Color(0.72f, 0.8f, 0.9f, 0.55f), 0.12f, 2.5f, 1.2f, 0.05f,
+                ParticleSystemShapeType.Cone, false);
+            AudioSource sprayAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            SetRef(extinguisher, "extinguisherInteractable", interactable);
+            SetRef(extinguisher, "waterSprayVfx", spray);
+            SetRef(extinguisher, "oneShotAudio", sprayAudio);
+            SetRef(extinguisher, "steamBurstClip", clips.SteamBurst);
             SavePrefab(root);
         }
 
@@ -897,22 +1228,34 @@ namespace SI81.MachineLock.EditorTools
             var root = NewPrefabRoot(temp, "MESH_EStopPedestal");
             AddBox(root, "MESH_EStopPedestalBase", new Vector3(0.4f, 1.1f, 0.4f), new Vector3(0f, 0.55f, 0f), matPaintedSteel, true);
             AddBox(root, "MESH_EStopBackplate", new Vector3(0.44f, 0.5f, 0.06f), new Vector3(0f, 1.0f, -0.2f), matEStopYellow, false);
-            AddCylinder(root, "MESH_EmergencyStopButton", 0.06f, 0.07f, new Vector3(0f, 0.95f, 0.24f), new Vector3(90f, 0f, 0f), matEStopRed, false);
+            GameObject stopButton = AddCylinder(root, "MESH_EmergencyStopButton", 0.06f, 0.07f,
+                new Vector3(0f, 0.95f, 0.24f), new Vector3(90f, 0f, 0f), matEStopRed, false);
             AddCylinder(root, "MESH_EmergencyStopStem", 0.03f, 0.06f, new Vector3(0f, 0.95f, 0.19f), new Vector3(90f, 0f, 0f), matEStopYellow, false);
-            AddCylinder(root, "MESH_TestStartButton", 0.04f, 0.05f, new Vector3(0f, 0.55f, 0.22f), new Vector3(90f, 0f, 0f), matLedGreen, false);
+            GameObject startButton = AddCylinder(root, "MESH_TestStartButton", 0.04f, 0.05f,
+                new Vector3(0f, 0.55f, 0.22f), new Vector3(90f, 0f, 0f), matLedGreen, false);
+
+            // The two buttons need their own collider, proud of the pedestal, so the VR ray hits them
+            // directly instead of the pedestal body.
+            AddWorldBoxCollider(stopButton, stopButton.transform.position, new Vector3(0.16f, 0.16f, 0.16f));
+            AddInteractable(stopButton, true, false, false);
+            AddWorldBoxCollider(startButton, startButton.transform.position, new Vector3(0.12f, 0.12f, 0.12f));
+            AddInteractable(startButton, true, false, false);
             SavePrefab(root);
         }
 
         // -- MESH_AlarmButton -------------------------------------------------
 
-        private static void BuildAlarmPrefab(Scene temp)
+        private static void BuildAlarmPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_AlarmButton");
             AddBox(root, "MESH_AlarmBox", new Vector3(0.36f, 0.46f, 0.14f), Vector3.zero, matPaintedSteel, true);
-            AddCylinder(root, "MESH_AlarmPushButton", 0.06f, 0.05f, new Vector3(0f, 0.05f, 0.1f), new Vector3(90f, 0f, 0f), matEStopRed, false);
+            GameObject pushButton = AddCylinder(root, "MESH_AlarmPushButton", 0.06f, 0.05f,
+                new Vector3(0f, 0.05f, 0.1f), new Vector3(90f, 0f, 0f), matEStopRed, false);
+            AddWorldBoxCollider(pushButton, pushButton.transform.position, new Vector3(0.16f, 0.16f, 0.16f));
+            Interactable buttonInteractable = AddInteractable(pushButton, true, false, false);
 
             var beacon = NewChild(root, "VFX_AlarmBeacon", new Vector3(0f, 0.34f, 0f));
-            AddSphere(beacon, "MESH_AlarmBeaconDome", 0.12f, Vector3.zero, matBeaconRed, false);
+            GameObject dome = AddSphere(beacon, "MESH_AlarmBeaconDome", 0.12f, Vector3.zero, matBeaconRed, false);
             var light = beacon.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.1f, 0.05f);
@@ -921,52 +1264,104 @@ namespace SI81.MachineLock.EditorTools
             light.shadows = LightShadows.None;
             light.lightmapBakeType = LightmapBakeType.Realtime;
             light.enabled = false;
+
+            AudioSource sirenAudio = AddAudioSource(root, clips.AlarmSiren, true, false, 1f, 0.8f);
+            AudioSource buttonAudio = AddAudioSource(root, clips.AlarmButton, false, false, 1f, 0.9f);
+            var alarm = root.AddComponent<MachineLockAlarm>();
+            SetRef(alarm, "alarmInteractable", buttonInteractable);
+            SetRef(alarm, "beaconLight", light);
+            SetRef(alarm, "beaconRotor", beacon.transform);
+            SetRef(alarm, "beaconDomeRenderer", dome.GetComponent<Renderer>());
+            SetRef(alarm, "sirenAudio", sirenAudio);
+            SetRef(alarm, "buttonAudio", buttonAudio);
+            SetRef(alarm, "buttonClip", clips.AlarmButton);
             SavePrefab(root);
         }
 
         // -- MESH_ElectricalPanel ---------------------------------------------
 
-        private static void BuildElectricalPanelPrefab(Scene temp)
+        private static void BuildElectricalPanelPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_ElectricalPanel");
             AddModelChild(root, "MESH_PanelCabinet", SHARED_PROP_DIR + "Quadro Elettrico/Quadro Elettrico.fbx",
                 new Vector3(0.25f, 1.2f, 1.0f), Vector3.zero, false, false, null);
-            AddModelChild(root, "MESH_DisconnectSwitch", SHARED_PROP_DIR + "Manopola.fbx",
+            GameObject disconnectSwitch = AddModelChild(root, "MESH_DisconnectSwitch", SHARED_PROP_DIR + "Manopola.fbx",
                 new Vector3(0.22f, 0.22f, 0.22f), new Vector3(-0.16f, 0.3f, -0.3f), false, true, matEStopRed);
 
             AddBox(root, "MESH_LockoutPoint", new Vector3(0.03f, 0.18f, 0.18f), new Vector3(-0.15f, 0.05f, 0.3f), matEStopYellow, false);
             AddBox(root, "MESH_LockoutLed", new Vector3(0.02f, 0.06f, 0.06f), new Vector3(-0.17f, 0.05f, 0.3f), matLedRed, false);
 
-            AddBox(root, "MESH_VoltageTester", new Vector3(0.09f, 0.32f, 0.22f), new Vector3(-0.16f, 0.3f, 0.25f), matPaintedSteel, false);
+            GameObject voltageTester = AddBox(root, "MESH_VoltageTester", new Vector3(0.09f, 0.32f, 0.22f),
+                new Vector3(-0.16f, 0.3f, 0.25f), matPaintedSteel, false);
             AddBox(root, "MESH_VoltageTesterScreen", new Vector3(0.02f, 0.1f, 0.11f), new Vector3(-0.21f, 0.37f, 0.25f), matHmiScreen, false);
-            AddBox(root, "MESH_TesterLedRed", new Vector3(0.02f, 0.035f, 0.035f), new Vector3(-0.21f, 0.24f, 0.3f), matLedRed, false);
-            AddBox(root, "MESH_TesterLedGreen", new Vector3(0.02f, 0.035f, 0.035f), new Vector3(-0.21f, 0.24f, 0.2f), matLedGreen, false);
+            GameObject testerLedRed = AddBox(root, "MESH_TesterLedRed", new Vector3(0.02f, 0.035f, 0.035f),
+                new Vector3(-0.21f, 0.24f, 0.3f), matLedRed, false);
+            GameObject testerLedGreen = AddBox(root, "MESH_TesterLedGreen", new Vector3(0.02f, 0.035f, 0.035f),
+                new Vector3(-0.21f, 0.24f, 0.2f), matLedGreen, false);
 
-            AddBoxCollider(root, Vector3.zero, new Vector3(0.3f, 1.2f, 1.0f));
+            // The body collider sits behind the front face: the switch, the lockout point and the tester
+            // get their own collider so the VR ray hits each control directly.
+            AddBoxCollider(root, new Vector3(0.02f, 0f, 0f), new Vector3(0.24f, 1.2f, 1.0f));
+            FitBoxCollider(disconnectSwitch, 0.02f);
+            Interactable switchInteractable = AddInteractable(disconnectSwitch, true, false, false);
+
+            GameObject lockoutPoint = FindChild(root, "MESH_LockoutPoint");
+            AddWorldBoxCollider(lockoutPoint, lockoutPoint.transform.position, new Vector3(0.09f, 0.24f, 0.24f));
+            Interactable lockoutInteractable = AddInteractable(lockoutPoint, true, false, false);
+
+            AddWorldBoxCollider(voltageTester, voltageTester.transform.position, new Vector3(0.12f, 0.34f, 0.24f));
+            Interactable testerInteractable = AddInteractable(voltageTester, true, false, false);
+
+            ParticleSystem arc = AddParticles(root, "VFX_ElectricalArc", new Vector3(-0.22f, 0.3f, 0.0f), Vector3.zero,
+                matParticleSoft, 40, false, 30f, new Color(0.6f, 0.85f, 1f, 0.9f), 0.05f, 1.2f, 0.25f, 0.04f,
+                ParticleSystemShapeType.Sphere, false);
+            arc.gameObject.SetActive(false);
+
+            AudioSource oneShot = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            var panel = root.AddComponent<MachineLockEnergyPanel>();
+            SetRef(panel, "mainSwitchInteractable", switchInteractable);
+            SetRef(panel, "lockoutInteractable", lockoutInteractable);
+            SetRef(panel, "testerInteractable", testerInteractable);
+            SetRef(panel, "switchHandle", disconnectSwitch.transform);
+            SetRef(panel, "lockoutLedRenderer", FindChild(root, "MESH_LockoutLed").GetComponent<Renderer>());
+            SetRef(panel, "testerRedLedRenderer", testerLedRed.GetComponent<Renderer>());
+            SetRef(panel, "testerGreenLedRenderer", testerLedGreen.GetComponent<Renderer>());
+            SetRef(panel, "ledOffMaterial", matLedOff);
+            SetRef(panel, "ledRedMaterial", matLedRed);
+            SetRef(panel, "ledGreenMaterial", matLedGreen);
+            SetRef(panel, "arcVfx", arc.gameObject);
+            SetRef(panel, "oneShotAudio", oneShot);
+            SetRef(panel, "breakerOffClip", clips.BreakerOff);
+            SetRef(panel, "lockoutClip", clips.Lockout);
+            SetRef(panel, "testerBeepClip", clips.TesterBeep);
             SavePrefab(root);
         }
 
         // -- MESH_PpeCabinet ---------------------------------------------------
 
-        private static void BuildPpeCabinetPrefab(Scene temp)
+        private static void BuildPpeCabinetPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_PpeCabinet");
-            AddBox(root, "MESH_PpeCabinetBack", new Vector3(1.2f, 2.0f, 0.06f), new Vector3(0f, 1.0f, -0.27f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetSideLeft", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(-0.57f, 1.0f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetSideRight", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(0.57f, 1.0f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetTop", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 1.97f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetBottom", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 0.03f, 0f), matPaintedSteel, false);
+            AddBox(root, "MESH_PpeCabinetBack", new Vector3(1.2f, 2.0f, 0.06f), new Vector3(0f, 1.0f, -0.27f), matPaintedSteel, true);
+            AddBox(root, "MESH_PpeCabinetSideLeft", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(-0.57f, 1.0f, 0f), matPaintedSteel, true);
+            AddBox(root, "MESH_PpeCabinetSideRight", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(0.57f, 1.0f, 0f), matPaintedSteel, true);
+            AddBox(root, "MESH_PpeCabinetTop", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 1.97f, 0f), matPaintedSteel, true);
+            AddBox(root, "MESH_PpeCabinetBottom", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 0.03f, 0f), matPaintedSteel, true);
             AddBox(root, "MESH_PpeCabinetShelf1", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 0.5f, 0f), matPaintedSteel, false);
             AddBox(root, "MESH_PpeCabinetShelf2", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 1.0f, 0f), matPaintedSteel, false);
             AddBox(root, "MESH_PpeCabinetShelf3", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 1.5f, 0f), matPaintedSteel, false);
 
-            var door = NewChild(root, "MESH_PpeCabinet_Door", new Vector3(-0.6f, 1.5f, 0.3f));
-            door.transform.localRotation = Quaternion.Euler(0f, -105f, 0f);
-            AddBox(door, "MESH_PpeCabinet_DoorPanel", new Vector3(1.2f, 1.8f, 0.04f), new Vector3(0.6f, 0f, 0f), matPaintedSteel, false);
+            // The door starts CLOSED (GDD §9.6): identity rotation, hinge on the left edge.
+            var door = NewChild(root, "MESH_PpeCabinet_Door", new Vector3(-0.6f, 1.0f, 0.3f));
+            door.transform.localRotation = Quaternion.identity;
+            GameObject doorPanel = AddBox(door, "MESH_PpeCabinet_DoorPanel", new Vector3(1.2f, 1.8f, 0.04f),
+                new Vector3(0.6f, 0f, 0f), matPaintedSteel, false);
             AddBox(door, "MESH_PpeCabinet_DoorHandle", new Vector3(0.04f, 0.2f, 0.04f), new Vector3(1.08f, 0f, -0.05f), matPolishedSteel, false);
+            AddLocalBoxCollider(doorPanel);
+            Interactable doorInteractable = AddInteractable(doorPanel, true, false, false);
 
             // Correct PPE: heat glove, chemical apron, face shield, respirator.
-            AddModelChild(root, "MESH_HeatResistantGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
+            GameObject heatGlove = AddModelChild(root, "MESH_HeatResistantGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
                 new Vector3(0.28f, 0.34f, 0.12f), new Vector3(-0.3f, 1.66f, 0.05f), false, true, matHeatGlove);
 
             var apron = NewChild(root, "MESH_ChemicalApron", new Vector3(0.3f, 1.28f, 0.06f));
@@ -988,13 +1383,48 @@ namespace SI81.MachineLock.EditorTools
                 new Vector3(0.1f, -0.03f, -0.1f), new Vector3(90f, 0f, 0f), matRespirator, false);
 
             // Wrong PPE: latex gloves and surgical mask.
-            AddModelChild(root, "MESH_LatexGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
+            GameObject latexGlove = AddModelChild(root, "MESH_LatexGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
                 new Vector3(0.26f, 0.3f, 0.1f), new Vector3(-0.3f, 0.2f, 0.08f), false, true, matLatex);
-            AddModelChild(root, "MESH_SurgicalMask", SHARED_MODEL_DIR + "MASCHERINA.fbx",
+            GameObject surgicalMask = AddModelChild(root, "MESH_SurgicalMask", SHARED_MODEL_DIR + "MASCHERINA.fbx",
                 new Vector3(0.22f, 0.16f, 0.16f), new Vector3(0.3f, 0.18f, 0.08f), false, true, null);
 
-            AddBoxCollider(root, new Vector3(0f, 1.0f, 0f), new Vector3(1.2f, 2.0f, 0.6f));
+            AudioSource cabinetAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            var cabinet = root.AddComponent<MachineLockPpeCabinet>();
+            SetRef(cabinet, "cabinetInteractable", doorInteractable);
+            SetRef(cabinet, "doorTransform", door.transform);
+            SetSerializedFloat(cabinet, "openDoorAngleY", -105f);
+            SetRef(cabinet, "oneShotAudio", cabinetAudio);
+            SetRef(cabinet, "equipClip", clips.EquipPpe);
+            SetRef(cabinet, "openClip", clips.EStopClack);
+
+            // The six items: four correct types plus the two distractors (GDD §9.6).
+            MachineLockPpeItem[] items = new MachineLockPpeItem[6];
+            items[0] = BuildPpeItem(cabinet, heatGlove, PpeSlot.Gloves, true, "Guanti anticalore EN 407");
+            items[1] = BuildPpeItem(cabinet, apron, PpeSlot.Body, true, "Grembiule antischizzo");
+            items[2] = BuildPpeItem(cabinet, shield, PpeSlot.Face, true, "Visiera facciale EN 166");
+            items[3] = BuildPpeItem(cabinet, respirator, PpeSlot.Respiratory, true, "Respiratore FFP3");
+            items[4] = BuildPpeItem(cabinet, latexGlove, PpeSlot.Gloves, false, "Guanti in lattice monouso");
+            items[5] = BuildPpeItem(cabinet, surgicalMask, PpeSlot.Respiratory, false, "Mascherina chirurgica");
+            SetRefArray(cabinet, "items", new UnityEngine.Object[]
+            {
+                items[0], items[1], items[2], items[3], items[4], items[5]
+            });
             SavePrefab(root);
+        }
+
+        /// <summary>
+        /// Adds a selectable PPE item to a cabinet: its own collider, a non-selectable Interactable (the
+        /// cabinet drives the selectable flag) and a <see cref="MachineLockPpeItem"/> with the GDD §9.6 data.
+        /// </summary>
+        private static MachineLockPpeItem BuildPpeItem(MachineLockPpeCabinet cabinet, GameObject item, PpeSlot slot,
+            bool correct, string displayName)
+        {
+            FitBoxCollider(item, 0.01f);
+            Interactable interactable = AddInteractable(item, false, false, false);
+            var ppeItem = item.AddComponent<MachineLockPpeItem>();
+            ppeItem.Configure(cabinet, slot, correct, displayName);
+            SetRef(ppeItem, "interactable", interactable);
+            return ppeItem;
         }
 
         // -- MESH_SpillKit -----------------------------------------------------
@@ -1027,7 +1457,7 @@ namespace SI81.MachineLock.EditorTools
 
         // -- MESH_HydraulicPress -----------------------------------------------
 
-        private static void BuildPressPrefab(Scene temp)
+        private static void BuildPressPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_HydraulicPress");
             AddBox(root, "MESH_PressBase", new Vector3(3.0f, 1.2f, 2.5f), new Vector3(0f, 0.6f, 0f), matPaintedSteel, true);
@@ -1036,19 +1466,179 @@ namespace SI81.MachineLock.EditorTools
             AddBox(root, "MESH_PressColumnNE", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(-1.3f, 1.7f, 1.05f), matPolishedSteel, true);
             AddBox(root, "MESH_PressColumnSW", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(1.3f, 1.7f, -1.05f), matPolishedSteel, true);
             AddBox(root, "MESH_PressColumnSE", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(1.3f, 1.7f, 1.05f), matPolishedSteel, true);
-            AddBox(root, "MESH_HydraulicPress_Ram", new Vector3(1.2f, 0.4f, 1.2f), new Vector3(0f, 2.0f, 0f), matPolishedSteel, true);
+            GameObject ram = AddBox(root, "MESH_HydraulicPress_Ram", new Vector3(1.2f, 0.4f, 1.2f), new Vector3(0f, 2.0f, 0f), matPolishedSteel, true);
             AddBox(root, "MESH_PressGuard", new Vector3(2.6f, 0.9f, 0.06f), new Vector3(0f, 0.75f, 1.28f), matPaintedSteel, true);
             AddBox(root, "MESH_HydraulicPress_ControlPanel", new Vector3(0.3f, 0.75f, 0.55f), new Vector3(-1.6f, 1.6f, -1.1f), matPaintedSteel, true);
 
             AddBox(root, "MESH_PressDisplayFrame", new Vector3(0.06f, 0.44f, 0.6f), new Vector3(-1.52f, 1.5f, -0.8f), matPaintedSteel, false);
-            AddBox(root, "MESH_PressDisplay", new Vector3(0.03f, 0.36f, 0.5f), new Vector3(-1.56f, 1.5f, -0.8f), matHmiScreen, false);
+            GameObject display = AddBox(root, "MESH_PressDisplay", new Vector3(0.03f, 0.36f, 0.5f), new Vector3(-1.56f, 1.5f, -0.8f), matHmiScreen, false);
+            NewChild(display, "VFX_DisplayFault", Vector3.zero);
 
             AddCylinder(root, "MESH_Thermometer", 0.07f, 0.06f, new Vector3(-1.56f, 1.7f, 0.2f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
             AddCylinder(root, "MESH_ThermometerFace", 0.055f, 0.02f, new Vector3(-1.6f, 1.7f, 0.2f), new Vector3(0f, 0f, 90f), matEStopRed, false);
 
             AddCylinder(root, "MESH_LeakPipe", 0.05f, 0.5f, new Vector3(1.6f, 0.95f, 0.5f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
             AddBox(root, "MESH_LeakPipeElbow", new Vector3(0.12f, 0.12f, 0.12f), new Vector3(1.85f, 0.95f, 0.5f), matPolishedSteel, false);
+
+            // Kinematic body plus a trigger volume for the player contact (GDD §9.1).
+            var body = root.AddComponent<Rigidbody>();
+            body.isKinematic = true;
+            body.useGravity = false;
+            var hazard = root.AddComponent<BoxCollider>();
+            hazard.isTrigger = true;
+            hazard.center = new Vector3(0f, 1.6f, 0f);
+            hazard.size = new Vector3(3.1f, 3.2f, 2.6f);
+
+            AudioSource loopAudio = AddAudioSource(root, clips.PressLoop, true, false, 1f, 0.8f);
+            AudioSource oneShotAudio = AddAudioSource(root, null, false, false, 1f, 0.9f);
+            var press = root.AddComponent<MachineLockPress>();
+            SetRef(press, "ramTransform", ram.transform);
+            SetVector3(press, "ramBaseLocalPosition", Vector3.zero);
+            SetRef(press, "displayRenderer", display.GetComponent<Renderer>());
+            SetRef(press, "displayFaultMaterial", matHmiScreen);
+            SetRef(press, "displayOffMaterial", matHmiOff);
+            SetRef(press, "pressHazardTrigger", hazard);
+            SetRef(press, "loopAudio", loopAudio);
+            SetRef(press, "oneShotAudio", oneShotAudio);
+            SetRef(press, "stopClip", clips.PressStop);
+            SetRef(press, "clackClip", clips.EStopClack);
             SavePrefab(root);
+        }
+
+        // ------------------------------------------------------------------ Runtime helpers
+
+        private static Interactable AddInteractable(GameObject target, bool selectable, bool grabbable, bool followsHand)
+        {
+            var interactable = target.GetComponent<Interactable>();
+            if (interactable == null) interactable = target.AddComponent<Interactable>();
+            SetBool(interactable, "canSelect", selectable);
+            SetBool(interactable, "canGrab", grabbable);
+            SetBool(interactable, "followsHand", followsHand);
+            return interactable;
+        }
+
+        private static AudioSource AddAudioSource(GameObject target, AudioClip clip, bool loop, bool playOnAwake,
+            float spatialBlend, float volume)
+        {
+            var source = target.AddComponent<AudioSource>();
+            source.clip = clip;
+            source.loop = loop;
+            source.playOnAwake = playOnAwake;
+            source.spatialBlend = spatialBlend;
+            source.volume = volume;
+            source.dopplerLevel = 0f;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = 1f;
+            source.maxDistance = 15f;
+            return source;
+        }
+
+        /// <summary>
+        /// Adds a billboard particle system with a soft URP material. The caller decides whether it plays
+        /// on awake, so the scene keeps at most four auto-playing systems (GDD §13.2).
+        /// </summary>
+        private static ParticleSystem AddParticles(GameObject parent, string name, Vector3 localPosition, Vector3 localEuler,
+            Material material, int maxParticles, bool playOnAwake, float rate, Color startColor, float startSize,
+            float startSpeed, float startLifetime, float radius, ParticleSystemShapeType shapeType, bool loop = true)
+        {
+            GameObject systemObject = NewChild(parent, name, localPosition);
+            systemObject.transform.localEulerAngles = localEuler;
+
+            var system = systemObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = system.main;
+            main.loop = loop;
+            main.playOnAwake = playOnAwake;
+            main.maxParticles = maxParticles;
+            main.startColor = startColor;
+            main.startSize = startSize;
+            main.startSpeed = startSpeed;
+            main.startLifetime = startLifetime;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = -0.02f;
+
+            ParticleSystem.EmissionModule emission = system.emission;
+            emission.rateOverTime = rate;
+
+            ParticleSystem.ShapeModule shape = system.shape;
+            shape.shapeType = shapeType;
+            shape.radius = radius;
+            if (shapeType == ParticleSystemShapeType.Cone) shape.angle = 18f;
+
+            ParticleSystemRenderer systemRenderer = systemObject.GetComponent<ParticleSystemRenderer>();
+            if (systemRenderer != null)
+            {
+                systemRenderer.sharedMaterial = material;
+                systemRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+                systemRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                systemRenderer.receiveShadows = false;
+            }
+            return system;
+        }
+
+        // ------------------------------------------------------------------ Collider helpers
+
+        /// <summary>
+        /// Adds a BoxCollider whose world size is independent of the local scale of the object, centred on
+        /// the given world point. Used for rotated or heavily scaled primitive controls.
+        /// </summary>
+        private static BoxCollider AddWorldBoxCollider(GameObject target, Vector3 worldCenter, Vector3 worldSize)
+        {
+            var collider = target.GetComponent<BoxCollider>();
+            if (collider == null) collider = target.AddComponent<BoxCollider>();
+            Vector3 scale = target.transform.lossyScale;
+            collider.size = new Vector3(
+                SafeDivide(worldSize.x, Mathf.Abs(scale.x)),
+                SafeDivide(worldSize.y, Mathf.Abs(scale.y)),
+                SafeDivide(worldSize.z, Mathf.Abs(scale.z)));
+            collider.center = target.transform.InverseTransformPoint(worldCenter);
+            collider.isTrigger = false;
+            return collider;
+        }
+
+        /// <summary>
+        /// Adds a BoxCollider that matches the local unit cube of a primitive, i.e. the local scale of the
+        /// object becomes the collider size.
+        /// </summary>
+        private static BoxCollider AddLocalBoxCollider(GameObject target)
+        {
+            var collider = target.GetComponent<BoxCollider>();
+            if (collider == null) collider = target.AddComponent<BoxCollider>();
+            collider.center = Vector3.zero;
+            collider.size = Vector3.one;
+            collider.isTrigger = false;
+            return collider;
+        }
+
+        /// <summary>
+        /// Adds a BoxCollider fitted to the renderer bounds of the object, with a small padding. Used for
+        /// imported FBX props whose local scale is not a unit cube.
+        /// </summary>
+        private static BoxCollider FitBoxCollider(GameObject target, float padding)
+        {
+            var collider = target.GetComponent<BoxCollider>();
+            if (collider == null) collider = target.AddComponent<BoxCollider>();
+            Bounds bounds = RendererBounds(target);
+            Vector3 scale = target.transform.lossyScale;
+            Vector3 size = bounds.size + Vector3.one * padding;
+            collider.size = new Vector3(
+                SafeDivide(size.x, Mathf.Abs(scale.x)),
+                SafeDivide(size.y, Mathf.Abs(scale.y)),
+                SafeDivide(size.z, Mathf.Abs(scale.z)));
+            collider.center = target.transform.InverseTransformPoint(bounds.center);
+            collider.isTrigger = false;
+            return collider;
+        }
+
+        private static float SafeDivide(float value, float divisor)
+        {
+            return divisor > 0.0001f ? value / divisor : value;
+        }
+
+        private static GameObject FindChild(GameObject parent, string name)
+        {
+            foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
+                if (child.name == name) return child.gameObject;
+            throw new InvalidOperationException($"[MachineLock] Child not found: {parent.name}/{name}");
         }
 
         // ------------------------------------------------------------------ Scene helpers
@@ -1222,7 +1812,7 @@ namespace SI81.MachineLock.EditorTools
         {
             GameObject env = NewRoot(scene, "ENV_Room");
 
-            AddBox(env, "MESH_Floor", new Vector3(12f, 0.1f, 8f), new Vector3(0f, -0.05f, 0f), matConcreteFloor, true);
+            GameObject floor = AddBox(env, "MESH_Floor", new Vector3(12f, 0.1f, 8f), new Vector3(0f, -0.05f, 0f), matConcreteFloor, true);
 
             var walls = NewChild(env, "MESH_Walls", Vector3.zero);
             AddBox(walls, "MESH_WallNorth", new Vector3(12.2f, 4f, 0.1f), new Vector3(0f, 2f, 4.05f), matWallConcrete, true);
@@ -1232,7 +1822,12 @@ namespace SI81.MachineLock.EditorTools
             AddBox(walls, "MESH_WallWestNorth", new Vector3(0.1f, 4f, 3.5f), new Vector3(-6.05f, 2f, 2.35f), matWallConcrete, true);
             AddBox(walls, "MESH_WallWestLintel", new Vector3(0.1f, 1.8f, 1.2f), new Vector3(-6.05f, 3.1f, 0f), matWallConcrete, true);
 
-            AddBox(env, "MESH_Ceiling", new Vector3(12f, 0.1f, 8f), new Vector3(0f, 4.05f, 0f), matCeilingConcrete, false);
+            GameObject ceiling = AddBox(env, "MESH_Ceiling", new Vector3(12f, 0.1f, 8f), new Vector3(0f, 4.05f, 0f), matCeilingConcrete, false);
+
+            // Baked GI and static batching on the shell: the room never moves (GDD §7.7).
+            MarkStatic(floor);
+            MarkStatic(ceiling);
+            foreach (Transform wall in walls.transform) MarkStatic(wall.gameObject);
 
             var door = NewChild(env, "MESH_Door", new Vector3(-6f, 0f, 0f));
             InstantiatePrefabInScene(scene, "MESH_IndustrialDoor_RollUp", door.transform, Vector3.zero, Vector3.zero);
@@ -1322,12 +1917,17 @@ namespace SI81.MachineLock.EditorTools
 
         // ------------------------------------------------------------------ Hazard area
 
-        private static void BuildHazardArea(Scene scene)
+        private static void BuildHazardArea(Scene scene, MachineLockAudioClips clips)
         {
             GameObject hazard = NewRoot(scene, "HAZARD_Oil");
 
+            // Leak: thin dark jet plus the looping hiss (GDD §13.1 and §13.2).
             var jet = NewChild(hazard, "VFX_OilJet", new Vector3(1.95f, 0.9f, 0.5f));
             AddCylinder(jet, "VFX_OilJetStream", 0.012f, 0.9f, new Vector3(0f, -0.45f, 0f), Vector3.zero, matOil, false);
+            AddParticles(jet, "VFX_OilParticles", new Vector3(0f, -0.1f, 0f), Vector3.zero,
+                matParticleSoft, 80, true, 35f, new Color(0.09f, 0.06f, 0.03f, 0.9f), 0.05f, 0.4f, 1f, 0.03f,
+                ParticleSystemShapeType.Cone);
+            AddAudioSource(jet, clips.OilLeak, true, true, 1f, 0.7f);
 
             var puddle = NewChild(hazard, "VFX_OilPuddle", Vector3.zero);
             AddPuddleQuadrant(puddle, "MESH_PuddleQuadrantNE", 1f, 1f);
@@ -1335,15 +1935,21 @@ namespace SI81.MachineLock.EditorTools
             AddPuddleQuadrant(puddle, "MESH_PuddleQuadrantSE", 1f, -1f);
             AddPuddleQuadrant(puddle, "MESH_PuddleQuadrantSW", -1f, -1f);
 
+            // Steam over the hot oil and the inaction smoke over the press (GDD §9.12 and §13.2).
+            AddParticles(hazard, "VFX_Steam", new Vector3(0f, 0.35f, 1.8f), Vector3.zero,
+                matParticleSoft, 60, true, 12f, new Color(0.85f, 0.86f, 0.85f, 0.35f), 0.35f, 0.35f, 3f, 1.4f,
+                ParticleSystemShapeType.Sphere);
+            AddParticles(hazard, "VFX_Smoke", new Vector3(0f, 2.6f, 0f), Vector3.zero,
+                matParticleSoft, 120, false, 0f, new Color(0.16f, 0.16f, 0.16f, 0.75f), 0.9f, 0.3f, 5f, 1.2f,
+                ParticleSystemShapeType.Sphere);
+
             var zone = NewChild(hazard, "ZONE_PuddleHazard", new Vector3(0f, 0.25f, 0f));
             var zoneCollider = zone.AddComponent<BoxCollider>();
+            zoneCollider.center = Vector3.zero;
             zoneCollider.size = new Vector3(7f, 0.5f, 5f);
             zoneCollider.isTrigger = true;
 
-            NewChild(hazard, "ZONE_Coverage1", new Vector3(1.75f, 0.02f, 1.25f));
-            NewChild(hazard, "ZONE_Coverage2", new Vector3(-1.75f, 0.02f, 1.25f));
-            NewChild(hazard, "ZONE_Coverage3", new Vector3(1.75f, 0.02f, -1.25f));
-            NewChild(hazard, "ZONE_Coverage4", new Vector3(-1.75f, 0.02f, -1.25f));
+            for (int i = 0; i < 4; i++) BuildCoverageZone(hazard, i);
 
             var patternA = NewChild(hazard, "PATTERN_PuddleA", Vector3.zero);
             patternA.transform.localScale = new Vector3(7f, 1f, 5f);
@@ -1351,6 +1957,24 @@ namespace SI81.MachineLock.EditorTools
             patternB.transform.localScale = new Vector3(6.5f, 1f, 5f);
             var patternC = NewChild(hazard, "PATTERN_PuddleC", new Vector3(0f, 0f, -0.25f));
             patternC.transform.localScale = new Vector3(7f, 1f, 4.5f);
+
+            hazard.AddComponent<MachineLockSpillSystem>();
+        }
+
+        /// <summary>
+        /// Builds one absorbent coverage zone with its Guided ghost, hidden until the player holds an item.
+        /// Quadrant order matches the puddle meshes: 0 NE, 1 NW, 2 SE, 3 SW.
+        /// </summary>
+        private static void BuildCoverageZone(GameObject hazard, int quadrant)
+        {
+            float signX = quadrant == 1 || quadrant == 3 ? -1f : 1f;
+            float signZ = quadrant >= 2 ? -1f : 1f;
+            GameObject zone = NewChild(hazard, "ZONE_Coverage" + (quadrant + 1),
+                new Vector3(1.75f * signX, 0.02f, 1.25f * signZ));
+
+            GameObject ghost = BuildGhost(zone, new Vector3(2.6f, 0.02f, 1.0f), false);
+            var snapZone = zone.AddComponent<MachineLockSnapZone>();
+            snapZone.Configure(MachineLockSnapZone.SnapKind.Absorbent, zone.transform, ghost, quadrant);
         }
 
         private static void AddPuddleQuadrant(GameObject puddle, string name, float signX, float signZ)
@@ -1362,15 +1986,45 @@ namespace SI81.MachineLock.EditorTools
                 new Vector3(2.5f * signX, 0.01f, 0.625f * signZ), matOil, false);
         }
 
+        /// <summary>
+        /// Guided snap ghost of one zone: a flat mat or a small cone in the transparent highlight
+        /// material, inactive until the spill system shows it.
+        /// </summary>
+        private static GameObject BuildGhost(GameObject zone, Vector3 size, bool cone)
+        {
+            var ghost = NewChild(zone, "VFX_SnapGhost", Vector3.zero);
+            if (cone)
+            {
+                AddCylinder(ghost, "MESH_GhostConeBody", 0.15f, 0.5f, new Vector3(0f, 0.25f, 0f), Vector3.zero, matGhostSnap, false);
+            }
+            else
+            {
+                AddBox(ghost, "MESH_GhostCoverage", new Vector3(size.x, size.y, size.z),
+                    new Vector3(0f, 0.01f, 0f), matGhostSnap, false);
+            }
+            ghost.SetActive(false);
+            return ghost;
+        }
+
         // ------------------------------------------------------------------ Delimitation and patterns
 
         private static void BuildDelimitationArea(Scene scene)
         {
             GameObject delimitation = NewRoot(scene, "ZONE_Delimitation");
-            NewChild(delimitation, "ZONE_ConePoint1", new Vector3(3.8f, 0f, 2.8f));
-            NewChild(delimitation, "ZONE_ConePoint2", new Vector3(-3.8f, 0f, 2.8f));
-            NewChild(delimitation, "ZONE_ConePoint3", new Vector3(3.8f, 0f, -2.8f));
-            NewChild(delimitation, "ZONE_ConePoint4", new Vector3(-3.8f, 0f, -2.8f));
+            Vector3[] points =
+            {
+                new Vector3(3.8f, 0f, 2.8f),
+                new Vector3(-3.8f, 0f, 2.8f),
+                new Vector3(3.8f, 0f, -2.8f),
+                new Vector3(-3.8f, 0f, -2.8f)
+            };
+            for (int i = 0; i < points.Length; i++)
+            {
+                GameObject point = NewChild(delimitation, "ZONE_ConePoint" + (i + 1), points[i]);
+                GameObject ghost = BuildGhost(point, Vector3.zero, true);
+                var snapZone = point.AddComponent<MachineLockSnapZone>();
+                snapZone.Configure(MachineLockSnapZone.SnapKind.Cone, point.transform, ghost, -1);
+            }
         }
 
         private static void BuildLayoutPatterns(Scene scene)
@@ -1394,15 +2048,29 @@ namespace SI81.MachineLock.EditorTools
             NewChild(c, "MarkerExtinguisher", new Vector3(5.7f, 1.2f, 3.2f));
         }
 
-        private static void BuildObservationTargets(Scene scene)
+        private static void BuildObservationTargets(Scene scene, MachineLockConfig config)
         {
             GameObject targets = NewRoot(scene, "MNG_ObservationTargets");
-            NewChild(targets, "OBS_Press", new Vector3(0f, 1.6f, 0f));
-            NewChild(targets, "OBS_Thermometer", new Vector3(-1.5f, 1.7f, 0.2f));
-            NewChild(targets, "OBS_Display", new Vector3(-1.5f, 1.5f, -0.8f));
-            NewChild(targets, "OBS_Puddle", new Vector3(0f, 0.05f, 1.8f));
-            NewChild(targets, "OBS_Panel", new Vector3(5.9f, 1.2f, 0f));
-            NewChild(targets, "OBS_PpeCabinet", new Vector3(2.5f, 1.0f, -3.9f));
+            var scenario = FindRoot(scene, "MNG_Scenario");
+            if (scenario == null)
+                throw new InvalidOperationException("[MachineLock] MNG_Scenario is missing before the observation targets are built.");
+
+            Vector3[] positions =
+            {
+                new Vector3(0f, 1.6f, 0f),
+                new Vector3(-1.5f, 1.7f, 0.2f),
+                new Vector3(-1.5f, 1.5f, -0.8f),
+                new Vector3(0f, 0.05f, 1.8f),
+                new Vector3(5.9f, 1.2f, 0f),
+                new Vector3(2.5f, 1.0f, -3.9f)
+            };
+
+            for (int i = 0; i < OBSERVATION_NAMES.Length; i++)
+            {
+                GameObject target = NewChild(targets, OBSERVATION_NAMES[i], positions[i]);
+                var observation = target.AddComponent<MachineLockObservationTarget>();
+                observation.Configure(OBSERVATION_IDS[i], scenario.GetComponent<MachineLockScenario>(), config);
+            }
         }
 
         private static void BuildExit(Scene scene)
@@ -1414,11 +2082,37 @@ namespace SI81.MachineLock.EditorTools
             so.FindProperty("radius").floatValue = 1f;
             so.FindProperty("once").boolValue = false;
             so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(trigger);
+            BindExitTrigger(scene);
         }
 
-        private static void EnsureMiscRoots(Scene scene)
+        /// <summary>
+        /// Binds <see cref="MachineLockScenario.NotifyExitReached"/> to the persistent "onEntered" event of
+        /// the exit trigger. The field is private to SI81.UI, so it is bound through reflection and the
+        /// UnityEvent tool; the trigger component itself is not modified.
+        /// </summary>
+        private static void BindExitTrigger(Scene scene)
         {
-            EnsureEmptyRoot(scene, "MNG_Audio");
+            GameObject exit = FindRoot(scene, "ZONE_Exit");
+            if (exit == null) throw new InvalidOperationException("[MachineLock] ZONE_Exit is missing.");
+            var trigger = exit.GetComponent<ScenarioTrigger>();
+            var scenario = FindRoot(scene, "MNG_Scenario").GetComponent<MachineLockScenario>();
+            if (trigger == null || scenario == null)
+                throw new InvalidOperationException("[MachineLock] Cannot bind the exit trigger.");
+
+            FieldInfo field = typeof(ScenarioTrigger).GetField("onEntered", BindingFlags.Instance | BindingFlags.NonPublic);
+            var onEntered = field != null ? field.GetValue(trigger) as UnityEvent : null;
+            if (onEntered == null)
+                throw new InvalidOperationException("[MachineLock] ScenarioTrigger.onEntered not found: the exit cannot be bound.");
+
+            UnityEventTools.AddVoidPersistentListener(onEntered, scenario.NotifyExitReached);
+            EditorUtility.SetDirty(trigger);
+        }
+
+        private static void EnsureMiscRoots(Scene scene, MachineLockAudioClips clips)
+        {
+            GameObject audioRoot = EnsureEmptyRoot(scene, "MNG_Audio");
+            AddAudioSource(audioRoot, clips.AmbientFactory, true, true, 0f, 0.25f);
             EnsureEmptyRoot(scene, "MNG_Debug");
         }
 
@@ -1427,6 +2121,192 @@ namespace SI81.MachineLock.EditorTools
             GameObject root = FindRoot(scene, name);
             if (root == null) root = NewRoot(scene, name);
             return root;
+        }
+
+        /// <summary>
+        /// Adds the damage feedback to MNG_Scenario: a global URP Volume with the red Vignette profile, the
+        /// non-shadow-casting fallback light (disabled at rest) and the shared one-shot audio source.
+        /// </summary>
+        private static void ConfigureDamageFeedback(Scene scene, VolumeProfile profile, MachineLockAudioClips clips)
+        {
+            GameObject manager = FindRoot(scene, "MNG_Scenario");
+            if (manager == null) throw new InvalidOperationException("[MachineLock] MNG_Scenario is missing.");
+
+            GameObject vignetteObject = EnsureChild(manager, "VFX_DamageVignette");
+            var volume = EnsureComponent<Volume>(vignetteObject);
+            volume.isGlobal = true;
+            volume.weight = 0f;
+            volume.priority = 0f;
+            volume.sharedProfile = profile;
+
+            GameObject lightObject = EnsureChild(manager, "LIGHT_DamageFlash");
+            var flash = EnsureComponent<Light>(lightObject);
+            flash.type = LightType.Point;
+            flash.color = new Color(1f, 0.08f, 0.05f);
+            flash.intensity = 0f;
+            flash.range = 3f;
+            flash.shadows = LightShadows.None;
+            flash.lightmapBakeType = LightmapBakeType.Realtime;
+            flash.enabled = false;
+            EditorUtility.SetDirty(flash);
+
+            var oneShot = EnsureComponent<AudioSource>(manager);
+            oneShot.playOnAwake = false;
+            oneShot.loop = false;
+            oneShot.spatialBlend = 0f;
+            oneShot.volume = 0.8f;
+            EditorUtility.SetDirty(oneShot);
+
+            var feedback = EnsureComponent<MachineLockDamageFeedback>(manager);
+            SetRef(feedback, "damageVolume", volume);
+            SetRef(feedback, "fallbackFlashLight", flash);
+            SetRef(feedback, "oneShotAudio", oneShot);
+            SetRef(feedback, "shockClip", clips.Shock);
+            SetRef(feedback, "burnClip", clips.Burn);
+            SetRef(feedback, "steamClip", clips.SteamBurst);
+        }
+
+        // ------------------------------------------------------------------ Scene wiring (P3–P8)
+
+        /// <summary>
+        /// Cross-wires every runtime component of the built scene: the scenario, the press, the panel, the
+        /// alarm, the cabinet, the valve, the extinguisher, the spill system with its eight snap zones and
+        /// the six observation targets. Idempotent: it only assigns serialized references.
+        /// </summary>
+        private static void WireScenarioContent(Scene scene, MachineLockConfig config)
+        {
+            var scenario = FindInScene(scene, "MNG_Scenario").GetComponent<MachineLockScenario>();
+            var press = FindInScene(scene, "MESH_HydraulicPress").GetComponent<MachineLockPress>();
+            var panel = FindInScene(scene, "MESH_ElectricalPanel").GetComponent<MachineLockEnergyPanel>();
+            var alarm = FindInScene(scene, "MESH_AlarmButton").GetComponent<MachineLockAlarm>();
+            var cabinet = FindInScene(scene, "MESH_PpeCabinet").GetComponent<MachineLockPpeCabinet>();
+            var spill = FindInScene(scene, "HAZARD_Oil").GetComponent<MachineLockSpillSystem>();
+            var valve = FindInScene(scene, "MESH_Valve").GetComponent<MachineLockValve>();
+            var extinguisher = FindInScene(scene, "MESH_WaterExtinguisher").GetComponent<MachineLockExtinguisher>();
+            var feedback = FindInScene(scene, "MNG_Scenario").GetComponent<MachineLockDamageFeedback>();
+
+            // Press: scenario plus the two pedestal buttons.
+            SetRef(press, "scenario", scenario);
+            SetRef(press, "estopInteractable", FindInScene(scene, "MESH_EmergencyStopButton").GetComponent<Interactable>());
+            SetRef(press, "testStartInteractable", FindInScene(scene, "MESH_TestStartButton").GetComponent<Interactable>());
+
+            // Panel: scenario, config and the press it powers.
+            SetRef(panel, "scenario", scenario);
+            SetRef(panel, "config", config);
+            SetRef(panel, "press", press);
+
+            // Alarm, cabinet, valve and extinguisher.
+            SetRef(alarm, "scenario", scenario);
+            SetRef(alarm, "alarmInteractable", FindInScene(scene, "MESH_AlarmPushButton").GetComponent<Interactable>());
+            SetRef(cabinet, "scenario", scenario);
+            SetRef(valve, "scenario", scenario);
+            SetRef(valve, "spillSystem", spill);
+
+            GameObject steamObject = FindInScene(scene, "VFX_Steam");
+            GameObject smokeObject = FindInScene(scene, "VFX_Smoke");
+            SetRef(extinguisher, "scenario", scenario);
+            SetRef(extinguisher, "steamBurstVfx", steamObject.GetComponent<ParticleSystem>());
+            SetRef(extinguisher, "smokeBurstVfx", smokeObject.GetComponent<ParticleSystem>());
+
+            // Spill system: hazards, leak, puddle meshes, trigger and the eight snap zones.
+            SetRef(spill, "scenario", scenario);
+            SetRef(spill, "config", config);
+            SetRef(spill, "energyPanel", panel);
+            SetRef(spill, "ppeCabinet", cabinet);
+            SetRef(spill, "oilJetVfx", FindInScene(scene, "VFX_OilJet"));
+            SetRef(spill, "oilLeakAudio", FindInScene(scene, "VFX_OilJet").GetComponent<AudioSource>());
+            SetRef(spill, "puddleHazardTrigger", FindInScene(scene, "ZONE_PuddleHazard").GetComponent<Collider>());
+            SetRefArray(spill, "puddleQuadrants", new UnityEngine.Object[]
+            {
+                FindInScene(scene, "MESH_PuddleQuadrantNE"),
+                FindInScene(scene, "MESH_PuddleQuadrantNW"),
+                FindInScene(scene, "MESH_PuddleQuadrantSE"),
+                FindInScene(scene, "MESH_PuddleQuadrantSW")
+            });
+
+            var snapZones = new UnityEngine.Object[8];
+            for (int i = 0; i < 4; i++)
+                snapZones[i] = FindInScene(scene, "ZONE_Coverage" + (i + 1)).GetComponent<MachineLockSnapZone>();
+            for (int i = 0; i < 4; i++)
+                snapZones[4 + i] = FindInScene(scene, "ZONE_ConePoint" + (i + 1)).GetComponent<MachineLockSnapZone>();
+            SetRefArray(spill, "snapZones", snapZones);
+
+            // Spill kit items: they snap through the shared spill system.
+            GameObject spillKit = FindInScene(scene, "MESH_SpillKit");
+            foreach (MachineLockCone cone in spillKit.GetComponentsInChildren<MachineLockCone>(true))
+            {
+                SetRef(cone, "spillSystem", spill);
+                SetRef(cone, "config", config);
+            }
+            foreach (MachineLockAbsorbent absorbent in spillKit.GetComponentsInChildren<MachineLockAbsorbent>(true))
+            {
+                SetRef(absorbent, "spillSystem", spill);
+                SetRef(absorbent, "config", config);
+            }
+
+            // Scenario: every reference used by the orchestrator.
+            GameObject manager = FindInScene(scene, "MNG_Scenario");
+            SetRef(scenario, "spawnPointTransform", FindInScene(scene, "MNG_SpawnPoint").transform);
+            SetRef(scenario, "press", press);
+            SetRef(scenario, "alarm", alarm);
+            SetRef(scenario, "energyPanel", panel);
+            SetRef(scenario, "ppeCabinet", cabinet);
+            SetRef(scenario, "spillSystem", spill);
+            SetRef(scenario, "extinguisher", extinguisher);
+            SetRef(scenario, "damageFeedback", feedback);
+            SetRefArray(scenario, "layoutPatterns", new UnityEngine.Object[]
+            {
+                FindInScene(scene, "PATTERN_A").transform,
+                FindInScene(scene, "PATTERN_B").transform,
+                FindInScene(scene, "PATTERN_C").transform
+            });
+            SetRefArray(scenario, "puddlePatterns", new UnityEngine.Object[]
+            {
+                FindInScene(scene, "PATTERN_PuddleA").transform,
+                FindInScene(scene, "PATTERN_PuddleB").transform,
+                FindInScene(scene, "PATTERN_PuddleC").transform
+            });
+            SetRef(scenario, "ppeCabinetTransform", FindInScene(scene, "MESH_PpeCabinet").transform);
+            SetRef(scenario, "spillKitTransform", spillKit.transform);
+            SetRef(scenario, "extinguisherTransform", FindInScene(scene, "MESH_WaterExtinguisher").transform);
+            SetRef(scenario, "obsPpeCabinetTransform", FindInScene(scene, "OBS_PpeCabinet").transform);
+            SetRef(scenario, "puddleVisualRoot", FindInScene(scene, "VFX_OilPuddle").transform);
+            SetRef(scenario, "smokeVfx", smokeObject.GetComponent<ParticleSystem>());
+            SetRef(scenario, "steamVfx", steamObject.GetComponent<ParticleSystem>());
+            SetRef(scenario, "ambientAudio", FindInScene(scene, "MNG_Audio").GetComponent<AudioSource>());
+            EditorUtility.SetDirty(manager);
+            EditorUtility.SetDirty(scenario);
+        }
+
+        private static GameObject FindInScene(Scene scene, string name)
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+                foreach (Transform transform in root.GetComponentsInChildren<Transform>(true))
+                    if (transform.name == name) return transform.gameObject;
+            throw new InvalidOperationException($"[MachineLock] Scene object not found: {name}");
+        }
+
+        private static GameObject EnsureChild(GameObject parent, string name)
+        {
+            Transform existing = parent.transform.Find(name);
+            if (existing != null) return existing.gameObject;
+            var child = new GameObject(name);
+            child.transform.SetParent(parent.transform, false);
+            return child;
+        }
+
+        private static T EnsureComponent<T>(GameObject target) where T : Component
+        {
+            T component = target.GetComponent<T>();
+            return component != null ? component : target.AddComponent<T>();
+        }
+
+        private static void MarkStatic(GameObject target)
+        {
+            StaticEditorFlags flags = GameObjectUtility.GetStaticEditorFlags(target)
+                                      | StaticEditorFlags.ContributeGI
+                                      | StaticEditorFlags.BatchingStatic;
+            GameObjectUtility.SetStaticEditorFlags(target, flags);
         }
 
         // ------------------------------------------------------------------ Labels (GDD §8.4)

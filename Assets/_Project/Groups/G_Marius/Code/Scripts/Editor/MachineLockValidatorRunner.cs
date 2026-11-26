@@ -8,14 +8,17 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace SI81.MachineLock.EditorTools
 {
     /// <summary>
-    /// Batchmode validator of the Machine Lock P1 shell. Runs the shared scenario validator through
-    /// reflection (the editor assembly is not auto-referenced) and adds the P1 specific checks:
-    /// spawn transform, scenario wiring, absence of camera and UI infrastructure, Build Settings order.
+    /// Batchmode validator of the Machine Lock scenario. Runs the shared scenario validator through
+    /// reflection (the editor assembly is not auto-referenced) and adds the P1 shell checks, the P2
+    /// blockout checks and the P3–P8 content checks: every runtime component and its wiring, the particle
+    /// budget, the sixteen audio clips, the damage profile and the light budget.
     /// Entry point: ValidateScene. Exits 0 only with zero errors and zero warnings.
     /// </summary>
     public static class MachineLockValidatorRunner
@@ -82,6 +85,10 @@ namespace SI81.MachineLock.EditorTools
                 CheckLights(scene, ref errors);
                 CheckLabelAnchors(scene, ref errors);
                 CheckDryPerimeter(scene, ref errors);
+                CheckRuntimeComponents(scene, ref errors);
+                CheckParticles(scene, ref errors);
+                CheckAudioClips(ref errors);
+                CheckDamageProfile(ref errors);
             }
             finally
             {
@@ -393,6 +400,153 @@ namespace SI81.MachineLock.EditorTools
                     errors += Error($"{name} leaves a dry perimeter below 1.5 m " +
                                     $"(W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00}).");
             }
+        }
+
+        // ------------------------------------------------------------------ P3–P8 content checks
+
+        /// <summary>
+        /// Every runtime component of the scenario must exist with the expected count, and neither the
+        /// scene nor the prefabs may contain a missing script.
+        /// </summary>
+        private static void CheckRuntimeComponents(Scene scene, ref int errors)
+        {
+            int press = CountInScene<MachineLockPress>(scene);
+            int alarm = CountInScene<MachineLockAlarm>(scene);
+            int panel = CountInScene<MachineLockEnergyPanel>(scene);
+            int extinguisher = CountInScene<MachineLockExtinguisher>(scene);
+            int cabinet = CountInScene<MachineLockPpeCabinet>(scene);
+            int ppeItems = CountInScene<MachineLockPpeItem>(scene);
+            int valve = CountInScene<MachineLockValve>(scene);
+            int spill = CountInScene<MachineLockSpillSystem>(scene);
+            int cones = CountInScene<MachineLockCone>(scene);
+            int absorbents = CountInScene<MachineLockAbsorbent>(scene);
+            int snapZones = CountInScene<MachineLockSnapZone>(scene);
+            int observations = CountInScene<MachineLockObservationTarget>(scene);
+            int feedback = CountInScene<MachineLockDamageFeedback>(scene);
+
+            Debug.Log($"[MachineLockValidator] Runtime Press={press} Alarm={alarm} Panel={panel} " +
+                      $"Extinguisher={extinguisher} Cabinet={cabinet} PpeItems={ppeItems} Valve={valve} " +
+                      $"Spill={spill} Cones={cones} Absorbents={absorbents} SnapZones={snapZones} " +
+                      $"ObservationTargets={observations} DamageFeedback={feedback}");
+
+            errors += Expect(press, 1, "MachineLockPress");
+            errors += Expect(alarm, 1, "MachineLockAlarm");
+            errors += Expect(panel, 1, "MachineLockEnergyPanel");
+            errors += Expect(extinguisher, 1, "MachineLockExtinguisher");
+            errors += Expect(cabinet, 1, "MachineLockPpeCabinet");
+            errors += Expect(ppeItems, 6, "MachineLockPpeItem");
+            errors += Expect(valve, 1, "MachineLockValve");
+            errors += Expect(spill, 1, "MachineLockSpillSystem");
+            errors += Expect(cones, 4, "MachineLockCone");
+            errors += Expect(absorbents, 4, "MachineLockAbsorbent");
+            errors += Expect(snapZones, 8, "MachineLockSnapZone");
+            errors += Expect(observations, 6, "MachineLockObservationTarget");
+            errors += Expect(feedback, 1, "MachineLockDamageFeedback");
+
+            int missingScripts = CountMissingScripts(scene);
+            Debug.Log($"[MachineLockValidator] SceneMissingScripts={missingScripts}");
+            if (missingScripts > 0)
+                errors += Error($"{missingScripts} missing script(s) found in the scenario scene.");
+        }
+
+        /// <summary>
+        /// Particle budget of GDD §13.2: at most 200 particles per system and at most four systems that
+        /// play on awake.
+        /// </summary>
+        private static void CheckParticles(Scene scene, ref int errors)
+        {
+            int systems = 0;
+            int playOnAwake = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (ParticleSystem system in root.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    if (system == null) continue;
+                    systems++;
+                    ParticleSystem.MainModule main = system.main;
+                    if (main.maxParticles > 200)
+                        errors += Error($"ParticleSystem {PathOf(system.transform)} has maxParticles={main.maxParticles}; " +
+                                        "the budget is 200.");
+                    if (main.playOnAwake && system.gameObject.activeInHierarchy) playOnAwake++;
+                }
+            }
+
+            Debug.Log($"[MachineLockValidator] ParticleSystems={systems} PlayOnAwake={playOnAwake} " +
+                      "MaxParticlesBudget=200 PlayOnAwakeBudget=4");
+            if (playOnAwake > 4)
+                errors += Error($"{playOnAwake} particle systems play on awake; the budget is 4.");
+        }
+
+        /// <summary>
+        /// The sixteen clips of GDD §13.1 must exist and load as an <see cref="AudioClip"/>.
+        /// </summary>
+        private static void CheckAudioClips(ref int errors)
+        {
+            int expected = MachineLockSceneBuilder.AUDIO_CLIPS.Length + 1;
+            int loaded = 0;
+            foreach (string clip in MachineLockSceneBuilder.AUDIO_CLIPS)
+                loaded += CheckAudioClip(MachineLockSceneBuilder.SOUND_DIR + "/" + clip, ref errors);
+            loaded += CheckAudioClip(MachineLockSceneBuilder.MUSIC_DIR + "/" + MachineLockSceneBuilder.AMBIENT_CLIP, ref errors);
+
+            Debug.Log($"[MachineLockValidator] AudioClips={loaded}/{expected}");
+            if (loaded != expected)
+                errors += Error($"{expected - loaded} audio clip(s) of the GDD §13.1 set are missing.");
+        }
+
+        private static int CheckAudioClip(string path, ref int errors)
+        {
+            if (AssetDatabase.LoadAssetAtPath<AudioClip>(path) != null) return 1;
+            errors += Error($"Audio clip not found: {path}");
+            return 0;
+        }
+
+        /// <summary>
+        /// The damage profile asset must exist and contain both a Vignette and a Color Adjustments
+        /// override (GDD §9.13).
+        /// </summary>
+        private static void CheckDamageProfile(ref int errors)
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(MachineLockSceneBuilder.DAMAGE_PROFILE_PATH);
+            if (profile == null)
+            {
+                errors += Error($"Damage profile not found: {MachineLockSceneBuilder.DAMAGE_PROFILE_PATH}");
+                return;
+            }
+
+            Vignette vignette;
+            bool hasVignette = profile.TryGet(out vignette) && vignette != null;
+            ColorAdjustments adjustments;
+            bool hasAdjustments = profile.TryGet(out adjustments) && adjustments != null;
+
+            Debug.Log($"[MachineLockValidator] DamageProfile Vignette={hasVignette} ColorAdjustments={hasAdjustments}");
+            if (!hasVignette)
+                errors += Error("SO_MachineLockDamageProfile has no Vignette override.");
+            if (!hasAdjustments)
+                errors += Error("SO_MachineLockDamageProfile has no Color Adjustments override.");
+        }
+
+        private static int CountInScene<T>(Scene scene) where T : Component
+        {
+            int count = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+                count += root.GetComponentsInChildren<T>(true).Length;
+            return count;
+        }
+
+        private static int CountMissingScripts(Scene scene)
+        {
+            int missing = 0;
+            foreach (GameObject root in scene.GetRootGameObjects())
+                foreach (Transform transform in root.GetComponentsInChildren<Transform>(true))
+                    missing += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(transform.gameObject);
+            return missing;
+        }
+
+        private static int Expect(int actual, int expected, string label)
+        {
+            if (actual == expected) return 0;
+            Debug.LogError($"[MachineLockValidator] Error: {label} count is {actual} instead of {expected}.");
+            return 1;
         }
 
         // ------------------------------------------------------------------ Utilities

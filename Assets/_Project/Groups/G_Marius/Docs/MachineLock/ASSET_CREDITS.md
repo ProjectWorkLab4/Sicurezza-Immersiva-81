@@ -8,7 +8,7 @@
 | Branch | `scenario/machine-lock` |
 | Asset source list | [`../ASSET_AUDIT_Scenario08_MachineLock.txt`](../ASSET_AUDIT_Scenario08_MachineLock.txt) |
 | Design reference | [`GDD_MachineLock.md`](GDD_MachineLock.md) — §17 Asset plan |
-| Status | Populated in P2 (blockout and placeholders); audio and VFX rows follow in P8 |
+| Status | Complete: P2 blockout, P3–P7 runtime content and P8 audio, VFX and lighting are recorded (16 audio clips, 10 VFX systems, the damage profile and the lighting set) |
 
 ---
 
@@ -123,6 +123,10 @@ Shared FBX meshes are referenced directly from the prefabs and are **not** copie
 | 25 | `TEX_Sign_Dpi` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_Dpi.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
 | 26 | `TEX_Sign_KitAntispandimento` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_KitAntispandimento.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
 | 27 | `TEX_Sign_Uscita` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_Sign_Uscita.png` | Texture | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | 1024×512 bitmap text, Android 1024 ASTC 4×4 | P2 |
+| 28 | `MAT_HMI_Off` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_HMI_Off.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit dark unlit-looking screen (0.015, 0.015, 0.018, smoothness 0.12) for the press display when the main power is off | P8 |
+| 29 | `MAT_LedOff` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_LedOff.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Lit dark gray, used for the lockout and tester LEDs in their idle state | P8 |
+| 30 | `MAT_ParticleSoft` | `Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/MAT_ParticleSoft.mat` | Material | `GROUP` | created in-repo | G_Marius | Project-owned (educational use) | URP Particles/Unlit, surface transparent, soft particles, `_BaseColor` (0.66, 0.66, 0.64, 0.5); shared by every ParticleSystem so no VFX renders pink on Quest | P8 |
+| 31 | `SO_MachineLockDamageProfile` | `Assets/_Project/Groups/G_Marius/Level/Data/SO_MachineLockDamageProfile.asset` | Volume profile | `GROUP` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | URP `VolumeProfile` with a red `Vignette` (0.85, 0.05, 0.05; intensity 0.55; smoothness 0.4) and a `ColorAdjustments` override (white filter, saturation −15); both stored as sub-assets | P8 |
 
 ### 4.3 Placeholders and grayboxes
 
@@ -160,15 +164,53 @@ a built application.
 
 ### 4.5 Audio
 
+All sixteen clips are synthesized in-repo for this scenario (procedural oscillators and noise bursts
+rendered to 16-bit PCM WAV), dedicated to the public domain under CC0-1.0, and keep the `SFX_`
+production names so final audio can replace them without touching a reference. They are
+mono, 44.1 kHz, loopable where the table says loop, and imported with the default Vorbis/ADPCM
+compression for Android.
+
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| — | *(to be populated in P8)* | — | — | — | — | — | — | — | — |
+| 1 | `SFX_PressLoop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressLoop.wav` | Audio (loop) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | 44.1 kHz mono, seamless loop: irregular hydraulic clunks; 3D source on `MESH_HydraulicPress` | P8 |
+| 2 | `SFX_PressStop` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_PressStop.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Motor spin-down, played by the E-stop | P8 |
+| 3 | `SFX_EStopClack` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EStopClack.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Mechanical clack: E-stop, try-start and cabinet door | P8 |
+| 4 | `SFX_AlarmButton` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmButton.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Short button clack of the wall alarm | P8 |
+| 5 | `SFX_AlarmSiren` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_AlarmSiren.wav` | Audio (loop) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Seamless two-tone siren; 3D loop on the beacon, spatial blend 1 | P8 |
+| 6 | `SFX_BreakerOff` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_BreakerOff.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Heavy main switch, played by the electrical panel | P8 |
+| 7 | `SFX_Lockout` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Lockout.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Metal click of the abstract lockout | P8 |
+| 8 | `SFX_OilLeak` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_OilLeak.wav` | Audio (loop) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Seamless hiss/sizzle; 3D loop on `VFX_OilJet`, stopped when the valve closes | P8 |
+| 9 | `SFX_ValveTurn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_ValveTurn.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Metal squeak of the leak valve | P8 |
+| 10 | `SFX_TesterBeep` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_TesterBeep.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Short voltage-tester beep | P8 |
+| 11 | `SFX_EquipPpe` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_EquipPpe.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Cloth/velcro of an equipped PPE item | P8 |
+| 12 | `SFX_Snap` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Snap.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Soft click of a cone or absorbent snapping to its zone | P8 |
+| 13 | `SFX_SteamBurst` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_SteamBurst.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Sharp steam of the water extinguisher | P8 |
+| 14 | `SFX_Shock` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Shock.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Electric zap of a live-oil contact | P8 |
+| 15 | `SFX_Burn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Burn.wav` | Audio (one-shot) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Sizzle of a hot-oil contact | P8 |
+| 16 | `SFX_AmbientFactory` | `Assets/_Project/Groups/G_Marius/Audio/Music/MachineLock/SFX_AmbientFactory.wav` | Audio (loop) | `GENERATED` | created in-repo (self-synthesized) | G_Marius | CC0-1.0 (public domain dedication) | Low industrial room tone; 2D loop on `MNG_Audio`, volume 0.25, play on awake | P8 |
 
 ### 4.6 Visual effects and lighting
 
+Every VFX below is a `ParticleSystem` or a scene component created in-repo by
+`MachineLockSceneBuilder`, rendered with `MAT_ParticleSoft` (§4.2 row 30) so no system falls back to a
+pink shader on Quest. The particle budget of GDD §13.2 holds: ≤ 200 particles per system and ≤ 4
+systems playing on awake.
+
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
-| — | *(to be populated in P8)* | — | — | — | — | — | — | — | — |
+| 1 | `VFX_OilJet` | `SCN_MachineLock` — `HAZARD_Oil/VFX_OilJet` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Dark oil cone, max 80 particles, plays on awake, plus the jet mesh and `SFX_OilLeak`; deactivated when the valve closes | P8 |
+| 2 | `VFX_OilPuddle` | `SCN_MachineLock` — `HAZARD_Oil/VFX_OilPuddle` | VFX / mesh | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Four quadrant meshes in `MAT_Oil`, rescaled by the selected `PATTERN_PuddleA/B/C`; each absorbent hides one quadrant | P8 |
+| 3 | `VFX_Steam` | `SCN_MachineLock` — `HAZARD_Oil/VFX_Steam` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Soft white wisps over the hot oil, max 60 particles, plays on awake, burst on the water extinguisher | P8 |
+| 4 | `VFX_Smoke` | `SCN_MachineLock` — `HAZARD_Oil/VFX_Smoke` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Dark grey smoke above the press, max 120 particles; rate 0 at start, 25/s at inaction stage 1 and 60/s at stage 2, stopped by the E-stop | P8 |
+| 5 | `VFX_ElectricalArc` | `SCN_MachineLock` — `MESH_ElectricalPanel/VFX_ElectricalArc` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Sparks at the tester, max 40 particles, not auto-playing, inactive at start; pulsed for 0.35 s by a LIVE tester reading | P8 |
+| 6 | `VFX_AlarmBeacon` | `SCN_MachineLock` — `MESH_AlarmButton/VFX_AlarmBeacon` | VFX / light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Rotating emissive dome (`MAT_BeaconRed`) with a red point light (range 8 m, no shadows, disabled at start); the only additional realtime light of the scene | P8 |
+| 7 | `VFX_DisplayFault` | `SCN_MachineLock` — `MESH_HydraulicPress/MESH_PressDisplay/VFX_DisplayFault` | VFX marker | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Empty attachment point for the fault blink: the press animates `MAT_HMI_Screen` emission and switches to `MAT_HMI_Off` when the main power is cut | P8 |
+| 8 | `VFX_WaterSpray` | `SCN_MachineLock` — `MESH_WaterExtinguisher/VFX_WaterSpray` | VFX | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Water cone, max 100 particles, not auto-playing, one-shot burst on `TriggerSpray` | P8 |
+| 9 | `VFX_SnapGhost` | `SCN_MachineLock` — `ZONE_Coverage1..4` and `ZONE_ConePoint1..4` | VFX / mesh | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Transparent `MAT_GhostSnap` mat or cone ghost, inactive until a matching item is held in Guided | P8 |
+| 10 | `VFX_DamageVignette` | `SCN_MachineLock` — `MNG_Scenario/VFX_DamageVignette` | Volume | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Global URP `Volume` (weight 0 at rest) with `SO_MachineLockDamageProfile`; animated by `MachineLockDamageFeedback` | P8 |
+| 11 | `MNG_Light` | `SCN_MachineLock` — root `MNG_Light` | Light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Directional realtime fill (0.9, no shadows) plus flat ambient (0.26, 0.28, 0.31) | P2 |
+| 12 | `MESH_CeilingLight01..03` | `SCN_MachineLock` — `ENV_Room/MESH_Signs` | Light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Three baked point fixtures (1.1, range 7 m) with `MAT_LightFixture` diffusers: they do not count in the realtime budget | P2 |
+| 13 | `LIGHT_DamageFlash` | `SCN_MachineLock` — `MNG_Scenario/LIGHT_DamageFlash` | Light | `GENERATED` | created in-repo by `MachineLockSceneBuilder` | G_Marius | Project-owned (educational use) | Red point flash used only when the damage volume cannot render; intensity 0, no shadows, disabled while idle | P8 |
 
 ## 5. Audit coverage summary
 
@@ -200,8 +242,10 @@ verbatim so the build manifest and the store listing can reuse it.
 
 ## 7. Open items
 
-- §4.1–§4.3 are populated for P2. Re-check them whenever a blockout asset is replaced.
-- Populate §4.4–§4.6 during P8, together with audio, VFX and lighting.
+- §4.1–§4.3 are populated for P2 and extended in P8 with the three runtime materials and the damage
+  profile. Re-check them whenever a blockout asset is replaced.
+- §4.5 and §4.6 are populated in P8. Replace the synthesized clips and the placeholder VFX with final
+  content only under the same production names and a recorded license.
 - Confirm the license of every `[BRANCH]` asset copied from another group's
   branch before it is merged into the shared build.
 - Re-check the texture downscale for every concrete and metal texture imported

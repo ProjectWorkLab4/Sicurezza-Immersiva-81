@@ -1,3 +1,4 @@
+using System.Collections;
 using SI81.Input;
 using SI81.Rig;
 using SI81.UI;
@@ -12,7 +13,9 @@ namespace SI81.ManDown
     /// È disponibile solo dopo la verifica della coscienza. Richiede che lo stesso controller resti dentro
     /// per un tempo configurabile; uscire, cambiare mano, aprire un popup o cambiare posa azzera il conteggio.
     /// Dopo la chiusura del popup un controller ancora dentro avvia un nuovo conteggio completo senza dover
-    /// uscire e rientrare. Al completamento chiama <see cref="ManDownNpc.AssessBreathing"/>: logica, storico e
+    /// uscire e rientrare. Al completamento invia un impulso aptico al controller che ha mantenuto la
+    /// permanenza: breve con respirazione normale, doppio e più lungo con respirazione anomala. Chiama poi
+    /// <see cref="ManDownNpc.AssessBreathing"/>: logica, storico e
     /// registrazione restano quelli di <see cref="ManDownScenario"/>. Nessuna etichetta, suggerimento o UI propria.
     /// </summary>
     [DisallowMultipleComponent]
@@ -29,6 +32,25 @@ namespace SI81.ManDown
         [Min(0.1f)]
         [SerializeField] private float requiredDwellSeconds = 2.5f;
 
+        [Header("Feedback aptico")]
+        [Tooltip("Ampiezza dell'impulso sulla mano che completa la permanenza (0 = disattivato).")]
+        [Range(0f, 1f)]
+        [SerializeField] private float completionHapticAmplitude = 0.35f;
+        [Tooltip("Durata dell'impulso aptico, in secondi.")]
+        [Min(0f)]
+        [SerializeField] private float completionHapticDuration = 0.12f;
+        [Tooltip("Se true, con respirazione anomala l'impulso viene ripetuto dopo abnormalPulseGapSeconds.")]
+        [SerializeField] private bool abnormalDoublePulse = true;
+        [Tooltip("Ampiezza dell'impulso con respirazione anomala (0 = disattivato).")]
+        [Range(0f, 1f)]
+        [SerializeField] private float abnormalHapticAmplitude = 0.55f;
+        [Tooltip("Durata di ciascun impulso con respirazione anomala, in secondi (più lunga del normale).")]
+        [Min(0f)]
+        [SerializeField] private float abnormalHapticDuration = 0.22f;
+        [Tooltip("Distanza tra i due impulsi con respirazione anomala, in secondi.")]
+        [Min(0f)]
+        [SerializeField] private float abnormalPulseGapSeconds = 0.15f;
+
         private BoxCollider zone;
         private Hand activeHand = Hand.Any;
         private float dwellSeconds;
@@ -36,6 +58,19 @@ namespace SI81.ManDown
 
         /// <summary>Tempo richiesto, in secondi, per completare la valutazione.</summary>
         public float RequiredDwellSeconds => requiredDwellSeconds;
+
+        /// <summary>Ampiezza dell'impulso aptico di completamento.</summary>
+        public float CompletionHapticAmplitude => completionHapticAmplitude;
+        /// <summary>Durata dell'impulso aptico di completamento.</summary>
+        public float CompletionHapticDuration => completionHapticDuration;
+        /// <summary>True se con respirazione anomala è previsto un secondo impulso.</summary>
+        public bool AbnormalDoublePulse => abnormalDoublePulse;
+        /// <summary>Ampiezza degli impulsi con respirazione anomala.</summary>
+        public float AbnormalHapticAmplitude => abnormalHapticAmplitude;
+        /// <summary>Durata di ciascun impulso con respirazione anomala.</summary>
+        public float AbnormalHapticDuration => abnormalHapticDuration;
+        /// <summary>Distanza tra i due impulsi con respirazione anomala.</summary>
+        public float AbnormalPulseGapSeconds => abnormalPulseGapSeconds;
 
         /// <summary>Mano attualmente dentro la zona; Any se la zona è vuota o occupata da entrambe.</summary>
         public Hand ActiveHand => activeHand;
@@ -118,7 +153,33 @@ namespace SI81.ManDown
             if (dwellSeconds < Mathf.Max(0.1f, requiredDwellSeconds)) return;
 
             completed = true;
+            PulseCompletedHand(inside);
             npc.AssessBreathing();
+        }
+
+        /// <summary>
+        /// Impulso aptico sul controller che ha completato la permanenza: usa il bridge del rig condiviso,
+        /// quindi rispetta l'impostazione UI_HAPTICS e non introduce input o haptics propri.
+        /// </summary>
+        private void PulseCompletedHand(Hand hand)
+        {
+            RigRegistration rig = RigRegistration.Instance;
+            if (rig == null || npc == null) return;
+
+            bool abnormal = npc.IsBreathingAbnormal;
+            float amplitude = abnormal ? abnormalHapticAmplitude : completionHapticAmplitude;
+            float duration = abnormal ? abnormalHapticDuration : completionHapticDuration;
+            if (amplitude <= 0f || duration <= 0f) return;
+
+            rig.Pulse(hand, amplitude, duration);
+            if (abnormal && abnormalDoublePulse) StartCoroutine(SecondAbnormalPulse(rig, hand, amplitude, duration));
+        }
+
+        /// <summary>Secondo impulso, separato dal primo dal gap configurabile.</summary>
+        private IEnumerator SecondAbnormalPulse(RigRegistration rig, Hand hand, float amplitude, float duration)
+        {
+            yield return new WaitForSeconds(Mathf.Max(0f, abnormalPulseGapSeconds));
+            if (rig != null) rig.Pulse(hand, amplitude, duration);
         }
 
         /// <summary>

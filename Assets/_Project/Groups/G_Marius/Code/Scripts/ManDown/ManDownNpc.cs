@@ -92,6 +92,9 @@ namespace SI81.ManDown
         /// <summary>True se la valutazione della respirazione è già stata registrata in questa partita.</summary>
         public bool IsBreathingAssessed => scenario != null && scenario.IsBreathingChecked;
 
+        /// <summary>Esito autorevole della respirazione di questa partita, noto prima della prima valutazione.</summary>
+        public bool IsBreathingAbnormal => scenario != null && scenario.IsBreathingAbnormal;
+
         /// <summary>True se un popup decisionale è aperto (anche da altri componenti) o è stato richiesto da questo NPC.</summary>
         public bool IsPopupActive => IsPopupOpen();
 

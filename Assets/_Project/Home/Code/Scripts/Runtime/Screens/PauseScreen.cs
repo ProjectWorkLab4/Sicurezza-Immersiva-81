@@ -17,6 +17,8 @@ namespace SI81.UI
     {
         /// <summary>Numero massimo di obiettivi mostrati (MissionDefinition.MAX_OBJECTIVES).</summary>
         private const int MAX_OBJECTIVES = MissionDefinition.MAX_OBJECTIVES;
+        /// <summary>Id del Blackout: i suoi obiettivi sono provvisori e restano solo in Guided.</summary>
+        const string ID_BLACKOUT = "02";
 
         [Header("Dati")]
         [Tooltip("Tabella testi SO_UIStrings_It.")]
@@ -37,6 +39,8 @@ namespace SI81.UI
         [Tooltip("Contenitore degli obiettivi (sotto il titolo \"Obiettivi\").")]
         [SerializeField] private RectTransform objectivesRoot;
         [SerializeField] private ObjectiveItem[] objectiveItems = new ObjectiveItem[MAX_OBJECTIVES];
+        // Titolo "Obiettivi", fratello di PANEL_Objectives nel builder: cercato a runtime per nasconderlo insieme alla lista.
+        private GameObject objectiveTitle;
 
         [Header("Pulsanti")]
         [SerializeField] private UIButton resumeButton;
@@ -57,6 +61,11 @@ namespace SI81.UI
             if (restartButton != null) restartButton.Clicked += HandleRestart;
             if (quickSettingsButton != null) quickSettingsButton.Clicked += HandleQuickSettings;
             if (exitButton != null) exitButton.Clicked += HandleExit;
+            if (objectivesRoot != null && objectivesRoot.parent != null)
+            {
+                Transform titolo = objectivesRoot.parent.Find("LBL_ObjTitle");
+                if (titolo != null) objectiveTitle = titolo.gameObject;
+            }
         }
 
         /// <summary>
@@ -103,18 +112,21 @@ namespace SI81.UI
 
         /// <summary>
         /// Obiettivi impilati dall'alto: prima del corrente = fatti, il corrente, poi da fare.
+        /// Per Blackout l'elenco è provvisorio: solo in Guided, negli altri livelli si nascondono titolo e righe.
         /// </summary>
         /// <param name="mission">Scenario (null = nessun obiettivo).</param>
         private void RefreshObjectives(MissionDefinition mission)
         {
             float y = 0f;
             int current = Mathf.Max(0, MissionFlow.ObjectiveIndex);
-            if (objectivesRoot != null) PanelLayout.SetActive(objectivesRoot.gameObject, mission != null && mission.Objectives != null && mission.Objectives.Count > 0);
+            bool mostra = mission == null || mission.Id != ID_BLACKOUT || MissionSession.Level == DifficultyLevel.Guided;
+            if (objectiveTitle != null) PanelLayout.SetActive(objectiveTitle, mostra);
+            if (objectivesRoot != null) PanelLayout.SetActive(objectivesRoot.gameObject, mostra && mission != null && mission.Objectives != null && mission.Objectives.Count > 0);
             for (int i = 0; i < objectiveItems.Length; i++)
             {
                 ObjectiveItem item = objectiveItems[i];
                 if (item == null) continue;
-                bool visible = mission != null && mission.Objectives != null && i < mission.Objectives.Count;
+                bool visible = mostra && mission != null && mission.Objectives != null && i < mission.Objectives.Count;
                 PanelLayout.SetActive(item.gameObject, visible);
                 if (!visible) continue;
                 var rect = (RectTransform)item.transform;

@@ -27,6 +27,8 @@ namespace SI81.UI
         private const float PHASE_HEIGHT = 24f;
         /// <summary>Padding orizzontale della pillola e del riquadro timer.</summary>
         private const float PILL_PADDING = 10f;
+        /// <summary>Id del Blackout: i suoi obiettivi sono provvisori e restano solo in Guided.</summary>
+        const string ID_BLACKOUT = "02";
 
         [Header("Dati (assegnati dal builder)")]
         [SerializeField] private UITheme theme;
@@ -159,14 +161,16 @@ namespace SI81.UI
 
         /// <summary>
         /// Imposta le regole del livello: obiettivi sul polso, suggerimenti, contatore (non in Crisis), badge del livello.
+        /// Per Blackout gli obiettivi sono provvisori: solo in Guided, negli altri livelli spariscono riga e contatore.
         /// </summary>
         /// <param name="cfg">Configurazione del livello (null = tutto visibile tranne i suggerimenti).</param>
         public void ApplyLevel(LevelConfig cfg)
         {
             ApplyTheme();
-            showObjective = cfg == null || cfg.ShowObjectivesOnWrist;
-            showHints = cfg != null && cfg.ShowHints;
             level = cfg != null ? cfg.Level : DifficultyLevel.Guided;
+            bool nascondiBlackout = MissionSession.Current != null && MissionSession.Current.Id == ID_BLACKOUT && level != DifficultyLevel.Guided;
+            showObjective = (cfg == null || cfg.ShowObjectivesOnWrist) && !nascondiBlackout;
+            showHints = cfg != null && cfg.ShowHints;
             showCounter = level != DifficultyLevel.Crisis;
             if (levelBadge != null) levelBadge.SetLevel(level);
             Relayout();

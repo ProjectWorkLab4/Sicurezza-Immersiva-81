@@ -29,7 +29,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] BlackoutDoorRotationRule[] doorRotationRules =
     {
         new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D3", fromZ = 90f, toZ = 0f },
-        new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D3", fromZ = 180f, toZ = 90f },
+        new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D4", fromZ = 180f, toZ = 90f },
         new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D12", fromZ = 0f, toZ = -90f },
         new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D5", fromZ = 0f, toZ = 90f },
         new BlackoutDoorRotationRule { objectName = "porta_tagliafuoco_D6", fromZ = 90f, toZ = 180f },
@@ -41,6 +41,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] bool debugDoorRotation = true;
 
     const float DoorAngleTolerance = 5f;
+    const string SegnaleticaMaterialName = "MAT_SegnaleticaLuminosa";
+    static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
+    /// <summary>Read-only view of the door rules, so other components can reuse the same list.</summary>
+    public IReadOnlyList<BlackoutDoorRotationRule> DoorRotationRules => doorRotationRules;
+
+    /// <summary>True while the blackout door animation is still running.</summary>
+    public bool IsDoorRotationActive => doorRotationRoutine != null;
 
     public event Action OnBlackout;
 
@@ -56,6 +64,8 @@ public class GameManager : MonoBehaviour
         OnBlackout += PlayBlackoutSound;
         OnBlackout += ApplyBlackoutLook;
         OnBlackout += AnimateBlackoutDoors;
+        OnBlackout += AccendiEmissioneSegnaletica;
+        ImpostaEmissioneSegnaletica(false);
         blackoutRoutine = StartCoroutine(TriggerBlackoutAfter(blackoutDelay));
         audioSource = GetComponent<AudioSource>();
 
@@ -75,6 +85,7 @@ public class GameManager : MonoBehaviour
         OnBlackout -= PlayBlackoutSound;
         OnBlackout -= ApplyBlackoutLook;
         OnBlackout -= AnimateBlackoutDoors;
+        OnBlackout -= AccendiEmissioneSegnaletica;
 
         if (blackoutRoutine != null)
         {
@@ -97,6 +108,32 @@ public class GameManager : MonoBehaviour
     {
         foreach (Light light in FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             light.enabled = false;
+    }
+
+    /// <summary>Accende la segnaletica luminosa quando scatta il blackout.</summary>
+    void AccendiEmissioneSegnaletica()
+    {
+        ImpostaEmissioneSegnaletica(true);
+    }
+
+    /// <summary>
+    /// Sovrascrive _EmissionColor dei renderers che usano MAT_SegnaleticaLuminosa: nero prima del blackout,
+    /// verde del materiale allo scatto dell'evento. La MaterialPropertyBlock lascia intatto l'asset condiviso.
+    /// </summary>
+    void ImpostaEmissioneSegnaletica(bool accesa)
+    {
+        foreach (Renderer renderer in FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            Material[] materiali = renderer.sharedMaterials;
+            if (materiali.Length != 1 || materiali[0] == null || materiali[0].name != SegnaleticaMaterialName)
+                continue;
+
+            Color coloreAcceso = materiali[0].GetColor(EmissionColorId);
+            var blocco = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(blocco);
+            blocco.SetColor(EmissionColorId, accesa ? coloreAcceso : Color.black);
+            renderer.SetPropertyBlock(blocco);
+        }
     }
 
     void AnimateBlackoutDoors()
@@ -186,7 +223,7 @@ public class GameManager : MonoBehaviour
         doorRotationRoutine = null;
     }
 
-    static bool DoorNameMatches(string candidateName, string ruleName)
+    public static bool DoorNameMatches(string candidateName, string ruleName)
     {
         if (string.Equals(candidateName, ruleName, StringComparison.OrdinalIgnoreCase))
             return true;

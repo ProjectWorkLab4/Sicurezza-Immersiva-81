@@ -29,6 +29,8 @@ namespace SI81.UI
         public const string OBJECTIVE_KEY = "ui.brief.objective_item";
         /// <summary>Chiave del testo di un criterio ("{0}: {1}").</summary>
         public const string CRITERION_KEY = "ui.brief.criterion";
+        /// <summary>Id del Blackout: i suoi obiettivi sono provvisori e restano solo in Guided.</summary>
+        const string ID_BLACKOUT = "02";
 
         [Header("Riferimenti (assegnati dal builder)")]
         [SerializeField] private UITheme theme;
@@ -124,6 +126,7 @@ namespace SI81.UI
             ApplyHeader(best);
             ApplyDescription();
             ApplyLevels();
+            ApplyObjectiveVisibility();
             ApplyCriteria();
         }
 
@@ -188,17 +191,24 @@ namespace SI81.UI
             bestPill.sizeDelta = new Vector2(Mathf.Ceil(padX * 2f + labelWidth + gap + starsWidth), height);
         }
 
-        /// <summary>
-        /// Contesto (max 280 caratteri) e obiettivi numerati su una riga ciascuno (accorciati con "…" se troppo lunghi).
-        /// </summary>
+        /// <summary>Contesto (max 280 caratteri).</summary>
         private void ApplyDescription()
         {
             if (contextText != null) contextText.text = mission.Context ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Obiettivi numerati su una riga ciascuno (accorciati con "…" se troppo lunghi). Per Blackout si mostrano
+        /// solo nel livello selezionato Guided; gli altri scenari non cambiano.
+        /// </summary>
+        private void ApplyObjectiveVisibility()
+        {
+            bool mostra = mission == null || mission.Id != ID_BLACKOUT || (UINavigationContext.SelectedLevel ?? DifficultyLevel.Guided) == DifficultyLevel.Guided;
             for (int i = 0; i < objectiveTexts.Length; i++)
             {
                 TMP_Text text = objectiveTexts[i];
                 if (text == null) continue;
-                bool used = mission.Objectives != null && i < mission.Objectives.Count && !string.IsNullOrWhiteSpace(mission.Objectives[i]);
+                bool used = mostra && mission.Objectives != null && i < mission.Objectives.Count && !string.IsNullOrWhiteSpace(mission.Objectives[i]);
                 PanelLayout.SetActive(text.gameObject, used);
                 if (used) text.text = FitSingleLine(text, strings.Format(OBJECTIVE_KEY, i + 1, mission.Objectives[i].Trim()), objectiveWidth);
             }
@@ -281,6 +291,7 @@ namespace SI81.UI
             foreach (DifficultyCard card in levelCards)
                 if (card != null) card.Selected = card.Level == level;
             if (startButton != null) startButton.Interactable = true;
+            ApplyObjectiveVisibility();
         }
 
         /// <summary>

@@ -24,17 +24,14 @@ MonoBehaviour:
   Complexity: 3
   SceneName: SCN_Blackout
   Objectives:
-  - Attiva la luce d'emergenza
-  - Avvisa i colleghi vicini
-  - Raggiungi il quadro elettrico
-  - Segnala il guasto
+  - Evacua l'edificio
   Criteria:
   - Outcome: 0
     Text: Tutti al sicuro e guasto segnalato
   - Outcome: 1
     Text: Tutti al sicuro, segnalazione tardiva
   - Outcome: 2
-    Text: Un collega resta al buio in zona pericolosa
+    Text: 
   Levels:
   - Level: 1
     UnlockedByDefault: 1

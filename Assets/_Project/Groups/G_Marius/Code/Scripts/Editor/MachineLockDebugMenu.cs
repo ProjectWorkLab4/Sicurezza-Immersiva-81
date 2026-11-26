@@ -1,8 +1,10 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.IO;
 using SI81.UI;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 namespace SI81.MachineLock.EditorTools
@@ -584,6 +586,57 @@ namespace SI81.MachineLock.EditorTools
         private static bool Nearly(float actual, float expected)
         {
             return Math.Abs(actual - expected) <= Tolerance;
+        }
+
+        // =====================================================================
+        // Android / Quest 3 build
+        // =====================================================================
+
+        /// <summary>
+        /// Builds the Android APK for Meta Quest 3 from the enabled scenes in EditorBuildSettings
+        /// (SCN_Core, SCN_MockScenario, SCN_MachineLock) to Builds/SI81_MachineLock_Quest3.apk.
+        /// The shared ControllersOnlyBuildGuard automatically disables hand-tracking and Detached
+        /// OpenXR profiles before packaging and logs "[SI81 Build]".
+        /// </summary>
+        [MenuItem("SI81/MachineLock/Build Quest 3 APK")]
+        public static void BuildQuest3Apk()
+        {
+            string[] scenes = Array.ConvertAll(
+                Array.FindAll(EditorBuildSettings.scenes,
+                    s => s != null && s.enabled && !string.IsNullOrEmpty(s.path)),
+                s => s.path);
+            if (scenes.Length == 0)
+            {
+                Debug.LogError(LogPrefix + "No enabled scenes in EditorBuildSettings.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+
+            string outputPath = Path.GetFullPath(Path.Combine("Builds", "SI81_MachineLock_Quest3.apk"));
+            string directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+
+            var options = new BuildPlayerOptions
+            {
+                scenes = scenes,
+                locationPathName = outputPath,
+                target = BuildTarget.Android,
+                targetGroup = BuildTargetGroup.Android,
+                options = BuildOptions.None
+            };
+
+            BuildReport report = BuildPipeline.BuildPlayer(options);
+            Debug.Log(LogPrefix + "AndroidBuild Result=" + report.summary.result
+                      + " Size=" + report.summary.totalSize
+                      + " Errors=" + report.summary.totalErrors
+                      + " Warnings=" + report.summary.totalWarnings
+                      + " Output=" + outputPath);
+
+            if (Application.isBatchMode)
+                EditorApplication.Exit(report.summary.result == BuildResult.Succeeded ? 0 : 1);
         }
     }
 }

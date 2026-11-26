@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 using NUnit.Framework;
+using SI81.Input;
 using SI81.Interaction;
 using SI81.MachineLock;
 using SI81.Rig;
@@ -93,6 +94,7 @@ namespace SI81.MachineLock.Tests
                 if (assets[i] != null) UnityEngine.Object.DestroyImmediate(assets[i]);
             }
             assets.Clear();
+            UIServices.Clear();
             MissionSession.Clear();
         }
 
@@ -425,7 +427,7 @@ namespace SI81.MachineLock.Tests
 
             Assert.That(cabinet.Cabinet.CorrectCount, Is.EqualTo(4));
             Assert.That(cabinet.Cabinet.HasFullPpe, Is.True);
-            Assert.That(cabinet.Cabinet.HasWrongPpeEquipped, Is.False, "The correct respirator replaced the surgical mask.");
+            Assert.That(cabinet.Cabinet.HasWrongPpeEquipped, Is.False, "The correct face shield replaced the surgical mask.");
             Assert.That(scenario.TaskPpeFull, Is.True);
             Assert.That(scenario.CorrectPpeCount, Is.EqualTo(4));
             Assert.That(scenario.Spi.TaskPpeFull, Is.True);
@@ -786,6 +788,348 @@ namespace SI81.MachineLock.Tests
         }
 
         // =====================================================================
+        // Issue #35 - Collision safety, ergonomics, wayfinding, hover & overlay
+        // =====================================================================
+
+        /// <summary>
+        /// Cones and absorbents ignore physical collisions with the player's CharacterController so
+        /// moving them underneath the player never displaces or no-clips the rig, while Physics.Raycast
+        /// still hits their non-trigger colliders for RayInteractor grabbing.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Grabbables_IgnorePlayerCharacterControllerCollision_KeepRaycastHit()
+        {
+            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.name = "TEST_Floor";
+            roots.Add(floor);
+            floor.transform.position = new Vector3(0f, -0.5f, 0f);
+            floor.transform.localScale = new Vector3(20f, 1f, 20f);
+
+            GameObject player = new GameObject("TEST_PlayerRig");
+            roots.Add(player);
+            player.transform.position = new Vector3(0f, 0.05f, 0f);
+            CharacterController controller = player.AddComponent<CharacterController>();
+            controller.height = 1.8f;
+            controller.radius = 0.3f;
+            controller.center = new Vector3(0f, 0.9f, 0f);
+
+            GameObject coneObj = new GameObject("TEST_Cone");
+            roots.Add(coneObj);
+            coneObj.transform.position = new Vector3(0f, 0.25f, 2.5f);
+            BoxCollider coneCollider = coneObj.AddComponent<BoxCollider>();
+            coneCollider.size = new Vector3(0.3f, 0.5f, 0.3f);
+            coneObj.AddComponent<Interactable>();
+            MachineLockCone cone = coneObj.AddComponent<MachineLockCone>();
+
+            GameObject matObj = new GameObject("TEST_AbsorbentMat");
+            roots.Add(matObj);
+            matObj.transform.position = new Vector3(1.5f, 0.1f, 2.5f);
+            BoxCollider matCollider = matObj.AddComponent<BoxCollider>();
+            matCollider.size = new Vector3(1.0f, 0.1f, 0.8f);
+            matObj.AddComponent<Interactable>();
+            MachineLockAbsorbent mat = matObj.AddComponent<MachineLockAbsorbent>();
+
+            yield return null;
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(coneCollider.isTrigger, Is.False, "Cone collider must stay non-trigger for RayInteractor.");
+            Assert.That(matCollider.isTrigger, Is.False, "Absorbent collider must stay non-trigger for RayInteractor.");
+            Assert.That(Physics.GetIgnoreCollision(coneCollider, controller), Is.True,
+                "Cone collider must ignore CharacterController collisions.");
+            Assert.That(Physics.GetIgnoreCollision(matCollider, controller), Is.True,
+                "Absorbent collider must ignore CharacterController collisions.");
+
+            // RayInteractor uses Physics.Raycast(..., QueryTriggerInteraction.Ignore): both must still hit.
+            bool coneHit = Physics.Raycast(new Vector3(0f, 0.25f, 4.5f), Vector3.back, out RaycastHit coneHitInfo,
+                5f, ~0, QueryTriggerInteraction.Ignore);
+            Assert.That(coneHit && coneHitInfo.collider == coneCollider, Is.True,
+                "Raycast must still hit the cone for grabbing.");
+
+            bool matHit = Physics.Raycast(new Vector3(1.5f, 0.1f, 4.5f), Vector3.back, out RaycastHit matHitInfo,
+                5f, ~0, QueryTriggerInteraction.Ignore);
+            Assert.That(matHit && matHitInfo.collider == matCollider, Is.True,
+                "Raycast must still hit the absorbent for grabbing.");
+
+            // Move the cone directly underneath the player's feet and step the CharacterController: no climb/no-clip.
+            controller.Move(new Vector3(0f, -0.5f, 0f));
+            yield return new WaitForFixedUpdate();
+            float groundedY = player.transform.position.y;
+
+            coneObj.transform.position = new Vector3(player.transform.position.x, groundedY + 0.15f, player.transform.position.z);
+            yield return new WaitForFixedUpdate();
+            controller.Move(new Vector3(0.05f, -0.2f, 0.05f));
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(player.transform.position.y, Is.EqualTo(groundedY).Within(0.05f),
+                "Moving a cone underneath the player must never lift or no-clip the CharacterController.");
+        }
+
+        /// <summary>
+        /// Opening the PPE cabinet disables its door collider(s) immediately so the doors can never
+        /// obstruct or trap the player's locomotion.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PpeCabinet_OpenDisablesDoorColliders_PreventsTrapping()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            CabinetFixture cabinet = CreateCabinet(scenario, true);
+            yield return null;
+
+            Assert.That(cabinet.DoorCollider, Is.Not.Null);
+            Assert.That(cabinet.DoorCollider.enabled, Is.True, "Door collider starts enabled while closed.");
+
+            cabinet.Cabinet.Open();
+            yield return null;
+
+            Assert.That(cabinet.Cabinet.IsOpen, Is.True);
+            Assert.That(cabinet.DoorCollider.enabled, Is.False,
+                "Opening the PPE cabinet must disable its door collider(s) so locomotion is never blocked.");
+        }
+
+        /// <summary>
+        /// Hovering a PPE item emits its Italian name and slot; equipping it flips hover feedback and
+        /// shelf status to "&lt;Nome DPI&gt; indossato"; equipping Heat Gloves and Face Shield replaces
+        /// Latex Gloves and Surgical Mask and clears HasWrongPpeEquipped with Safety Boots completing 4/4.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PpeCabinet_HoverShowsNameAndSlot_EquipFlipsToIndossato_AndClearsWrongPpe()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            CabinetFixture cabinet = CreateCabinet(scenario, true);
+            yield return null;
+
+            cabinet.Cabinet.Open();
+
+            // Hover before equipping reports Italian name and slot.
+            InvokeInteractableHover(cabinet.SafetyBoots.Interactable, Hand.Right);
+            Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Does.Contain("Scarpe antinfortunistiche S3"));
+            Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Does.Contain(MachineLockTexts.PpeSlotFeet));
+            Assert.That(cabinet.SafetyBoots.Item.IsEquippedShelfStatusVisible, Is.False);
+
+            // Equip both distractors first.
+            Assert.That(cabinet.Cabinet.Equip(cabinet.LatexGloves.Item), Is.True);
+            Assert.That(cabinet.Cabinet.Equip(cabinet.SurgicalMask.Item), Is.True);
+            Assert.That(cabinet.Cabinet.HasWrongPpeEquipped, Is.True);
+            Assert.That(cabinet.Cabinet.CorrectCount, Is.EqualTo(0));
+
+            // Replace distractors with Heat Gloves (Gloves) and Face Shield (Face), then equip Apron + Boots.
+            Assert.That(cabinet.Cabinet.Equip(cabinet.HeatGloves.Item), Is.True);
+            Assert.That(cabinet.Cabinet.Equip(cabinet.FaceShield.Item), Is.True);
+            Assert.That(cabinet.LatexGloves.Item.IsEquipped, Is.False);
+            Assert.That(cabinet.SurgicalMask.Item.IsEquipped, Is.False);
+            Assert.That(cabinet.Cabinet.HasWrongPpeEquipped, Is.False,
+                "Equipping Heat Gloves and Face Shield must clear HasWrongPpeEquipped.");
+
+            Assert.That(cabinet.Cabinet.Equip(cabinet.CorrectItems[1].Item), Is.True); // Apron
+            Assert.That(cabinet.Cabinet.Equip(cabinet.SafetyBoots.Item), Is.True);
+            Assert.That(cabinet.Cabinet.HasFullPpe, Is.True);
+            Assert.That(cabinet.Cabinet.CorrectCount, Is.EqualTo(4));
+
+            // Hovering equipped Safety Boots flips to "<Nome DPI> indossato" and shelf status badge is visible.
+            InvokeInteractableHover(cabinet.SafetyBoots.Interactable, Hand.Right);
+            Assert.That(cabinet.SafetyBoots.Item.LastHoverFeedback, Is.EqualTo("Scarpe antinfortunistiche S3 indossato"));
+            Assert.That(cabinet.SafetyBoots.Item.IsEquippedShelfStatusVisible, Is.True);
+            Assert.That(cabinet.SafetyBoots.Interactable.Selectable, Is.False);
+            yield return null;
+        }
+
+        /// <summary>
+        /// In Guided mode, subtle Containment Zone baseline floor rings/outlines appear once full PPE is
+        /// worn, brighten into full snap ghosts while holding matching gear, and hide individually once occupied.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SpillSystem_ProactiveGuidedBaselineMarkers_AppearOnFullPpe_BrightenOnHold_HideOnOccupy()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            GhostFixture zones = CreateGhostZones(scenario);
+            WireObject(scenario, "spillSystem", zones.Spill);
+            yield return null;
+
+            Assert.That(zones.ConeZones[0].IsBaselineVisible, Is.False, "Baseline markers stay hidden before full PPE.");
+            Assert.That(zones.AbsorbentZone.IsBaselineVisible, Is.False);
+
+            // Wearing 4/4 PPE proactively activates baseline markers across all free Containment Zones.
+            scenario.NotifyPpeChanged(4, true);
+            Assert.That(zones.ConeZones[0].IsBaselineVisible, Is.True, "Cone baseline ring appears on full PPE.");
+            Assert.That(zones.ConeZones[1].IsBaselineVisible, Is.True);
+            Assert.That(zones.AbsorbentZone.IsBaselineVisible, Is.True, "Absorbent quadrant outline appears on full PPE.");
+            Assert.That(zones.ConeGhosts[0].activeSelf, Is.False, "Full snap ghost stays off until holding matching gear.");
+
+            // Holding a cone brightens free cone zones into full snap ghosts.
+            zones.Spill.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Cone, true);
+            Assert.That(zones.ConeGhosts[0].activeSelf, Is.True);
+            Assert.That(zones.AbsorbentGhost.activeSelf, Is.False);
+
+            // Occupying zone 0 hides both its baseline marker and its snap ghost, leaving zone 1 visible.
+            Assert.That(zones.ConeZones[0].Occupy(), Is.True);
+            Assert.That(zones.ConeZones[0].IsBaselineVisible, Is.False);
+            Assert.That(zones.ConeZones[0].IsGhostVisible, Is.False);
+            Assert.That(zones.ConeZones[1].IsBaselineVisible, Is.True);
+            Assert.That(zones.ConeZones[1].IsGhostVisible, Is.True);
+
+            zones.Spill.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Cone, false);
+            Assert.That(zones.ConeZones[1].IsGhostVisible, Is.False);
+            Assert.That(zones.ConeZones[1].IsBaselineVisible, Is.True, "Unoccupied zone keeps baseline ring after release.");
+
+            // Outside Guided, baseline markers stay hidden.
+            MissionSession.Begin(mission, DifficultyLevel.Operational, true);
+            zones.Spill.SetContainmentWayfindingActive(true);
+            Assert.That(zones.ConeZones[1].IsBaselineVisible, Is.False);
+            yield return null;
+        }
+
+        /// <summary>
+        /// Hovering each of the three electrical Sub-Stations emits Italian status feedback reflecting
+        /// live transitions (Main ON -> Main OFF -> Lockout Applied -> Tester ZERO).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnergyPanel_SubStationHoverReportsNameAndLiveState()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            yield return null;
+
+            panel.Panel.InitializeState(false);
+
+            InvokeInteractableHover(panel.MainSwitch, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverMainSwitchOn));
+
+            InvokeInteractableHover(panel.Lockout, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutBlocked));
+
+            InvokeInteractableHover(panel.Tester, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverTesterLivePanel));
+
+            panel.Panel.SetMainPower(false);
+            InvokeInteractableHover(panel.MainSwitch, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverMainSwitchOff));
+
+            InvokeInteractableHover(panel.Lockout, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutReady));
+
+            panel.Panel.ApplyLockout();
+            InvokeInteractableHover(panel.Lockout, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverLockoutApplied));
+
+            panel.Panel.ReadTester();
+            InvokeInteractableHover(panel.Tester, Hand.Right);
+            Assert.That(panel.Panel.LastHoverFeedback, Is.EqualTo(MachineLockTexts.HoverTesterZeroConfirmed));
+            yield return null;
+        }
+
+        /// <summary>
+        /// When the active URP camera runs with renderPostProcessing = false (Quest 3 MNG_CoreRig setup),
+        /// MachineLockDamageFeedback automatically drives the head-aligned peripheral red vignette overlay,
+        /// fallback light pulse, and brief dark respawn blink, respects accessibility.reduce_flashes, and
+        /// resets cleanly on Clear().
+        /// </summary>
+        [UnityTest]
+        public IEnumerator DamageFeedback_PostProcessingDisabledCamera_DrivesScenarioOverlayAndRespawnBlink()
+        {
+            GameObject camObj = new GameObject("TEST_NoPostProcCamera");
+            roots.Add(camObj);
+            camObj.tag = "MainCamera";
+            Camera cam = camObj.AddComponent<Camera>();
+            cam.enabled = true;
+            UniversalAdditionalCameraData camData = cam.GetUniversalAdditionalCameraData();
+            camData.renderPostProcessing = false;
+
+            GameObject root = NewRoot("TEST_DamageOverlayFeedback");
+            Volume volume = root.AddComponent<Volume>();
+            volume.isGlobal = true;
+            VolumeProfile profile = TrackAsset(ScriptableObject.CreateInstance<VolumeProfile>());
+            profile.Add<Vignette>();
+            volume.profile = profile;
+            volume.weight = 0f;
+
+            GameObject lightObj = new GameObject("LIGHT_Fallback");
+            lightObj.transform.SetParent(root.transform, false);
+            Light flashLight = lightObj.AddComponent<Light>();
+
+            MachineLockDamageFeedback feedback = root.AddComponent<MachineLockDamageFeedback>();
+            WireObject(feedback, "damageVolume", volume);
+            WireObject(feedback, "fallbackFlashLight", flashLight);
+            WireBool(feedback, "forceFallbackForTesting", false);
+            root.SetActive(true);
+            yield return null;
+
+            // Normal settings: post-processing off engages scenario-owned overlay + fallback light, NOT Volume.
+            feedback.PlayCritical(CriticalEvent.LiveOilShock);
+            yield return new WaitForSeconds(0.18f);
+
+            Assert.That(feedback.LastUsedScenarioOverlayPath, Is.True,
+                "Disabled camera post-processing must select the scenario-owned visual path.");
+            Assert.That(volume.weight, Is.EqualTo(0f).Within(Tolerance),
+                "Invisible URP Volume must not be animated when camera post-processing is off.");
+            Assert.That(feedback.IsScenarioOverlayActive, Is.True,
+                "Head-aligned peripheral red vignette overlay must render.");
+            Assert.That(feedback.CurrentOverlayIntensity, Is.GreaterThan(0.5f));
+            Assert.That(flashLight.intensity, Is.GreaterThan(0f));
+
+            float normalIntensity = feedback.CurrentOverlayIntensity;
+            feedback.Clear();
+            Assert.That(feedback.IsScenarioOverlayActive, Is.False, "Clear hides scenario overlay.");
+            Assert.That(feedback.CurrentOverlayIntensity, Is.EqualTo(0f).Within(Tolerance));
+            Assert.That(flashLight.intensity, Is.EqualTo(0f).Within(Tolerance));
+
+            // Accessibility: reduce_flashes softens peak overlay intensity and suppresses bright light flash.
+            var settingsStub = new MemorySettingsStore();
+            settingsStub.SetBool(SettingsCatalog.ACCESSIBILITY_REDUCE_FLASHES, true);
+            UIServices.Configure(null, null, settingsStub, null);
+
+            feedback.PlayCritical(CriticalEvent.HotOilBurn);
+            yield return new WaitForSeconds(0.30f);
+            Assert.That(feedback.IsScenarioOverlayActive, Is.True);
+            Assert.That(feedback.CurrentOverlayIntensity, Is.LessThan(normalIntensity),
+                "reduce_flashes must attenuate overlay peak intensity while keeping visual warning.");
+            Assert.That(flashLight.intensity, Is.EqualTo(0f).Within(Tolerance),
+                "reduce_flashes must suppress the bright point-light flash.");
+            feedback.Clear();
+
+            // Respawn blink: brief smooth dark fade invoking midpoint teleport callback, reset cleanly on Clear.
+            bool teleported = false;
+            feedback.PlayRespawnBlink(0.12f, () => teleported = true);
+            Assert.That(feedback.IsRespawnBlinkActive, Is.True);
+            yield return new WaitForSeconds(0.16f);
+            Assert.That(teleported, Is.True, "Respawn blink must invoke the midpoint teleport callback.");
+            yield return new WaitForSeconds(0.20f);
+            Assert.That(feedback.IsRespawnBlinkActive, Is.False);
+            Assert.That(feedback.IsScenarioOverlayActive, Is.False);
+        }
+
+        /// <summary>
+        /// The overhead exit beacon shifts to its ready green material once both the press is stopped
+        /// and spill containment is complete.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Scenario_ExitBeaconTurnsReady_WhenPressStoppedAndContained()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            GameObject beaconObj = new GameObject("TEST_ExitBeacon");
+            roots.Add(beaconObj);
+            MeshRenderer beaconRenderer = beaconObj.AddComponent<MeshRenderer>();
+            Material idleMat = CreateMaterial();
+            Material readyMat = CreateMaterial();
+            beaconRenderer.sharedMaterial = idleMat;
+
+            WireObject(scenario, "exitBeaconRenderer", beaconRenderer);
+            WireObject(scenario, "exitBeaconIdleMaterial", idleMat);
+            WireObject(scenario, "exitBeaconReadyMaterial", readyMat);
+            yield return null;
+
+            scenario.NotifyEStopPressed();
+            Assert.That(scenario.IsExitBeaconReady, Is.False);
+            Assert.That(beaconRenderer.sharedMaterial, Is.SameAs(idleMat));
+
+            scenario.NotifyConePlaced(4);
+            scenario.NotifyAbsorbentPlaced(4);
+            Assert.That(scenario.IsExitBeaconReady, Is.True);
+            Assert.That(beaconRenderer.sharedMaterial, Is.SameAs(readyMat));
+            yield return null;
+        }
+
+        // =====================================================================
         // P9 - End-to-end flows and real scene
         // =====================================================================
 
@@ -1029,10 +1373,13 @@ namespace SI81.MachineLock.Tests
             GameObject spawn = FindRoot(scene, "MNG_SpawnPoint");
             Assert.That(spawn, Is.Not.Null, "MNG_SpawnPoint is missing from SCN_MachineLock.");
             Assert.That(spawn.GetComponent<SpawnPoint>(), Is.Not.Null, "MNG_SpawnPoint has no SpawnPoint component.");
-            Assert.That(Vector3.Distance(spawn.transform.position, new Vector3(-5.2f, 0f, 0f)), Is.LessThan(Tolerance),
-                "MNG_SpawnPoint must stay at (-5.2, 0, 0).");
+            Assert.That(Vector3.Distance(spawn.transform.position, new Vector3(-7.6f, 0f, 0f)), Is.LessThan(Tolerance),
+                "MNG_SpawnPoint must stay at (-7.6, 0, 0) in the expanded stamping bay.");
             Assert.That(Mathf.Abs(Mathf.DeltaAngle(spawn.transform.eulerAngles.y, 90f)), Is.LessThan(0.1f),
                 "MNG_SpawnPoint must face 90 degrees.");
+
+            Transform building = FindInScene(scene, "PFB_OldIndustrialBuilding");
+            Assert.That(building, Is.Not.Null, "PFB_OldIndustrialBuilding shell must be present in SCN_MachineLock.");
 
             var serializedScenario = new SerializedObject(scenario);
             SerializedProperty spawnReference = serializedScenario.FindProperty("spawnPoint");
@@ -1098,12 +1445,12 @@ namespace SI81.MachineLock.Tests
                 AssertMarker(pattern, "MarkerSpillKit", spillKit);
                 AssertMarker(pattern, "MarkerExtinguisher", extinguisher);
 
-                Assert.That(Mathf.Abs(cabinet.position.x), Is.LessThanOrEqualTo(6f));
-                Assert.That(Mathf.Abs(cabinet.position.z), Is.LessThanOrEqualTo(4f));
-                Assert.That(Mathf.Abs(spillKit.position.x), Is.LessThanOrEqualTo(6f));
-                Assert.That(Mathf.Abs(spillKit.position.z), Is.LessThanOrEqualTo(4f));
-                Assert.That(Mathf.Abs(extinguisher.position.x), Is.LessThanOrEqualTo(6f));
-                Assert.That(Mathf.Abs(extinguisher.position.z), Is.LessThanOrEqualTo(4f));
+                Assert.That(Mathf.Abs(cabinet.position.x), Is.LessThanOrEqualTo(9f));
+                Assert.That(Mathf.Abs(cabinet.position.z), Is.LessThanOrEqualTo(5.5f));
+                Assert.That(Mathf.Abs(spillKit.position.x), Is.LessThanOrEqualTo(9f));
+                Assert.That(Mathf.Abs(spillKit.position.z), Is.LessThanOrEqualTo(5.5f));
+                Assert.That(Mathf.Abs(extinguisher.position.x), Is.LessThanOrEqualTo(9f));
+                Assert.That(Mathf.Abs(extinguisher.position.z), Is.LessThanOrEqualTo(5.5f));
 
                 Assert.That(Mathf.Approximately(cabinet.position.x, previousCabinetX), Is.False,
                     "Every pattern must move the PPE cabinet.");
@@ -1146,11 +1493,13 @@ namespace SI81.MachineLock.Tests
             public Transform Ram;
         }
 
-        /// <summary>Electrical panel under test with its lockout interactable.</summary>
+        /// <summary>Electrical panel under test with its three Sub-Station interactables.</summary>
         private sealed class PanelFixture
         {
             public MachineLockEnergyPanel Panel;
+            public Interactable MainSwitch;
             public Interactable Lockout;
+            public Interactable Tester;
         }
 
         /// <summary>Alarm under test with its beacon light.</summary>
@@ -1160,20 +1509,24 @@ namespace SI81.MachineLock.Tests
             public Light Beacon;
         }
 
-        /// <summary>One PPE item with its interactable and its Italian display name.</summary>
+        /// <summary>One PPE item with its interactable, equipped badge and Italian display name.</summary>
         private sealed class PpeItemFixture
         {
             public MachineLockPpeItem Item;
             public Interactable Interactable;
+            public GameObject EquippedBadge;
             public string DisplayName;
         }
 
-        /// <summary>PPE cabinet under test with the correct set and the wrong decoys.</summary>
+        /// <summary>PPE cabinet under test with the 4 correct items, 2 distractors and door collider.</summary>
         private sealed class CabinetFixture
         {
             public MachineLockPpeCabinet Cabinet;
+            public Collider DoorCollider;
             public PpeItemFixture[] CorrectItems;
             public PpeItemFixture HeatGloves;
+            public PpeItemFixture FaceShield;
+            public PpeItemFixture SafetyBoots;
             public PpeItemFixture LatexGloves;
             public PpeItemFixture SurgicalMask;
         }
@@ -1211,10 +1564,12 @@ namespace SI81.MachineLock.Tests
             public Transform Wheel;
         }
 
-        /// <summary>Free zones with their guided ghosts.</summary>
+        /// <summary>Free zones with their guided ghosts and proactive baseline markers.</summary>
         private sealed class GhostFixture
         {
             public MachineLockSpillSystem Spill;
+            public MachineLockSnapZone[] ConeZones;
+            public MachineLockSnapZone AbsorbentZone;
             public GameObject[] ConeGhosts;
             public GameObject AbsorbentGhost;
         }
@@ -1315,7 +1670,13 @@ namespace SI81.MachineLock.Tests
             WireObject(panel, "switchHandle", switchObject.transform);
             root.SetActive(true);
 
-            return new PanelFixture { Panel = panel, Lockout = lockout };
+            return new PanelFixture
+            {
+                Panel = panel,
+                MainSwitch = mainSwitch,
+                Lockout = lockout,
+                Tester = tester
+            };
         }
 
         /// <summary>Builds the department alarm with its beacon light.</summary>
@@ -1348,56 +1709,72 @@ namespace SI81.MachineLock.Tests
         }
 
         /// <summary>
-        /// Builds the PPE cabinet with the four correct items and, optionally, the latex gloves and the
-        /// surgical mask decoys.
+        /// Builds the PPE cabinet with the four correct items (Gloves, Body, Face, Feet), a non-blocking
+        /// door collider, and optionally the latex gloves (Gloves) and surgical mask (Face) distractors.
         /// </summary>
         private CabinetFixture CreateCabinet(MachineLockScenario scenario, bool includeWrongItems)
         {
             GameObject root = NewRoot("TEST_PpeCabinet");
-            var correct = new List<PpeItemFixture>();
+            GameObject doorObj = new GameObject("MESH_PpeCabinet_Door");
+            doorObj.transform.SetParent(root.transform, false);
+            BoxCollider doorCollider = doorObj.AddComponent<BoxCollider>();
+            Interactable doorInteractable = doorObj.AddComponent<Interactable>();
 
-            correct.Add(AddPpeItem(root, "ITEM_HeatGloves", "Guanti termici"));
-            correct.Add(AddPpeItem(root, "ITEM_Apron", "Grembiule"));
-            correct.Add(AddPpeItem(root, "ITEM_FaceShield", "Visiera"));
-            correct.Add(AddPpeItem(root, "ITEM_Respirator", "FFP3"));
+            var correct = new List<PpeItemFixture>();
+            correct.Add(AddPpeItem(root, "ITEM_HeatGloves", "Guanti anticalore EN 407"));
+            correct.Add(AddPpeItem(root, "ITEM_Apron", "Grembiule antischizzo"));
+            correct.Add(AddPpeItem(root, "ITEM_FaceShield", "Visiera facciale EN 166"));
+            correct.Add(AddPpeItem(root, "ITEM_SafetyBoots", "Scarpe antinfortunistiche S3"));
 
             PpeItemFixture latex = null;
             PpeItemFixture mask = null;
             if (includeWrongItems)
             {
-                latex = AddPpeItem(root, "ITEM_LatexGloves", "Guanti in lattice");
+                latex = AddPpeItem(root, "ITEM_LatexGloves", "Guanti in lattice monouso");
                 mask = AddPpeItem(root, "ITEM_SurgicalMask", "Mascherina chirurgica");
             }
 
             var cabinet = root.AddComponent<MachineLockPpeCabinet>();
             WireObject(cabinet, "scenario", scenario);
+            WireObject(cabinet, "cabinetInteractable", doorInteractable);
+            WireObject(cabinet, "doorTransform", doorObj.transform);
             root.SetActive(true);
 
             ConfigureItem(correct[0], cabinet, PpeSlot.Gloves, true);
             ConfigureItem(correct[1], cabinet, PpeSlot.Body, true);
             ConfigureItem(correct[2], cabinet, PpeSlot.Face, true);
-            ConfigureItem(correct[3], cabinet, PpeSlot.Respiratory, true);
+            ConfigureItem(correct[3], cabinet, PpeSlot.Feet, true);
             if (latex != null) ConfigureItem(latex, cabinet, PpeSlot.Gloves, false);
-            if (mask != null) ConfigureItem(mask, cabinet, PpeSlot.Respiratory, false);
+            if (mask != null) ConfigureItem(mask, cabinet, PpeSlot.Face, false);
 
             return new CabinetFixture
             {
                 Cabinet = cabinet,
+                DoorCollider = doorCollider,
                 CorrectItems = correct.ToArray(),
                 HeatGloves = correct[0],
+                FaceShield = correct[2],
+                SafetyBoots = correct[3],
                 LatexGloves = latex,
                 SurgicalMask = mask
             };
         }
 
-        /// <summary>Adds one selectable PPE item child, before the cabinet collects its children.</summary>
+        /// <summary>Adds one selectable PPE item child with a shelf equipped badge.</summary>
         private static PpeItemFixture AddPpeItem(GameObject cabinetRoot, string name, string displayName)
         {
             GameObject itemObject = new GameObject(name);
             itemObject.transform.SetParent(cabinetRoot.transform, false);
+            itemObject.AddComponent<BoxCollider>();
             var interactable = itemObject.AddComponent<Interactable>();
+            GameObject visualRoot = new GameObject("Visual");
+            visualRoot.transform.SetParent(itemObject.transform, false);
+            GameObject badge = new GameObject("EquippedBadge");
+            badge.transform.SetParent(itemObject.transform, false);
+            badge.SetActive(false);
             var item = itemObject.AddComponent<MachineLockPpeItem>();
-            return new PpeItemFixture { Item = item, Interactable = interactable, DisplayName = displayName };
+            item.ConfigureShelfVisuals(visualRoot, badge);
+            return new PpeItemFixture { Item = item, Interactable = interactable, EquippedBadge = badge, DisplayName = displayName };
         }
 
         /// <summary>Assigns slot, correctness and display name after the cabinet exists.</summary>
@@ -1499,13 +1876,13 @@ namespace SI81.MachineLock.Tests
 
         /// <summary>Adds one snap zone child to the hazard root.</summary>
         private static MachineLockSnapZone AddZone(GameObject parent, string name, Vector3 position,
-            MachineLockSnapZone.SnapKind kind, int quadrant, GameObject ghost)
+            MachineLockSnapZone.SnapKind kind, int quadrant, GameObject ghost, GameObject baseline = null)
         {
             GameObject zoneObject = new GameObject(name);
             zoneObject.transform.SetParent(parent.transform, false);
             zoneObject.transform.localPosition = position;
             var zone = zoneObject.AddComponent<MachineLockSnapZone>();
-            zone.Configure(kind, null, ghost, quadrant);
+            zone.Configure(kind, null, ghost, quadrant, baseline);
             return zone;
         }
 
@@ -1565,7 +1942,7 @@ namespace SI81.MachineLock.Tests
             return new ValveFixture { Valve = valve, Wheel = wheelObject.transform };
         }
 
-        /// <summary>Builds a spill system whose zones own guided ghost objects.</summary>
+        /// <summary>Builds a spill system whose zones own guided ghost objects and proactive baseline rings.</summary>
         private GhostFixture CreateGhostZones(MachineLockScenario scenario)
         {
             GameObject root = NewRoot("TEST_GhostZones");
@@ -1573,13 +1950,16 @@ namespace SI81.MachineLock.Tests
             GameObject coneGhostA = AddGhost(root, "VFX_SnapGhostCone1");
             GameObject coneGhostB = AddGhost(root, "VFX_SnapGhostCone2");
             GameObject absorbentGhost = AddGhost(root, "VFX_SnapGhostAbsorbent");
+            GameObject coneBaseA = AddGhost(root, "VFX_BaselineCone1");
+            GameObject coneBaseB = AddGhost(root, "VFX_BaselineCone2");
+            GameObject absorbentBase = AddGhost(root, "VFX_BaselineAbsorbent");
 
-            AddZone(root, "ZONE_ConePoint1", new Vector3(3.8f, 0f, 2.8f),
-                MachineLockSnapZone.SnapKind.Cone, -1, coneGhostA);
-            AddZone(root, "ZONE_ConePoint2", new Vector3(-3.8f, 0f, 2.8f),
-                MachineLockSnapZone.SnapKind.Cone, -1, coneGhostB);
-            AddZone(root, "ZONE_Coverage1", new Vector3(1.75f, 0.02f, 1.25f),
-                MachineLockSnapZone.SnapKind.Absorbent, 0, absorbentGhost);
+            MachineLockSnapZone coneZoneA = AddZone(root, "ZONE_ConePoint1", new Vector3(3.8f, 0f, 2.8f),
+                MachineLockSnapZone.SnapKind.Cone, -1, coneGhostA, coneBaseA);
+            MachineLockSnapZone coneZoneB = AddZone(root, "ZONE_ConePoint2", new Vector3(-3.8f, 0f, 2.8f),
+                MachineLockSnapZone.SnapKind.Cone, -1, coneGhostB, coneBaseB);
+            MachineLockSnapZone absorbentZone = AddZone(root, "ZONE_Coverage1", new Vector3(1.75f, 0.02f, 1.25f),
+                MachineLockSnapZone.SnapKind.Absorbent, 0, absorbentGhost, absorbentBase);
 
             var spill = root.AddComponent<MachineLockSpillSystem>();
             WireObject(spill, "scenario", scenario);
@@ -1589,6 +1969,8 @@ namespace SI81.MachineLock.Tests
             return new GhostFixture
             {
                 Spill = spill,
+                ConeZones = new[] { coneZoneA, coneZoneB },
+                AbsorbentZone = absorbentZone,
                 ConeGhosts = new[] { coneGhostA, coneGhostB },
                 AbsorbentGhost = absorbentGhost
             };
@@ -1673,6 +2055,34 @@ namespace SI81.MachineLock.Tests
 
             Assert.Fail("No MachineLockScenario under test.");
             return null;
+        }
+
+        /// <summary>Invokes the internal HoverEnter/HoverExit transitions on a shared Interactable.</summary>
+        private static void InvokeInteractableHover(Interactable interactable, Hand hand)
+        {
+            Assert.That(interactable, Is.Not.Null);
+            MethodInfo exit = typeof(Interactable).GetMethod("HoverExit", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo enter = typeof(Interactable).GetMethod("HoverEnter", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(enter, Is.Not.Null, "Interactable.HoverEnter was not found.");
+            if (exit != null) exit.Invoke(interactable, new object[] { hand });
+            enter.Invoke(interactable, new object[] { hand });
+        }
+
+        /// <summary>Minimal in-memory IUISettingsStore for testing accessibility.reduce_flashes.</summary>
+        private sealed class MemorySettingsStore : IUISettingsStore
+        {
+            private readonly Dictionary<string, bool> bools = new Dictionary<string, bool>();
+            private readonly Dictionary<string, float> floats = new Dictionary<string, float>();
+            private readonly Dictionary<string, int> ints = new Dictionary<string, int>();
+
+            public event Action<string> Changed;
+
+            public bool GetBool(string id) => bools.TryGetValue(id, out bool v) && v;
+            public void SetBool(string id, bool value) { bools[id] = value; Changed?.Invoke(id); }
+            public float GetFloat(string id) => floats.TryGetValue(id, out float v) ? v : 0f;
+            public void SetFloat(string id, float value) { floats[id] = value; Changed?.Invoke(id); }
+            public int GetInt(string id) => ints.TryGetValue(id, out int v) ? v : 0;
+            public void SetInt(string id, int value) { ints[id] = value; Changed?.Invoke(id); }
         }
 
         /// <summary>Invokes the protected timer callback of the base scenario controller.</summary>

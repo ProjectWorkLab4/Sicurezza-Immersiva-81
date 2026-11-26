@@ -104,6 +104,14 @@ namespace SI81.MachineLock
         [Tooltip("Looping factory room tone of MNG_Audio.")]
         [SerializeField] private AudioSource ambientAudio;
 
+        [Header("Guided wayfinding")]
+        [Tooltip("Overhead illuminated exit sign/beacon above the west doorway.")]
+        [SerializeField] private Renderer exitBeaconRenderer;
+        [Tooltip("Idle material for the overhead exit beacon before containment is complete.")]
+        [SerializeField] private Material exitBeaconIdleMaterial;
+        [Tooltip("Bright green illuminated material for the overhead exit beacon once press is stopped and spill contained.")]
+        [SerializeField] private Material exitBeaconReadyMaterial;
+
         private MachineLockSpi spi;
         private MachineLockState state = MachineLockState.Intro;
         private bool ended;
@@ -168,6 +176,9 @@ namespace SI81.MachineLock
         public float InactionElapsedSeconds { get; private set; }
         /// <summary>Smoke stage reached by the inaction timer: 0 none, 1 stage 1, 2 stage 2.</summary>
         public int SmokeStage { get; private set; }
+
+        /// <summary>true when press is stopped and spill containment is complete (exit beacon bright green).</summary>
+        public bool IsExitBeaconReady => TaskEStop && TaskContainment;
 
         /// <summary>Level used by the run: the forced test level, or the session level.</summary>
         private DifficultyLevel EffectiveLevel => forcedLevel ?? Level;
@@ -360,6 +371,7 @@ namespace SI81.MachineLock
             {
                 SetHint(string.Format(MachineLockTexts.HintPpePartialFormat, correctPpeCount));
             }
+            if (spillSystem != null) spillSystem.SetContainmentWayfindingActive(full);
             RefreshObjectives();
         }
 
@@ -688,13 +700,33 @@ namespace SI81.MachineLock
 
         private IEnumerator RespawnRoutine()
         {
-            yield return new WaitForSeconds(ResolveConfig().respawnDelaySeconds);
-            respawnRoutine = null;
-            if (ended) yield break;
+            const float blinkHalfSeconds = 0.15f;
+            float delay = Mathf.Max(0f, ResolveConfig().respawnDelaySeconds - blinkHalfSeconds);
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            if (ended)
+            {
+                respawnRoutine = null;
+                yield break;
+            }
 
+            if (damageFeedback != null)
+            {
+                yield return damageFeedback.PlayRespawnBlink(blinkHalfSeconds, TeleportRigToSpawn);
+            }
+            else
+            {
+                yield return new WaitForSeconds(blinkHalfSeconds);
+                if (!ended) TeleportRigToSpawn();
+            }
+            respawnRoutine = null;
+        }
+
+        private void TeleportRigToSpawn()
+        {
+            if (ended) return;
             RigRegistration rig = RigRegistration.Instance;
             Transform target = spawnPointTransform;
-            if (rig == null || target == null) yield break;
+            if (rig == null || target == null) return;
             rig.TeleportTo(target.position, Quaternion.Euler(0f, target.eulerAngles.y, 0f));
         }
 
@@ -715,6 +747,14 @@ namespace SI81.MachineLock
             }
             if (currentMacro < MACRO_COUNT) SetObjective(currentMacro);
             UpdateState();
+            RefreshExitBeacon();
+        }
+
+        private void RefreshExitBeacon()
+        {
+            if (exitBeaconRenderer == null) return;
+            Material targetMaterial = IsExitBeaconReady ? exitBeaconReadyMaterial : exitBeaconIdleMaterial;
+            if (targetMaterial != null) exitBeaconRenderer.sharedMaterial = targetMaterial;
         }
 
         private bool MacroComplete(int macro)

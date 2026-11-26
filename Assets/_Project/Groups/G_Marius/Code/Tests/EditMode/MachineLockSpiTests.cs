@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using SI81.MachineLock;
 using SI81.UI;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace SI81.MachineLock.Tests
 {
@@ -578,6 +580,84 @@ namespace SI81.MachineLock.Tests
             Assert.AreEqual(49, spi.Spi);
             Assert.AreEqual(OutcomeType.Negative,
                 spi.EvaluateOutcome(Input(pressRunning: true, contained: false, allTasks: false)));
+        }
+
+        // =====================================================================
+        // 4-slot PPE model & Italian localization (ADR-0004, Issue #35)
+        // =====================================================================
+
+        [Test]
+        public void PpeSlots_ContainExactlyFourExpectedSlots_WithFeetReplacingRespiratory()
+        {
+            string[] names = Enum.GetNames(typeof(PpeSlot));
+
+            Assert.AreEqual(4, names.Length);
+            CollectionAssert.AreEquivalent(new[] { "Gloves", "Body", "Face", "Feet" }, names);
+            Assert.IsFalse(names.Contains("Respiratory"), "Respiratory slot was replaced by Feet (Safety Boots).");
+        }
+
+        [Test]
+        public void PpeTexts_EquippedFormat_MatchesNomeDpiIndossato()
+        {
+            Assert.AreEqual("Guanti anticalore EN 407 indossato",
+                string.Format(MachineLockTexts.PpeEquippedFormat, "Guanti anticalore EN 407"));
+            Assert.AreEqual("Grembiule antischizzo indossato",
+                string.Format(MachineLockTexts.PpeEquippedFormat, "Grembiule antischizzo"));
+            Assert.AreEqual("Visiera facciale EN 166 indossato",
+                string.Format(MachineLockTexts.PpeEquippedFormat, "Visiera facciale EN 166"));
+            Assert.AreEqual("Scarpe antinfortunistiche S3 indossato",
+                string.Format(MachineLockTexts.PpeEquippedFormat, "Scarpe antinfortunistiche S3"));
+        }
+
+        [Test]
+        public void PpeCabinet_DistractorReplacement_ClearsHasWrongPpeEquipped_WithSafetyBoots()
+        {
+            GameObject root = new GameObject("TEST_EditModeCabinet");
+            try
+            {
+                var cabinet = root.AddComponent<MachineLockPpeCabinet>();
+                MachineLockPpeItem heatGloves = AddEditModeItem(root, cabinet, PpeSlot.Gloves, true, "Guanti anticalore EN 407");
+                MachineLockPpeItem apron = AddEditModeItem(root, cabinet, PpeSlot.Body, true, "Grembiule antischizzo");
+                MachineLockPpeItem faceShield = AddEditModeItem(root, cabinet, PpeSlot.Face, true, "Visiera facciale EN 166");
+                MachineLockPpeItem safetyBoots = AddEditModeItem(root, cabinet, PpeSlot.Feet, true, "Scarpe antinfortunistiche S3");
+                MachineLockPpeItem latexGloves = AddEditModeItem(root, cabinet, PpeSlot.Gloves, false, "Guanti in lattice monouso");
+                MachineLockPpeItem surgicalMask = AddEditModeItem(root, cabinet, PpeSlot.Face, false, "Mascherina chirurgica");
+
+                cabinet.Open();
+
+                Assert.IsTrue(cabinet.Equip(latexGloves));
+                Assert.IsTrue(cabinet.Equip(surgicalMask));
+                Assert.IsTrue(cabinet.HasWrongPpeEquipped);
+                Assert.AreEqual(0, cabinet.CorrectCount);
+
+                Assert.IsTrue(cabinet.Equip(heatGloves));
+                Assert.IsFalse(latexGloves.IsEquipped);
+                Assert.IsTrue(cabinet.HasWrongPpeEquipped, "Surgical mask still occupies Face slot.");
+
+                Assert.IsTrue(cabinet.Equip(faceShield));
+                Assert.IsFalse(surgicalMask.IsEquipped);
+                Assert.IsFalse(cabinet.HasWrongPpeEquipped, "Replacing both distractors clears HasWrongPpeEquipped.");
+
+                Assert.IsTrue(cabinet.Equip(apron));
+                Assert.IsTrue(cabinet.Equip(safetyBoots));
+                Assert.IsTrue(cabinet.HasFullPpe);
+                Assert.AreEqual(4, cabinet.CorrectCount);
+                Assert.AreEqual("Scarpe antinfortunistiche S3 indossato", safetyBoots.GetHoverFeedbackText());
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static MachineLockPpeItem AddEditModeItem(GameObject parent, MachineLockPpeCabinet cabinet,
+            PpeSlot slot, bool correct, string displayName)
+        {
+            var go = new GameObject("ITEM_" + displayName);
+            go.transform.SetParent(parent.transform, false);
+            var item = go.AddComponent<MachineLockPpeItem>();
+            item.Configure(cabinet, slot, correct, displayName);
+            return item;
         }
 
         // =====================================================================

@@ -1,5 +1,6 @@
 using SI81.Input;
 using SI81.Interaction;
+using SI81.Rig;
 using SI81.UI;
 using UnityEngine;
 
@@ -9,8 +10,10 @@ namespace SI81.MachineLock
     /// Delimitation cone of the Machine Lock scenario (GDD §8.2, §8.3 and §9.8). The cone is grabbed with
     /// the grip, follows the hand and, when released, snaps to the nearest free
     /// <see cref="MachineLockSnapZone"/> of kind <see cref="MachineLockSnapZone.SnapKind.Cone"/> within the
-    /// configured radius. When no zone is close enough it stays where it was released and remains grabbable.
-    /// In Guided the free zones show their ghost while the cone is held.
+    /// configured radius. Collisions against the shared Player Rig's <see cref="CharacterController"/> are
+    /// ignored via <see cref="Physics.IgnoreCollision(Collider, Collider, bool)"/> while keeping the collider
+    /// non-trigger so <c>RayInteractor</c> raycasts always hit it and carrying a cone underneath the player
+    /// never causes climbing or no-clipping.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Cone")]
@@ -18,6 +21,7 @@ namespace SI81.MachineLock
     {
         private const float DEFAULT_SNAP_RADIUS = 0.6f;
         private const int FREEZE_FRAMES = 2;
+        private const float HOVER_THROTTLE_SECONDS = 0.35f;
 
         [Header("Wiring")]
         [Tooltip("Spill system that owns the zones, the ghost hint and the containment count.")]
@@ -38,9 +42,21 @@ namespace SI81.MachineLock
         private Interactable wiredInteractable;
         private Rigidbody body;
         private int freezeFrames;
+        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true after the cone snapped to a zone. A placed cone cannot be grabbed again.</summary>
         public bool Snapped { get; private set; }
+        /// <summary>Most recent hover Action Feedback string emitted for this cone.</summary>
+        public string LastHoverFeedback { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Ensures physical collisions with the active player <see cref="CharacterController"/> are ignored
+        /// while preserving non-trigger raycast hits.
+        /// </summary>
+        public bool RefreshPlayerCollisionIgnore()
+        {
+            return MachineLockCollisionSafety.IgnorePlayerCollisions(gameObject);
+        }
 
         /// <summary>
         /// Tries to place the cone on the nearest free cone zone. Idempotent: a placed cone stays placed.
@@ -69,6 +85,12 @@ namespace SI81.MachineLock
         {
             ResolveReferences();
             body = GetComponentInParent<Rigidbody>();
+            RefreshPlayerCollisionIgnore();
+        }
+
+        private void Start()
+        {
+            RefreshPlayerCollisionIgnore();
         }
 
         private void OnEnable()
@@ -76,10 +98,13 @@ namespace SI81.MachineLock
             ResolveReferences();
             ApplyItemState();
             Wire();
+            RigRegistration.Registered += OnRigRegistered;
+            RefreshPlayerCollisionIgnore();
         }
 
         private void OnDisable()
         {
+            RigRegistration.Registered -= OnRigRegistered;
             Unwire();
             if (!Snapped && spillSystem != null)
                 spillSystem.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Cone, false);
@@ -87,12 +112,14 @@ namespace SI81.MachineLock
 
         private void LateUpdate()
         {
-            // The interactor restores the Rigidbody state right after GrabExited, which is where TrySnap
-            // runs. Re-apply the freeze for a couple of frames so a placed cone never falls through the
-            // floor or drifts away from its zone.
             if (freezeFrames <= 0) return;
             freezeFrames--;
             ApplyFrozenBody();
+        }
+
+        private void OnRigRegistered(RigRegistration rig)
+        {
+            RefreshPlayerCollisionIgnore();
         }
 
         private void ResolveReferences()
@@ -149,6 +176,7 @@ namespace SI81.MachineLock
             if (interactable == null || wiredInteractable == interactable) return;
             Unwire();
             wiredInteractable = interactable;
+            wiredInteractable.HoverEntered += OnHoverEntered;
             wiredInteractable.GrabEntered += OnGrabEntered;
             wiredInteractable.GrabExited += OnGrabExited;
         }
@@ -156,19 +184,33 @@ namespace SI81.MachineLock
         private void Unwire()
         {
             if (wiredInteractable == null) return;
+            wiredInteractable.HoverEntered -= OnHoverEntered;
             wiredInteractable.GrabEntered -= OnGrabEntered;
             wiredInteractable.GrabExited -= OnGrabExited;
             wiredInteractable = null;
         }
 
+        private void OnHoverEntered(Hand hand)
+        {
+            if (Snapped) return;
+            float now = Time.unscaledTime;
+            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS) return;
+            lastHoverTime = now;
+            LastHoverFeedback = MachineLockTexts.HoverCone;
+            if (HUDService.IsReady)
+                HUDService.ShowActionFeedback(LastHoverFeedback, FeedbackKind.Neutral);
+        }
+
         private void OnGrabEntered(Hand hand)
         {
+            RefreshPlayerCollisionIgnore();
             if (labelAnchor != null) labelAnchor.Suppressed = true;
             if (spillSystem != null) spillSystem.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Cone, true);
         }
 
         private void OnGrabExited(Hand hand)
         {
+            RefreshPlayerCollisionIgnore();
             if (labelAnchor != null) labelAnchor.Suppressed = false;
             if (spillSystem != null) spillSystem.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Cone, false);
             TrySnap();

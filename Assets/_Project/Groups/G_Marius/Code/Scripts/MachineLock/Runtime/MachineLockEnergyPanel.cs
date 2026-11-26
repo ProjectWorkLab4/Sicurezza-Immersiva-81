@@ -1,15 +1,18 @@
 using System.Collections;
 using SI81.Input;
 using SI81.Interaction;
+using SI81.UI;
 using UnityEngine;
 
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Electrical panel of the Machine Lock scenario (GDD §9.3 and §9.4): main switch, abstract lockout
-    /// point, residual oil charge and voltage tester. Power starts on; switching it off stops the press
-    /// and unlocks the lockout; the residual charge decays linearly only while the main switch is open.
-    /// The tester never discharges the oil, it only reads it.
+    /// Electrical wall bay of the Machine Lock scenario (GDD §9.3 and §9.4, ADR-0002): three physically
+    /// separated, high-contrast color-coded Sub-Stations (Main Disconnect Switch, Lockout Station, Voltage
+    /// Tester). Power starts ON; opening the main switch cuts press power and unlocks the lockout station;
+    /// residual charge decays linearly only while the main switch is open. The tester never discharges the
+    /// oil, it only reads it. Hovering any Sub-Station emits throttled Action Feedback with its name and
+    /// live state.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Energy Panel")]
@@ -22,6 +25,7 @@ namespace SI81.MachineLock
         private const float DEFAULT_ENERGIZED_PROBABILITY = 0.5f;
         private const float SWITCH_OFF_ANGLE = -80f;
         private const float ARC_PULSE_SECONDS = 0.35f;
+        private const float HOVER_THROTTLE_SECONDS = 0.25f;
 
         private static readonly WaitForSeconds ArcPulseWait = new WaitForSeconds(ARC_PULSE_SECONDS);
 
@@ -33,28 +37,34 @@ namespace SI81.MachineLock
         [Tooltip("Press that loses power when the main switch opens.")]
         [SerializeField] private MachineLockPress press;
 
-        [Header("Controls")]
-        [Tooltip("Main disconnect switch.")]
+        [Header("Sub-Station Controls")]
+        [Tooltip("Sub-Station 1: Main disconnect switch.")]
         [SerializeField] private Interactable mainSwitchInteractable;
-        [Tooltip("Lockout point, selectable only after the main power is off.")]
+        [Tooltip("Sub-Station 2: Lockout station, selectable only after main power is off.")]
         [SerializeField] private Interactable lockoutInteractable;
-        [Tooltip("Voltage tester.")]
+        [Tooltip("Sub-Station 3: Voltage tester.")]
         [SerializeField] private Interactable testerInteractable;
-        [Tooltip("Handle that rotates with the main switch.")]
+        [Tooltip("Rotary disconnect handle on the Main Disconnect Switch Sub-Station.")]
         [SerializeField] private Transform switchHandle;
 
-        [Header("LEDs")]
-        [Tooltip("Red LOCK LED of the lockout point.")]
+        [Header("LEDs & Status Lamps")]
+        [Tooltip("Optional ON (red) indicator on the Main Disconnect Switch Sub-Station.")]
+        [SerializeField] private Renderer mainSwitchOnLedRenderer;
+        [Tooltip("Optional OFF (green) indicator on the Main Disconnect Switch Sub-Station.")]
+        [SerializeField] private Renderer mainSwitchOffLedRenderer;
+        [Tooltip("Optional READY (yellow/green) indicator on the Lockout Station when unlocked after main off.")]
+        [SerializeField] private Renderer lockoutReadyLedRenderer;
+        [Tooltip("Red LOCK lamp of the Lockout Station.")]
         [SerializeField] private Renderer lockoutLedRenderer;
-        [Tooltip("Red LIVE LED of the tester.")]
+        [Tooltip("Red LIVE lamp of the Voltage Tester.")]
         [SerializeField] private Renderer testerRedLedRenderer;
-        [Tooltip("Green ZERO LED of the tester.")]
+        [Tooltip("Green ZERO lamp of the Voltage Tester.")]
         [SerializeField] private Renderer testerGreenLedRenderer;
-        [Tooltip("Material of a LED that is off.")]
+        [Tooltip("Material of a lamp that is off.")]
         [SerializeField] private Material ledOffMaterial;
-        [Tooltip("Material of a LED that is on and red.")]
+        [Tooltip("Material of a lamp that is on and red.")]
         [SerializeField] private Material ledRedMaterial;
-        [Tooltip("Material of a LED that is on and green.")]
+        [Tooltip("Material of a lamp that is on and green.")]
         [SerializeField] private Material ledGreenMaterial;
 
         [Header("VFX and audio")]
@@ -72,6 +82,7 @@ namespace SI81.MachineLock
         private Quaternion switchOnRotation;
         private Coroutine arcRoutine;
         private ParticleSystem arcParticles;
+        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true while the main circuit is closed (starts ON, GDD §9.3).</summary>
         public bool MainPowerOn { get; private set; } = true;
@@ -83,6 +94,8 @@ namespace SI81.MachineLock
         public float Charge01 { get; private set; }
         /// <summary>true after the tester confirmed ZERO.</summary>
         public bool TesterZero { get; private set; }
+        /// <summary>Most recent hover Action Feedback string emitted by any of the three Sub-Stations.</summary>
+        public string LastHoverFeedback { get; private set; } = string.Empty;
 
         private void Awake()
         {
@@ -97,7 +110,7 @@ namespace SI81.MachineLock
             float probability = config != null ? config.energizedProbability : DEFAULT_ENERGIZED_PROBABILITY;
             Charge01 = UnityEngine.Random.value < probability ? 1f : 0f;
 
-            ApplyLed(lockoutLedRenderer, ledOffMaterial);
+            RefreshStatusLamps();
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledOffMaterial);
             SetLockoutSelectable(false);
@@ -110,16 +123,40 @@ namespace SI81.MachineLock
 
         private void OnEnable()
         {
-            if (mainSwitchInteractable != null) mainSwitchInteractable.SelectEntered += OnMainSwitchSelected;
-            if (lockoutInteractable != null) lockoutInteractable.SelectEntered += OnLockoutSelected;
-            if (testerInteractable != null) testerInteractable.SelectEntered += OnTesterSelected;
+            if (mainSwitchInteractable != null)
+            {
+                mainSwitchInteractable.SelectEntered += OnMainSwitchSelected;
+                mainSwitchInteractable.HoverEntered += OnMainSwitchHovered;
+            }
+            if (lockoutInteractable != null)
+            {
+                lockoutInteractable.SelectEntered += OnLockoutSelected;
+                lockoutInteractable.HoverEntered += OnLockoutHovered;
+            }
+            if (testerInteractable != null)
+            {
+                testerInteractable.SelectEntered += OnTesterSelected;
+                testerInteractable.HoverEntered += OnTesterHovered;
+            }
         }
 
         private void OnDisable()
         {
-            if (mainSwitchInteractable != null) mainSwitchInteractable.SelectEntered -= OnMainSwitchSelected;
-            if (lockoutInteractable != null) lockoutInteractable.SelectEntered -= OnLockoutSelected;
-            if (testerInteractable != null) testerInteractable.SelectEntered -= OnTesterSelected;
+            if (mainSwitchInteractable != null)
+            {
+                mainSwitchInteractable.SelectEntered -= OnMainSwitchSelected;
+                mainSwitchInteractable.HoverEntered -= OnMainSwitchHovered;
+            }
+            if (lockoutInteractable != null)
+            {
+                lockoutInteractable.SelectEntered -= OnLockoutSelected;
+                lockoutInteractable.HoverEntered -= OnLockoutHovered;
+            }
+            if (testerInteractable != null)
+            {
+                testerInteractable.SelectEntered -= OnTesterSelected;
+                testerInteractable.HoverEntered -= OnTesterHovered;
+            }
             if (arcRoutine != null) StopCoroutine(arcRoutine);
             arcRoutine = null;
             if (arcParticles != null) arcParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -139,6 +176,30 @@ namespace SI81.MachineLock
         }
 
         // =====================================================================
+        // Hover status text helpers
+        // =====================================================================
+
+        /// <summary>Current Italian hover Action Feedback for Sub-Station 1 (Main Disconnect Switch).</summary>
+        public string GetMainSwitchHoverText()
+        {
+            return MainPowerOn ? MachineLockTexts.HoverMainSwitchOn : MachineLockTexts.HoverMainSwitchOff;
+        }
+
+        /// <summary>Current Italian hover Action Feedback for Sub-Station 2 (Lockout Station).</summary>
+        public string GetLockoutHoverText()
+        {
+            if (LockedOut) return MachineLockTexts.HoverLockoutApplied;
+            return MainPowerOn ? MachineLockTexts.HoverLockoutBlocked : MachineLockTexts.HoverLockoutReady;
+        }
+
+        /// <summary>Current Italian hover Action Feedback for Sub-Station 3 (Voltage Tester).</summary>
+        public string GetTesterHoverText()
+        {
+            if (TesterZero) return MachineLockTexts.HoverTesterZeroConfirmed;
+            return MainPowerOn ? MachineLockTexts.HoverTesterLivePanel : MachineLockTexts.HoverTesterCheckResidual;
+        }
+
+        // =====================================================================
         // Explicit state (tests and debug menu)
         // =====================================================================
 
@@ -146,7 +207,6 @@ namespace SI81.MachineLock
         /// Resets the panel to a known state: main power on, no lockout and the charge passed in.
         /// Used by the tests and the debug menu; the tester must still be read to confirm ZERO.
         /// </summary>
-        /// <param name="energized">true to start with full residual charge.</param>
         public void InitializeState(bool energized)
         {
             MainPowerOn = true;
@@ -155,7 +215,7 @@ namespace SI81.MachineLock
             TesterZero = false;
 
             ApplySwitchHandle(true);
-            ApplyLed(lockoutLedRenderer, ledOffMaterial);
+            RefreshStatusLamps();
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledOffMaterial);
             SetLockoutSelectable(false);
@@ -183,9 +243,8 @@ namespace SI81.MachineLock
 
         /// <summary>
         /// Opens or closes the main switch. Opening it turns the display and the motor off, enables the
-        /// lockout point and notifies the scenario; it is ignored when the lockout is already applied.
+        /// lockout station and notifies the scenario; it is ignored when the lockout is already applied.
         /// </summary>
-        /// <param name="on">true to close the main circuit.</param>
         public void SetMainPower(bool on)
         {
             if (on)
@@ -193,6 +252,7 @@ namespace SI81.MachineLock
                 if (MainPowerOn || LockedOut) return;
                 MainPowerOn = true;
                 ApplySwitchHandle(true);
+                RefreshStatusLamps();
                 SetLockoutSelectable(false);
                 if (press != null) press.SetPower(true);
                 return;
@@ -201,29 +261,28 @@ namespace SI81.MachineLock
             if (!MainPowerOn) return;
             MainPowerOn = false;
             ApplySwitchHandle(false);
+            RefreshStatusLamps();
             SetLockoutSelectable(!LockedOut);
             if (press != null) press.SetPower(false);
             PlayClip(breakerOffClip);
             if (scenario != null) scenario.NotifyMainPowerOff();
         }
 
-        /// <summary>
-        /// Opens the main switch. Bound to the switch <see cref="Interactable"/>.
-        /// </summary>
+        /// <summary>Opens the main switch. Bound to the switch <see cref="Interactable"/>.</summary>
         public void OpenMainSwitch()
         {
             SetMainPower(false);
         }
 
         /// <summary>
-        /// Applies the abstract lockout. Only valid with the main power off; it lights the red LOCK LED,
+        /// Applies the abstract lockout. Only valid with main power off; lights the red LOCK lamp,
         /// disables further lockout selection and notifies the scenario.
         /// </summary>
         public void ApplyLockout()
         {
             if (MainPowerOn || LockedOut) return;
             LockedOut = true;
-            ApplyLed(lockoutLedRenderer, ledRedMaterial);
+            RefreshStatusLamps();
             SetLockoutSelectable(false);
             PlayClip(lockoutClip);
             if (scenario != null) scenario.NotifyLockoutApplied();
@@ -233,7 +292,6 @@ namespace SI81.MachineLock
         /// Reads the voltage tester without discharging the oil: LIVE with the main circuit closed or
         /// residual charge left, ZERO only below <see cref="ENERGIZED_THRESHOLD"/>.
         /// </summary>
-        /// <returns>The Italian readout of <see cref="MachineLockTexts"/>.</returns>
         public string ReadTester()
         {
             PlayClip(testerBeepClip);
@@ -262,6 +320,24 @@ namespace SI81.MachineLock
         // =====================================================================
         // Helpers
         // =====================================================================
+
+        private void RefreshStatusLamps()
+        {
+            ApplyLed(mainSwitchOnLedRenderer, MainPowerOn ? ledRedMaterial : ledOffMaterial);
+            ApplyLed(mainSwitchOffLedRenderer, MainPowerOn ? ledOffMaterial : ledGreenMaterial);
+            ApplyLed(lockoutLedRenderer, LockedOut ? ledRedMaterial : ledOffMaterial);
+            ApplyLed(lockoutReadyLedRenderer, (!MainPowerOn && !LockedOut) ? ledGreenMaterial : ledOffMaterial);
+        }
+
+        private void EmitHoverFeedback(string text, FeedbackKind kind)
+        {
+            float now = Time.unscaledTime;
+            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < HOVER_THROTTLE_SECONDS && LastHoverFeedback == text)
+                return;
+            lastHoverTime = now;
+            LastHoverFeedback = text;
+            if (HUDService.IsReady) HUDService.ShowActionFeedback(text, kind);
+        }
 
         private void ShowLive(bool pulseArc)
         {
@@ -312,19 +388,24 @@ namespace SI81.MachineLock
             oneShotAudio.PlayOneShot(clip);
         }
 
-        private void OnMainSwitchSelected(Hand hand)
+        private void OnMainSwitchSelected(Hand hand) => OpenMainSwitch();
+        private void OnLockoutSelected(Hand hand) => ApplyLockout();
+        private void OnTesterSelected(Hand hand) => ReadTester();
+
+        private void OnMainSwitchHovered(Hand hand)
         {
-            OpenMainSwitch();
+            EmitHoverFeedback(GetMainSwitchHoverText(), MainPowerOn ? FeedbackKind.Neutral : FeedbackKind.Positive);
         }
 
-        private void OnLockoutSelected(Hand hand)
+        private void OnLockoutHovered(Hand hand)
         {
-            ApplyLockout();
+            FeedbackKind kind = LockedOut ? FeedbackKind.Positive : (MainPowerOn ? FeedbackKind.Negative : FeedbackKind.Neutral);
+            EmitHoverFeedback(GetLockoutHoverText(), kind);
         }
 
-        private void OnTesterSelected(Hand hand)
+        private void OnTesterHovered(Hand hand)
         {
-            ReadTester();
+            EmitHoverFeedback(GetTesterHoverText(), TesterZero ? FeedbackKind.Positive : FeedbackKind.Neutral);
         }
     }
 }

@@ -25,7 +25,7 @@ namespace SI81.MachineLock.EditorTools
     /// Menu: SI81/MachineLock/Build Scene Shell (P1 shell), SI81/MachineLock/Build Full Scene (P2–P8).
     /// Batchmode entry points: BuildSceneShell, BuildFullScene.
     /// </summary>
-    public static class MachineLockSceneBuilder
+    public static partial class MachineLockSceneBuilder
     {
         /// <summary>Existing mission asset, edited in place (GDD §14.6).</summary>
         public const string MISSION_PATH = "Assets/_Project/Home/UI/Data/Missions/SO_Mission_MachineLock.asset";
@@ -107,24 +107,40 @@ namespace SI81.MachineLock.EditorTools
         private const string SHARED_TEXTURE_DIR = "Assets/_Project/Shared/Art/Textures/";
         private const string SHARED_MATERIAL_DIR = "Assets/_Project/Shared/Art/Materials/";
         private const string SHARED_MODEL_DIR = "Assets/_Project/Shared/Art/Models/";
+        private const string SHARED_PREFAB_DIR = "Assets/_Project/Shared/Level/Prefabs/";
         private const string SHARED_PROP_DIR = "Assets/_Project/Shared/Oggetti/";
         private const string SHARED_ROOM_DIR = "Assets/_Project/Shared/Level/Prefabs/Chemical_Alert_Room/";
 
-        private static readonly Vector3 SPAWN_POSITION = new Vector3(-5.2f, 0f, 0f);
-        private static readonly Vector3 SPAWN_EULER = new Vector3(0f, 90f, 0f);
+        /// <summary>Spacious stamping bay spawn point inside PFB_OldIndustrialBuilding (ADR-0001).</summary>
+        public static readonly Vector3 SPAWN_POSITION = new Vector3(-7.6f, 0f, 0f);
+        /// <summary>Spawn yaw facing +X into the stamping bay.</summary>
+        public static readonly Vector3 SPAWN_EULER = new Vector3(0f, 90f, 0f);
 
-        // Room bounds used by the layout and by the validator (GDD §7.1).
-        private const float ROOM_HALF_X = 6f;
-        private const float ROOM_HALF_Z = 4f;
-        private const float ROOM_HEIGHT = 4f;
+        /// <summary>Playable active stamping bay half-width along X (18.0 m total, ADR-0001).</summary>
+        public const float ROOM_HALF_X = 9.0f;
+        /// <summary>Playable active stamping bay half-depth along Z (11.0 m total, ADR-0001).</summary>
+        public const float ROOM_HALF_Z = 5.5f;
+        /// <summary>Active stamping bay ceiling fixture elevation inside the industrial hall.</summary>
+        public const float ROOM_HEIGHT = 6.2f;
+        /// <summary>Minimum Dry Perimeter margin on every side around the puddle (ADR-0001).</summary>
+        public const float MIN_DRY_PERIMETER = 2.5f;
+        /// <summary>Expected sparse World Label anchor count after collapsing electrical bay overlap (ADR-0002).</summary>
+        public const int EXPECTED_LABEL_ANCHORS = 11;
 
         // ------------------------------------------------------------------ Materials cache
 
         private static Material matConcreteFloor;
         private static Material matWallConcrete;
         private static Material matCeilingConcrete;
+        private static Material matBuildingWall;
+        private static Material matBuildingFloor;
+        private static Material matBuildingWindow;
+        private static Material matPressSteelGreen;
+        private static Material matConcreteWallPbr;
         private static Material matPaintedSteel;
         private static Material matPolishedSteel;
+        private static Material matDarkSlate;
+        private static Material matCyanAccent;
         private static Material matOil;
         private static Material matEStopRed;
         private static Material matEStopYellow;
@@ -132,10 +148,15 @@ namespace SI81.MachineLock.EditorTools
         private static Material matFaceShieldVisor;
         private static Material matApronRubber;
         private static Material matHeatGlove;
+        private static Material matSafetyBootLeather;
+        private static Material matSafetyBootSole;
         private static Material matLatex;
-        private static Material matRespirator;
+        private static Material matSurgicalMaskBlue;
         private static Material matFloorMarking;
+        private static Material matBaselineZone;
         private static Material matBeaconRed;
+        private static Material matExitBeaconIdle;
+        private static Material matExitBeaconReady;
         private static Material matLedRed;
         private static Material matLedGreen;
         private static Material matGhostSnap;
@@ -143,6 +164,9 @@ namespace SI81.MachineLock.EditorTools
         private static Material matHmiOff;
         private static Material matLedOff;
         private static Material matParticleSoft;
+        private static Material matDamageOverlay;
+        private static Material matAbsorbentSock;
+        private static Material matAbsorbentMat;
 
         // ------------------------------------------------------------------ Entry points
 
@@ -396,21 +420,11 @@ namespace SI81.MachineLock.EditorTools
 
         private static void EnsureTextures()
         {
-            CopyConcreteTexture(
-                SHARED_TEXTURE_DIR + "concrete_floor_worn_001_diff_4k.jpg",
-                "TEX_ConcreteFloorWorn_Albedo.jpg",
-                TextureImporterType.Default, false);
-            CopyConcreteTexture(
-                SHARED_TEXTURE_DIR + "concrete_floor_worn_001_nor_gl_4k.exr",
-                "TEX_ConcreteFloorWorn_Normal.exr",
-                TextureImporterType.NormalMap, false);
-            CopyConcreteTexture(
-                SHARED_TEXTURE_DIR + "concrete_floor_worn_001_rough_4k.jpg",
-                "TEX_ConcreteFloorWorn_Rough.jpg",
-                TextureImporterType.Default, true);
+            EnsurePbrAndBuildingTextures();
         }
 
-        private static void CopyConcreteTexture(string source, string destinationName, TextureImporterType type, bool linear)
+        private static void CopyConcreteTexture(string source, string destinationName, TextureImporterType type,
+            bool linear, int androidMaxSize = 1024)
         {
             if (!File.Exists(source))
                 throw new InvalidOperationException($"[MachineLock] Shared texture not found: {source}");
@@ -437,7 +451,6 @@ namespace SI81.MachineLock.EditorTools
                 catch (IOException)
                 {
                     // The Editor may still have the texture memory-mapped from a previous run.
-                    // The existing group copy is identical and stays valid.
                 }
             }
             AssetDatabase.ImportAsset(destination, ImportAssetOptions.ForceUpdate);
@@ -458,13 +471,13 @@ namespace SI81.MachineLock.EditorTools
             TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
             android.name = "Android";
             android.overridden = true;
-            android.maxTextureSize = 1024;
+            android.maxTextureSize = androidMaxSize;
             android.format = TextureImporterFormat.ASTC_6x6;
             android.textureCompression = TextureImporterCompression.Compressed;
             importer.SetPlatformTextureSettings(android);
 
             importer.SaveAndReimport();
-            Debug.Log($"[MachineLock] Configured texture {destination} ({type}, 2048 default / 1024 ASTC 6x6 Android).");
+            Debug.Log($"[MachineLock] Configured texture {destination} ({type}, 2048 default / {androidMaxSize} ASTC 6x6 Android).");
         }
 
         private static Texture2D LoadGroupTexture(string fileName)
@@ -489,6 +502,7 @@ namespace SI81.MachineLock.EditorTools
                 new Color32(190, 82, 12, 255), new Color32(255, 255, 255, 255), new Color32(30, 30, 30, 255));
             BuildSignTexture("TEX_Sign_Uscita.png", "USCITA",
                 new Color32(0, 120, 55, 255), new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255));
+            EnsureDiegeticPlaqueTextures();
         }
 
         /// <summary>
@@ -638,52 +652,142 @@ namespace SI81.MachineLock.EditorTools
             matConcreteFloor.SetTexture("_MainTex", LoadGroupTexture("TEX_ConcreteFloorWorn_Albedo.jpg"));
             matConcreteFloor.SetTexture("_BumpMap", LoadGroupTexture("TEX_ConcreteFloorWorn_Normal.exr"));
             matConcreteFloor.SetTexture("_MetallicGlossMap", LoadGroupTexture("TEX_ConcreteFloorWorn_Rough.jpg"));
-            matConcreteFloor.SetTextureScale("_BaseMap", new Vector2(6f, 4f));
-            matConcreteFloor.SetTextureScale("_BumpMap", new Vector2(6f, 4f));
-            matConcreteFloor.SetTextureScale("_MetallicGlossMap", new Vector2(6f, 4f));
+            matConcreteFloor.SetTextureScale("_BaseMap", new Vector2(9f, 5.5f));
+            matConcreteFloor.SetTextureScale("_BumpMap", new Vector2(9f, 5.5f));
+            matConcreteFloor.SetTextureScale("_MetallicGlossMap", new Vector2(9f, 5.5f));
             matConcreteFloor.EnableKeyword("_NORMALMAP");
             EditorUtility.SetDirty(matConcreteFloor);
+
+            // Dedicated scenario-owned URP Lit materials for PFB_OldIndustrialBuilding (ADR-0001).
+            // Displacement map is deliberately omitted on Quest 3.
+            matBuildingWall = LitMaterial("MAT_IndustrialBuilding_Wall", new Color(0.84f, 0.82f, 0.80f), 0.05f, 0.24f);
+            AssignOptionalTexture(matBuildingWall, "_BaseMap", SHARED_BUILDING_TEX_DIR + "/buildingbase.jpg");
+            AssignOptionalTexture(matBuildingWall, "_MainTex", SHARED_BUILDING_TEX_DIR + "/buildingbase.jpg");
+            AssignOptionalTexture(matBuildingWall, "_BumpMap", SHARED_BUILDING_TEX_DIR + "/buildingNormalMap.jpg", true);
+            AssignOptionalTexture(matBuildingWall, "_OcclusionMap", SHARED_BUILDING_TEX_DIR + "/buildingAmbientOcclusionMap.jpg");
+            SetFloat(matBuildingWall, "_Cull", 0f); // Double-sided safeguard for interior visibility
+            EditorUtility.SetDirty(matBuildingWall);
+
+            matBuildingFloor = LitMaterial("MAT_IndustrialBuilding_Floor", new Color(0.55f, 0.54f, 0.52f), 0f, 0.18f);
+            AssignOptionalTexture(matBuildingFloor, "_BaseMap", SHARED_BUILDING_TEX_DIR + "/TexturesCom_ConcreteBare0348_1_S.jpg");
+            AssignOptionalTexture(matBuildingFloor, "_MainTex", SHARED_BUILDING_TEX_DIR + "/TexturesCom_ConcreteBare0348_1_S.jpg");
+            EditorUtility.SetDirty(matBuildingFloor);
+
+            matBuildingWindow = LitMaterial("MAT_IndustrialBuilding_Window", new Color(0.62f, 0.72f, 0.82f, 0.55f), 0.05f, 0.88f,
+                new Color(0.32f, 0.38f, 0.44f));
+            ConfigureTransparent(matBuildingWindow, 0.55f, new Color(0.32f, 0.38f, 0.44f));
+
+            // Polyhaven CC0 PBR materials (green_metal_rust for press/machinery, concrete_wall_009 for bay concrete).
+            matPressSteelGreen = LitMaterial("MAT_PressSteel_Green", new Color(0.82f, 0.88f, 0.82f), 0.35f, 0.42f);
+            AssignOptionalTexture(matPressSteelGreen, "_BaseMap", TEXTURE_DIR + "/TEX_GreenMetalRust_Albedo.jpg");
+            AssignOptionalTexture(matPressSteelGreen, "_MainTex", TEXTURE_DIR + "/TEX_GreenMetalRust_Albedo.jpg");
+            AssignOptionalTexture(matPressSteelGreen, "_BumpMap", TEXTURE_DIR + "/TEX_GreenMetalRust_Normal.exr", true);
+            AssignOptionalTexture(matPressSteelGreen, "_MetallicGlossMap", TEXTURE_DIR + "/TEX_GreenMetalRust_Rough.jpg");
+            matPressSteelGreen.SetTextureScale("_BaseMap", new Vector2(2f, 2f));
+            matPressSteelGreen.SetTextureScale("_BumpMap", new Vector2(2f, 2f));
+            EditorUtility.SetDirty(matPressSteelGreen);
+
+            matConcreteWallPbr = LitMaterial("MAT_ConcreteWall_PBR", new Color(0.76f, 0.77f, 0.75f), 0f, 0.18f);
+            AssignOptionalTexture(matConcreteWallPbr, "_BaseMap", TEXTURE_DIR + "/TEX_ConcreteWall009_Albedo.jpg");
+            AssignOptionalTexture(matConcreteWallPbr, "_MainTex", TEXTURE_DIR + "/TEX_ConcreteWall009_Albedo.jpg");
+            AssignOptionalTexture(matConcreteWallPbr, "_BumpMap", TEXTURE_DIR + "/TEX_ConcreteWall009_Normal.exr", true);
+            matConcreteWallPbr.SetTextureScale("_BaseMap", new Vector2(2.5f, 1.5f));
+            matConcreteWallPbr.SetTextureScale("_BumpMap", new Vector2(2.5f, 1.5f));
+            EditorUtility.SetDirty(matConcreteWallPbr);
 
             matPaintedSteel = CopyMaterial(SHARED_MATERIAL_DIR + "MAT_OfficePropWhiteMetallic.mat", "MAT_PaintedSteel");
             matPolishedSteel = CopyMaterial(SHARED_MATERIAL_DIR + "MAT_OfficePropPolishedMetal.mat", "MAT_PolishedSteel");
 
             matWallConcrete = LitMaterial("MAT_WallConcrete", new Color(0.42f, 0.43f, 0.41f), 0f, 0.12f);
-            matCeilingConcrete = LitMaterial("MAT_CeilingConcrete", new Color(0.30f, 0.31f, 0.30f), 0f, 0.08f);
-            matOil = LitMaterial("MAT_Oil", new Color(0.05f, 0.03f, 0.02f), 0f, 0.9f);
-            matEStopRed = LitMaterial("MAT_EmergencyStop_Red", new Color(0.72f, 0.04f, 0.03f), 0f, 0.55f);
-            matEStopYellow = LitMaterial("MAT_EmergencyStop_Yellow", new Color(0.95f, 0.72f, 0.05f), 0f, 0.45f);
+            matCeilingConcrete = LitMaterial("MAT_CeilingConcrete", new Color(0.22f, 0.24f, 0.26f), 0.1f, 0.14f);
+            matDarkSlate = LitMaterial("MAT_DarkSlate", new Color(0.14f, 0.16f, 0.19f), 0.35f, 0.42f);
+            matCyanAccent = LitMaterial("MAT_CyanAccent", new Color(0.06f, 0.54f, 0.84f), 0.25f, 0.55f);
+            matOil = LitMaterial("MAT_Oil", new Color(0.05f, 0.03f, 0.02f), 0f, 0.92f);
+            matEStopRed = LitMaterial("MAT_EmergencyStop_Red", new Color(0.78f, 0.05f, 0.04f), 0.05f, 0.55f);
+            matEStopYellow = LitMaterial("MAT_EmergencyStop_Yellow", new Color(0.96f, 0.74f, 0.04f), 0.05f, 0.45f);
             matHmiScreen = LitMaterial("MAT_HMI_Screen", new Color(0.02f, 0.02f, 0.02f), 0f, 0.6f,
                 new Color(0.95f, 0.14f, 0.04f) * 1.6f);
-            matApronRubber = LitMaterial("MAT_Apron_Rubber", new Color(0.10f, 0.13f, 0.11f), 0f, 0.35f);
-            matHeatGlove = LitMaterial("MAT_HeatGlove", new Color(0.62f, 0.52f, 0.36f), 0.05f, 0.3f);
-            matLatex = LitMaterial("MAT_Latex", new Color(0.93f, 0.93f, 0.88f), 0f, 0.85f);
-            matRespirator = LitMaterial("MAT_Respirator", new Color(0.88f, 0.88f, 0.85f), 0f, 0.55f);
-            matFloorMarking = LitMaterial("MAT_FloorSafetyMarking_Yellow", new Color(0.95f, 0.72f, 0.05f), 0f, 0.3f,
-                new Color(0.35f, 0.26f, 0.02f));
+            matApronRubber = LitMaterial("MAT_Apron_Rubber", new Color(0.09f, 0.12f, 0.14f), 0.08f, 0.42f);
+            matHeatGlove = LitMaterial("MAT_HeatGlove", new Color(0.92f, 0.34f, 0.05f), 0.10f, 0.28f);
+            AssignOptionalTexture(matHeatGlove, "_BumpMap", TEXTURE_DIR + "/TEX_Glove_Normal.png", true);
+            matSafetyBootLeather = LitMaterial("MAT_SafetyBoot_Leather", new Color(0.15f, 0.12f, 0.10f), 0.08f, 0.32f);
+            matSafetyBootSole = LitMaterial("MAT_SafetyBoot_Sole", new Color(0.88f, 0.56f, 0.05f), 0.05f, 0.35f);
+            matLatex = LitMaterial("MAT_Latex", new Color(0.94f, 0.96f, 0.92f), 0f, 0.88f);
+            matSurgicalMaskBlue = LitMaterial("MAT_SurgicalMask_Blue", new Color(0.56f, 0.84f, 0.95f), 0f, 0.22f);
+            matAbsorbentMat = LitMaterial("MAT_AbsorbentMat", new Color(0.85f, 0.83f, 0.72f), 0f, 0.15f);
+            AssignOptionalTexture(matAbsorbentMat, "_BumpMap", TEXTURE_DIR + "/TEX_AbsorbentMat_Normal.png", true);
+            matAbsorbentSock = LitMaterial("MAT_AbsorbentSock", new Color(0.88f, 0.86f, 0.78f), 0f, 0.18f);
+            AssignOptionalTexture(matAbsorbentSock, "_BaseMap", TEXTURE_DIR + "/TEX_AbsorbentSock_Albedo.png");
+            AssignOptionalTexture(matAbsorbentSock, "_MainTex", TEXTURE_DIR + "/TEX_AbsorbentSock_Albedo.png");
+
+            matFloorMarking = LitMaterial("MAT_FloorSafetyMarking_Yellow", new Color(0.96f, 0.74f, 0.04f), 0f, 0.3f,
+                new Color(0.42f, 0.30f, 0.02f));
             matBeaconRed = LitMaterial("MAT_BeaconRed", new Color(0.55f, 0.02f, 0.02f), 0f, 0.75f,
                 new Color(0.9f, 0.05f, 0.03f) * 1.4f);
+            matExitBeaconIdle = LitMaterial("MAT_ExitBeacon_Idle", new Color(0.08f, 0.26f, 0.14f), 0f, 0.5f,
+                new Color(0.08f, 0.32f, 0.14f));
+            matExitBeaconReady = LitMaterial("MAT_ExitBeacon_Ready", new Color(0.08f, 0.92f, 0.32f), 0f, 0.65f,
+                new Color(0.15f, 1.85f, 0.45f));
             matLedRed = LitMaterial("MAT_LedRed", new Color(0.45f, 0.02f, 0.02f), 0f, 0.7f,
                 new Color(1f, 0.05f, 0.03f) * 2f);
             matLedGreen = LitMaterial("MAT_LedGreen", new Color(0.02f, 0.35f, 0.08f), 0f, 0.7f,
                 new Color(0.05f, 1f, 0.2f) * 2f);
-            matLightFixture = LitMaterial("MAT_LightFixture", new Color(0.85f, 0.87f, 0.85f), 0f, 0.4f,
+            matLightFixture = LitMaterial("MAT_LightFixture", new Color(0.90f, 0.92f, 0.88f), 0f, 0.4f,
                 new Color(1f, 0.97f, 0.9f) * 2.2f);
             matHmiOff = LitMaterial("MAT_HMI_Off", new Color(0.015f, 0.015f, 0.018f), 0f, 0.12f);
             matLedOff = LitMaterial("MAT_LedOff", new Color(0.07f, 0.07f, 0.075f), 0f, 0.35f);
             matParticleSoft = ParticleMaterial("MAT_ParticleSoft", new Color(0.66f, 0.66f, 0.64f, 0.5f));
 
-            matFaceShieldVisor = LitMaterial("MAT_FaceShield_Visor", new Color(0.55f, 0.78f, 0.9f, 0.18f), 0f, 0.95f);
-            ConfigureTransparent(matFaceShieldVisor, 0.18f);
-            matGhostSnap = LitMaterial("MAT_GhostSnap", new Color(0.2f, 0.95f, 0.45f, 0.35f), 0f, 0.5f);
-            ConfigureTransparent(matGhostSnap, 0.35f, new Color(0.1f, 0.9f, 0.3f));
+            matFaceShieldVisor = LitMaterial("MAT_FaceShield_Visor", new Color(0.55f, 0.82f, 0.96f, 0.28f), 0f, 0.95f);
+            ConfigureTransparent(matFaceShieldVisor, 0.28f);
+            matGhostSnap = LitMaterial("MAT_GhostSnap", new Color(0.16f, 0.96f, 0.45f, 0.48f), 0f, 0.5f);
+            ConfigureTransparent(matGhostSnap, 0.48f, new Color(0.12f, 0.95f, 0.35f));
+            matBaselineZone = LitMaterial("MAT_BaselineZone", new Color(0.98f, 0.84f, 0.12f, 0.38f), 0f, 0.4f);
+            ConfigureTransparent(matBaselineZone, 0.38f, new Color(0.68f, 0.58f, 0.06f));
+
+            matDamageOverlay = EnsureDamageOverlayMaterial();
 
             EnsureSignMaterial("MAT_Sign_Stampaggio", "TEX_Sign_Stampaggio.png");
             EnsureSignMaterial("MAT_Sign_QuadroGenerale", "TEX_Sign_QuadroGenerale.png");
             EnsureSignMaterial("MAT_Sign_Dpi", "TEX_Sign_Dpi.png");
             EnsureSignMaterial("MAT_Sign_KitAntispandimento", "TEX_Sign_KitAntispandimento.png");
             EnsureSignMaterial("MAT_Sign_Uscita", "TEX_Sign_Uscita.png");
+            EnsureDiegeticPlaqueMaterials();
 
             AssetDatabase.SaveAssets();
+        }
+
+        private static void AssignOptionalTexture(Material material, string property, string assetPath, bool isNormal = false)
+        {
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+            if (tex == null) return;
+            material.SetTexture(property, tex);
+            if (isNormal) material.EnableKeyword("_NORMALMAP");
+            EditorUtility.SetDirty(material);
+        }
+
+        private static Material EnsureDamageOverlayMaterial()
+        {
+            string path = MATERIAL_DIR + "/MAT_DamageOverlay.mat";
+            Shader shader = Shader.Find("SI81/MachineLock/DamageOverlay");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader) { name = "MAT_DamageOverlay" };
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            else if (shader != null)
+            {
+                mat.shader = shader;
+            }
+            SetColor(mat, "_Color", new Color(0.88f, 0.04f, 0.04f, 1f));
+            SetFloat(mat, "_Intensity", 0f);
+            SetFloat(mat, "_InnerRadius", 0.28f);
+            SetFloat(mat, "_OuterRadius", 0.72f);
+            SetFloat(mat, "_FullScreenFade", 0f);
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         private static Material CopyMaterial(string source, string name)
@@ -790,10 +894,10 @@ namespace SI81.MachineLock.EditorTools
             EditorUtility.SetDirty(material);
         }
 
-        private static void EnsureSignMaterial(string materialName, string textureFile)
+        private static void EnsureSignMaterial(string materialName, string textureFile, float emissionScale = 0.65f)
         {
             Texture2D texture = LoadGroupTexture(textureFile);
-            var material = LitMaterial(materialName, Color.white, 0f, 0.25f, Color.white);
+            var material = LitMaterial(materialName, Color.white, 0f, 0.25f, Color.white * emissionScale);
             material.SetTexture("_BaseMap", texture);
             material.SetTexture("_MainTex", texture);
             material.SetTexture("_EmissionMap", texture);
@@ -1112,8 +1216,8 @@ namespace SI81.MachineLock.EditorTools
         {
             var root = NewPrefabRoot(temp, "MESH_AbsorbentMat");
             AddModelChild(root, "MESH_AbsorbentMatBody", SHARED_MODEL_DIR + "MESH_PANNO_ASSORBENTE_TEAM.fbx",
-                new Vector3(1.0f, 0.02f, 0.8f), new Vector3(0f, 0.01f, 0f), false, false, null);
-            AddBoxCollider(root, new Vector3(0f, 0.01f, 0f), new Vector3(1.0f, 0.02f, 0.8f));
+                new Vector3(1.0f, 0.03f, 0.8f), new Vector3(0f, 0.015f, 0f), false, false, matAbsorbentMat);
+            AddBoxCollider(root, new Vector3(0f, 0.03f, 0f), new Vector3(1.0f, 0.06f, 0.8f));
 
             Interactable interactable = AddInteractable(root, false, true, true);
             var absorbent = root.AddComponent<MachineLockAbsorbent>();
@@ -1130,14 +1234,13 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildAbsorbentSockPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_AbsorbentSock");
-            var body = AddCylinder(root, "MESH_AbsorbentSockBody", 0.075f, 1.2f,
-                new Vector3(0f, 0.075f, 0f), new Vector3(0f, 0f, 90f), matLatex, false);
-            body.name = "MESH_AbsorbentSockBody";
+            AddModelChild(root, "MESH_AbsorbentSockBody", SHARED_MODEL_DIR + "MESH_SALSICCIOTTO_ONEDRIVE.fbx",
+                new Vector3(1.2f, 0.16f, 0.22f), new Vector3(0f, 0.08f, 0f), true, false, matAbsorbentSock);
             var collider = root.AddComponent<CapsuleCollider>();
             collider.direction = 0;
             collider.height = 1.2f;
-            collider.radius = 0.075f;
-            collider.center = new Vector3(0f, 0.075f, 0f);
+            collider.radius = 0.10f;
+            collider.center = new Vector3(0f, 0.08f, 0f);
 
             Interactable interactable = AddInteractable(root, false, true, true);
             var absorbent = root.AddComponent<MachineLockAbsorbent>();
@@ -1154,22 +1257,41 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildValvePrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_Valve");
-            AddCylinder(root, "MESH_ValvePipe", 0.09f, 0.5f, Vector3.zero, new Vector3(0f, 0f, 90f), matPolishedSteel, false);
-            GameObject wheel = AddCylinder(root, "MESH_Valve_Wheel", 0.15f, 0.05f, new Vector3(0f, 0.16f, 0f), Vector3.zero, matEStopRed, false);
-            for (int i = 0; i < 3; i++)
+            AddCylinder(root, "MESH_ValvePipe", 0.11f, 0.6f, Vector3.zero, new Vector3(0f, 0f, 90f), matPolishedSteel, false);
+            AddCylinder(root, "MESH_ValveFlangeW", 0.16f, 0.04f, new Vector3(-0.26f, 0f, 0f), new Vector3(0f, 0f, 90f), matDarkSlate, false);
+            AddCylinder(root, "MESH_ValveFlangeE", 0.16f, 0.04f, new Vector3(0.26f, 0f, 0f), new Vector3(0f, 0f, 90f), matDarkSlate, false);
+            AddCylinder(root, "MESH_ValveStem", 0.035f, 0.24f, new Vector3(0f, 0.14f, 0f), Vector3.zero, matPolishedSteel, false);
+
+            // Bright unmistakable red handwheel with cross spokes and pulsing Guided indicator halo.
+            var wheel = NewChild(root, "MESH_Valve_Wheel", new Vector3(0f, 0.28f, 0f));
+            AddCylinder(wheel, "MESH_ValveWheelRim", 0.20f, 0.045f, Vector3.zero, Vector3.zero, matEStopRed, false);
+            AddCylinder(wheel, "MESH_ValveWheelHub", 0.06f, 0.065f, Vector3.zero, Vector3.zero, matEStopYellow, false);
+            for (int i = 0; i < 4; i++)
             {
-                float angle = i * 60f;
-                var spoke = AddBox(root, "MESH_ValveSpoke" + (i + 1), new Vector3(0.27f, 0.02f, 0.02f),
-                    new Vector3(0f, 0.16f, 0f), matPolishedSteel, false);
-                spoke.transform.localRotation = Quaternion.Euler(0f, angle, 0f);
+                var spoke = AddBox(wheel, "MESH_ValveSpoke" + (i + 1), new Vector3(0.38f, 0.028f, 0.028f),
+                    Vector3.zero, matEStopRed, false);
+                spoke.transform.localRotation = Quaternion.Euler(0f, i * 45f, 0f);
             }
-            AddBoxCollider(root, new Vector3(0f, 0.08f, 0f), new Vector3(0.5f, 0.4f, 0.4f));
+
+            GameObject pulseRing = AddCylinder(root, "MESH_ValvePulseRing", 0.24f, 0.018f,
+                new Vector3(0f, 0.28f, 0f), Vector3.zero, matBeaconRed, false);
+
+            // Flush Diegetic Plaque mounted cleanly on a vertical stanchion above the valve (double-sided N/S readable).
+            AddBox(root, "MESH_ValveSignPost", new Vector3(0.03f, 0.42f, 0.03f), new Vector3(0f, 0.46f, -0.18f), matDarkSlate, false);
+            AddBox(root, "MESH_ValvePlaqueBack", new Vector3(0.54f, 0.28f, 0.025f), new Vector3(0f, 0.68f, -0.18f), matDarkSlate, false);
+            AddPlaque(root, "MESH_PlaqueValveFront", "MAT_Plaque_Valve", new Vector2(0.52f, 0.26f),
+                new Vector3(0f, 0.68f, -0.165f), new Vector3(0f, 180f, 0f));
+            AddPlaque(root, "MESH_PlaqueValveBack", "MAT_Plaque_Valve", new Vector2(0.52f, 0.26f),
+                new Vector3(0f, 0.68f, -0.195f), Vector3.zero);
+
+            AddBoxCollider(root, new Vector3(0f, 0.18f, 0f), new Vector3(0.62f, 0.56f, 0.52f));
 
             Interactable interactable = AddInteractable(root, true, false, false);
             var valve = root.AddComponent<MachineLockValve>();
-            AudioSource squeakAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            AudioSource squeakAudio = AddAudioSource(root, null, false, false, 1f, 0.85f);
             SetRef(valve, "interactable", interactable);
             SetRef(valve, "wheelTransform", wheel.transform);
+            SetRef(valve, "pulseIndicatorRenderer", pulseRing.GetComponent<Renderer>());
             SetVector3(valve, "rotationAxis", Vector3.up);
             SetRef(valve, "oneShotAudio", squeakAudio);
             SetRef(valve, "squeakClip", clips.ValveTurn);
@@ -1182,25 +1304,34 @@ namespace SI81.MachineLock.EditorTools
         {
             var root = NewPrefabRoot(temp, "MESH_WaterExtinguisher");
             AddModelChild(root, "MESH_ExtinguisherBody", SHARED_PROP_DIR + "Estintore/Estintore.fbx",
-                new Vector3(0.15f, 0.6f, 0.15f), Vector3.zero, false, false, null);
-            AddBox(root, "MESH_ExtinguisherBracket", new Vector3(0.2f, 0.42f, 0.03f),
-                new Vector3(0f, 0.12f, 0.1f), matPaintedSteel, false);
-            AddBox(root, "MESH_ExtinguisherClampTop", new Vector3(0.18f, 0.03f, 0.08f),
-                new Vector3(0f, 0.28f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_ExtinguisherClampBottom", new Vector3(0.18f, 0.03f, 0.08f),
-                new Vector3(0f, -0.15f, 0f), matPaintedSteel, false);
+                new Vector3(0.18f, 0.66f, 0.18f), Vector3.zero, false, false, null);
+            AddBox(root, "MESH_ExtinguisherBracket", new Vector3(0.24f, 0.48f, 0.03f),
+                new Vector3(0f, 0.12f, -0.12f), matDarkSlate, false);
+            AddBox(root, "MESH_ExtinguisherClampTop", new Vector3(0.20f, 0.03f, 0.09f),
+                new Vector3(0f, 0.28f, -0.04f), matPaintedSteel, false);
+            AddBox(root, "MESH_ExtinguisherClampBottom", new Vector3(0.20f, 0.03f, 0.09f),
+                new Vector3(0f, -0.15f, -0.04f), matPaintedSteel, false);
+
+            // Shared fire extinguisher wall sign + flush Diegetic Plaque explaining Class A water warning.
+            AddModelChild(root, "MESH_ExtinguisherWallSign", SHARED_MODEL_DIR + "MESH_Folgorazione_CartelloEstintore.fbx",
+                new Vector3(0.32f, 0.32f, 0.04f), new Vector3(0f, 0.72f, -0.10f), false, true, null);
+            AddBox(root, "MESH_ExtinguisherPlaqueBacking", new Vector3(0.48f, 0.25f, 0.02f),
+                new Vector3(0f, 0.44f, -0.11f), matDarkSlate, false);
+            AddPlaque(root, "MESH_PlaqueExtinguisher", "MAT_Plaque_Extinguisher", new Vector2(0.46f, 0.23f),
+                new Vector3(0f, 0.44f, -0.095f), new Vector3(0f, 180f, 0f));
+
             var collider = root.AddComponent<CapsuleCollider>();
             collider.direction = 1;
-            collider.height = 0.6f;
-            collider.radius = 0.08f;
-            collider.center = Vector3.zero;
+            collider.height = 0.75f;
+            collider.radius = 0.14f;
+            collider.center = new Vector3(0f, 0.04f, 0f);
 
             Interactable interactable = AddInteractable(root, true, false, false);
             var extinguisher = root.AddComponent<MachineLockExtinguisher>();
             ParticleSystem spray = AddParticles(root, "VFX_WaterSpray", new Vector3(0.16f, 0.55f, 0f), Vector3.zero,
                 matParticleSoft, 100, false, 40f, new Color(0.72f, 0.8f, 0.9f, 0.55f), 0.12f, 2.5f, 1.2f, 0.05f,
                 ParticleSystemShapeType.Cone, false);
-            AudioSource sprayAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            AudioSource sprayAudio = AddAudioSource(root, null, false, false, 1f, 0.85f);
             SetRef(extinguisher, "extinguisherInteractable", interactable);
             SetRef(extinguisher, "waterSprayVfx", spray);
             SetRef(extinguisher, "oneShotAudio", sprayAudio);
@@ -1213,11 +1344,19 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildIndustrialDoorPrefab(Scene temp)
         {
             var root = NewPrefabRoot(temp, "MESH_IndustrialDoor_RollUp");
-            AddBox(root, "MESH_DoorPostLeft", new Vector3(0.12f, 2.3f, 0.12f), new Vector3(0f, 1.15f, -0.62f), matPaintedSteel, true);
-            AddBox(root, "MESH_DoorPostRight", new Vector3(0.12f, 2.3f, 0.12f), new Vector3(0f, 1.15f, 0.62f), matPaintedSteel, true);
-            AddBox(root, "MESH_DoorHeader", new Vector3(1.5f, 0.18f, 0.16f), new Vector3(0f, 2.35f, 0f), matPaintedSteel, false);
-            AddModelChild(root, "MESH_DoorRollHousing", SHARED_ROOM_DIR + "MESH_PORTA_CAMION_TEAM.fbx",
-                new Vector3(1.45f, 0.34f, 0.22f), new Vector3(0f, 2.42f, 0f), false, false, null);
+            // Generous 2.0 x 2.5 m clear doorway; posts stay clear of the walk-through path.
+            AddBox(root, "MESH_DoorPostLeft", new Vector3(0.16f, 2.6f, 0.16f), new Vector3(0f, 1.3f, -1.08f), matDarkSlate, true);
+            AddBox(root, "MESH_DoorPostRight", new Vector3(0.16f, 2.6f, 0.16f), new Vector3(0f, 1.3f, 1.08f), matDarkSlate, true);
+            AddBox(root, "MESH_DoorPostStripeLeft", new Vector3(0.17f, 2.4f, 0.04f), new Vector3(0f, 1.25f, -0.99f), matEStopYellow, false);
+            AddBox(root, "MESH_DoorPostStripeRight", new Vector3(0.17f, 2.4f, 0.04f), new Vector3(0f, 1.25f, 0.99f), matEStopYellow, false);
+            AddBox(root, "MESH_DoorHeader", new Vector3(0.22f, 0.24f, 2.36f), new Vector3(0f, 2.62f, 0f), matDarkSlate, false);
+            GameObject rollHousing = AddModelChild(root, "MESH_DoorRollHousing", SHARED_ROOM_DIR + "MESH_PORTA_CAMION_TEAM.fbx",
+                new Vector3(0.28f, 0.42f, 2.25f), new Vector3(0f, 2.80f, 0f), false, false, null);
+            rollHousing.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            // Flush overhead Exit Diegetic Plaque facing into the room (+X).
+            AddPlaque(root, "MESH_PlaqueExitHeader", "MAT_Plaque_ExitHeader", new Vector2(1.4f, 0.42f),
+                new Vector3(0.13f, 2.62f, 0f), new Vector3(0f, -90f, 0f));
             SavePrefab(root);
         }
 
@@ -1226,19 +1365,27 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildEStopPrefab(Scene temp)
         {
             var root = NewPrefabRoot(temp, "MESH_EStopPedestal");
-            AddBox(root, "MESH_EStopPedestalBase", new Vector3(0.4f, 1.1f, 0.4f), new Vector3(0f, 0.55f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_EStopBackplate", new Vector3(0.44f, 0.5f, 0.06f), new Vector3(0f, 1.0f, -0.2f), matEStopYellow, false);
-            GameObject stopButton = AddCylinder(root, "MESH_EmergencyStopButton", 0.06f, 0.07f,
-                new Vector3(0f, 0.95f, 0.24f), new Vector3(90f, 0f, 0f), matEStopRed, false);
-            AddCylinder(root, "MESH_EmergencyStopStem", 0.03f, 0.06f, new Vector3(0f, 0.95f, 0.19f), new Vector3(90f, 0f, 0f), matEStopYellow, false);
-            GameObject startButton = AddCylinder(root, "MESH_TestStartButton", 0.04f, 0.05f,
-                new Vector3(0f, 0.55f, 0.22f), new Vector3(90f, 0f, 0f), matLedGreen, false);
+            AddBox(root, "MESH_EStopPedestalFoot", new Vector3(0.52f, 0.08f, 0.52f), new Vector3(0f, 0.04f, 0f), matEStopYellow, true);
+            AddBox(root, "MESH_EStopPedestalBase", new Vector3(0.42f, 1.12f, 0.40f), new Vector3(0f, 0.60f, 0f), matDarkSlate, true);
+            // Yellow safety backplate on the +Z front face directly behind the buttons.
+            AddBox(root, "MESH_EStopBackplate", new Vector3(0.44f, 0.62f, 0.05f), new Vector3(0f, 0.88f, 0.21f), matEStopYellow, false);
+            AddModelChild(root, "MESH_EStopPushbuttonTrim", SHARED_MODEL_DIR + "MESH_PULSANTI_TEAM.fbx",
+                new Vector3(0.28f, 0.22f, 0.04f), new Vector3(0f, 0.56f, 0.22f), false, true, null);
 
-            // The two buttons need their own collider, proud of the pedestal, so the VR ray hits them
-            // directly instead of the pedestal body.
-            AddWorldBoxCollider(stopButton, stopButton.transform.position, new Vector3(0.16f, 0.16f, 0.16f));
+            GameObject stopButton = AddCylinder(root, "MESH_EmergencyStopButton", 0.08f, 0.08f,
+                new Vector3(0f, 1.02f, 0.27f), new Vector3(90f, 0f, 0f), matEStopRed, false);
+            AddCylinder(root, "MESH_EmergencyStopStem", 0.04f, 0.06f, new Vector3(0f, 1.02f, 0.22f), new Vector3(90f, 0f, 0f), matEStopYellow, false);
+            GameObject startButton = AddCylinder(root, "MESH_TestStartButton", 0.055f, 0.06f,
+                new Vector3(0f, 0.72f, 0.26f), new Vector3(90f, 0f, 0f), matLedGreen, false);
+
+            // Flush angled top Diegetic Plaque explaining red E-stop vs green try-start.
+            AddBox(root, "MESH_EStopPlaqueBack", new Vector3(0.48f, 0.26f, 0.025f), new Vector3(0f, 1.30f, 0.16f), matDarkSlate, false);
+            AddPlaque(root, "MESH_PlaqueEStop", "MAT_Plaque_EStop", new Vector2(0.46f, 0.24f),
+                new Vector3(0f, 1.30f, 0.18f), new Vector3(0f, 180f, 0f));
+
+            AddWorldBoxCollider(stopButton, stopButton.transform.position, new Vector3(0.20f, 0.20f, 0.18f));
             AddInteractable(stopButton, true, false, false);
-            AddWorldBoxCollider(startButton, startButton.transform.position, new Vector3(0.12f, 0.12f, 0.12f));
+            AddWorldBoxCollider(startButton, startButton.transform.position, new Vector3(0.16f, 0.16f, 0.16f));
             AddInteractable(startButton, true, false, false);
             SavePrefab(root);
         }
@@ -1248,24 +1395,30 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildAlarmPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_AlarmButton");
-            AddBox(root, "MESH_AlarmBox", new Vector3(0.36f, 0.46f, 0.14f), Vector3.zero, matPaintedSteel, true);
-            GameObject pushButton = AddCylinder(root, "MESH_AlarmPushButton", 0.06f, 0.05f,
-                new Vector3(0f, 0.05f, 0.1f), new Vector3(90f, 0f, 0f), matEStopRed, false);
-            AddWorldBoxCollider(pushButton, pushButton.transform.position, new Vector3(0.16f, 0.16f, 0.16f));
+            AddBox(root, "MESH_AlarmBox", new Vector3(0.44f, 0.56f, 0.16f), Vector3.zero, matEStopRed, true);
+            AddBox(root, "MESH_AlarmTrim", new Vector3(0.36f, 0.44f, 0.04f), new Vector3(0f, 0f, 0.08f), matDarkSlate, false);
+            GameObject pushButton = AddCylinder(root, "MESH_AlarmPushButton", 0.075f, 0.06f,
+                new Vector3(0f, 0.04f, 0.12f), new Vector3(90f, 0f, 0f), matEStopRed, false);
+            AddWorldBoxCollider(pushButton, pushButton.transform.position, new Vector3(0.22f, 0.22f, 0.18f));
             Interactable buttonInteractable = AddInteractable(pushButton, true, false, false);
 
-            var beacon = NewChild(root, "VFX_AlarmBeacon", new Vector3(0f, 0.34f, 0f));
-            GameObject dome = AddSphere(beacon, "MESH_AlarmBeaconDome", 0.12f, Vector3.zero, matBeaconRed, false);
+            // Flush Diegetic Plaque below the alarm box.
+            AddBox(root, "MESH_AlarmPlaqueBack", new Vector3(0.50f, 0.26f, 0.025f), new Vector3(0f, -0.44f, 0.06f), matDarkSlate, false);
+            AddPlaque(root, "MESH_PlaqueAlarm", "MAT_Plaque_Alarm", new Vector2(0.48f, 0.24f),
+                new Vector3(0f, -0.44f, 0.08f), new Vector3(0f, 180f, 0f));
+
+            var beacon = NewChild(root, "VFX_AlarmBeacon", new Vector3(0f, 0.42f, 0f));
+            GameObject dome = AddSphere(beacon, "MESH_AlarmBeaconDome", 0.16f, Vector3.zero, matBeaconRed, false);
             var light = beacon.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.1f, 0.05f);
-            light.intensity = 2f;
-            light.range = 8f;
+            light.intensity = 2.2f;
+            light.range = 10f;
             light.shadows = LightShadows.None;
             light.lightmapBakeType = LightmapBakeType.Realtime;
             light.enabled = false;
 
-            AudioSource sirenAudio = AddAudioSource(root, clips.AlarmSiren, true, false, 1f, 0.8f);
+            AudioSource sirenAudio = AddAudioSource(root, clips.AlarmSiren, true, false, 1f, 0.85f);
             AudioSource buttonAudio = AddAudioSource(root, clips.AlarmButton, false, false, 1f, 0.9f);
             var alarm = root.AddComponent<MachineLockAlarm>();
             SetRef(alarm, "alarmInteractable", buttonInteractable);
@@ -1278,52 +1431,84 @@ namespace SI81.MachineLock.EditorTools
             SavePrefab(root);
         }
 
-        // -- MESH_ElectricalPanel ---------------------------------------------
+        // -- MESH_ElectricalPanel (3 physically separated color-coded Sub-Stations) --
 
         private static void BuildElectricalPanelPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_ElectricalPanel");
-            AddModelChild(root, "MESH_PanelCabinet", SHARED_PROP_DIR + "Quadro Elettrico/Quadro Elettrico.fbx",
-                new Vector3(0.25f, 1.2f, 1.0f), Vector3.zero, false, false, null);
-            GameObject disconnectSwitch = AddModelChild(root, "MESH_DisconnectSwitch", SHARED_PROP_DIR + "Manopola.fbx",
-                new Vector3(0.22f, 0.22f, 0.22f), new Vector3(-0.16f, 0.3f, -0.3f), false, true, matEStopRed);
 
-            AddBox(root, "MESH_LockoutPoint", new Vector3(0.03f, 0.18f, 0.18f), new Vector3(-0.15f, 0.05f, 0.3f), matEStopYellow, false);
-            AddBox(root, "MESH_LockoutLed", new Vector3(0.02f, 0.06f, 0.06f), new Vector3(-0.17f, 0.05f, 0.3f), matLedRed, false);
+            // Wide 2.5 m industrial wall-bay mounting backboard (facing -X into the stamping bay).
+            AddBox(root, "MESH_ElectricalBayBackboard", new Vector3(0.08f, 1.50f, 2.50f), new Vector3(0.10f, 0.05f, 0f), matDarkSlate, true);
+            AddBox(root, "MESH_ElectricalBayTopRail", new Vector3(0.12f, 0.07f, 2.54f), new Vector3(0.08f, 0.80f, 0f), matEStopYellow, false);
+            AddBox(root, "MESH_ElectricalBayBottomRail", new Vector3(0.12f, 0.07f, 2.54f), new Vector3(0.08f, -0.70f, 0f), matEStopYellow, false);
 
-            GameObject voltageTester = AddBox(root, "MESH_VoltageTester", new Vector3(0.09f, 0.32f, 0.22f),
-                new Vector3(-0.16f, 0.3f, 0.25f), matPaintedSteel, false);
-            AddBox(root, "MESH_VoltageTesterScreen", new Vector3(0.02f, 0.1f, 0.11f), new Vector3(-0.21f, 0.37f, 0.25f), matHmiScreen, false);
-            GameObject testerLedRed = AddBox(root, "MESH_TesterLedRed", new Vector3(0.02f, 0.035f, 0.035f),
-                new Vector3(-0.21f, 0.24f, 0.3f), matLedRed, false);
-            GameObject testerLedGreen = AddBox(root, "MESH_TesterLedGreen", new Vector3(0.02f, 0.035f, 0.035f),
-                new Vector3(-0.21f, 0.24f, 0.2f), matLedGreen, false);
+            // ---- SUB-STATION 1 (Z = -0.88): MAIN DISCONNECT SWITCH (Red / Dark Slate) ----
+            var subMain = NewChild(root, "SUB_MainDisconnect", new Vector3(0f, 0f, -0.88f));
+            AddBox(subMain, "MESH_MainStationBack", new Vector3(0.14f, 0.92f, 0.66f), new Vector3(0.02f, 0.14f, 0f), matEStopRed, false);
+            AddModelChild(subMain, "MESH_PanelCabinet", SHARED_PROP_DIR + "Quadro Elettrico/Quadro Elettrico.fbx",
+                new Vector3(0.22f, 0.78f, 0.56f), new Vector3(-0.02f, 0.14f, 0f), false, false, null);
+            GameObject disconnectSwitch = AddModelChild(subMain, "MESH_DisconnectSwitch", SHARED_PROP_DIR + "Manopola.fbx",
+                new Vector3(0.24f, 0.24f, 0.24f), new Vector3(-0.18f, 0.14f, 0f), false, true, matEStopRed);
+            AddBox(disconnectSwitch, "MESH_DisconnectHandleBar", new Vector3(0.04f, 0.26f, 0.05f),
+                new Vector3(-0.04f, 0f, 0f), matEStopYellow, false);
+            GameObject mainOnLed = AddSphere(subMain, "MESH_MainOnLed", 0.07f, new Vector3(-0.15f, 0.44f, -0.14f), matLedRed, false);
+            GameObject mainOffLed = AddSphere(subMain, "MESH_MainOffLed", 0.07f, new Vector3(-0.15f, 0.44f, 0.14f), matLedOff, false);
+            AddPlaque(subMain, "MESH_PlaqueMainSwitch", "MAT_Plaque_MainSwitch", new Vector2(0.60f, 0.30f),
+                new Vector3(-0.06f, -0.46f, 0f), new Vector3(0f, 90f, 0f));
 
-            // The body collider sits behind the front face: the switch, the lockout point and the tester
-            // get their own collider so the VR ray hits each control directly.
-            AddBoxCollider(root, new Vector3(0.02f, 0f, 0f), new Vector3(0.24f, 1.2f, 1.0f));
-            FitBoxCollider(disconnectSwitch, 0.02f);
+            AddWorldBoxCollider(disconnectSwitch, subMain.transform.TransformPoint(new Vector3(-0.14f, 0.14f, 0f)),
+                new Vector3(0.26f, 0.72f, 0.58f));
             Interactable switchInteractable = AddInteractable(disconnectSwitch, true, false, false);
 
-            GameObject lockoutPoint = FindChild(root, "MESH_LockoutPoint");
-            AddWorldBoxCollider(lockoutPoint, lockoutPoint.transform.position, new Vector3(0.09f, 0.24f, 0.24f));
+            // ---- SUB-STATION 2 (Z = 0.00): LOCKOUT STATION (Safety Yellow / Black LOTO) ----
+            var subLock = NewChild(root, "SUB_LockoutStation", Vector3.zero);
+            AddBox(subLock, "MESH_LockoutHousing", new Vector3(0.16f, 0.92f, 0.66f), new Vector3(0.01f, 0.14f, 0f), matEStopYellow, false);
+            AddBox(subLock, "MESH_LockoutInnerPlate", new Vector3(0.04f, 0.76f, 0.54f), new Vector3(-0.08f, 0.14f, 0f), matDarkSlate, false);
+            GameObject lockoutPoint = AddBox(subLock, "MESH_LockoutPoint", new Vector3(0.10f, 0.26f, 0.26f),
+                new Vector3(-0.15f, 0.06f, 0f), matEStopYellow, false);
+            AddModelChild(subLock, "MESH_LockoutButtons", SHARED_MODEL_DIR + "MESH_PULSANTI_TEAM.fbx",
+                new Vector3(0.06f, 0.20f, 0.22f), new Vector3(-0.13f, 0.06f, 0f), false, true, null);
+            GameObject lockoutLed = AddSphere(subLock, "MESH_LockoutLed", 0.09f, new Vector3(-0.14f, 0.38f, -0.13f), matLedOff, false);
+            GameObject lockoutReadyLed = AddSphere(subLock, "MESH_LockoutReadyLed", 0.09f, new Vector3(-0.14f, 0.38f, 0.13f), matLedOff, false);
+            AddPlaque(subLock, "MESH_PlaqueLockout", "MAT_Plaque_Lockout", new Vector2(0.60f, 0.30f),
+                new Vector3(-0.06f, -0.46f, 0f), new Vector3(0f, 90f, 0f));
+
+            AddWorldBoxCollider(lockoutPoint, subLock.transform.TransformPoint(new Vector3(-0.14f, 0.14f, 0f)),
+                new Vector3(0.24f, 0.72f, 0.58f));
             Interactable lockoutInteractable = AddInteractable(lockoutPoint, true, false, false);
 
-            AddWorldBoxCollider(voltageTester, voltageTester.transform.position, new Vector3(0.12f, 0.34f, 0.24f));
+            // ---- SUB-STATION 3 (Z = +0.88): VOLTAGE TESTER (Cyan / Industrial Blue) ----
+            var subTester = NewChild(root, "SUB_VoltageTester", new Vector3(0f, 0f, 0.88f));
+            AddBox(subTester, "MESH_TesterHousing", new Vector3(0.16f, 0.92f, 0.66f), new Vector3(0.01f, 0.14f, 0f), matCyanAccent, false);
+            AddBox(subTester, "MESH_TesterInnerPlate", new Vector3(0.04f, 0.76f, 0.54f), new Vector3(-0.08f, 0.14f, 0f), matDarkSlate, false);
+            GameObject voltageTester = AddModelChild(subTester, "MESH_VoltageTester", SHARED_MODEL_DIR + "MESH_RilevatoreDiGas.fbx",
+                new Vector3(0.14f, 0.38f, 0.28f), new Vector3(-0.14f, 0.06f, 0f), false, true, matCyanAccent);
+            AddBox(subTester, "MESH_VoltageTesterScreen", new Vector3(0.03f, 0.14f, 0.20f),
+                new Vector3(-0.14f, 0.34f, 0f), matHmiScreen, false);
+            GameObject testerLedRed = AddSphere(subTester, "MESH_TesterLedRed", 0.085f, new Vector3(-0.15f, 0.48f, -0.14f), matLedOff, false);
+            GameObject testerLedGreen = AddSphere(subTester, "MESH_TesterLedGreen", 0.085f, new Vector3(-0.15f, 0.48f, 0.14f), matLedOff, false);
+            AddPlaque(subTester, "MESH_PlaqueTester", "MAT_Plaque_Tester", new Vector2(0.60f, 0.30f),
+                new Vector3(-0.06f, -0.46f, 0f), new Vector3(0f, 90f, 0f));
+
+            AddWorldBoxCollider(voltageTester, subTester.transform.TransformPoint(new Vector3(-0.14f, 0.14f, 0f)),
+                new Vector3(0.24f, 0.72f, 0.58f));
             Interactable testerInteractable = AddInteractable(voltageTester, true, false, false);
 
-            ParticleSystem arc = AddParticles(root, "VFX_ElectricalArc", new Vector3(-0.22f, 0.3f, 0.0f), Vector3.zero,
+            ParticleSystem arc = AddParticles(subTester, "VFX_ElectricalArc", new Vector3(-0.22f, 0.24f, 0f), Vector3.zero,
                 matParticleSoft, 40, false, 30f, new Color(0.6f, 0.85f, 1f, 0.9f), 0.05f, 1.2f, 0.25f, 0.04f,
                 ParticleSystemShapeType.Sphere, false);
             arc.gameObject.SetActive(false);
 
-            AudioSource oneShot = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            AudioSource oneShot = AddAudioSource(root, null, false, false, 1f, 0.85f);
             var panel = root.AddComponent<MachineLockEnergyPanel>();
             SetRef(panel, "mainSwitchInteractable", switchInteractable);
             SetRef(panel, "lockoutInteractable", lockoutInteractable);
             SetRef(panel, "testerInteractable", testerInteractable);
             SetRef(panel, "switchHandle", disconnectSwitch.transform);
-            SetRef(panel, "lockoutLedRenderer", FindChild(root, "MESH_LockoutLed").GetComponent<Renderer>());
+            SetRef(panel, "mainSwitchOnLedRenderer", mainOnLed.GetComponent<Renderer>());
+            SetRef(panel, "mainSwitchOffLedRenderer", mainOffLed.GetComponent<Renderer>());
+            SetRef(panel, "lockoutReadyLedRenderer", lockoutReadyLed.GetComponent<Renderer>());
+            SetRef(panel, "lockoutLedRenderer", lockoutLed.GetComponent<Renderer>());
             SetRef(panel, "testerRedLedRenderer", testerLedRed.GetComponent<Renderer>());
             SetRef(panel, "testerGreenLedRenderer", testerLedGreen.GetComponent<Renderer>());
             SetRef(panel, "ledOffMaterial", matLedOff);
@@ -1337,74 +1522,113 @@ namespace SI81.MachineLock.EditorTools
             SavePrefab(root);
         }
 
-        // -- MESH_PpeCabinet ---------------------------------------------------
+        // -- MESH_PpeCabinet (Wide shallow sliding-door industrial locker, 4 slots + 2 distractors) --
 
         private static void BuildPpeCabinetPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_PpeCabinet");
-            AddBox(root, "MESH_PpeCabinetBack", new Vector3(1.2f, 2.0f, 0.06f), new Vector3(0f, 1.0f, -0.27f), matPaintedSteel, true);
-            AddBox(root, "MESH_PpeCabinetSideLeft", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(-0.57f, 1.0f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PpeCabinetSideRight", new Vector3(0.06f, 2.0f, 0.6f), new Vector3(0.57f, 1.0f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PpeCabinetTop", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 1.97f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PpeCabinetBottom", new Vector3(1.2f, 0.06f, 0.6f), new Vector3(0f, 0.03f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PpeCabinetShelf1", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 0.5f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetShelf2", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 1.0f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_PpeCabinetShelf3", new Vector3(1.08f, 0.03f, 0.5f), new Vector3(0f, 1.5f, 0f), matPaintedSteel, false);
+            // Wide, shallow industrial cabinet: 1.80 m wide x 2.05 m tall x 0.44 m deep.
+            AddBox(root, "MESH_PpeCabinetBack", new Vector3(1.80f, 2.05f, 0.05f), new Vector3(0f, 1.025f, -0.20f), matDarkSlate, true);
+            AddBox(root, "MESH_PpeCabinetSideLeft", new Vector3(0.05f, 2.05f, 0.44f), new Vector3(-0.875f, 1.025f, 0f), matDarkSlate, true);
+            AddBox(root, "MESH_PpeCabinetSideRight", new Vector3(0.05f, 2.05f, 0.44f), new Vector3(0.875f, 1.025f, 0f), matDarkSlate, true);
+            AddBox(root, "MESH_PpeCabinetTop", new Vector3(1.84f, 0.08f, 0.48f), new Vector3(0f, 2.01f, 0f), matCyanAccent, true);
+            AddBox(root, "MESH_PpeCabinetBottom", new Vector3(1.80f, 0.06f, 0.44f), new Vector3(0f, 0.03f, 0f), matDarkSlate, true);
+            AddBox(root, "MESH_PpeCabinetShelfLower", new Vector3(1.72f, 0.03f, 0.38f), new Vector3(0f, 0.44f, 0f), matPaintedSteel, false);
+            AddBox(root, "MESH_PpeCabinetShelfUpper", new Vector3(1.72f, 0.03f, 0.38f), new Vector3(0f, 1.24f, 0f), matPaintedSteel, false);
+            AddBox(root, "MESH_PpeCabinetDividerLeft", new Vector3(0.025f, 1.92f, 0.36f), new Vector3(-0.29f, 1.02f, -0.01f), matDarkSlate, false);
+            AddBox(root, "MESH_PpeCabinetDividerRight", new Vector3(0.025f, 1.92f, 0.36f), new Vector3(0.29f, 1.02f, -0.01f), matDarkSlate, false);
 
-            // The door starts CLOSED (GDD §9.6): identity rotation, hinge on the left edge.
-            var door = NewChild(root, "MESH_PpeCabinet_Door", new Vector3(-0.6f, 1.0f, 0.3f));
-            door.transform.localRotation = Quaternion.identity;
-            GameObject doorPanel = AddBox(door, "MESH_PpeCabinet_DoorPanel", new Vector3(1.2f, 1.8f, 0.04f),
-                new Vector3(0.6f, 0f, 0f), matPaintedSteel, false);
-            AddBox(door, "MESH_PpeCabinet_DoorHandle", new Vector3(0.04f, 0.2f, 0.04f), new Vector3(1.08f, 0f, -0.05f), matPolishedSteel, false);
-            AddLocalBoxCollider(doorPanel);
-            Interactable doorInteractable = AddInteractable(doorPanel, true, false, false);
+            // Non-blocking compact sliding double doors on the +Z front face.
+            var doorLeft = NewChild(root, "MESH_PpeCabinet_DoorLeft", new Vector3(-0.44f, 1.02f, 0.22f));
+            GameObject doorLeftPanel = AddBox(doorLeft, "MESH_PpeCabinet_DoorLeftPanel", new Vector3(0.86f, 1.92f, 0.03f),
+                Vector3.zero, matPaintedSteel, false);
+            AddBox(doorLeft, "MESH_PpeCabinet_DoorLeftWindow", new Vector3(0.66f, 1.50f, 0.036f),
+                Vector3.zero, matFaceShieldVisor, false);
+            AddBox(doorLeft, "MESH_PpeCabinet_DoorLeftHandle", new Vector3(0.04f, 0.28f, 0.04f),
+                new Vector3(0.36f, 0f, 0.035f), matEStopYellow, false);
+            BoxCollider doorLeftCol = AddLocalBoxCollider(doorLeftPanel);
+            Interactable doorLeftInteractable = AddInteractable(doorLeftPanel, true, false, false);
 
-            // Correct PPE: heat glove, chemical apron, face shield, respirator.
-            GameObject heatGlove = AddModelChild(root, "MESH_HeatResistantGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
-                new Vector3(0.28f, 0.34f, 0.12f), new Vector3(-0.3f, 1.66f, 0.05f), false, true, matHeatGlove);
+            var doorRight = NewChild(root, "MESH_PpeCabinet_DoorRight", new Vector3(0.44f, 1.02f, 0.22f));
+            GameObject doorRightPanel = AddBox(doorRight, "MESH_PpeCabinet_DoorRightPanel", new Vector3(0.86f, 1.92f, 0.03f),
+                Vector3.zero, matPaintedSteel, false);
+            AddBox(doorRight, "MESH_PpeCabinet_DoorRightWindow", new Vector3(0.66f, 1.50f, 0.036f),
+                Vector3.zero, matFaceShieldVisor, false);
+            AddBox(doorRight, "MESH_PpeCabinet_DoorRightHandle", new Vector3(0.04f, 0.28f, 0.04f),
+                new Vector3(-0.36f, 0f, 0.035f), matEStopYellow, false);
+            BoxCollider doorRightCol = AddLocalBoxCollider(doorRightPanel);
+            Interactable doorRightInteractable = AddInteractable(doorRightPanel, true, false, false);
 
-            var apron = NewChild(root, "MESH_ChemicalApron", new Vector3(0.3f, 1.28f, 0.06f));
-            AddBox(apron, "MESH_ApronBody", new Vector3(0.42f, 0.76f, 0.04f), Vector3.zero, matApronRubber, false);
-            AddBox(apron, "MESH_ApronStrap", new Vector3(0.05f, 0.3f, 0.03f), new Vector3(0f, 0.5f, 0f), matApronRubber, false);
-
-            var shield = NewChild(root, "MESH_FaceShield", new Vector3(-0.3f, 0.95f, 0.1f));
-            AddModelChild(shield, "MESH_FaceShieldGlasses", SHARED_MODEL_DIR + "OCCHIALI_PROTETTIVI.fbx",
-                new Vector3(0.24f, 0.16f, 0.16f), Vector3.zero, false, true, null);
-            AddQuad(shield, "MESH_FaceShieldVisor", new Vector3(0.34f, 0.3f), new Vector3(0f, 0f, 0.12f),
-                new Vector3(0f, 180f, 0f), matFaceShieldVisor);
-
-            var respirator = NewChild(root, "MESH_Respirator", new Vector3(0.3f, 0.72f, 0.06f));
-            AddModelChild(respirator, "MESH_RespiratorMask", SHARED_MODEL_DIR + "MASCHERINA.fbx",
-                new Vector3(0.26f, 0.18f, 0.2f), Vector3.zero, false, true, matRespirator);
-            AddCylinder(respirator, "MESH_RespiratorFilterLeft", 0.045f, 0.08f,
-                new Vector3(-0.1f, -0.03f, -0.1f), new Vector3(90f, 0f, 0f), matRespirator, false);
-            AddCylinder(respirator, "MESH_RespiratorFilterRight", 0.045f, 0.08f,
-                new Vector3(0.1f, -0.03f, -0.1f), new Vector3(90f, 0f, 0f), matRespirator, false);
-
-            // Wrong PPE: latex gloves and surgical mask.
-            GameObject latexGlove = AddModelChild(root, "MESH_LatexGlove", SHARED_MODEL_DIR + "GUANTO.fbx",
-                new Vector3(0.26f, 0.3f, 0.1f), new Vector3(-0.3f, 0.2f, 0.08f), false, true, matLatex);
-            GameObject surgicalMask = AddModelChild(root, "MESH_SurgicalMask", SHARED_MODEL_DIR + "MASCHERINA.fbx",
-                new Vector3(0.22f, 0.16f, 0.16f), new Vector3(0.3f, 0.18f, 0.08f), false, true, null);
-
-            AudioSource cabinetAudio = AddAudioSource(root, null, false, false, 1f, 0.8f);
+            AudioSource cabinetAudio = AddAudioSource(root, null, false, false, 1f, 0.85f);
             var cabinet = root.AddComponent<MachineLockPpeCabinet>();
-            SetRef(cabinet, "cabinetInteractable", doorInteractable);
-            SetRef(cabinet, "doorTransform", door.transform);
-            SetSerializedFloat(cabinet, "openDoorAngleY", -105f);
+            SetRef(cabinet, "cabinetInteractable", doorLeftInteractable);
+            SetRef(cabinet, "secondaryDoorInteractable", doorRightInteractable);
+            SetRef(cabinet, "doorTransform", doorLeft.transform);
+            SetRef(cabinet, "secondaryDoorTransform", doorRight.transform);
+            SetBool(cabinet, "slideDoorsOpen", true);
+            SetSerializedFloat(cabinet, "doorSlideDistance", 0.78f);
+            SetRefArray(cabinet, "doorColliders", new UnityEngine.Object[] { doorLeftCol, doorRightCol });
             SetRef(cabinet, "oneShotAudio", cabinetAudio);
             SetRef(cabinet, "equipClip", clips.EquipPpe);
             SetRef(cabinet, "openClip", clips.EStopClack);
 
-            // The six items: four correct types plus the two distractors (GDD §9.6).
+            // ---- TOP ROW (y = 1.56) ----
+            // 1. Heat Gloves (Gloves, correct): thick safety-orange + aluminized cuffs
+            var heatBay = CreatePpeBay(root, "MESH_HeatResistantGlove", new Vector3(-0.58f, 1.56f, 0.02f),
+                "MAT_Plaque_Ppe_HeatGloves", "MAT_Plaque_Ppe_Equipped_HeatGloves", out GameObject heatVisual, out GameObject heatBadge);
+            AddModelChild(heatVisual, "MESH_HeatGloveMesh", SHARED_MODEL_DIR + "GUANTO.fbx",
+                new Vector3(0.28f, 0.34f, 0.14f), new Vector3(0f, 0.06f, 0f), false, true, matHeatGlove);
+            AddCylinder(heatVisual, "MESH_HeatGloveCuff", 0.095f, 0.12f,
+                new Vector3(0f, -0.10f, 0f), Vector3.zero, matPolishedSteel, false);
+
+            // 2. Chemical Apron (Body, correct): heavy dark chemical rubber + high-vis yellow hazard trim
+            var apronBay = CreatePpeBay(root, "MESH_ChemicalApron", new Vector3(0f, 1.56f, 0.02f),
+                "MAT_Plaque_Ppe_Apron", "MAT_Plaque_Ppe_Equipped_Apron", out GameObject apronVisual, out GameObject apronBadge);
+            AddBox(apronVisual, "MESH_ApronBody", new Vector3(0.38f, 0.44f, 0.05f), new Vector3(0f, -0.02f, 0f), matApronRubber, false);
+            AddBox(apronVisual, "MESH_ApronTrimChest", new Vector3(0.39f, 0.055f, 0.06f), new Vector3(0f, 0.11f, 0f), matEStopYellow, false);
+            AddBox(apronVisual, "MESH_ApronTrimHem", new Vector3(0.39f, 0.05f, 0.06f), new Vector3(0f, -0.19f, 0f), matEStopYellow, false);
+            AddBox(apronVisual, "MESH_ApronStrapL", new Vector3(0.035f, 0.16f, 0.03f), new Vector3(-0.09f, 0.24f, 0f), matEStopYellow, false);
+            AddBox(apronVisual, "MESH_ApronStrapR", new Vector3(0.035f, 0.16f, 0.03f), new Vector3(0.09f, 0.24f, 0f), matEStopYellow, false);
+
+            // 3. Face Shield (Face, correct): bold safety-yellow browguard + transparent full visor + safety goggles
+            var shieldBay = CreatePpeBay(root, "MESH_FaceShield", new Vector3(0.58f, 1.56f, 0.02f),
+                "MAT_Plaque_Ppe_FaceShield", "MAT_Plaque_Ppe_Equipped_FaceShield", out GameObject shieldVisual, out GameObject shieldBadge);
+            AddBox(shieldVisual, "MESH_FaceShieldBrowguard", new Vector3(0.34f, 0.08f, 0.22f), new Vector3(0f, 0.16f, 0f), matEStopYellow, false);
+            AddModelChild(shieldVisual, "MESH_FaceShieldGlasses", SHARED_MODEL_DIR + "OCCHIALI_PROTETTIVI.fbx",
+                new Vector3(0.24f, 0.12f, 0.16f), new Vector3(0f, 0.06f, 0.02f), false, true, null);
+            AddBox(shieldVisual, "MESH_FaceShieldVisor", new Vector3(0.34f, 0.30f, 0.015f), new Vector3(0f, -0.02f, 0.11f), matFaceShieldVisor, false);
+
+            // ---- BOTTOM ROW (y = 0.76) ----
+            // 4. Safety Boots S3 (Feet, correct): pair of heavy steel-toe leather boots with thick yellow lug soles
+            var bootsBay = CreatePpeBay(root, "MESH_SafetyBoots", new Vector3(-0.58f, 0.76f, 0.02f),
+                "MAT_Plaque_Ppe_SafetyBoots", "MAT_Plaque_Ppe_Equipped_SafetyBoots", out GameObject bootsVisual, out GameObject bootsBadge);
+            BuildSafetyBootMesh(bootsVisual, "BootLeft", new Vector3(-0.11f, -0.18f, 0f));
+            BuildSafetyBootMesh(bootsVisual, "BootRight", new Vector3(0.11f, -0.18f, 0f));
+
+            // 5. Latex Gloves (Gloves, distractor): thin pale glossy cream disposable glove
+            var latexBay = CreatePpeBay(root, "MESH_LatexGlove", new Vector3(0f, 0.76f, 0.02f),
+                "MAT_Plaque_Ppe_LatexGloves", "MAT_Plaque_Ppe_Equipped_LatexGloves", out GameObject latexVisual, out GameObject latexBadge);
+            AddModelChild(latexVisual, "MESH_LatexGloveMesh", SHARED_MODEL_DIR + "GUANTO.fbx",
+                new Vector3(0.22f, 0.26f, 0.08f), new Vector3(0f, -0.04f, 0.02f), false, true, matLatex);
+
+            // 6. Surgical Mask (Face, distractor): clean pleated pale hospital-blue disposable mask with white ear loops
+            // (replaces the 15,946-tri MASCHERINA.fbx so the full hall stays comfortably under the 100k Quest 3 budget).
+            var maskBay = CreatePpeBay(root, "MESH_SurgicalMask", new Vector3(0.58f, 0.76f, 0.02f),
+                "MAT_Plaque_Ppe_SurgicalMask", "MAT_Plaque_Ppe_Equipped_SurgicalMask", out GameObject maskVisual, out GameObject maskBadge);
+            AddBox(maskVisual, "MESH_SurgicalMaskPleatTop", new Vector3(0.24f, 0.045f, 0.022f), new Vector3(0f, 0.02f, 0.03f), matSurgicalMaskBlue, false);
+            AddBox(maskVisual, "MESH_SurgicalMaskPleatMid", new Vector3(0.24f, 0.045f, 0.028f), new Vector3(0f, -0.025f, 0.036f), matSurgicalMaskBlue, false);
+            AddBox(maskVisual, "MESH_SurgicalMaskPleatBot", new Vector3(0.24f, 0.045f, 0.022f), new Vector3(0f, -0.07f, 0.03f), matSurgicalMaskBlue, false);
+            AddBox(maskVisual, "MESH_SurgicalMaskNoseWire", new Vector3(0.22f, 0.012f, 0.026f), new Vector3(0f, 0.044f, 0.033f), matLatex, false);
+            AddBox(maskVisual, "MESH_SurgicalMaskLoopL", new Vector3(0.012f, 0.11f, 0.08f), new Vector3(-0.125f, -0.025f, -0.01f), matLatex, false);
+            AddBox(maskVisual, "MESH_SurgicalMaskLoopR", new Vector3(0.012f, 0.11f, 0.08f), new Vector3(0.125f, -0.025f, -0.01f), matLatex, false);
+
             MachineLockPpeItem[] items = new MachineLockPpeItem[6];
-            items[0] = BuildPpeItem(cabinet, heatGlove, PpeSlot.Gloves, true, "Guanti anticalore EN 407");
-            items[1] = BuildPpeItem(cabinet, apron, PpeSlot.Body, true, "Grembiule antischizzo");
-            items[2] = BuildPpeItem(cabinet, shield, PpeSlot.Face, true, "Visiera facciale EN 166");
-            items[3] = BuildPpeItem(cabinet, respirator, PpeSlot.Respiratory, true, "Respiratore FFP3");
-            items[4] = BuildPpeItem(cabinet, latexGlove, PpeSlot.Gloves, false, "Guanti in lattice monouso");
-            items[5] = BuildPpeItem(cabinet, surgicalMask, PpeSlot.Respiratory, false, "Mascherina chirurgica");
+            items[0] = BuildPpeItem(cabinet, heatBay, heatVisual, heatBadge, PpeSlot.Gloves, true, "Guanti anticalore EN 407");
+            items[1] = BuildPpeItem(cabinet, apronBay, apronVisual, apronBadge, PpeSlot.Body, true, "Grembiule antischizzo");
+            items[2] = BuildPpeItem(cabinet, shieldBay, shieldVisual, shieldBadge, PpeSlot.Face, true, "Visiera facciale EN 166");
+            items[3] = BuildPpeItem(cabinet, bootsBay, bootsVisual, bootsBadge, PpeSlot.Feet, true, "Scarpe antinfortunistiche S3");
+            items[4] = BuildPpeItem(cabinet, latexBay, latexVisual, latexBadge, PpeSlot.Gloves, false, "Guanti in lattice monouso");
+            items[5] = BuildPpeItem(cabinet, maskBay, maskVisual, maskBadge, PpeSlot.Face, false, "Mascherina chirurgica");
             SetRefArray(cabinet, "items", new UnityEngine.Object[]
             {
                 items[0], items[1], items[2], items[3], items[4], items[5]
@@ -1412,75 +1636,127 @@ namespace SI81.MachineLock.EditorTools
             SavePrefab(root);
         }
 
-        /// <summary>
-        /// Adds a selectable PPE item to a cabinet: its own collider, a non-selectable Interactable (the
-        /// cabinet drives the selectable flag) and a <see cref="MachineLockPpeItem"/> with the GDD §9.6 data.
-        /// </summary>
-        private static MachineLockPpeItem BuildPpeItem(MachineLockPpeCabinet cabinet, GameObject item, PpeSlot slot,
-            bool correct, string displayName)
+        private static GameObject CreatePpeBay(GameObject cabinetRoot, string name, Vector3 localPos,
+            string plaqueMaterialName, string equippedPlaqueMaterialName, out GameObject visualRoot, out GameObject equippedBadge)
         {
-            FitBoxCollider(item, 0.01f);
+            var bay = NewChild(cabinetRoot, name, localPos);
+            visualRoot = NewChild(bay, "Visual", Vector3.zero);
+
+            // Flush high-contrast Diegetic Plaque mounted under the item on the shelf lip (facing +Z).
+            AddPlaque(cabinetRoot, name + "_Plaque", plaqueMaterialName, new Vector2(0.50f, 0.22f),
+                new Vector3(localPos.x, localPos.y - 0.34f, 0.195f), new Vector3(0f, 180f, 0f));
+
+            // Per-item shelf equipped status badge ("<Nome DPI> INDOSSATO") revealed in the bay center when worn.
+            equippedBadge = AddPlaque(bay, "EquippedBadge", equippedPlaqueMaterialName, new Vector2(0.46f, 0.22f),
+                new Vector3(0f, 0.02f, 0.05f), new Vector3(0f, 180f, 0f));
+            equippedBadge.SetActive(false);
+            return bay;
+        }
+
+        private static void BuildSafetyBootMesh(GameObject parent, string prefix, Vector3 localBase)
+        {
+            AddBox(parent, prefix + "_Sole", new Vector3(0.11f, 0.045f, 0.28f), localBase + new Vector3(0f, 0.022f, 0.02f), matSafetyBootSole, false);
+            AddBox(parent, prefix + "_Upper", new Vector3(0.105f, 0.10f, 0.25f), localBase + new Vector3(0f, 0.09f, 0.01f), matSafetyBootLeather, false);
+            AddBox(parent, prefix + "_Shaft", new Vector3(0.105f, 0.18f, 0.12f), localBase + new Vector3(0f, 0.20f, -0.05f), matSafetyBootLeather, false);
+            AddBox(parent, prefix + "_SteelToe", new Vector3(0.108f, 0.075f, 0.08f), localBase + new Vector3(0f, 0.08f, 0.11f), matPolishedSteel, false);
+            AddBox(parent, prefix + "_Collar", new Vector3(0.112f, 0.035f, 0.128f), localBase + new Vector3(0f, 0.28f, -0.05f), matSafetyBootSole, false);
+        }
+
+        private static MachineLockPpeItem BuildPpeItem(MachineLockPpeCabinet cabinet, GameObject item,
+            GameObject visualRoot, GameObject equippedBadge, PpeSlot slot, bool correct, string displayName)
+        {
+            AddBoxCollider(item, new Vector3(0f, 0f, 0.04f), new Vector3(0.50f, 0.56f, 0.34f));
             Interactable interactable = AddInteractable(item, false, false, false);
             var ppeItem = item.AddComponent<MachineLockPpeItem>();
             ppeItem.Configure(cabinet, slot, correct, displayName);
+            ppeItem.ConfigureShelfVisuals(visualRoot, equippedBadge);
             SetRef(ppeItem, "interactable", interactable);
+            SetRef(ppeItem, "itemVisualRoot", visualRoot);
+            SetRef(ppeItem, "equippedBadgeVisual", equippedBadge);
             return ppeItem;
         }
 
-        // -- MESH_SpillKit -----------------------------------------------------
+        // -- MESH_SpillKit (Shared openable industrial bin + clear Grip plaque) --
 
         private static void BuildSpillKitPrefab(Scene temp)
         {
             var root = NewPrefabRoot(temp, "MESH_SpillKit");
-            AddBox(root, "MESH_SpillKitFloor", new Vector3(1.0f, 0.06f, 0.6f), new Vector3(0f, 0.06f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_SpillKitSideNorth", new Vector3(1.0f, 0.34f, 0.04f), new Vector3(0f, 0.23f, 0.28f), matPaintedSteel, false);
-            AddBox(root, "MESH_SpillKitSideSouth", new Vector3(1.0f, 0.34f, 0.04f), new Vector3(0f, 0.23f, -0.28f), matPaintedSteel, false);
-            AddBox(root, "MESH_SpillKitSideEast", new Vector3(0.04f, 0.34f, 0.6f), new Vector3(0.48f, 0.23f, 0f), matPaintedSteel, false);
-            AddBox(root, "MESH_SpillKitSideWest", new Vector3(0.04f, 0.34f, 0.6f), new Vector3(-0.48f, 0.23f, 0f), matPaintedSteel, false);
-            AddCylinder(root, "MESH_SpillKitWheelNW", 0.06f, 0.04f, new Vector3(-0.42f, 0.06f, -0.24f), new Vector3(90f, 0f, 0f), matApronRubber, false);
-            AddCylinder(root, "MESH_SpillKitWheelNE", 0.06f, 0.04f, new Vector3(0.42f, 0.06f, -0.24f), new Vector3(90f, 0f, 0f), matApronRubber, false);
-            AddCylinder(root, "MESH_SpillKitWheelSW", 0.06f, 0.04f, new Vector3(-0.42f, 0.06f, 0.24f), new Vector3(90f, 0f, 0f), matApronRubber, false);
-            AddCylinder(root, "MESH_SpillKitWheelSE", 0.06f, 0.04f, new Vector3(0.42f, 0.06f, 0.24f), new Vector3(90f, 0f, 0f), matApronRubber, false);
+            AddBox(root, "MESH_SpillKitFloor", new Vector3(1.50f, 0.08f, 0.80f), new Vector3(0f, 0.08f, 0f), matEStopYellow, false);
+            AddBox(root, "MESH_SpillKitFrame", new Vector3(1.46f, 0.34f, 0.76f), new Vector3(0f, 0.26f, 0f), matDarkSlate, false);
+            AddModelChild(root, "MESH_SpillKitBin", SHARED_PREFAB_DIR + "MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx",
+                new Vector3(0.56f, 0.48f, 0.56f), new Vector3(-0.42f, 0.42f, -0.06f), true, false, null);
 
-            AddNestedPrefab(root, "MESH_Cone", new Vector3(-0.36f, 0.4f, 0f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_Cone", new Vector3(-0.12f, 0.4f, 0f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_Cone", new Vector3(0.12f, 0.4f, 0f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_Cone", new Vector3(0.36f, 0.4f, 0f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_AbsorbentMat", new Vector3(0.2f, 0.43f, 0.18f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_AbsorbentMat", new Vector3(0.2f, 0.46f, 0.18f), Vector3.zero);
-            AddNestedPrefab(root, "MESH_AbsorbentSock", new Vector3(-0.2f, 0.45f, 0.16f), new Vector3(0f, 20f, 0f));
-            AddNestedPrefab(root, "MESH_AbsorbentSock", new Vector3(-0.2f, 0.48f, 0.2f), new Vector3(0f, -15f, 0f));
+            AddCylinder(root, "MESH_SpillKitWheelNW", 0.07f, 0.05f, new Vector3(-0.62f, 0.07f, -0.32f), new Vector3(90f, 0f, 0f), matApronRubber, false);
+            AddCylinder(root, "MESH_SpillKitWheelNE", 0.07f, 0.05f, new Vector3(0.62f, 0.07f, -0.32f), new Vector3(90f, 0f, 0f), matApronRubber, false);
+            AddCylinder(root, "MESH_SpillKitWheelSW", 0.07f, 0.05f, new Vector3(-0.62f, 0.07f, 0.32f), new Vector3(90f, 0f, 0f), matApronRubber, false);
+            AddCylinder(root, "MESH_SpillKitWheelSE", 0.07f, 0.05f, new Vector3(0.62f, 0.07f, 0.32f), new Vector3(90f, 0f, 0f), matApronRubber, false);
 
-            AddBoxCollider(root, new Vector3(0f, 0.2f, 0f), new Vector3(1.0f, 0.4f, 0.6f));
+            // Flush front Diegetic Plaque explaining Grip grab for cones & absorbents.
+            AddBox(root, "MESH_SpillKitPlaqueBack", new Vector3(0.76f, 0.34f, 0.03f), new Vector3(0f, 0.25f, 0.40f), matDarkSlate, false);
+            AddPlaque(root, "MESH_PlaqueSpillKit", "MAT_Plaque_SpillKit", new Vector2(0.72f, 0.30f),
+                new Vector3(0f, 0.25f, 0.42f), new Vector3(0f, 180f, 0f));
+
+            // 4 cones cleanly spaced along the left/center shelf; 2 mats + 2 socks cleanly separated on the right.
+            AddNestedPrefab(root, "MESH_Cone", new Vector3(-0.56f, 0.44f, 0.16f), Vector3.zero);
+            AddNestedPrefab(root, "MESH_Cone", new Vector3(-0.24f, 0.44f, 0.16f), Vector3.zero);
+            AddNestedPrefab(root, "MESH_Cone", new Vector3(0.08f, 0.44f, 0.16f), Vector3.zero);
+            AddNestedPrefab(root, "MESH_Cone", new Vector3(0.40f, 0.44f, 0.16f), Vector3.zero);
+            AddNestedPrefab(root, "MESH_AbsorbentMat", new Vector3(0.28f, 0.45f, -0.18f), Vector3.zero);
+            AddNestedPrefab(root, "MESH_AbsorbentMat", new Vector3(0.28f, 0.53f, -0.18f), new Vector3(0f, 8f, 0f));
+            AddNestedPrefab(root, "MESH_AbsorbentSock", new Vector3(0.08f, 0.62f, -0.16f), new Vector3(0f, 12f, 0f));
+            AddNestedPrefab(root, "MESH_AbsorbentSock", new Vector3(0.08f, 0.78f, -0.16f), new Vector3(0f, -10f, 0f));
+
+            AddBoxCollider(root, new Vector3(0f, 0.22f, 0f), new Vector3(1.50f, 0.44f, 0.80f));
             SavePrefab(root);
         }
 
-        // -- MESH_HydraulicPress -----------------------------------------------
+        // -- MESH_HydraulicPress (Upgraded multi-part press with Polyhaven green_metal_rust) --
 
         private static void BuildPressPrefab(Scene temp, MachineLockAudioClips clips)
         {
             var root = NewPrefabRoot(temp, "MESH_HydraulicPress");
-            AddBox(root, "MESH_PressBase", new Vector3(3.0f, 1.2f, 2.5f), new Vector3(0f, 0.6f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PressCrown", new Vector3(3.0f, 1.2f, 2.5f), new Vector3(0f, 2.8f, 0f), matPaintedSteel, true);
-            AddBox(root, "MESH_PressColumnNW", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(-1.3f, 1.7f, -1.05f), matPolishedSteel, true);
-            AddBox(root, "MESH_PressColumnNE", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(-1.3f, 1.7f, 1.05f), matPolishedSteel, true);
-            AddBox(root, "MESH_PressColumnSW", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(1.3f, 1.7f, -1.05f), matPolishedSteel, true);
-            AddBox(root, "MESH_PressColumnSE", new Vector3(0.2f, 1.2f, 0.2f), new Vector3(1.3f, 1.7f, 1.05f), matPolishedSteel, true);
-            GameObject ram = AddBox(root, "MESH_HydraulicPress_Ram", new Vector3(1.2f, 0.4f, 1.2f), new Vector3(0f, 2.0f, 0f), matPolishedSteel, true);
-            AddBox(root, "MESH_PressGuard", new Vector3(2.6f, 0.9f, 0.06f), new Vector3(0f, 0.75f, 1.28f), matPaintedSteel, true);
-            AddBox(root, "MESH_HydraulicPress_ControlPanel", new Vector3(0.3f, 0.75f, 0.55f), new Vector3(-1.6f, 1.6f, -1.1f), matPaintedSteel, true);
+            // Heavy industrial bolster & base with Polyhaven CC0 green_metal_rust PBR steel + hazard skirting.
+            AddBox(root, "MESH_PressBase", new Vector3(3.0f, 1.10f, 2.5f), new Vector3(0f, 0.55f, 0f), matPressSteelGreen, true);
+            AddBox(root, "MESH_PressHazardSkirtN", new Vector3(3.04f, 0.14f, 0.04f), new Vector3(0f, 0.08f, 1.26f), matEStopYellow, false);
+            AddBox(root, "MESH_PressHazardSkirtS", new Vector3(3.04f, 0.14f, 0.04f), new Vector3(0f, 0.08f, -1.26f), matEStopYellow, false);
+            AddBox(root, "MESH_PressBolsterPlate", new Vector3(2.4f, 0.16f, 1.9f), new Vector3(0f, 1.18f, 0f), matDarkSlate, false);
 
-            AddBox(root, "MESH_PressDisplayFrame", new Vector3(0.06f, 0.44f, 0.6f), new Vector3(-1.52f, 1.5f, -0.8f), matPaintedSteel, false);
-            GameObject display = AddBox(root, "MESH_PressDisplay", new Vector3(0.03f, 0.36f, 0.5f), new Vector3(-1.56f, 1.5f, -0.8f), matHmiScreen, false);
+            // Massive upper crown + twin hydraulic accumulator cylinders on top.
+            AddBox(root, "MESH_PressCrown", new Vector3(3.0f, 1.15f, 2.5f), new Vector3(0f, 2.85f, 0f), matPressSteelGreen, true);
+            AddCylinder(root, "MESH_PressHydraulicCylMain", 0.34f, 0.95f, new Vector3(0f, 3.85f, 0f), Vector3.zero, matDarkSlate, false);
+            AddCylinder(root, "MESH_PressHydraulicCylAuxW", 0.18f, 0.70f, new Vector3(-0.85f, 3.75f, 0f), Vector3.zero, matPolishedSteel, false);
+            AddCylinder(root, "MESH_PressHydraulicCylAuxE", 0.18f, 0.70f, new Vector3(0.85f, 3.75f, 0f), Vector3.zero, matPolishedSteel, false);
+
+            // Four chrome tie-rod columns.
+            AddCylinder(root, "MESH_PressColumnNW", 0.13f, 1.35f, new Vector3(-1.28f, 1.72f, -1.02f), Vector3.zero, matPolishedSteel, true);
+            AddCylinder(root, "MESH_PressColumnNE", 0.13f, 1.35f, new Vector3(-1.28f, 1.72f, 1.02f), Vector3.zero, matPolishedSteel, true);
+            AddCylinder(root, "MESH_PressColumnSW", 0.13f, 1.35f, new Vector3(1.28f, 1.72f, -1.02f), Vector3.zero, matPolishedSteel, true);
+            AddCylinder(root, "MESH_PressColumnSE", 0.13f, 1.35f, new Vector3(1.28f, 1.72f, 1.02f), Vector3.zero, matPolishedSteel, true);
+
+            // Moving hydraulic ram (preserved exact production name MESH_HydraulicPress_Ram).
+            var ram = NewChild(root, "MESH_HydraulicPress_Ram", new Vector3(0f, 2.02f, 0f));
+            AddBox(ram, "MESH_PressRamHead", new Vector3(1.45f, 0.42f, 1.35f), Vector3.zero, matPolishedSteel, true);
+            AddBox(ram, "MESH_PressRamHazardEdge", new Vector3(1.48f, 0.08f, 1.38f), new Vector3(0f, -0.18f, 0f), matEStopYellow, false);
+            AddCylinder(ram, "MESH_PressRamPiston", 0.22f, 0.75f, new Vector3(0f, 0.48f, 0f), Vector3.zero, matPolishedSteel, false);
+
+            AddBox(root, "MESH_PressGuard", new Vector3(2.6f, 0.85f, 0.06f), new Vector3(0f, 0.78f, 1.28f), matDarkSlate, true);
+            AddBox(root, "MESH_HydraulicPress_ControlPanel", new Vector3(0.32f, 0.80f, 0.62f), new Vector3(-1.62f, 1.58f, -0.95f), matDarkSlate, true);
+            AddModelChild(root, "MESH_PressButtons", SHARED_MODEL_DIR + "MESH_PULSANTI_TEAM.fbx",
+                new Vector3(0.06f, 0.22f, 0.24f), new Vector3(-1.79f, 1.28f, -0.95f), false, true, null);
+
+            AddBox(root, "MESH_PressDisplayFrame", new Vector3(0.06f, 0.46f, 0.64f), new Vector3(-1.78f, 1.62f, -0.95f), matDarkSlate, false);
+            GameObject display = AddBox(root, "MESH_PressDisplay", new Vector3(0.03f, 0.38f, 0.54f), new Vector3(-1.81f, 1.62f, -0.95f), matHmiScreen, false);
             NewChild(display, "VFX_DisplayFault", Vector3.zero);
 
-            AddCylinder(root, "MESH_Thermometer", 0.07f, 0.06f, new Vector3(-1.56f, 1.7f, 0.2f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
-            AddCylinder(root, "MESH_ThermometerFace", 0.055f, 0.02f, new Vector3(-1.6f, 1.7f, 0.2f), new Vector3(0f, 0f, 90f), matEStopRed, false);
+            // Oversized high-contrast 120°C thermometer dial on the West face.
+            AddCylinder(root, "MESH_Thermometer", 0.11f, 0.07f, new Vector3(-1.55f, 1.78f, 0.25f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
+            AddCylinder(root, "MESH_ThermometerFace", 0.09f, 0.025f, new Vector3(-1.60f, 1.78f, 0.25f), new Vector3(0f, 0f, 90f), matEStopRed, false);
 
-            AddCylinder(root, "MESH_LeakPipe", 0.05f, 0.5f, new Vector3(1.6f, 0.95f, 0.5f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
-            AddBox(root, "MESH_LeakPipeElbow", new Vector3(0.12f, 0.12f, 0.12f), new Vector3(1.85f, 0.95f, 0.5f), matPolishedSteel, false);
+            // Reinforced east leak manifold pipe feeding directly into the oil jet & valve pipe run.
+            AddCylinder(root, "MESH_LeakPipe", 0.075f, 0.65f, new Vector3(1.65f, 0.95f, 0.55f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
+            AddBox(root, "MESH_LeakPipeElbow", new Vector3(0.16f, 0.16f, 0.16f), new Vector3(1.96f, 0.95f, 0.55f), matEStopRed, false);
 
-            // Kinematic body plus a trigger volume for the player contact (GDD §9.1).
+            // Kinematic body plus trigger volume for player contact while ram moves (GDD §9.1).
             var body = root.AddComponent<Rigidbody>();
             body.isKinematic = true;
             body.useGravity = false;
@@ -1797,13 +2073,13 @@ namespace SI81.MachineLock.EditorTools
             if (light == null) light = lightRoot.AddComponent<Light>();
             light.type = LightType.Directional;
             light.color = new Color(1f, 0.97f, 0.92f);
-            light.intensity = 0.9f;
+            light.intensity = 1.05f;
             light.shadows = LightShadows.None;
             light.lightmapBakeType = LightmapBakeType.Realtime;
 
-            // A dark enclosed room without baked lightmaps needs ambient fill to stay readable.
+            // Industrial hall ambient fill so PBR surfaces and plaques stay effortlessly readable on Quest 3.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.26f, 0.28f, 0.31f);
+            RenderSettings.ambientLight = new Color(0.36f, 0.39f, 0.43f);
             RenderSettings.ambientIntensity = 1f;
             RenderSettings.fog = false;
         }
@@ -1812,44 +2088,217 @@ namespace SI81.MachineLock.EditorTools
         {
             GameObject env = NewRoot(scene, "ENV_Room");
 
-            GameObject floor = AddBox(env, "MESH_Floor", new Vector3(12f, 0.1f, 8f), new Vector3(0f, -0.05f, 0f), matConcreteFloor, true);
+            // 1. Real shared industrial hall shell: PFB_OldIndustrialBuilding (ADR-0001).
+            BuildIndustrialBuildingShell(env);
 
-            var walls = NewChild(env, "MESH_Walls", Vector3.zero);
-            AddBox(walls, "MESH_WallNorth", new Vector3(12.2f, 4f, 0.1f), new Vector3(0f, 2f, 4.05f), matWallConcrete, true);
-            AddBox(walls, "MESH_WallSouth", new Vector3(12.2f, 4f, 0.1f), new Vector3(0f, 2f, -4.05f), matWallConcrete, true);
-            AddBox(walls, "MESH_WallEast", new Vector3(0.1f, 4f, 8.2f), new Vector3(6.05f, 2f, 0f), matWallConcrete, true);
-            AddBox(walls, "MESH_WallWestSouth", new Vector3(0.1f, 4f, 3.5f), new Vector3(-6.05f, 2f, -2.35f), matWallConcrete, true);
-            AddBox(walls, "MESH_WallWestNorth", new Vector3(0.1f, 4f, 3.5f), new Vector3(-6.05f, 2f, 2.35f), matWallConcrete, true);
-            AddBox(walls, "MESH_WallWestLintel", new Vector3(0.1f, 1.8f, 1.2f), new Vector3(-6.05f, 3.1f, 0f), matWallConcrete, true);
-
-            GameObject ceiling = AddBox(env, "MESH_Ceiling", new Vector3(12f, 0.1f, 8f), new Vector3(0f, 4.05f, 0f), matCeilingConcrete, false);
-
-            // Baked GI and static batching on the shell: the room never moves (GDD §7.7).
+            // 2. Active stamping bay floor (18 x 11 m playable concrete floor, plus wide non-snagging collider).
+            GameObject floor = AddBox(env, "MESH_Floor", new Vector3(ROOM_HALF_X * 2f, 0.1f, ROOM_HALF_Z * 2f),
+                new Vector3(0f, -0.05f, 0f), matConcreteFloor, true);
             MarkStatic(floor);
-            MarkStatic(ceiling);
-            foreach (Transform wall in walls.transform) MarkStatic(wall.gameObject);
 
-            var door = NewChild(env, "MESH_Door", new Vector3(-6f, 0f, 0f));
+            // Clean invisible locomotion boundary colliders aligned to the 18 x 11 m active bay perimeter
+            // (with 2.1 m clear doorway opening on the West wall at Z in [-1.05, +1.05]).
+            var bounds = NewChild(env, "COLLIDER_BayBounds", Vector3.zero);
+            AddBoundaryCollider(bounds, "BOUND_North", new Vector3(0f, 2.5f, ROOM_HALF_Z + 0.15f), new Vector3(ROOM_HALF_X * 2f + 0.4f, 5f, 0.3f));
+            AddBoundaryCollider(bounds, "BOUND_South", new Vector3(0f, 2.5f, -(ROOM_HALF_Z + 0.15f)), new Vector3(ROOM_HALF_X * 2f + 0.4f, 5f, 0.3f));
+            AddBoundaryCollider(bounds, "BOUND_East", new Vector3(ROOM_HALF_X + 0.15f, 2.5f, 0f), new Vector3(0.3f, 5f, ROOM_HALF_Z * 2f + 0.4f));
+            AddBoundaryCollider(bounds, "BOUND_WestNorth", new Vector3(-(ROOM_HALF_X + 0.15f), 2.5f, 3.3f), new Vector3(0.3f, 5f, 4.4f));
+            AddBoundaryCollider(bounds, "BOUND_WestSouth", new Vector3(-(ROOM_HALF_X + 0.15f), 2.5f, -3.3f), new Vector3(0.3f, 5f, 4.4f));
+            AddBoundaryCollider(bounds, "BOUND_WestBackstop", new Vector3(-(ROOM_HALF_X + 1.4f), 2.5f, 0f), new Vector3(0.3f, 5f, 3.0f));
+            // Solid floor slab inside the open West doorway alcove so walking into a blocked exit never drops off MESH_Floor.
+            AddBoundaryCollider(bounds, "BOUND_WestDoorwayFloor", new Vector3(-(ROOM_HALF_X + 0.75f), -0.05f, 0f), new Vector3(1.8f, 0.1f, 3.4f));
+
+            // 3. Structural bay architectural elements (electrical backing wall, steel ceiling girders, West doorway).
+            GameObject eastBackingWall = AddBox(env, "MESH_EastElectricalBayWall", new Vector3(0.24f, 3.1f, 3.2f),
+                new Vector3(ROOM_HALF_X - 0.04f, 1.55f, 0f), matConcreteWallPbr, true);
+            MarkStatic(eastBackingWall);
+
+            // Overhead steel roof trusses framing the 6.2 m high stamping bay.
+            var beams = NewChild(env, "MESH_CeilingBeams", Vector3.zero);
+            for (int i = -2; i <= 2; i++)
+            {
+                GameObject girder = AddBox(beams, "MESH_RoofBeam0" + (i + 3), new Vector3(0.24f, 0.32f, ROOM_HALF_Z * 2f),
+                    new Vector3(i * 4.2f, ROOM_HEIGHT, 0f), matDarkSlate, false);
+                MarkStatic(girder);
+            }
+
+            // West exit doorway with overhead illuminated green exit beacon.
+            var door = NewChild(env, "MESH_Door", new Vector3(-ROOM_HALF_X, 0f, 0f));
             InstantiatePrefabInScene(scene, "MESH_IndustrialDoor_RollUp", door.transform, Vector3.zero, Vector3.zero);
+            var exitBeaconRoot = NewChild(door, "MESH_ExitBeaconRoot", new Vector3(0.24f, 3.12f, 0f));
+            AddBox(exitBeaconRoot, "MESH_ExitBeaconFrame", new Vector3(0.18f, 0.44f, 1.44f), Vector3.zero, matDarkSlate, false);
+            AddBox(exitBeaconRoot, "MESH_ExitBeacon", new Vector3(0.20f, 0.34f, 1.32f), new Vector3(0.02f, 0f, 0f), matExitBeaconIdle, false);
 
+            // 4. Active bay boundary safety barriers & scenic industrial hall dressing (low-poly Shared FBXs).
+            BuildBayBarriersAndDressing(env);
+
+            // 5. Wall signs & proactive yellow safety floor lanes (Dry Perimeter + Hazard Boundary + station links).
             var signs = NewChild(env, "MESH_Signs", Vector3.zero);
-            AddWallSign(signs, "MESH_SignStampaggio", "MAT_Sign_Stampaggio", new Vector2(2.4f, 1.0f),
-                new Vector3(0f, 2.9f, 3.96f), new Vector3(0f, 0f, 0f));
-            AddWallSign(signs, "MESH_SignQuadroGenerale", "MAT_Sign_QuadroGenerale", new Vector2(1.6f, 0.8f),
-                new Vector3(5.96f, 2.55f, 0f), new Vector3(0f, 90f, 0f));
-            AddWallSign(signs, "MESH_SignDpi", "MAT_Sign_Dpi", new Vector2(1.2f, 0.6f),
-                new Vector3(2.5f, 2.6f, -3.96f), new Vector3(0f, 180f, 0f));
-            AddWallSign(signs, "MESH_SignKitAntispandimento", "MAT_Sign_KitAntispandimento", new Vector2(1.7f, 0.85f),
-                new Vector3(-4.5f, 2.5f, -3.96f), new Vector3(0f, 180f, 0f));
-            AddWallSign(signs, "MESH_SignUscita", "MAT_Sign_Uscita", new Vector2(1.0f, 0.5f),
-                new Vector3(-5.96f, 2.75f, 0f), new Vector3(0f, -90f, 0f));
+            AddWallSign(signs, "MESH_SignStampaggio", "MAT_Sign_Stampaggio", new Vector2(3.2f, 1.2f),
+                new Vector3(0f, 3.8f, ROOM_HALF_Z - 0.06f), Vector3.zero);
+            AddWallSign(signs, "MESH_SignQuadroGenerale", "MAT_Sign_QuadroGenerale", new Vector2(2.4f, 0.9f),
+                new Vector3(ROOM_HALF_X - 0.18f, 2.75f, 0f), new Vector3(0f, 90f, 0f));
+            AddWallSign(signs, "MESH_SignDpi", "MAT_Sign_Dpi", new Vector2(1.6f, 0.7f),
+                new Vector3(2.8f, 3.2f, -(ROOM_HALF_Z - 0.06f)), new Vector3(0f, 180f, 0f));
+            AddWallSign(signs, "MESH_SignKitAntispandimento", "MAT_Sign_KitAntispandimento", new Vector2(2.0f, 0.8f),
+                new Vector3(-5.2f, 3.1f, -(ROOM_HALF_Z - 0.06f)), new Vector3(0f, 180f, 0f));
+            AddWallSign(signs, "MESH_SignUscita", "MAT_Sign_Uscita", new Vector2(1.4f, 0.55f),
+                new Vector3(-(ROOM_HALF_X - 0.22f), 3.65f, 0f), new Vector3(0f, -90f, 0f));
 
-            AddFloorMarking(signs, "MESH_FloorMarkingNorth", new Vector2(7.8f, 0.12f), new Vector3(0f, 0.01f, 2.9f));
-            AddFloorMarking(signs, "MESH_FloorMarkingSouth", new Vector2(7.8f, 0.12f), new Vector3(0f, 0.01f, -2.9f));
-            AddFloorMarking(signs, "MESH_FloorMarkingEast", new Vector2(0.12f, 5.8f), new Vector3(3.9f, 0.01f, 0f));
-            AddFloorMarking(signs, "MESH_FloorMarkingWest", new Vector2(0.12f, 5.8f), new Vector3(-3.9f, 0.01f, 0f));
-
+            BuildYellowSafetyFloorLanes(signs);
             BuildCeilingFixtures(signs);
+        }
+
+        private static void BuildIndustrialBuildingShell(GameObject env)
+        {
+            string buildingPath = SHARED_MODEL_DIR + "PFB_OldIndustrialBuilding.fbx";
+            var buildingAsset = AssetDatabase.LoadAssetAtPath<GameObject>(buildingPath);
+            if (buildingAsset == null)
+                throw new InvalidOperationException($"[MachineLock] Shared industrial building not found: {buildingPath}");
+
+            var shell = (GameObject)UnityEngine.Object.Instantiate(buildingAsset);
+            shell.name = "PFB_OldIndustrialBuilding";
+            shell.transform.SetParent(env.transform, false);
+            // Rotate 90 deg Y so the 34.2 m hall length runs West-East (World X) and 11.4 m width runs South-North (World Z).
+            // Scale local X by 1.14 so inner north/south masonry walls sit at +/-5.98 m (cleanly outside +/-5.5 m bay bounds).
+            shell.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            shell.transform.localScale = new Vector3(1.14f, 1.0f, 1.04f);
+
+            // Strip any imported colliders/lights/cameras/listeners and remove exterior rooftop above 11.4 m
+            // so the Quest 3 triangle budget stays comfortably under 100,000 tris.
+            foreach (Collider c in shell.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.DestroyImmediate(c);
+            foreach (Light l in shell.GetComponentsInChildren<Light>(true)) UnityEngine.Object.DestroyImmediate(l);
+            foreach (Camera cam in shell.GetComponentsInChildren<Camera>(true)) UnityEngine.Object.DestroyImmediate(cam);
+            foreach (AudioListener al in shell.GetComponentsInChildren<AudioListener>(true)) UnityEngine.Object.DestroyImmediate(al);
+
+            var toRemove = new List<GameObject>();
+            foreach (Transform child in shell.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == shell.transform) continue;
+                string lower = child.name.Trim().ToLowerInvariant();
+                if (lower == "building top")
+                {
+                    toRemove.Add(child.gameObject);
+                    continue;
+                }
+                var mr = child.GetComponent<MeshRenderer>();
+                if (mr == null) continue;
+                if (lower.Contains("window")) mr.sharedMaterial = matBuildingWindow;
+                else if (lower.Contains("floor")) mr.sharedMaterial = matBuildingFloor;
+                else mr.sharedMaterial = matBuildingWall;
+                MarkStatic(child.gameObject);
+            }
+            foreach (GameObject dead in toRemove) UnityEngine.Object.DestroyImmediate(dead);
+
+            // Align building center X/Z to (0, 0). The building's ground slab ('building floor') is 0.23 m thick
+            // above b.min.y, so placing b.min.y at -0.245 m puts the slab top at y = -0.015 m (cleanly beneath
+            // MESH_Floor at y = 0.00 without burying the oil puddle or yellow floor markings, while keeping the
+            // second-story ceiling slab cleanly above our 6.2 m roof trusses).
+            Bounds b = RendererBounds(shell);
+            shell.transform.position += new Vector3(-b.center.x, -0.245f - b.min.y, -b.center.z);
+            MarkStatic(shell);
+        }
+
+        private static void AddBoundaryCollider(GameObject parent, string name, Vector3 center, Vector3 size)
+        {
+            var go = NewChild(parent, name, center);
+            AddBoxCollider(go, Vector3.zero, size);
+        }
+
+        private static void BuildBayBarriersAndDressing(GameObject env)
+        {
+            var dressing = NewChild(env, "ENV_IndustrialDressing", Vector3.zero);
+
+            // Safety barriers cleanly demarcating the West & East active bay edges while keeping the hall open to view.
+            Vector3[] barrierPositions =
+            {
+                new Vector3(-ROOM_HALF_X + 0.1f, 0f, -2.0f),
+                new Vector3(-ROOM_HALF_X + 0.1f, 0f, -4.1f),
+                new Vector3(-ROOM_HALF_X + 0.1f, 0f, 2.0f),
+                new Vector3(-ROOM_HALF_X + 0.1f, 0f, 4.1f),
+                new Vector3(ROOM_HALF_X - 0.1f, 0f, -2.6f),
+                new Vector3(ROOM_HALF_X - 0.1f, 0f, -4.4f),
+                new Vector3(ROOM_HALF_X - 0.1f, 0f, 2.6f),
+                new Vector3(ROOM_HALF_X - 0.1f, 0f, 4.4f)
+            };
+            for (int i = 0; i < barrierPositions.Length; i++)
+            {
+                GameObject barrier = AddModelChild(dressing, "MESH_BayBarrier0" + (i + 1),
+                    SHARED_MODEL_DIR + "MESH_Magazzino_Barriera.fbx",
+                    new Vector3(1.65f, 1.05f, 0.14f), barrierPositions[i], true, false, null);
+                barrier.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+                MarkStatic(barrier);
+            }
+
+            // Scenic warehouse shelving, barrels, and pallets beyond the West/East active bay boundaries for depth.
+            Vector3[] shelfPositions =
+            {
+                new Vector3(ROOM_HALF_X + 2.4f, 0f, -3.6f),
+                new Vector3(ROOM_HALF_X + 2.4f, 0f, 3.6f),
+                new Vector3(-ROOM_HALF_X - 2.6f, 0f, -3.8f),
+                new Vector3(-ROOM_HALF_X - 2.6f, 0f, 3.8f)
+            };
+            for (int i = 0; i < shelfPositions.Length; i++)
+            {
+                GameObject shelf = AddModelChild(dressing, "MESH_HallShelf0" + (i + 1),
+                    SHARED_MODEL_DIR + "MESH_Magazzino_Scaffale.fbx",
+                    new Vector3(2.4f, 3.2f, 1.1f), shelfPositions[i], true, false, null);
+                MarkStatic(shelf);
+            }
+
+            Vector3[] barrelPositions =
+            {
+                new Vector3(ROOM_HALF_X + 1.5f, 0f, -1.6f),
+                new Vector3(ROOM_HALF_X + 1.5f, 0f, 1.8f),
+                new Vector3(-ROOM_HALF_X - 1.9f, 0f, 2.4f)
+            };
+            for (int i = 0; i < barrelPositions.Length; i++)
+            {
+                GameObject barrel = AddModelChild(dressing, "MESH_HallBarrel0" + (i + 1),
+                    SHARED_MODEL_DIR + "MESH_Folgorazione_Barile.fbx",
+                    new Vector3(0.62f, 0.92f, 0.62f), barrelPositions[i], true, true, null);
+                MarkStatic(barrel);
+            }
+
+            Vector3[] palletPositions =
+            {
+                new Vector3(ROOM_HALF_X + 4.4f, 0f, -1.5f),
+                new Vector3(-ROOM_HALF_X - 4.2f, 0f, -2.2f)
+            };
+            for (int i = 0; i < palletPositions.Length; i++)
+            {
+                GameObject pallet = AddModelChild(dressing, "MESH_HallPallet0" + (i + 1),
+                    SHARED_MODEL_DIR + "Pallet.fbx",
+                    new Vector3(1.2f, 0.16f, 1.0f), palletPositions[i], true, false, null);
+                MarkStatic(pallet);
+            }
+
+            // High-mounted industrial exhaust vent fan on the North hall wall.
+            GameObject ventFan = AddModelChild(dressing, "MESH_HallVentFan",
+                SHARED_PREFAB_DIR + "MESH_VENTOLA_TEAM.fbx",
+                new Vector3(0.45f, 1.6f, 1.6f), new Vector3(-3.8f, 3.9f, ROOM_HALF_Z - 0.15f), false, true, null);
+            ventFan.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            MarkStatic(ventFan);
+        }
+
+        private static void BuildYellowSafetyFloorLanes(GameObject signs)
+        {
+            // Inner hazard perimeter framing the 7 x 5 m oil spill & press danger zone.
+            AddFloorMarking(signs, "MESH_FloorHazardNorth", new Vector2(8.4f, 0.14f), new Vector3(0f, 0.01f, 3.05f));
+            AddFloorMarking(signs, "MESH_FloorHazardSouth", new Vector2(8.4f, 0.14f), new Vector3(0f, 0.01f, -3.05f));
+            AddFloorMarking(signs, "MESH_FloorHazardEast", new Vector2(0.14f, 6.24f), new Vector3(4.15f, 0.01f, 0f));
+            AddFloorMarking(signs, "MESH_FloorHazardWest", new Vector2(0.14f, 6.24f), new Vector3(-4.15f, 0.01f, 0f));
+
+            // Outer Dry Perimeter safety walkway frame.
+            AddFloorMarking(signs, "MESH_FloorWalkwayNorth", new Vector2(16.2f, 0.12f), new Vector3(0f, 0.01f, 4.75f));
+            AddFloorMarking(signs, "MESH_FloorWalkwaySouth", new Vector2(16.2f, 0.12f), new Vector3(0f, 0.01f, -4.75f));
+            AddFloorMarking(signs, "MESH_FloorWalkwayEast", new Vector2(0.12f, 9.62f), new Vector3(8.05f, 0.01f, 0f));
+            AddFloorMarking(signs, "MESH_FloorWalkwayWest", new Vector2(0.12f, 9.62f), new Vector3(-8.05f, 0.01f, 0f));
+
+            // Station wayfinding connector lanes (Spawn -> E-Stop, Electrical bay apron, Exit corridor).
+            AddFloorMarking(signs, "MESH_FloorLaneEntry", new Vector2(2.6f, 0.12f), new Vector3(-7.0f, 0.01f, 0f));
+            AddFloorMarking(signs, "MESH_FloorLaneElectrical", new Vector2(0.12f, 2.8f), new Vector3(7.55f, 0.01f, 0f));
+            AddFloorMarking(signs, "MESH_FloorLaneAlarm", new Vector2(0.12f, 2.2f), new Vector3(-7.6f, 0.01f, 1.3f));
         }
 
         private static void AddWallSign(GameObject parent, string name, string materialName, Vector2 size, Vector3 position, Vector3 euler)
@@ -1867,22 +2316,28 @@ namespace SI81.MachineLock.EditorTools
         {
             Vector3[] positions =
             {
-                new Vector3(-3.5f, 3.45f, -1.5f),
-                new Vector3(0f, 3.45f, 1.5f),
-                new Vector3(3.5f, 3.45f, -1.5f)
+                new Vector3(-5.0f, 5.45f, -2.0f),
+                new Vector3(-5.0f, 5.45f, 2.0f),
+                new Vector3(5.0f, 5.45f, -2.0f),
+                new Vector3(5.0f, 5.45f, 2.0f)
             };
             for (int i = 0; i < positions.Length; i++)
             {
                 var fixture = NewChild(parent, "MESH_CeilingLight0" + (i + 1), positions[i]);
                 var light = fixture.AddComponent<Light>();
                 light.type = LightType.Point;
-                light.color = new Color(1f, 0.95f, 0.86f);
-                light.intensity = 1.1f;
-                light.range = 7f;
+                light.color = new Color(1f, 0.96f, 0.88f);
+                light.intensity = 1.4f;
+                light.range = 10f;
                 light.shadows = LightShadows.None;
                 light.lightmapBakeType = LightmapBakeType.Baked;
-                AddQuad(fixture, "MESH_CeilingLight0" + (i + 1) + "Panel", new Vector2(1.2f, 0.35f),
-                    new Vector3(0f, 0.5f, 0f), new Vector3(-90f, 0f, 0f), matLightFixture);
+
+                GameObject model = AddModelChild(fixture, "MESH_CeilingLightFixture0" + (i + 1),
+                    SHARED_MODEL_DIR + "MESH_Magazzino_LuceDaSoffitto.fbx",
+                    new Vector3(1.4f, 0.35f, 0.55f), new Vector3(0f, 0.25f, 0f), false, false, null);
+                MarkStatic(model);
+                AddQuad(fixture, "MESH_CeilingLight0" + (i + 1) + "Panel", new Vector2(1.1f, 0.32f),
+                    new Vector3(0f, 0.06f, 0f), new Vector3(-90f, 0f, 0f), matLightFixture);
             }
         }
 
@@ -1893,13 +2348,13 @@ namespace SI81.MachineLock.EditorTools
             GameObject env = NewRoot(scene, "ENV_Press");
             InstantiatePrefabInScene(scene, "MESH_HydraulicPress", env.transform, Vector3.zero, Vector3.zero);
 
-            // Pipe run from the press east leak to the valve near the east wall (GDD §7.2).
-            AddCylinder(env, "MESH_PipeStraight01", 0.09f, 3.55f, new Vector3(3.45f, 0.95f, 0.5f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
-            AddSphere(env, "MESH_PipeElbow01", 0.2f, new Vector3(5.2f, 0.95f, 0.5f), matPolishedSteel, false);
-            AddCylinder(env, "MESH_PipeStraight02", 0.09f, 1.0f, new Vector3(5.2f, 0.95f, 0f), new Vector3(90f, 0f, 0f), matPolishedSteel, false);
-            AddBox(env, "MESH_PipeSupport01", new Vector3(0.08f, 0.9f, 0.08f), new Vector3(4.4f, 0.45f, 0.5f), matPaintedSteel, false);
+            // High-contrast steel oil pipe leading directly from the oil jet out to the bright red Valve
+            // on the east edge of the spill (cleanly reachable from the Dry Perimeter without touching oil).
+            AddCylinder(env, "MESH_PipeStraight01", 0.085f, 2.75f, new Vector3(3.38f, 0.95f, 0.55f), new Vector3(0f, 0f, 90f), matPolishedSteel, false);
+            AddBox(env, "MESH_PipeSupport01", new Vector3(0.10f, 0.92f, 0.10f), new Vector3(3.95f, 0.46f, 0.55f), matDarkSlate, false);
+            AddBox(env, "MESH_PipeSupport02", new Vector3(0.10f, 0.92f, 0.10f), new Vector3(4.75f, 0.46f, 0.55f), matDarkSlate, false);
 
-            InstantiatePrefabInScene(scene, "MESH_Valve", env.transform, new Vector3(5.2f, 1.0f, -0.5f), Vector3.zero);
+            InstantiatePrefabInScene(scene, "MESH_Valve", env.transform, new Vector3(4.75f, 0.95f, 0.55f), Vector3.zero);
         }
 
         // ------------------------------------------------------------------ Safety area
@@ -1907,12 +2362,17 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildSafetyArea(Scene scene)
         {
             GameObject env = NewRoot(scene, "ENV_Safety");
-            InstantiatePrefabInScene(scene, "MESH_EStopPedestal", env.transform, new Vector3(-4.2f, 0f, 0f), Vector3.zero);
-            InstantiatePrefabInScene(scene, "MESH_AlarmButton", env.transform, new Vector3(-5.9f, 1.4f, 1.8f), new Vector3(0f, 90f, 0f));
-            InstantiatePrefabInScene(scene, "MESH_ElectricalPanel", env.transform, new Vector3(5.9f, 1.2f, 0f), Vector3.zero);
-            InstantiatePrefabInScene(scene, "MESH_PpeCabinet", env.transform, new Vector3(2.5f, 0f, -3.9f), Vector3.zero);
-            InstantiatePrefabInScene(scene, "MESH_SpillKit", env.transform, new Vector3(-4.5f, 0f, -3.2f), Vector3.zero);
-            InstantiatePrefabInScene(scene, "MESH_WaterExtinguisher", env.transform, new Vector3(3.5f, 1.2f, 3.9f), Vector3.zero);
+            // E-Stop pedestal faces West (-90° Y) directly toward the player at Spawn (-7.6, 0, 0).
+            InstantiatePrefabInScene(scene, "MESH_EStopPedestal", env.transform, new Vector3(-5.6f, 0f, 0f), new Vector3(0f, -90f, 0f));
+            // Department alarm mounted on a visible industrial post on the West-North side facing East.
+            AddBox(env, "MESH_AlarmPost", new Vector3(0.16f, 2.2f, 0.16f), new Vector3(-8.65f, 1.1f, 2.4f), matDarkSlate, true);
+            InstantiatePrefabInScene(scene, "MESH_AlarmButton", env.transform, new Vector3(-8.50f, 1.45f, 2.4f), new Vector3(0f, 90f, 0f));
+            // 3 separated color-coded Electrical Sub-Stations centered on the East wall bay.
+            InstantiatePrefabInScene(scene, "MESH_ElectricalPanel", env.transform, new Vector3(8.72f, 1.28f, 0f), Vector3.zero);
+            // Default Pattern A positions for movable props (moved cleanly by ApplyLayoutPattern).
+            InstantiatePrefabInScene(scene, "MESH_PpeCabinet", env.transform, new Vector3(2.8f, 0f, -5.12f), Vector3.zero);
+            InstantiatePrefabInScene(scene, "MESH_SpillKit", env.transform, new Vector3(-5.2f, 0f, -4.35f), Vector3.zero);
+            InstantiatePrefabInScene(scene, "MESH_WaterExtinguisher", env.transform, new Vector3(4.2f, 1.25f, 5.22f), new Vector3(0f, 180f, 0f));
         }
 
         // ------------------------------------------------------------------ Hazard area
@@ -1921,9 +2381,9 @@ namespace SI81.MachineLock.EditorTools
         {
             GameObject hazard = NewRoot(scene, "HAZARD_Oil");
 
-            // Leak: thin dark jet plus the looping hiss (GDD §13.1 and §13.2).
-            var jet = NewChild(hazard, "VFX_OilJet", new Vector3(1.95f, 0.9f, 0.5f));
-            AddCylinder(jet, "VFX_OilJetStream", 0.012f, 0.9f, new Vector3(0f, -0.45f, 0f), Vector3.zero, matOil, false);
+            // Leak: dark oil jet directly under the press east manifold pipe (stopped when Valve closes).
+            var jet = NewChild(hazard, "VFX_OilJet", new Vector3(2.05f, 0.95f, 0.55f));
+            AddCylinder(jet, "VFX_OilJetStream", 0.022f, 0.95f, new Vector3(0f, -0.475f, 0f), Vector3.zero, matOil, false);
             AddParticles(jet, "VFX_OilParticles", new Vector3(0f, -0.1f, 0f), Vector3.zero,
                 matParticleSoft, 80, true, 35f, new Color(0.09f, 0.06f, 0.03f, 0.9f), 0.05f, 0.4f, 1f, 0.03f,
                 ParticleSystemShapeType.Cone);
@@ -1935,11 +2395,11 @@ namespace SI81.MachineLock.EditorTools
             AddPuddleQuadrant(puddle, "MESH_PuddleQuadrantSE", 1f, -1f);
             AddPuddleQuadrant(puddle, "MESH_PuddleQuadrantSW", -1f, -1f);
 
-            // Steam over the hot oil and the inaction smoke over the press (GDD §9.12 and §13.2).
+            // Steam over the hot oil and inaction smoke above the press (GDD §9.12 and §13.2).
             AddParticles(hazard, "VFX_Steam", new Vector3(0f, 0.35f, 1.8f), Vector3.zero,
                 matParticleSoft, 60, true, 12f, new Color(0.85f, 0.86f, 0.85f, 0.35f), 0.35f, 0.35f, 3f, 1.4f,
                 ParticleSystemShapeType.Sphere);
-            AddParticles(hazard, "VFX_Smoke", new Vector3(0f, 2.6f, 0f), Vector3.zero,
+            AddParticles(hazard, "VFX_Smoke", new Vector3(0f, 2.8f, 0f), Vector3.zero,
                 matParticleSoft, 120, false, 0f, new Color(0.16f, 0.16f, 0.16f, 0.75f), 0.9f, 0.3f, 5f, 1.2f,
                 ParticleSystemShapeType.Sphere);
 
@@ -1951,30 +2411,28 @@ namespace SI81.MachineLock.EditorTools
 
             for (int i = 0; i < 4; i++) BuildCoverageZone(hazard, i);
 
+            // Three spacious puddle footprints leaving >= 2.9 m Dry Perimeter on ALL four sides of the 18 x 11 m bay.
             var patternA = NewChild(hazard, "PATTERN_PuddleA", Vector3.zero);
-            patternA.transform.localScale = new Vector3(7f, 1f, 5f);
-            var patternB = NewChild(hazard, "PATTERN_PuddleB", new Vector3(0.5f, 0f, 0f));
-            patternB.transform.localScale = new Vector3(6.5f, 1f, 5f);
-            var patternC = NewChild(hazard, "PATTERN_PuddleC", new Vector3(0f, 0f, -0.25f));
-            patternC.transform.localScale = new Vector3(7f, 1f, 4.5f);
+            patternA.transform.localScale = new Vector3(7.0f, 1f, 5.0f);
+            var patternB = NewChild(hazard, "PATTERN_PuddleB", new Vector3(0.5f, 0f, 0.2f));
+            patternB.transform.localScale = new Vector3(6.6f, 1f, 4.8f);
+            var patternC = NewChild(hazard, "PATTERN_PuddleC", new Vector3(-0.4f, 0f, -0.25f));
+            patternC.transform.localScale = new Vector3(6.8f, 1f, 4.7f);
 
             hazard.AddComponent<MachineLockSpillSystem>();
         }
 
-        /// <summary>
-        /// Builds one absorbent coverage zone with its Guided ghost, hidden until the player holds an item.
-        /// Quadrant order matches the puddle meshes: 0 NE, 1 NW, 2 SE, 3 SW.
-        /// </summary>
         private static void BuildCoverageZone(GameObject hazard, int quadrant)
         {
             float signX = quadrant == 1 || quadrant == 3 ? -1f : 1f;
             float signZ = quadrant >= 2 ? -1f : 1f;
             GameObject zone = NewChild(hazard, "ZONE_Coverage" + (quadrant + 1),
-                new Vector3(1.75f * signX, 0.02f, 1.25f * signZ));
+                new Vector3(2.0f * signX, 0.02f, 1.4f * signZ));
 
-            GameObject ghost = BuildGhost(zone, new Vector3(2.6f, 0.02f, 1.0f), false);
+            GameObject baseline = BuildBaselineOutline(zone, new Vector3(2.4f, 0.02f, 1.1f), false);
+            GameObject ghost = BuildGhost(zone, new Vector3(2.4f, 0.025f, 1.1f), false);
             var snapZone = zone.AddComponent<MachineLockSnapZone>();
-            snapZone.Configure(MachineLockSnapZone.SnapKind.Absorbent, zone.transform, ghost, quadrant);
+            snapZone.Configure(MachineLockSnapZone.SnapKind.Absorbent, zone.transform, ghost, quadrant, baseline);
         }
 
         private static void AddPuddleQuadrant(GameObject puddle, string name, float signX, float signZ)
@@ -1987,20 +2445,43 @@ namespace SI81.MachineLock.EditorTools
         }
 
         /// <summary>
-        /// Guided snap ghost of one zone: a flat mat or a small cone in the transparent highlight
-        /// material, inactive until the spill system shows it.
+        /// Proactive Guided baseline floor marker: subtle glowing floor ring for cone corners or quadrant
+        /// outline frame for absorbent zones. Shown once full PPE is worn and hidden individually on Occupy().
         /// </summary>
+        private static GameObject BuildBaselineOutline(GameObject zone, Vector3 size, bool cone)
+        {
+            var baseline = NewChild(zone, "VFX_BaselineMarker", Vector3.zero);
+            if (cone)
+            {
+                AddBox(baseline, "MESH_BaseRingN", new Vector3(0.56f, 0.012f, 0.07f), new Vector3(0f, 0.014f, 0.25f), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseRingS", new Vector3(0.56f, 0.012f, 0.07f), new Vector3(0f, 0.014f, -0.25f), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseRingE", new Vector3(0.07f, 0.012f, 0.56f), new Vector3(0.25f, 0.014f, 0f), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseRingW", new Vector3(0.07f, 0.012f, 0.56f), new Vector3(-0.25f, 0.014f, 0f), matBaselineZone, false);
+            }
+            else
+            {
+                float hw = size.x * 0.5f;
+                float hd = size.z * 0.5f;
+                AddBox(baseline, "MESH_BaseFrameN", new Vector3(size.x, 0.012f, 0.08f), new Vector3(0f, 0.016f, hd), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseFrameS", new Vector3(size.x, 0.012f, 0.08f), new Vector3(0f, 0.016f, -hd), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseFrameE", new Vector3(0.08f, 0.012f, size.z), new Vector3(hw, 0.016f, 0f), matBaselineZone, false);
+                AddBox(baseline, "MESH_BaseFrameW", new Vector3(0.08f, 0.012f, size.z), new Vector3(-hw, 0.016f, 0f), matBaselineZone, false);
+            }
+            baseline.SetActive(false);
+            return baseline;
+        }
+
         private static GameObject BuildGhost(GameObject zone, Vector3 size, bool cone)
         {
             var ghost = NewChild(zone, "VFX_SnapGhost", Vector3.zero);
             if (cone)
             {
-                AddCylinder(ghost, "MESH_GhostConeBody", 0.15f, 0.5f, new Vector3(0f, 0.25f, 0f), Vector3.zero, matGhostSnap, false);
+                AddCylinder(ghost, "MESH_GhostConeBody", 0.16f, 0.52f, new Vector3(0f, 0.26f, 0f), Vector3.zero, matGhostSnap, false);
             }
             else
             {
                 AddBox(ghost, "MESH_GhostCoverage", new Vector3(size.x, size.y, size.z),
-                    new Vector3(0f, 0.01f, 0f), matGhostSnap, false);
+                    new Vector3(0f, 0.018f, 0f), matGhostSnap, false);
             }
             ghost.SetActive(false);
             return ghost;
@@ -2013,17 +2494,18 @@ namespace SI81.MachineLock.EditorTools
             GameObject delimitation = NewRoot(scene, "ZONE_Delimitation");
             Vector3[] points =
             {
-                new Vector3(3.8f, 0f, 2.8f),
-                new Vector3(-3.8f, 0f, 2.8f),
-                new Vector3(3.8f, 0f, -2.8f),
-                new Vector3(-3.8f, 0f, -2.8f)
+                new Vector3(3.9f, 0f, 2.85f),
+                new Vector3(-3.9f, 0f, 2.85f),
+                new Vector3(3.9f, 0f, -2.85f),
+                new Vector3(-3.9f, 0f, -2.85f)
             };
             for (int i = 0; i < points.Length; i++)
             {
                 GameObject point = NewChild(delimitation, "ZONE_ConePoint" + (i + 1), points[i]);
+                GameObject baseline = BuildBaselineOutline(point, Vector3.zero, true);
                 GameObject ghost = BuildGhost(point, Vector3.zero, true);
                 var snapZone = point.AddComponent<MachineLockSnapZone>();
-                snapZone.Configure(MachineLockSnapZone.SnapKind.Cone, point.transform, ghost, -1);
+                snapZone.Configure(MachineLockSnapZone.SnapKind.Cone, point.transform, ghost, -1, baseline);
             }
         }
 
@@ -2031,21 +2513,29 @@ namespace SI81.MachineLock.EditorTools
         {
             GameObject patterns = NewRoot(scene, "MNG_LayoutPatterns");
 
-            // GDD §7.6: one of three randomised layouts.
+            // Three spacious Layout Patterns re-authored for the 18 x 11 m stamping bay (ADR-0001).
+            // Every prop faces cleanly inward toward the Dry Perimeter with zero clipping.
             var a = NewChild(patterns, "PATTERN_A", Vector3.zero);
-            NewChild(a, "MarkerPpeCabinet", new Vector3(2.5f, 0f, -3.9f));
-            NewChild(a, "MarkerSpillKit", new Vector3(-4.5f, 0f, -3.2f));
-            NewChild(a, "MarkerExtinguisher", new Vector3(3.5f, 1.2f, 3.9f));
+            NewMarker(a, "MarkerPpeCabinet", new Vector3(2.8f, 0f, -5.12f), Vector3.zero);
+            NewMarker(a, "MarkerSpillKit", new Vector3(-5.2f, 0f, -4.35f), Vector3.zero);
+            NewMarker(a, "MarkerExtinguisher", new Vector3(4.2f, 1.25f, 5.22f), new Vector3(0f, 180f, 0f));
 
             var b = NewChild(patterns, "PATTERN_B", Vector3.zero);
-            NewChild(b, "MarkerPpeCabinet", new Vector3(4.5f, 0f, -3.9f));
-            NewChild(b, "MarkerSpillKit", new Vector3(-4.5f, 0f, 3.2f));
-            NewChild(b, "MarkerExtinguisher", new Vector3(5.7f, 1.2f, 2.5f));
+            NewMarker(b, "MarkerPpeCabinet", new Vector3(5.8f, 0f, -5.12f), Vector3.zero);
+            NewMarker(b, "MarkerSpillKit", new Vector3(-5.2f, 0f, 4.35f), new Vector3(0f, 180f, 0f));
+            NewMarker(b, "MarkerExtinguisher", new Vector3(0.0f, 1.25f, 5.22f), new Vector3(0f, 180f, 0f));
 
             var c = NewChild(patterns, "PATTERN_C", Vector3.zero);
-            NewChild(c, "MarkerPpeCabinet", new Vector3(-5.7f, 0f, -2.5f));
-            NewChild(c, "MarkerSpillKit", new Vector3(3.5f, 0f, -3.2f));
-            NewChild(c, "MarkerExtinguisher", new Vector3(5.7f, 1.2f, 3.2f));
+            NewMarker(c, "MarkerPpeCabinet", new Vector3(-2.5f, 0f, 5.12f), new Vector3(0f, 180f, 0f));
+            NewMarker(c, "MarkerSpillKit", new Vector3(4.8f, 0f, -4.35f), Vector3.zero);
+            NewMarker(c, "MarkerExtinguisher", new Vector3(-6.2f, 1.25f, -5.22f), Vector3.zero);
+        }
+
+        private static GameObject NewMarker(GameObject parent, string name, Vector3 localPos, Vector3 localEuler)
+        {
+            var marker = NewChild(parent, name, localPos);
+            marker.transform.localEulerAngles = localEuler;
+            return marker;
         }
 
         private static void BuildObservationTargets(Scene scene, MachineLockConfig config)
@@ -2057,12 +2547,12 @@ namespace SI81.MachineLock.EditorTools
 
             Vector3[] positions =
             {
-                new Vector3(0f, 1.6f, 0f),
-                new Vector3(-1.5f, 1.7f, 0.2f),
-                new Vector3(-1.5f, 1.5f, -0.8f),
-                new Vector3(0f, 0.05f, 1.8f),
-                new Vector3(5.9f, 1.2f, 0f),
-                new Vector3(2.5f, 1.0f, -3.9f)
+                new Vector3(0f, 1.7f, 0f),
+                new Vector3(-1.6f, 1.78f, 0.25f),
+                new Vector3(-1.8f, 1.62f, -0.95f),
+                new Vector3(0f, 0.1f, 1.85f),
+                new Vector3(8.5f, 1.3f, 0f),
+                new Vector3(2.8f, 1.1f, -5.12f)
             };
 
             for (int i = 0; i < OBSERVATION_NAMES.Length; i++)
@@ -2076,10 +2566,10 @@ namespace SI81.MachineLock.EditorTools
         private static void BuildExit(Scene scene)
         {
             var exit = NewRoot(scene, "ZONE_Exit");
-            exit.transform.position = new Vector3(-6f, 0f, 0f);
+            exit.transform.position = new Vector3(-ROOM_HALF_X, 0f, 0f);
             var trigger = exit.AddComponent<ScenarioTrigger>();
             var so = new SerializedObject(trigger);
-            so.FindProperty("radius").floatValue = 1f;
+            so.FindProperty("radius").floatValue = 1.15f;
             so.FindProperty("once").boolValue = false;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(trigger);
@@ -2160,10 +2650,17 @@ namespace SI81.MachineLock.EditorTools
             var feedback = EnsureComponent<MachineLockDamageFeedback>(manager);
             SetRef(feedback, "damageVolume", volume);
             SetRef(feedback, "fallbackFlashLight", flash);
+            SetRef(feedback, "overlayMaterialAsset", matDamageOverlay);
             SetRef(feedback, "oneShotAudio", oneShot);
             SetRef(feedback, "shockClip", clips.Shock);
             SetRef(feedback, "burnClip", clips.Burn);
             SetRef(feedback, "steamClip", clips.SteamBurst);
+            var fbSo = new SerializedObject(feedback);
+            fbSo.FindProperty("fadeInSeconds").floatValue = 0.15f;
+            fbSo.FindProperty("holdSeconds").floatValue = 0.5f;
+            fbSo.FindProperty("fadeOutSeconds").floatValue = 1.5f;
+            fbSo.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(feedback);
         }
 
         // ------------------------------------------------------------------ Scene wiring (P3–P8)
@@ -2274,6 +2771,9 @@ namespace SI81.MachineLock.EditorTools
             SetRef(scenario, "smokeVfx", smokeObject.GetComponent<ParticleSystem>());
             SetRef(scenario, "steamVfx", steamObject.GetComponent<ParticleSystem>());
             SetRef(scenario, "ambientAudio", FindInScene(scene, "MNG_Audio").GetComponent<AudioSource>());
+            SetRef(scenario, "exitBeaconRenderer", FindInScene(scene, "MESH_ExitBeacon").GetComponent<Renderer>());
+            SetRef(scenario, "exitBeaconIdleMaterial", matExitBeaconIdle);
+            SetRef(scenario, "exitBeaconReadyMaterial", matExitBeaconReady);
             EditorUtility.SetDirty(manager);
             EditorUtility.SetDirty(scenario);
         }
@@ -2309,25 +2809,28 @@ namespace SI81.MachineLock.EditorTools
             GameObjectUtility.SetStaticEditorFlags(target, flags);
         }
 
-        // ------------------------------------------------------------------ Labels (GDD §8.4)
+        // ------------------------------------------------------------------ Labels (GDD §8.4, ADR-0002)
 
         private static void PlaceLabels(Scene scene)
         {
-            AddLabel(Find("MESH_HydraulicPress"), LabelKind.Risk, "Pressa in moto", "Non avvicinarti", new Vector3(0f, 2.2f, 0f));
-            AddLabel(Find("MESH_Thermometer"), LabelKind.Risk, "Olio a 120 °C", "Superficie bollente", new Vector3(0f, 0.15f, 0f));
-            AddLabel(Find("VFX_OilPuddle"), LabelKind.Risk, "Pozza d'olio bollente", "Non calpestare", new Vector3(0f, 0.3f, 1.9f));
+            // Strict <= 3 Risk labels pulled cleanly into open space (clear of walls & machinery).
+            AddLabel(Find("MESH_HydraulicPress"), LabelKind.Risk, "Pressa in moto", "Non avvicinarti", new Vector3(-1.85f, 2.60f, 0f));
+            AddLabel(Find("MESH_Thermometer"), LabelKind.Risk, "Olio a 120 °C", "Superficie bollente", new Vector3(-0.55f, 0.35f, 0f));
+            AddLabel(Find("VFX_OilPuddle"), LabelKind.Risk, "Pozza d'olio bollente", "Non calpestare", new Vector3(0f, 0.55f, 2.35f));
 
-            AddLabel(Find("MESH_EStopPedestal"), LabelKind.ContextHelp, "Fungo di emergenza", "Premi per fermare la pressa", new Vector3(0f, 1.35f, 0f));
-            AddLabel(Find("MESH_AlarmButton"), LabelKind.ContextHelp, "Allarme reparto", "Premi per chiamare i soccorsi", new Vector3(0f, 0.45f, 0f));
-            AddLabel(Find("MESH_ElectricalPanel"), LabelKind.ContextHelp, "Quadro generale", "Apri l'interruttore principale", new Vector3(0f, 0.7f, 0f));
-            AddLabel(Find("MESH_LockoutPoint"), LabelKind.ContextHelp, "Punto di lockout", "Blocca il quadro dopo lo stacco", new Vector3(0f, 0.2f, 0f));
-            AddLabel(Find("MESH_VoltageTester"), LabelKind.ContextHelp, "Tester di tensione", "Controlla l'energia residua", new Vector3(0f, 0.25f, 0f));
-            AddLabel(Find("MESH_PpeCabinet"), LabelKind.ContextHelp, "Armadio DPI", "Apri e indossa i DPI", new Vector3(0f, 2.1f, 0f));
-            AddLabel(Find("MESH_SpillKit"), LabelKind.ContextHelp, "Kit assorbente", "Prendi coni, tappeti e sacchi", new Vector3(0f, 0.7f, 0f));
-            AddLabel(Find("MESH_Valve"), LabelKind.ContextHelp, "Valvola", "Chiudi per fermare la perdita", new Vector3(0f, 0.35f, 0f));
-            AddLabel(Find("MESH_WaterExtinguisher"), LabelKind.ContextHelp, "Estintore ad acqua", "Non usare su olio o quadro", new Vector3(0f, 0.5f, 0f));
+            // Single clean electrical bay anchor (replaces 3 overlapping electrical anchors; detailed per-station
+            // guidance lives on flush Diegetic Plaques + hover Action Feedback, ADR-0002).
+            AddLabel(Find("MESH_ElectricalPanel"), LabelKind.ContextHelp, "Quadro elettrico", "Sezionatore · Lockout · Tester", new Vector3(-0.75f, 1.15f, 0f));
 
-            AddLabel(Find("ZONE_Exit"), LabelKind.Interaction, "Uscita", string.Empty, new Vector3(0f, 0.5f, 0f));
+            // Sparse, non-overlapping open-space ContextHelp anchors.
+            AddLabel(Find("MESH_EStopPedestal"), LabelKind.ContextHelp, "Fungo di emergenza", "Premi per fermare la pressa", new Vector3(0f, 1.72f, 0f));
+            AddLabel(Find("MESH_AlarmButton"), LabelKind.ContextHelp, "Allarme reparto", "Premi per chiamare i soccorsi", new Vector3(0f, 0.72f, 0.45f));
+            AddLabel(Find("MESH_PpeCabinet"), LabelKind.ContextHelp, "Armadio DPI", "Apri e indossa i 4 DPI", new Vector3(0f, 2.38f, 0.45f));
+            AddLabel(Find("MESH_SpillKit"), LabelKind.ContextHelp, "Kit antispandimento", "Coni e assorbenti (GRIP)", new Vector3(0f, 1.15f, 0f));
+            AddLabel(Find("MESH_Valve"), LabelKind.ContextHelp, "Valvola olio", "Chiudi per fermare la perdita", new Vector3(0f, 1.05f, 0f));
+            AddLabel(Find("MESH_WaterExtinguisher"), LabelKind.ContextHelp, "Estintore ad acqua", "Non usare su olio o quadro", new Vector3(0f, 0.95f, 0.40f));
+
+            AddLabel(Find("ZONE_Exit"), LabelKind.Interaction, "Uscita", string.Empty, new Vector3(0.65f, 1.85f, 0f));
         }
 
         private static GameObject Find(string name)

@@ -5,9 +5,9 @@ namespace SI81.MachineLock
 {
     /// <summary>
     /// Snap target of the spill containment (GDD §8.3 and §9.8): one cone marker around the puddle or one
-    /// absorbent coverage quadrant. The zone owns its occupancy and its optional Guided ghost mesh; the
-    /// item scripts and <see cref="MachineLockSpillSystem"/> only ask and report.
-    /// No physics, no collider and no Meta SDK: the item moves itself to <see cref="SnapPoint"/>.
+    /// absorbent coverage quadrant. The zone owns its occupancy, its proactive Guided baseline floor ring/outline,
+    /// and its full Guided snap ghost mesh; the item scripts and <see cref="MachineLockSpillSystem"/> only ask
+    /// and report. No physics, no collider and no Meta SDK: the item moves itself to <see cref="SnapPoint"/>.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Snap Zone")]
@@ -22,8 +22,6 @@ namespace SI81.MachineLock
             Absorbent
         }
 
-        // Registry of the enabled zones, so a builder that forgets to wire the spill system still lets the
-        // item find its target without a scene search on every release.
         private static readonly List<MachineLockSnapZone> ACTIVE = new List<MachineLockSnapZone>(8);
 
         [Header("Zone")]
@@ -31,7 +29,9 @@ namespace SI81.MachineLock
         [SerializeField] private SnapKind kind = SnapKind.Cone;
         [Tooltip("Point where the item is placed. Empty: this transform.")]
         [SerializeField] private Transform snapPoint;
-        [Tooltip("Transparent Guided ghost of the item. Shown while the player holds a matching item near this free zone.")]
+        [Tooltip("Subtle floor ring/outline shown proactively in Guided mode once full PPE is worn.")]
+        [SerializeField] private GameObject baselineVisual;
+        [Tooltip("Bright transparent Guided ghost shown while the player holds a matching item.")]
         [SerializeField] private GameObject ghostVisual;
         [Tooltip("Puddle quadrant covered by an absorbent, 0 to 3. -1 for cone zones, which cover no quadrant.")]
         [SerializeField] private int quadrantIndex = -1;
@@ -51,26 +51,40 @@ namespace SI81.MachineLock
         /// <summary>Puddle quadrant covered by an absorbent, 0 to 3; -1 for cone zones.</summary>
         public int QuadrantIndex => quadrantIndex;
 
+        /// <summary>true while the proactive Guided baseline floor marker is currently visible.</summary>
+        public bool IsBaselineVisible => baselineVisual != null && baselineVisual.activeSelf;
+
+        /// <summary>true while the bright full snap ghost is currently visible.</summary>
+        public bool IsGhostVisible => ghostVisual != null && ghostVisual.activeSelf;
+
         /// <summary>
-        /// Configures the zone from code, for the scene builder. The ghost starts hidden.
+        /// Configures the zone from code, for the scene builder or tests. Both visuals start hidden.
         /// </summary>
-        /// <param name="snapKind">Kind of item the zone accepts.</param>
-        /// <param name="point">Placement point; null uses this transform.</param>
-        /// <param name="ghost">Guided ghost mesh; may be null.</param>
-        /// <param name="quadrant">Puddle quadrant covered by an absorbent, or -1.</param>
-        public void Configure(SnapKind snapKind, Transform point = null, GameObject ghost = null, int quadrant = -1)
+        public void Configure(SnapKind snapKind, Transform point = null, GameObject ghost = null,
+            int quadrant = -1, GameObject baseline = null)
         {
             kind = snapKind;
             snapPoint = point;
             ghostVisual = ghost;
             quadrantIndex = quadrant;
+            baselineVisual = baseline;
+            SetBaselineVisible(false);
             SetGhostVisible(false);
         }
 
         /// <summary>
-        /// Shows or hides the Guided ghost. An occupied zone never shows it, whatever the caller asks.
+        /// Shows or hides the subtle proactive Guided baseline marker. An occupied zone never shows it.
         /// </summary>
-        /// <param name="visible">true to show the ghost on a free zone.</param>
+        public void SetBaselineVisible(bool visible)
+        {
+            if (baselineVisual == null) return;
+            bool show = visible && !Occupied;
+            if (baselineVisual.activeSelf != show) baselineVisual.SetActive(show);
+        }
+
+        /// <summary>
+        /// Shows or hides the bright Guided snap ghost. An occupied zone never shows it.
+        /// </summary>
         public void SetGhostVisible(bool visible)
         {
             if (ghostVisual == null) return;
@@ -79,26 +93,20 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Marks the zone as taken and hides its ghost. The first caller wins: a second item cannot take
-        /// the same zone.
+        /// Marks the zone as taken and hides both its baseline marker and its snap ghost.
         /// </summary>
-        /// <returns>true when this call occupied the zone, false when it was already occupied.</returns>
         public bool Occupy()
         {
             if (Occupied) return false;
             Occupied = true;
+            SetBaselineVisible(false);
             SetGhostVisible(false);
             return true;
         }
 
         /// <summary>
         /// Finds the closest free zone of a kind within a radius, searching the enabled zones of the scene.
-        /// Fallback used by the items when no <see cref="MachineLockSpillSystem"/> is wired.
         /// </summary>
-        /// <param name="worldPosition">Release position of the item.</param>
-        /// <param name="snapKind">Kind of zone to look for.</param>
-        /// <param name="maxRadius">Maximum distance in metres.</param>
-        /// <returns>The closest free zone, or null.</returns>
         public static MachineLockSnapZone FindNearestUnoccupied(Vector3 worldPosition, SnapKind snapKind, float maxRadius)
         {
             MachineLockSnapZone best = null;
@@ -117,6 +125,7 @@ namespace SI81.MachineLock
 
         private void Awake()
         {
+            SetBaselineVisible(false);
             SetGhostVisible(false);
         }
 
@@ -130,10 +139,6 @@ namespace SI81.MachineLock
             ACTIVE.Remove(this);
         }
 
-        /// <summary>
-        /// Clears the registry before every play session, so a domain reload that is disabled cannot leave
-        /// stale zones behind.
-        /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetRegistry()
         {

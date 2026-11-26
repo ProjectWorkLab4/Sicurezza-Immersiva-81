@@ -49,6 +49,7 @@ namespace SI81.MachineLock
         private float beaconBaseIntensity = FALLBACK_LIGHT_INTENSITY;
         private Color domeEmission = DefaultDomeEmission;
         private MaterialPropertyBlock propertyBlock;
+        private float lastHoverTime = float.NegativeInfinity;
 
         /// <summary>true after the alarm was raised once.</summary>
         public bool Raised => raised;
@@ -79,12 +80,20 @@ namespace SI81.MachineLock
 
         private void OnEnable()
         {
-            if (alarmInteractable != null) alarmInteractable.SelectEntered += OnAlarmSelected;
+            if (alarmInteractable != null)
+            {
+                alarmInteractable.SelectEntered += OnAlarmSelected;
+                alarmInteractable.HoverEntered += OnAlarmHovered;
+            }
         }
 
         private void OnDisable()
         {
-            if (alarmInteractable != null) alarmInteractable.SelectEntered -= OnAlarmSelected;
+            if (alarmInteractable != null)
+            {
+                alarmInteractable.SelectEntered -= OnAlarmSelected;
+                alarmInteractable.HoverEntered -= OnAlarmHovered;
+            }
             if (sirenAudio != null) sirenAudio.Stop();
         }
 
@@ -133,6 +142,16 @@ namespace SI81.MachineLock
         private void OnAlarmSelected(Hand hand)
         {
             Raise();
+        }
+
+        private void OnAlarmHovered(Hand hand)
+        {
+            float now = Time.unscaledTime;
+            if (!float.IsNegativeInfinity(lastHoverTime) && now - lastHoverTime < 0.3f) return;
+            lastHoverTime = now;
+            if (HUDService.IsReady)
+                HUDService.ShowActionFeedback(raised ? MachineLockTexts.Alarm : MachineLockTexts.HoverAlarm,
+                    raised ? FeedbackKind.Positive : FeedbackKind.Neutral);
         }
     }
 }

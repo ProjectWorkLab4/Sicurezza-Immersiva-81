@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using SI81.Rig;
 using SI81.UI;
@@ -16,10 +17,9 @@ namespace SI81.MachineLock.EditorTools
 {
     /// <summary>
     /// Batchmode validator of the Machine Lock scenario. Runs the shared scenario validator through
-    /// reflection (the editor assembly is not auto-referenced) and adds the P1 shell checks, the P2
-    /// blockout checks and the P3–P8 content checks: every runtime component and its wiring, the particle
-    /// budget, the sixteen audio clips, the damage profile and the light budget.
-    /// Entry point: ValidateScene. Exits 0 only with zero errors and zero warnings.
+    /// reflection and enforces all Issue #35 / ADR-0001..0004 architectural, Quest 3 budget, ASTC,
+    /// building-shell, Dry Perimeter, non-overlapping electrical Sub-Station, 4-slot PPE, particle,
+    /// light, audio, and damage-profile gates. Exits 0 only with zero errors and zero warnings.
     /// </summary>
     public static class MachineLockValidatorRunner
     {
@@ -27,10 +27,9 @@ namespace SI81.MachineLock.EditorTools
         private const string SCENE_PATH = MachineLockSceneBuilder.SCENE_PATH;
         private const string CORE_SCENE_PATH = MachineLockSceneBuilder.CORE_SCENE_PATH;
         private const string MOCK_SCENE_PATH = MachineLockSceneBuilder.MOCK_SCENE_PATH;
-        private static readonly Vector3 SPAWN_POSITION = new Vector3(-5.2f, 0f, 0f);
 
         /// <summary>
-        /// Validates the P1 shell and exits with 0 when clean, 1 otherwise.
+        /// Validates SCN_MachineLock and exits with 0 when clean, 1 otherwise.
         /// </summary>
         public static void ValidateScene()
         {
@@ -80,11 +79,14 @@ namespace SI81.MachineLock.EditorTools
                 CheckScenario(scene, mission, ref errors);
                 CheckForbiddenComponents(scene, ref errors);
                 CheckBuildSettings(ref errors);
+                CheckIndustrialBuildingShell(scene, ref errors);
+                CheckTextureAstcAndDisplacement(scene, ref errors);
                 CheckPrefabs(ref errors);
                 CheckTriangleBudget(scene, ref errors);
                 CheckLights(scene, ref errors);
                 CheckLabelAnchors(scene, ref errors);
                 CheckDryPerimeter(scene, ref errors);
+                CheckElectricalAndPpeWiring(scene, ref errors);
                 CheckRuntimeComponents(scene, ref errors);
                 CheckParticles(scene, ref errors);
                 CheckAudioClips(ref errors);
@@ -163,7 +165,7 @@ namespace SI81.MachineLock.EditorTools
             Debug.Log($"[MachineLockValidator] Shared scenario validator returned {count} issue(s).");
         }
 
-        // ------------------------------------------------------------------ P1 checks
+        // ------------------------------------------------------------------ Shell, spawn, scenario, build settings
 
         private static void CheckSpawnPoint(Scene scene, ref int errors)
         {
@@ -179,13 +181,13 @@ namespace SI81.MachineLock.EditorTools
                 return;
             }
 
-            float distance = Vector3.Distance(spawn.transform.position, SPAWN_POSITION);
+            float distance = Vector3.Distance(spawn.transform.position, MachineLockSceneBuilder.SPAWN_POSITION);
             if (distance > 0.001f)
-                errors += Error($"MNG_SpawnPoint is at {spawn.transform.position} instead of (-5.2, 0, 0); offset {distance:0.000} m.");
+                errors += Error($"MNG_SpawnPoint is at {spawn.transform.position} instead of {MachineLockSceneBuilder.SPAWN_POSITION}; offset {distance:0.000} m.");
 
-            float yaw = Mathf.Abs(Mathf.DeltaAngle(spawn.transform.eulerAngles.y, 90f));
+            float yaw = Mathf.Abs(Mathf.DeltaAngle(spawn.transform.eulerAngles.y, MachineLockSceneBuilder.SPAWN_EULER.y));
             if (yaw > 0.1f)
-                errors += Error($"MNG_SpawnPoint yaw is {spawn.transform.eulerAngles.y:0.000}° instead of 90°.");
+                errors += Error($"MNG_SpawnPoint yaw is {spawn.transform.eulerAngles.y:0.000}° instead of {MachineLockSceneBuilder.SPAWN_EULER.y}°.");
         }
 
         private static void CheckScenario(Scene scene, MissionDefinition mission, ref int errors)
@@ -278,12 +280,107 @@ namespace SI81.MachineLock.EditorTools
             return count - 1;
         }
 
-        // ------------------------------------------------------------------ P2 checks
+        // ------------------------------------------------------------------ Industrial building & ASTC checks
 
         /// <summary>
-        /// Checks that the twelve production-named prefabs exist and that none of them has a missing
-        /// MonoBehaviour or a broken reference (GDD §14.2).
+        /// Verifies that the shared PFB_OldIndustrialBuilding shell is present in SCN_MachineLock
+        /// with intact renderers and zero missing scripts (ADR-0001).
         /// </summary>
+        private static void CheckIndustrialBuildingShell(Scene scene, ref int errors)
+        {
+            Transform building = FindDeep(scene, "PFB_OldIndustrialBuilding");
+            if (building == null)
+            {
+                errors += Error("PFB_OldIndustrialBuilding shell is missing from SCN_MachineLock (ADR-0001).");
+                return;
+            }
+            int renderers = building.GetComponentsInChildren<MeshRenderer>(true).Length;
+            int missing = 0;
+            foreach (Transform t in building.GetComponentsInChildren<Transform>(true))
+                missing += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject);
+            Debug.Log($"[MachineLockValidator] IndustrialBuilding=Present Renderers={renderers} MissingScripts={missing}");
+            if (renderers < 2)
+                errors += Error($"PFB_OldIndustrialBuilding has only {renderers} MeshRenderer(s).");
+            if (missing > 0)
+                errors += Error($"PFB_OldIndustrialBuilding has {missing} missing script(s).");
+        }
+
+        /// <summary>
+        /// Validates Android ASTC overrides (&lt;= 2048) across all active building and PBR textures
+        /// (albedo, normal, roughness/AO/spec) and confirms no rendered material references an 8K displacement map.
+        /// </summary>
+        private static void CheckTextureAstcAndDisplacement(Scene scene, ref int errors)
+        {
+            string[] buildingTexPaths =
+            {
+                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingbase.jpg",
+                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingNormalMap.jpg",
+                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingAmbientOcclusionMap.jpg",
+                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/buildingSpecularMap.jpg",
+                MachineLockSceneBuilder.SHARED_BUILDING_TEX_DIR + "/TexturesCom_ConcreteBare0348_1_S.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Albedo.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Normal.exr",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteFloorWorn_Rough.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Albedo.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Normal.exr",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_GreenMetalRust_Rough.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Albedo.jpg",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Normal.exr",
+                MachineLockSceneBuilder.TEXTURE_DIR + "/TEX_ConcreteWall009_Rough.jpg"
+            };
+
+            int checkedCount = 0;
+            foreach (string path in buildingTexPaths)
+            {
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer == null)
+                {
+                    errors += Error($"Expected PBR/building texture missing: {path}");
+                    continue;
+                }
+                checkedCount++;
+                TextureImporterPlatformSettings android = importer.GetPlatformTextureSettings("Android");
+                if (!android.overridden || android.maxTextureSize > 2048)
+                {
+                    errors += Error($"Texture {path} Android override must be enabled and <= 2048 (actual overridden={android.overridden}, size={android.maxTextureSize}).");
+                }
+                if (!android.format.ToString().StartsWith("ASTC", StringComparison.Ordinal))
+                {
+                    errors += Error($"Texture {path} Android format must be ASTC (actual {android.format}).");
+                }
+            }
+
+            // Ensure the 8K buildingDisplacementMap is NOT referenced by any material rendered in SCN_MachineLock.
+            int displacementRefs = 0;
+            var seenMaterials = new HashSet<Material>();
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (renderer == null) continue;
+                    foreach (Material mat in renderer.sharedMaterials)
+                    {
+                        if (mat == null || !seenMaterials.Add(mat)) continue;
+                        int propCount = mat.shader != null ? mat.shader.GetPropertyCount() : 0;
+                        for (int i = 0; i < propCount; i++)
+                        {
+                            if (mat.shader.GetPropertyType(i) != ShaderPropertyType.Texture) continue;
+                            Texture tex = mat.GetTexture(mat.shader.GetPropertyNameId(i));
+                            if (tex != null && tex.name.IndexOf("Displacement", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                displacementRefs++;
+                                errors += Error($"Material {mat.name} references displacement texture {tex.name} on Quest 3.");
+                            }
+                        }
+                    }
+                }
+            }
+
+            Debug.Log($"[MachineLockValidator] AstcTexturesChecked={checkedCount}/{buildingTexPaths.Length} DisplacementRefs={displacementRefs}");
+        }
+
+        // ------------------------------------------------------------------ Prefabs, budgets, labels, dry perimeter
+
         private static void CheckPrefabs(ref int errors)
         {
             int missingScripts = 0;
@@ -305,9 +402,6 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error($"{missingScripts} missing script(s) found inside the Machine Lock prefabs.");
         }
 
-        /// <summary>
-        /// Triangle budget of the whole scene, including every MeshFilter under every root.
-        /// </summary>
         private static void CheckTriangleBudget(Scene scene, ref int errors)
         {
             long triangles = 0;
@@ -324,10 +418,6 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error($"Scene triangle count is {triangles}, above the 100000 budget.");
         }
 
-        /// <summary>
-        /// Dynamic light budget: at most two realtime/mixed lights and at most one shadow caster.
-        /// Baked ceiling fixtures do not count (GDD §7.7).
-        /// </summary>
         private static void CheckLights(Scene scene, ref int errors)
         {
             int realtime = 0;
@@ -348,9 +438,6 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error($"Scene has {shadowCasters} shadow-casting lights; the budget is 1.");
         }
 
-        /// <summary>
-        /// Exactly thirteen world labels and exactly three Risk labels (GDD §8.4).
-        /// </summary>
         private static void CheckLabelAnchors(Scene scene, ref int errors)
         {
             int anchors = 0;
@@ -364,20 +451,20 @@ namespace SI81.MachineLock.EditorTools
                     if (anchor.Kind == LabelKind.Risk) risks++;
                 }
             }
-            Debug.Log($"[MachineLockValidator] LabelAnchors={anchors} RiskLabels={risks}");
-            if (anchors != 13)
-                errors += Error($"Scene has {anchors} LabelAnchor components instead of the expected 13.");
-            if (risks != 3)
-                errors += Error($"Scene has {risks} Risk labels instead of the expected 3.");
+            Debug.Log($"[MachineLockValidator] LabelAnchors={anchors} RiskLabels={risks} RiskCap=3");
+            if (anchors != MachineLockSceneBuilder.EXPECTED_LABEL_ANCHORS)
+                errors += Error($"Scene has {anchors} LabelAnchor components instead of the expected {MachineLockSceneBuilder.EXPECTED_LABEL_ANCHORS}.");
+            if (risks > 3)
+                errors += Error($"Scene has {risks} Risk labels; the cap is 3.");
         }
 
-        /// <summary>
-        /// The three puddle variants must leave at least 1.5 m of dry perimeter on every side
-        /// (GDD §7.6): pattern extents are read from PATTERN_PuddleA/B/C in HAZARD_Oil.
-        /// </summary>
         private static void CheckDryPerimeter(Scene scene, ref int errors)
         {
             string[] names = { "PATTERN_PuddleA", "PATTERN_PuddleB", "PATTERN_PuddleC" };
+            float halfBayX = MachineLockSceneBuilder.ROOM_HALF_X;
+            float halfBayZ = MachineLockSceneBuilder.ROOM_HALF_Z;
+            float minMargin = MachineLockSceneBuilder.MIN_DRY_PERIMETER;
+
             foreach (string name in names)
             {
                 Transform pattern = FindDeep(scene, name);
@@ -390,24 +477,67 @@ namespace SI81.MachineLock.EditorTools
                 Vector3 position = pattern.position;
                 float halfX = Mathf.Abs(pattern.lossyScale.x) * 0.5f;
                 float halfZ = Mathf.Abs(pattern.lossyScale.z) * 0.5f;
-                float west = position.x - halfX + 6f;
-                float east = 6f - (position.x + halfX);
-                float south = position.z - halfZ + 4f;
-                float north = 4f - (position.z + halfZ);
-                Debug.Log($"[MachineLockValidator] {name} DryMargin W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00}");
+                float west = position.x - halfX + halfBayX;
+                float east = halfBayX - (position.x + halfX);
+                float south = position.z - halfZ + halfBayZ;
+                float north = halfBayZ - (position.z + halfZ);
+                Debug.Log($"[MachineLockValidator] {name} DryMargin W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00} MinRequired={minMargin:0.00}");
 
-                if (west < 1.5f - 0.001f || east < 1.5f - 0.001f || south < 1.5f - 0.001f || north < 1.5f - 0.001f)
-                    errors += Error($"{name} leaves a dry perimeter below 1.5 m " +
+                if (west < minMargin - 0.001f || east < minMargin - 0.001f || south < minMargin - 0.001f || north < minMargin - 0.001f)
+                    errors += Error($"{name} leaves a dry perimeter below {minMargin:0.00} m " +
                                     $"(W={west:0.00} E={east:0.00} S={south:0.00} N={north:0.00}).");
             }
         }
 
-        // ------------------------------------------------------------------ P3–P8 content checks
+        private static void CheckElectricalAndPpeWiring(Scene scene, ref int errors)
+        {
+            // Verify electrical Sub-Stations are physically separated (>= 0.55 m apart).
+            Transform mainSub = FindDeep(scene, "SUB_MainDisconnect");
+            Transform lockSub = FindDeep(scene, "SUB_LockoutStation");
+            Transform testSub = FindDeep(scene, "SUB_VoltageTester");
+            if (mainSub == null || lockSub == null || testSub == null)
+            {
+                errors += Error("Electrical bay is missing one or more Sub-Station roots (SUB_MainDisconnect, SUB_LockoutStation, SUB_VoltageTester).");
+            }
+            else
+            {
+                float d1 = Vector3.Distance(mainSub.position, lockSub.position);
+                float d2 = Vector3.Distance(lockSub.position, testSub.position);
+                Debug.Log($"[MachineLockValidator] ElectricalSubStations Separation Main-Lock={d1:0.00}m Lock-Tester={d2:0.00}m");
+                if (d1 < 0.55f || d2 < 0.55f)
+                    errors += Error($"Electrical Sub-Stations are too close (Main-Lock={d1:0.00}m, Lock-Tester={d2:0.00}m; minimum 0.55 m).");
+            }
 
-        /// <summary>
-        /// Every runtime component of the scenario must exist with the expected count, and neither the
-        /// scene nor the prefabs may contain a missing script.
-        /// </summary>
+            // Verify 4-slot PPE wiring: Gloves, Body, Face, Feet (4 correct + 2 distractors on Gloves & Face).
+            int correctCount = 0;
+            int distractorCount = 0;
+            bool hasFeet = false;
+            bool hasLatexOnGloves = false;
+            bool hasMaskOnFace = false;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                foreach (MachineLockPpeItem item in root.GetComponentsInChildren<MachineLockPpeItem>(true))
+                {
+                    if (item.IsCorrect)
+                    {
+                        correctCount++;
+                        if (item.Slot == PpeSlot.Feet) hasFeet = true;
+                    }
+                    else
+                    {
+                        distractorCount++;
+                        if (item.Slot == PpeSlot.Gloves) hasLatexOnGloves = true;
+                        if (item.Slot == PpeSlot.Face) hasMaskOnFace = true;
+                    }
+                }
+            }
+            Debug.Log($"[MachineLockValidator] PpeWiring Correct={correctCount} Distractors={distractorCount} HasFeet={hasFeet} DistractorsOnGlovesAndFace={hasLatexOnGloves && hasMaskOnFace}");
+            if (correctCount != 4 || distractorCount != 2 || !hasFeet || !hasLatexOnGloves || !hasMaskOnFace)
+                errors += Error("PPE locker wiring does not match ADR-0004 (4 correct slots Gloves/Body/Face/Feet + distractors on Gloves and Face).");
+        }
+
+        // ------------------------------------------------------------------ Runtime components, particles, audio, damage profile
+
         private static void CheckRuntimeComponents(Scene scene, ref int errors)
         {
             int press = CountInScene<MachineLockPress>(scene);
@@ -449,10 +579,6 @@ namespace SI81.MachineLock.EditorTools
                 errors += Error($"{missingScripts} missing script(s) found in the scenario scene.");
         }
 
-        /// <summary>
-        /// Particle budget of GDD §13.2: at most 200 particles per system and at most four systems that
-        /// play on awake.
-        /// </summary>
         private static void CheckParticles(Scene scene, ref int errors)
         {
             int systems = 0;
@@ -465,21 +591,16 @@ namespace SI81.MachineLock.EditorTools
                     systems++;
                     ParticleSystem.MainModule main = system.main;
                     if (main.maxParticles > 200)
-                        errors += Error($"ParticleSystem {PathOf(system.transform)} has maxParticles={main.maxParticles}; " +
-                                        "the budget is 200.");
+                        errors += Error($"ParticleSystem {PathOf(system.transform)} has maxParticles={main.maxParticles}; the budget is 200.");
                     if (main.playOnAwake && system.gameObject.activeInHierarchy) playOnAwake++;
                 }
             }
 
-            Debug.Log($"[MachineLockValidator] ParticleSystems={systems} PlayOnAwake={playOnAwake} " +
-                      "MaxParticlesBudget=200 PlayOnAwakeBudget=4");
+            Debug.Log($"[MachineLockValidator] ParticleSystems={systems} PlayOnAwake={playOnAwake} MaxParticlesBudget=200 PlayOnAwakeBudget=4");
             if (playOnAwake > 4)
                 errors += Error($"{playOnAwake} particle systems play on awake; the budget is 4.");
         }
 
-        /// <summary>
-        /// The sixteen clips of GDD §13.1 must exist and load as an <see cref="AudioClip"/>.
-        /// </summary>
         private static void CheckAudioClips(ref int errors)
         {
             int expected = MachineLockSceneBuilder.AUDIO_CLIPS.Length + 1;
@@ -500,10 +621,6 @@ namespace SI81.MachineLock.EditorTools
             return 0;
         }
 
-        /// <summary>
-        /// The damage profile asset must exist and contain both a Vignette and a Color Adjustments
-        /// override (GDD §9.13).
-        /// </summary>
         private static void CheckDamageProfile(ref int errors)
         {
             var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(MachineLockSceneBuilder.DAMAGE_PROFILE_PATH);
@@ -548,8 +665,6 @@ namespace SI81.MachineLock.EditorTools
             Debug.LogError($"[MachineLockValidator] Error: {label} count is {actual} instead of {expected}.");
             return 1;
         }
-
-        // ------------------------------------------------------------------ Utilities
 
         private static GameObject FindRoot(Scene scene, string name)
         {

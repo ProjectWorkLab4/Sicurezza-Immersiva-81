@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using SI81.Rig;
 using SI81.UI;
@@ -8,37 +9,50 @@ using UnityEngine.Rendering.Universal;
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Damage feedback of the Machine Lock scenario (GDD §9.13): a red URP Vignette pulse that fades in,
-    /// holds and fades out, a one-shot clip, a haptic pulse on the dominant hand and, when the damage
-    /// volume cannot render, a red light flash plus the "Danno!" HUD feedback. The component owns the
-    /// damage <see cref="Volume"/> (its <c>weight</c> is animated here) and the fallback light; it never
-    /// creates a camera, an audio listener or a canvas, it does not attach anything to the head.
+    /// Damage feedback of the Machine Lock scenario (GDD §9.13, ADR-0003). Inspects whether the active
+    /// camera has URP post-processing enabled (<see cref="UniversalAdditionalCameraData.renderPostProcessing"/>).
+    /// When URP post-processing is active and the damage volume is valid, drives the global URP Vignette.
+    /// When camera post-processing is disabled (as on the shared <c>MNG_CoreRig</c> on Quest 3) or the
+    /// volume is unavailable, automatically engages the scenario-owned visual path: a head-aligned peripheral
+    /// red vignette overlay mesh (unlit, stereo-safe, never creating a camera or Canvas), a red point-light
+    /// pulse, strong dual-hand Haptics, and a smooth brief dark respawn blink (<c>0.3 s</c>) synchronized
+    /// with the Guided respawn teleport. Respects <c>accessibility.reduce_flashes</c>.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Damage Feedback")]
     public sealed class MachineLockDamageFeedback : MonoBehaviour
     {
-        /// <summary>Intensity of <see cref="PlayMinor"/> relative to the critical pulse.</summary>
         private const float MINOR_INTENSITY_SCALE = 0.35f;
+        private const float OVERLAY_DISTANCE = 0.36f;
+        private const float OVERLAY_SCALE = 1.25f;
+        private const float DEFAULT_RESPAWN_BLINK_HALF_SECONDS = 0.15f;
 
-        /// <summary>Colour the optional Color Adjustments override is pulled to during a critical pulse.</summary>
         private static readonly Color DamageTint = new Color(1f, 0.72f, 0.68f, 1f);
+        private static readonly Color OverlayRedColor = new Color(0.88f, 0.04f, 0.04f, 1f);
+        private static readonly Color OverlayDarkColor = new Color(0.02f, 0.02f, 0.03f, 1f);
+
+        private static readonly int ColorPropId = Shader.PropertyToID("_Color");
+        private static readonly int BaseColorPropId = Shader.PropertyToID("_BaseColor");
+        private static readonly int IntensityPropId = Shader.PropertyToID("_Intensity");
+        private static readonly int FullScreenFadePropId = Shader.PropertyToID("_FullScreenFade");
 
         [Header("Damage volume (URP)")]
-        [Tooltip("Volume that holds the red Vignette override (and optionally a mild Color Adjustments override). " +
-                 "This component animates its weight; keep the weight at 0 when no damage is shown.")]
+        [Tooltip("Volume holding the red Vignette override. Driven when active camera post-processing is enabled.")]
         [SerializeField] private Volume damageVolume;
 
-        [Tooltip("Red point light used when the damage volume cannot render. Keep it non-shadow-casting, " +
-                 "with intensity 0; this component flashes it near the player's head.")]
+        [Tooltip("Red point light pulsed near the player's head in the scenario-owned visual path. Non-shadow-casting, intensity 0 at rest.")]
         [SerializeField] private Light fallbackFlashLight;
+
+        [Header("Scenario-owned overlay (ADR-0003)")]
+        [Tooltip("Optional pre-authored overlay material using SI81/MachineLock/DamageOverlay. Created at runtime if empty.")]
+        [SerializeField] private Material overlayMaterialAsset;
 
         [Header("Audio")]
         [Tooltip("AudioSource used for the one-shot critical clips. 2D, Play On Awake off.")]
         [SerializeField] private AudioSource oneShotAudio;
         [Tooltip("Clip played for CriticalEvent.LiveOilShock.")]
         [SerializeField] private AudioClip shockClip;
-        [Tooltip("Clip played for every critical event that is not a shock or a steam event (hot oil, press contact).")]
+        [Tooltip("Clip played for hot oil, wrong PPE, press contact, and unisolated try-start.")]
         [SerializeField] private AudioClip burnClip;
         [Tooltip("Clip played for CriticalEvent.WaterExtinguisher.")]
         [SerializeField] private AudioClip steamClip;
@@ -49,30 +63,46 @@ namespace SI81.MachineLock
         [Tooltip("Hold of a critical pulse.")]
         [SerializeField] private float holdSeconds = 0.5f;
         [Tooltip("Fade-out of a critical pulse.")]
-        [SerializeField] private float fadeOutSeconds = 2.0f;
+        [SerializeField] private float fadeOutSeconds = 1.5f;
 
         [Header("Intensity")]
-        [Tooltip("Peak weight of the damage volume during a critical pulse.")]
+        [Tooltip("Peak weight of the URP damage volume during a critical pulse.")]
         [SerializeField] private float maxVignetteIntensity = 0.55f;
-        [Tooltip("Peak intensity of the fallback light flash (a critical pulse only lasts a few tenths of a second).")]
+        [Tooltip("Peak alpha/intensity of the scenario-owned peripheral red vignette overlay.")]
+        [SerializeField] private float maxOverlayIntensity = 0.85f;
+        [Tooltip("Peak intensity of the fallback red point-light pulse.")]
         [SerializeField] private float fallbackLightIntensity = 3.0f;
 
         [Header("Testing")]
-        [Tooltip("Force the light and HUD fallback even when the damage volume is ready. Editor and QA use only.")]
+        [Tooltip("Force the scenario-owned overlay + light path even when camera post-processing is enabled.")]
         [SerializeField] private bool forceFallbackForTesting;
 
-        // Active pulse coroutine (null when nothing is playing).
         private Coroutine pulse;
-        // Optional Color Adjustments override of the damage profile.
+        private Coroutine respawnBlinkRoutine;
         private ColorAdjustments colorAdjustments;
-        // Authored colour filter of the Color Adjustments override, restored when the pulse ends.
         private Color authoredFilter = Color.white;
-        // true when authoredFilter was captured from the profile.
         private bool tintCaptured;
 
-        /// <summary>
-        /// Clears the visual state and enforces the fallback light defaults (no shadows, intensity 0).
-        /// </summary>
+        private GameObject overlayObject;
+        private MeshRenderer overlayRenderer;
+        private Material runtimeOverlayMaterial;
+        private MaterialPropertyBlock overlayBlock;
+        private float currentOverlayIntensity;
+        private float currentBlinkIntensity;
+        private bool usesCustomOverlayShader;
+
+        /// <summary>true while the scenario-owned head-aligned overlay quad is actively rendering.</summary>
+        public bool IsScenarioOverlayActive => overlayRenderer != null && overlayRenderer.enabled;
+
+        /// <summary>Current normalized 0..1 intensity of the scenario-owned overlay (vignette or blink).</summary>
+        public float CurrentOverlayIntensity => Mathf.Max(currentOverlayIntensity, currentBlinkIntensity);
+
+        /// <summary>true when the last triggered feedback used the scenario-owned path instead of the URP Volume.</summary>
+        public bool LastUsedScenarioOverlayPath { get; private set; }
+
+        /// <summary>true while the brief dark respawn blink coroutine is running.</summary>
+        public bool IsRespawnBlinkActive => respawnBlinkRoutine != null;
+
         private void Awake()
         {
             if (fallbackFlashLight != null)
@@ -80,59 +110,74 @@ namespace SI81.MachineLock
                 fallbackFlashLight.shadows = LightShadows.None;
                 fallbackFlashLight.intensity = 0f;
             }
+            overlayBlock = new MaterialPropertyBlock();
             ResetVisuals();
         }
 
-        /// <summary>
-        /// Stops the pulse when the component or its GameObject is disabled.
-        /// </summary>
+        private void LateUpdate()
+        {
+            if (overlayRenderer == null || !overlayRenderer.enabled) return;
+            AlignOverlayToHead();
+        }
+
         private void OnDisable()
         {
             Clear();
         }
 
-        /// <summary>
-        /// Stops the pulse when the component is destroyed.
-        /// </summary>
         private void OnDestroy()
         {
             Clear();
+            if (runtimeOverlayMaterial != null)
+            {
+                Destroy(runtimeOverlayMaterial);
+                runtimeOverlayMaterial = null;
+            }
+            if (overlayObject != null)
+            {
+                Destroy(overlayObject);
+                overlayObject = null;
+            }
         }
 
         // =====================================================================
-        // Public API (GDD §14.3)
+        // Public API (GDD §14.3, ADR-0003)
         // =====================================================================
 
         /// <summary>
-        /// Critical damage: plays the matching one-shot clip, pulses the dominant hand, then fades the
-        /// damage vignette in, holds it and fades it out. When the volume is missing, has no profile, has
-        /// no Vignette override, is disabled or <see cref="forceFallbackForTesting"/> is set, the fallback
-        /// runs instead: red light flash near the head plus the "Danno!" action feedback.
+        /// Critical damage: plays the matching one-shot clip, fires strong dual-hand haptics, and drives
+        /// either the URP damage volume (when active camera post-processing is on) or the scenario-owned
+        /// head-aligned peripheral red vignette overlay + red point-light pulse + Action Feedback.
         /// </summary>
-        /// <param name="evt">Critical event that decides which clip plays.</param>
         public void PlayCritical(CriticalEvent evt = CriticalEvent.HotOilBurn)
         {
             PlayClip(SelectClip(evt));
-            if (HUDService.IsReady) HUDService.Pulse(0.85f, 0.35f, false);
+            if (HUDService.IsReady)
+            {
+                // Dual-hand strong haptic warning on both dominant and non-dominant controllers.
+                HUDService.Pulse(0.90f, 0.40f, false);
+                HUDService.Pulse(0.85f, 0.35f, true);
+            }
 
             bool reducedFlashes = ReduceFlashes;
             if (ResolveVolumePath())
             {
-                // A smooth fade is not a flash: the peak is only lowered when the player asked for fewer flashes.
-                float peak = reducedFlashes ? maxVignetteIntensity * 0.75f : maxVignetteIntensity;
-                StartPulse(fadeInSeconds, holdSeconds, fadeOutSeconds, Mathf.Clamp01(peak), false);
+                LastUsedScenarioOverlayPath = false;
+                float peak = reducedFlashes ? maxVignetteIntensity * 0.65f : maxVignetteIntensity;
+                StartPulse(fadeInSeconds, holdSeconds, fadeOutSeconds, Mathf.Clamp01(peak), false, reducedFlashes);
                 return;
             }
 
-            // Fallback: text and haptic always carry the event, the light flash is the only bright part.
+            LastUsedScenarioOverlayPath = true;
             if (HUDService.IsReady) HUDService.ShowActionFeedback("Danno!", FeedbackKind.Negative);
-            if (reducedFlashes) return;
-            StartPulse(0.05f, 0f, 0.3f, fallbackLightIntensity, true);
+
+            float overlayPeak = reducedFlashes ? maxOverlayIntensity * 0.48f : maxOverlayIntensity;
+            float fadeIn = reducedFlashes ? Mathf.Max(fadeInSeconds, 0.28f) : fadeInSeconds;
+            StartPulse(fadeIn, holdSeconds, fadeOutSeconds, Mathf.Clamp01(overlayPeak), true, reducedFlashes);
         }
 
         /// <summary>
-        /// Minor damage: a short mild vignette pulse (0.1 s in, 0.2 s hold, 0.6 s out) and a light haptic
-        /// pulse. No audio and no HUD feedback, so repeated contacts do not spam the wrist panel.
+        /// Minor damage: short mild vignette pulse and light haptic pulse without audio or HUD spam.
         /// </summary>
         public void PlayMinor()
         {
@@ -141,18 +186,42 @@ namespace SI81.MachineLock
             bool reducedFlashes = ReduceFlashes;
             if (ResolveVolumePath())
             {
+                LastUsedScenarioOverlayPath = false;
                 float peak = maxVignetteIntensity * MINOR_INTENSITY_SCALE;
-                if (reducedFlashes) peak *= 0.75f;
-                StartPulse(0.1f, 0.2f, 0.6f, Mathf.Clamp01(peak), false);
+                if (reducedFlashes) peak *= 0.65f;
+                StartPulse(0.1f, 0.2f, 0.6f, Mathf.Clamp01(peak), false, reducedFlashes);
                 return;
             }
-            if (reducedFlashes) return;
-            StartPulse(0.04f, 0f, 0.2f, fallbackLightIntensity * MINOR_INTENSITY_SCALE, true);
+
+            LastUsedScenarioOverlayPath = true;
+            float overlayPeak = maxOverlayIntensity * MINOR_INTENSITY_SCALE * (reducedFlashes ? 0.5f : 1f);
+            StartPulse(0.1f, 0.15f, 0.5f, Mathf.Clamp01(overlayPeak), true, reducedFlashes);
         }
 
         /// <summary>
-        /// Stops the active pulse and resets every visual: the damage volume weight, the fallback light
-        /// intensity and the authored colour filter of the profile.
+        /// Plays a brief smooth dark fade-out / fade-in blink (default 0.3 s total: 0.15 s down, midpoint
+        /// callback for teleport, 0.15 s back up) across Guided respawn so teleportation feels comfortable.
+        /// </summary>
+        public Coroutine PlayRespawnBlink(float halfDurationSeconds = DEFAULT_RESPAWN_BLINK_HALF_SECONDS,
+            Action onMidpoint = null)
+        {
+            if (!isActiveAndEnabled)
+            {
+                onMidpoint?.Invoke();
+                return null;
+            }
+            if (respawnBlinkRoutine != null)
+            {
+                StopCoroutine(respawnBlinkRoutine);
+                respawnBlinkRoutine = null;
+            }
+            respawnBlinkRoutine = StartCoroutine(RespawnBlinkRoutine(Mathf.Max(0.05f, halfDurationSeconds), onMidpoint));
+            return respawnBlinkRoutine;
+        }
+
+        /// <summary>
+        /// Stops every active pulse/blink and resets the damage volume, scenario overlay mesh, fallback
+        /// light, and authored colour filter cleanly.
         /// </summary>
         public void Clear()
         {
@@ -161,85 +230,119 @@ namespace SI81.MachineLock
                 StopCoroutine(pulse);
                 pulse = null;
             }
+            if (respawnBlinkRoutine != null)
+            {
+                StopCoroutine(respawnBlinkRoutine);
+                respawnBlinkRoutine = null;
+            }
             ResetVisuals();
         }
 
         // =====================================================================
-        // Pulse
+        // Pulse & Respawn Blink
         // =====================================================================
 
-        /// <summary>
-        /// Starts a fade-in, hold and fade-out pulse, restarting any pulse already running.
-        /// </summary>
-        /// <param name="fadeIn">Fade-in duration in seconds.</param>
-        /// <param name="hold">Hold duration in seconds.</param>
-        /// <param name="fadeOut">Fade-out duration in seconds.</param>
-        /// <param name="peak">Peak amount (volume weight, or light intensity when <paramref name="lightPath"/>).</param>
-        /// <param name="lightPath">true to drive the fallback light instead of the damage volume.</param>
-        private void StartPulse(float fadeIn, float hold, float fadeOut, float peak, bool lightPath)
+        private void StartPulse(float fadeIn, float hold, float fadeOut, float peak, bool scenarioOverlayPath,
+            bool reducedFlashes)
         {
             if (pulse != null)
             {
                 StopCoroutine(pulse);
                 pulse = null;
             }
-            // Clear both visual paths first, so switching between volume and light never leaves a stale value.
-            ResetVisuals();
-            if (!isActiveAndEnabled)
+            ResetDamageVisualsOnly();
+            if (!isActiveAndEnabled) return;
+
+            if (scenarioOverlayPath)
             {
-                return;
+                EnsureOverlayMesh();
+                AlignOverlayToHead();
+                if (!reducedFlashes) PlaceFallbackLight();
             }
-            if (lightPath) PlaceFallbackLight();
-            pulse = StartCoroutine(PulseRoutine(fadeIn, hold, fadeOut, peak, lightPath));
+            pulse = StartCoroutine(PulseRoutine(fadeIn, hold, fadeOut, peak, scenarioOverlayPath, reducedFlashes));
         }
 
-        /// <summary>
-        /// Frame-rate independent envelope: fade-in, hold, fade-out, then back to zero.
-        /// </summary>
-        private IEnumerator PulseRoutine(float fadeIn, float hold, float fadeOut, float peak, bool lightPath)
+        private IEnumerator PulseRoutine(float fadeIn, float hold, float fadeOut, float peak,
+            bool scenarioOverlayPath, bool reducedFlashes)
         {
-            float fadeInTime = Mathf.Max(0f, fadeIn);
+            float fadeInTime = Mathf.Max(0.001f, fadeIn);
             float holdTime = Mathf.Max(0f, hold);
-            float fadeOutTime = Mathf.Max(0f, fadeOut);
+            float fadeOutTime = Mathf.Max(0.001f, fadeOut);
             float elapsed = 0f;
 
             while (elapsed < fadeInTime)
             {
                 elapsed += Time.deltaTime;
-                SetEnvelope(lightPath, Mathf.Clamp01(elapsed / fadeInTime) * peak, peak);
+                float t = Mathf.Clamp01(elapsed / fadeInTime);
+                ApplyPulseEnvelope(scenarioOverlayPath, t * peak, peak, t, reducedFlashes);
                 yield return null;
             }
 
-            SetEnvelope(lightPath, peak, peak);
+            ApplyPulseEnvelope(scenarioOverlayPath, peak, peak, 1f, reducedFlashes);
             if (holdTime > 0f) yield return new WaitForSeconds(holdTime);
 
             elapsed = 0f;
             while (elapsed < fadeOutTime)
             {
                 elapsed += Time.deltaTime;
-                SetEnvelope(lightPath, (1f - Mathf.Clamp01(elapsed / fadeOutTime)) * peak, peak);
+                float remaining = 1f - Mathf.Clamp01(elapsed / fadeOutTime);
+                ApplyPulseEnvelope(scenarioOverlayPath, remaining * peak, peak, remaining, reducedFlashes);
                 yield return null;
             }
 
-            SetEnvelope(lightPath, 0f, peak);
+            ApplyPulseEnvelope(scenarioOverlayPath, 0f, peak, 0f, reducedFlashes);
             pulse = null;
         }
 
-        /// <summary>
-        /// Applies one envelope step to the damage volume (with the optional colour tint) or to the light.
-        /// </summary>
-        /// <param name="lightPath">true to drive the fallback light.</param>
-        /// <param name="amount">Current envelope amount.</param>
-        /// <param name="peak">Peak amount of the running pulse.</param>
-        private void SetEnvelope(bool lightPath, float amount, float peak)
+        private IEnumerator RespawnBlinkRoutine(float halfDuration, Action onMidpoint)
         {
-            if (lightPath)
+            EnsureOverlayMesh();
+            AlignOverlayToHead();
+
+            bool reduced = ReduceFlashes;
+            float peak = reduced ? 0.65f : 0.94f;
+            float elapsed = 0f;
+            while (elapsed < halfDuration)
             {
+                elapsed += Time.deltaTime;
+                currentBlinkIntensity = Mathf.Clamp01(elapsed / halfDuration) * peak;
+                RefreshOverlayRender();
+                yield return null;
+            }
+
+            currentBlinkIntensity = peak;
+            RefreshOverlayRender();
+            onMidpoint?.Invoke();
+            AlignOverlayToHead();
+
+            elapsed = 0f;
+            while (elapsed < halfDuration)
+            {
+                elapsed += Time.deltaTime;
+                currentBlinkIntensity = (1f - Mathf.Clamp01(elapsed / halfDuration)) * peak;
+                RefreshOverlayRender();
+                yield return null;
+            }
+
+            currentBlinkIntensity = 0f;
+            RefreshOverlayRender();
+            respawnBlinkRoutine = null;
+        }
+
+        private void ApplyPulseEnvelope(bool scenarioOverlayPath, float amount, float peak, float normalized,
+            bool reducedFlashes)
+        {
+            if (scenarioOverlayPath)
+            {
+                currentOverlayIntensity = Mathf.Clamp01(amount);
+                RefreshOverlayRender();
+
                 if (fallbackFlashLight != null)
                 {
-                    fallbackFlashLight.intensity = Mathf.Max(0f, amount);
-                    // Keep the light out of the realtime budget again as soon as the pulse is over.
-                    fallbackFlashLight.enabled = amount > 0f;
+                    // Soften or skip the point-light flash under reduced flashes; overlay carries visual cue.
+                    float lightAmount = reducedFlashes ? 0f : fallbackLightIntensity * Mathf.Pow(Mathf.Clamp01(normalized), 2f);
+                    fallbackFlashLight.intensity = Mathf.Max(0f, lightAmount);
+                    fallbackFlashLight.enabled = lightAmount > 0.01f;
                 }
                 return;
             }
@@ -250,35 +353,142 @@ namespace SI81.MachineLock
             colorAdjustments.colorFilter.value = Color.Lerp(authoredFilter, DamageTint, blend);
         }
 
-        /// <summary>
-        /// Puts every visual back to its idle state and restores the authored colour filter.
-        /// </summary>
-        private void ResetVisuals()
+        private void RefreshOverlayRender()
         {
+            if (overlayRenderer == null) return;
+
+            bool blinkDominates = currentBlinkIntensity > 0.001f;
+            float activeIntensity = blinkDominates ? currentBlinkIntensity : currentOverlayIntensity;
+            bool visible = activeIntensity > 0.001f;
+
+            overlayRenderer.enabled = visible;
+            if (!visible) return;
+
+            AlignOverlayToHead();
+            Color tint = blinkDominates ? OverlayDarkColor : OverlayRedColor;
+            float fullScreen = blinkDominates ? 1f : 0f;
+
+            if (overlayBlock == null) overlayBlock = new MaterialPropertyBlock();
+            overlayRenderer.GetPropertyBlock(overlayBlock);
+            if (usesCustomOverlayShader)
+            {
+                overlayBlock.SetColor(ColorPropId, tint);
+                overlayBlock.SetFloat(IntensityPropId, activeIntensity);
+                overlayBlock.SetFloat(FullScreenFadePropId, fullScreen);
+            }
+            else
+            {
+                Color fallbackTint = new Color(tint.r, tint.g, tint.b, activeIntensity * (blinkDominates ? 0.9f : 0.45f));
+                overlayBlock.SetColor(BaseColorPropId, fallbackTint);
+                overlayBlock.SetColor(ColorPropId, fallbackTint);
+            }
+            overlayRenderer.SetPropertyBlock(overlayBlock);
+        }
+
+        private void ResetDamageVisualsOnly()
+        {
+            currentOverlayIntensity = 0f;
             if (damageVolume != null) damageVolume.weight = 0f;
             if (fallbackFlashLight != null)
             {
                 fallbackFlashLight.intensity = 0f;
-                // An idle fallback light must not count against the two-realtime-light budget.
                 fallbackFlashLight.enabled = false;
             }
             if (tintCaptured && colorAdjustments != null) colorAdjustments.colorFilter.value = authoredFilter;
+            RefreshOverlayRender();
+        }
+
+        private void ResetVisuals()
+        {
+            currentBlinkIntensity = 0f;
+            ResetDamageVisualsOnly();
         }
 
         // =====================================================================
-        // Resolution helpers
+        // Overlay mesh & camera inspection helpers
         // =====================================================================
 
+        private void EnsureOverlayMesh()
+        {
+            if (overlayObject != null && overlayRenderer != null) return;
+
+            overlayObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            overlayObject.name = "VFX_ScenarioDamageOverlay";
+            overlayObject.transform.SetParent(transform, false);
+            overlayObject.transform.localScale = new Vector3(OVERLAY_SCALE, OVERLAY_SCALE, 1f);
+
+            Collider col = overlayObject.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            overlayRenderer = overlayObject.GetComponent<MeshRenderer>();
+            overlayRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            overlayRenderer.receiveShadows = false;
+            overlayRenderer.lightProbeUsage = LightProbeUsage.Off;
+            overlayRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+
+            if (overlayMaterialAsset != null)
+            {
+                overlayRenderer.sharedMaterial = overlayMaterialAsset;
+                usesCustomOverlayShader = overlayMaterialAsset.HasProperty(IntensityPropId);
+            }
+            else
+            {
+                Shader shader = Shader.Find("SI81/MachineLock/DamageOverlay");
+                if (shader != null)
+                {
+                    runtimeOverlayMaterial = new Material(shader);
+                    usesCustomOverlayShader = true;
+                }
+                else
+                {
+                    Shader unlit = Shader.Find("Universal Render Pipeline/Unlit");
+                    if (unlit == null) unlit = Shader.Find("Sprites/Default");
+                    runtimeOverlayMaterial = new Material(unlit);
+                    ConfigureTransparentFallback(runtimeOverlayMaterial);
+                    usesCustomOverlayShader = false;
+                }
+                overlayRenderer.sharedMaterial = runtimeOverlayMaterial;
+            }
+
+            overlayRenderer.enabled = false;
+        }
+
+        private static void ConfigureTransparentFallback(Material mat)
+        {
+            if (mat == null) return;
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+            if (mat.HasProperty("_SrcBlend")) mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+            mat.renderQueue = (int)RenderQueue.Overlay;
+        }
+
+        private void AlignOverlayToHead()
+        {
+            if (overlayObject == null) return;
+            Transform head = ResolveHeadTransform();
+            if (head == null) return;
+            overlayObject.transform.SetPositionAndRotation(
+                head.position + head.forward * OVERLAY_DISTANCE,
+                head.rotation);
+        }
+
         /// <summary>
-        /// Resolves the damage profile overrides and says whether the volume path can run. The profile
-        /// must exist and contain a Vignette; the Color Adjustments override is optional and its authored
-        /// colour filter is captured so the pulse can restore it.
+        /// Checks whether the URP global Volume can actually render on the active camera. Returns false
+        /// whenever <see cref="UniversalAdditionalCameraData.renderPostProcessing"/> is false on the active
+        /// camera (ADR-0003), engaging the scenario-owned visual overlay automatically.
         /// </summary>
-        /// <returns>true when the damage volume can show the pulse.</returns>
         private bool ResolveVolumePath()
         {
             if (forceFallbackForTesting || damageVolume == null) return false;
             if (!damageVolume.enabled || !damageVolume.isActiveAndEnabled) return false;
+
+            Camera activeCamera = ResolveActiveCamera();
+            if (activeCamera != null)
+            {
+                UniversalAdditionalCameraData cameraData = activeCamera.GetComponent<UniversalAdditionalCameraData>();
+                if (cameraData == null || !cameraData.renderPostProcessing) return false;
+            }
 
             VolumeProfile profile = damageVolume.profile;
             if (profile == null) return false;
@@ -304,58 +514,50 @@ namespace SI81.MachineLock
             return true;
         }
 
-        /// <summary>
-        /// Moves the fallback light next to the player's head (the shared rig, or the main camera when a
-        /// scene has no rig). Never creates a camera: it only reads the one already in the scene.
-        /// </summary>
-        private void PlaceFallbackLight()
+        private static Camera ResolveActiveCamera()
         {
-            if (fallbackFlashLight == null) return;
-
-            fallbackFlashLight.enabled = true;
             Transform head = RigRegistration.Instance != null ? RigRegistration.Instance.Head : null;
             if (head != null)
             {
-                fallbackFlashLight.transform.position = head.position;
-                return;
+                Camera headCam = head.GetComponent<Camera>();
+                if (headCam == null) headCam = head.GetComponentInChildren<Camera>();
+                if (headCam != null && headCam.enabled) return headCam;
             }
-
-            Camera mainCamera = Camera.main;
-            if (mainCamera != null) fallbackFlashLight.transform.position = mainCamera.transform.position;
+            return Camera.main;
         }
 
-        /// <summary>
-        /// Picks the clip of a critical event: shock, steam, or burn for everything else.
-        /// </summary>
-        /// <param name="evt">Critical event.</param>
-        /// <returns>Clip to play, or null when none is assigned.</returns>
+        private static Transform ResolveHeadTransform()
+        {
+            Transform head = RigRegistration.Instance != null ? RigRegistration.Instance.Head : null;
+            if (head != null) return head;
+            Camera main = Camera.main;
+            return main != null ? main.transform : null;
+        }
+
+        private void PlaceFallbackLight()
+        {
+            if (fallbackFlashLight == null) return;
+            fallbackFlashLight.enabled = true;
+            Transform head = ResolveHeadTransform();
+            if (head != null) fallbackFlashLight.transform.position = head.position;
+        }
+
         private AudioClip SelectClip(CriticalEvent evt)
         {
             switch (evt)
             {
-                case CriticalEvent.LiveOilShock:
-                    return shockClip;
-                case CriticalEvent.WaterExtinguisher:
-                    return steamClip;
-                default:
-                    return burnClip;
+                case CriticalEvent.LiveOilShock: return shockClip;
+                case CriticalEvent.WaterExtinguisher: return steamClip;
+                default: return burnClip;
             }
         }
 
-        /// <summary>
-        /// Plays one clip on the shared one-shot source, if both the clip and the source exist.
-        /// </summary>
-        /// <param name="clip">Clip to play.</param>
         private void PlayClip(AudioClip clip)
         {
             if (clip == null || oneShotAudio == null) return;
             oneShotAudio.PlayOneShot(clip);
         }
 
-        /// <summary>
-        /// true when the accessibility setting "reduce flashes" is on. Without a settings store the
-        /// feedback stays at its default (flashes allowed).
-        /// </summary>
         private static bool ReduceFlashes
         {
             get

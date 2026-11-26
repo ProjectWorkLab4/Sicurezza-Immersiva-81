@@ -3,10 +3,10 @@
 | Field | Value |
 |---|---|
 | Document | GDD_MachineLock.md |
-| Version | 1.1 |
+| Version | 1.2 (Issue #35 — ADR-0001..0004) |
 | Date | 2026-11-26 |
 | Owner | G_Marius |
-| Status | Approved for implementation — Guided playable, all three time modes implemented and tested |
+| Status | Approved for implementation — Guided playable, redesigned industrial hall & Quest 3 polish |
 | Source brief | Project Work VR — Scenario 5 Machine Lock (ID 8) |
 | Target | Unity 6000.3.14f1, Meta XR Core SDK 209.0.0, OpenXR 1.16.1, Quest 3, controllers only |
 | Playable scope | Guided. Operational and Crisis are locked for this PR; their time logic is implemented and unit-tested. |
@@ -149,108 +149,107 @@ These are mandatory. A violation breaks the shared application.
 1. **Weighted SPI.** The common UI normally computes the SPI as the simple average of five dimensions and the guide recommends passing `-1`. This scenario passes an explicit weighted score because the brief defines weights 20/20/40/15/5. The five dimension bars receive normalized 0–100 values. This deviation must be approved by Team Ludovica; if rejected, switch the SPI to equal weights.
 2. **Text-only DPI.** The brief asks for wrist icons; the common HUD has no DPI slot API. This version uses `SetHint` and alerts. A future HUD widget can replace it without changing gameplay logic.
 3. **No padlock prop.** Lockout is an abstract interaction on the panel with a red indicator and feedback. The procedure step and the score are preserved.
+4. **Low-poly Surgical Mask distractor.** `MASCHERINA.fbx` weighs `15,946` triangles for a 24 cm shelf distractor; `MachineLockSceneBuilder` models a crisp pleated blue disposable surgical mask (~72 tris) so the full `PFB_OldIndustrialBuilding` hall stays comfortably under the `100,000`-triangle Quest 3 budget (`90,356` tris).
 
 ---
 
 ## 7. Level design
 
-### 7.1 Room
+### 7.1 Room & Industrial Hall (ADR-0001)
 
-- Dimensions: **12 m (x) × 8 m (z) × 4 m (y)**.
+- Building shell: Shared `PFB_OldIndustrialBuilding.fbx` + `TEX_OldIndustrialBuilding/` (dedicated scenario-owned URP Lit materials; Android ASTC 1024/2048; 8K displacement map omitted; exterior `building top` roof removed on the scene instance to save 21,748 tris).
+- Active stamping bay: **18.0 m (x) × 11.0 m (z)** (`x ∈ [-9.0, +9.0]`, `z ∈ [-5.5, +5.5]`), ceiling fixtures at `y = 5.45 m`, bounded by shared safety barriers (`MESH_Magazzino_Barriera.fbx`) with scenic workshop shelving, barrels, pallets, and exhaust fan outside the active bay perimeter.
 - Floor at `y = 0`; the rig uses `CharacterController` and gravity.
-- One door on the **west** wall at `(-6, 0, 0)`, opening 1.2 m × 2.2 m. The door is always open.
-- The player spawns just inside the door, at `(-5.2, 0, 0)`, facing east toward the press.
-- The exit trigger is at the door, radius 1.0 m.
-- Yellow safety lines mark the dry perimeter and the press area.
-- Signage: `STAMPAGGIO`, `QUADRO GENERALE`, `DPI`, `KIT ANTISPANDIMENTO`, `USCITA`.
+- One wide unobstructed exit portal on the **west** side at `(-9.0, 0, 0)`, opening `2.0 m × 2.5 m`, always open, topped with an illuminated overhead `MESH_ExitBeacon` that turns bright green once `TaskEStop && TaskContainment`.
+- The player spawns just inside the west portal at `(-7.6, 0, 0)`, facing east (`yaw 90°`) toward the press and E-stop pedestal.
+- The exit trigger is at `(-9.0, 0, 0)`, radius `1.15 m`.
+- Yellow safety floor lanes frame the spill perimeter, the outer Dry Perimeter walkway, and station aprons.
+- Overhead signs (`STAMPAGGIO`, `QUADRO GENERALE`, `DPI`, `KIT ANTISPANDIMENTO`, `USCITA`) plus flush multi-line Diegetic Plaques (`TEX_Plaque_*`) on every station and PPE bay.
 
 ### 7.2 Press and puddle
 
-- The press is at the **centre** of the room, footprint **3.0 m × 2.5 m**, height 3.6 m.
-- The puddle is a **ring around the press**: outer ellipse approximately **7 m × 5 m**. The press footprint is the inner hole.
-- The dry perimeter is at least **1.5 m** wide on every side. The player can walk around the puddle without stepping in oil.
-- The leak is on the press east side; the jet feeds the east/south part of the ring. The visual is asymmetric but the ring closes around the machine.
+- The press is at the **centre** of the bay, footprint **3.0 m × 2.5 m**, height 3.6 m, finished with Polyhaven CC0 `MAT_PressSteel_Green` (`green_metal_rust`), twin hydraulic cylinders, and `MESH_PULSANTI_TEAM.fbx` control details.
+- The puddle is a **ring around the press**: outer footprint up to **7.0 m × 5.0 m**. The press footprint is the inner hole.
+- The **Dry Perimeter** is at least **2.5 m** wide on every side across all three Layout Patterns (A/B/C), guaranteeing comfortable Quest 3 locomotion around the spill.
+- The leak is on the press east manifold at `(2.05, 0.95, 0.55)`; an exposed steel pipe leads directly out to an unmissable bright red pulsing **Valve** at `(4.75, 0.95, 0.55)`, cleanly reachable from the Dry Perimeter without stepping in oil.
 - The press display and thermometer are on the **west face**, visible from the E-stop pedestal.
-- The E-stop mushroom is on a **free-standing pedestal** at `(-4.2, 0, 0)`, just outside the puddle. This is necessary because an on-press E-stop would be unreachable without crossing the oil; the pedestal is still “next to the machine” and is wired to it.
-- The press start/test button is on the same pedestal, labelled `TEST AVVIO`.
-- The main electrical panel is on the **east wall** at `(5.9, 0, 0)`, with the main switch, lockout point and voltage tester.
-- The alarm button is on the **west wall** at `(-5.9, 0, 1.8)`.
-- The valve is on the pipe near the **east wall** at `(5.2, 0, -0.5)`, outside the puddle.
-- The PPE cabinet is on the **south wall**, the spill kit in the **south-west** dry corner, the water extinguisher on the **north wall**.
-- Interactables are distributed on all four sides; the player must walk the dry perimeter.
+- The E-stop mushroom and green `TEST AVVIO` button sit on a free-standing industrial pedestal (`MESH_PULSANTI_TEAM.fbx` + Diegetic Plaque) at `(-5.6, 0, 0)`, facing west directly toward Spawn.
+- The main electrical bay on the **east wall** at `(8.72, 1.28, 0)` is expanded into **three physically separated (≥ 0.88 m), color-coded Sub-Stations**:
+  1. `Main Disconnect Switch` (red/slate, south sub-unit, `Quadro Elettrico.fbx` + `Manopola.fbx`)
+  2. `Lockout Station` (safety-yellow/black, center sub-unit, `MESH_PULSANTI_TEAM.fbx` + red LOCK LED)
+  3. `Voltage Tester` (cyan/blue, north sub-unit, `MESH_RilevatoreDiGas.fbx` + LIVE/ZERO LEDs)
+- The alarm button is mounted on an industrial post on the west-north side at `(-8.50, 1.45, 2.4)`.
+- The wide sliding-door PPE cabinet, red Spill Kit (`MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`), and Water Extinguisher (`Estintore.fbx` + `MESH_Folgorazione_CartelloEstintore.fbx`) are positioned per active Layout Pattern (A/B/C), always facing inward toward the Dry Perimeter.
 
 ### 7.3 Top-down reference
 
 ```
-z = +4  +--------------------------------------+
-        |  extinguisher (N)        valve (E)   |
-        |            +-----------+             |
-        |            |   PRESS   |  panel (E)  |
-        |            |  3 x 2.5  |             |
-        |            +-----------+             |
-        |          ( puddle ring )             |
-        |  E-stop pedestal       alarm (W)     |
-        |  spill kit (SW)        PPE (S)       |
-z = -4  +----------------[door W]--------------+
-       x = -6                               x = +6
+z = +5.5  +--------------------------------------------------+
+          |  [alarm W-N]        [extinguisher (pattern)]     |
+          |                     +-----------+                |
+          |  [exit W] [spawn]   |   PRESS   |  [valve E]     |
+          |     [E-stop ped.]   |  3 x 2.5  |  [3x Elec Bay] |
+          |                     +-----------+                |
+          |                  ( 7x5 puddle ring )             |
+          |  [spill kit (pattern)]      [PPE cabinet (pat.)] |
+z = -5.5  +--------------------------------------------------+
+        x = -9.0        (>= 2.5 m Dry Perimeter)          x = +9.0
 ```
 
 ### 7.4 Coordinate table
 
 | Element | Position (x, y, z) | Notes |
 |---|---|---|
-| Door / exit | (-6, 0, 0) | West wall; trigger radius 1.0 |
-| Spawn | (-5.2, 0, 0) | Facing east |
-| E-stop pedestal | (-4.2, 0, 0) | Outside puddle, west side |
-| Alarm button | (-5.9, 1.4, 1.8) | West wall |
-| Press | (0, 0, 0) | 3.0 × 2.5 footprint |
-| Puddle centre | (0, 0, 0) | Outer 7 × 5 ring |
-| Main panel | (5.9, 1.2, 0) | East wall |
-| Valve | (5.2, 1.0, -0.5) | East pipe, outside puddle |
-| PPE cabinet | (2.5, 0, -3.9) | South wall, pattern-dependent |
-| Spill kit | (-4.5, 0, -3.2) | South-west, pattern-dependent |
-| Water extinguisher | (3.5, 1.2, 3.9) | North wall, pattern-dependent |
-| Display | (-1.5, 1.5, -0.8) | Press west face |
-| Thermometer | (-1.5, 1.7, 0.2) | Press west face |
+| Door / exit | (-9.0, 0, 0) | West portal (2.0 × 2.5 m); trigger radius 1.15 m; overhead `MESH_ExitBeacon` |
+| Spawn | (-7.6, 0, 0) | Facing east (`yaw 90°`) |
+| E-stop pedestal | (-5.6, 0, 0) | Facing west toward spawn; outside puddle |
+| Alarm button | (-8.50, 1.45, 2.4) | West-north post facing east |
+| Press | (0, 0, 0) | 3.0 × 2.5 m footprint |
+| Puddle centre | (0, 0, 0) | Up to 7.0 × 5.0 m ring (pattern-dependent) |
+| Electrical bay (3 Sub-Stations) | (8.72, 1.28, 0) | East wall; Sub-Stations at local Z `-0.88`, `0`, `+0.88` |
+| Valve | (4.75, 0.95, 0.55) | East oil pipe, outside puddle, bright red pulsing cue |
+| PPE cabinet (Pattern A) | (2.8, 0, -5.12) | Wide sliding-door cabinet, pattern-dependent |
+| Spill kit (Pattern A) | (-5.2, 0, -4.35) | Red spill-kit bin, pattern-dependent |
+| Water extinguisher (Pattern A) | (4.2, 1.25, 5.22) | North wall, pattern-dependent |
+| Display | (-1.8, 1.62, -0.95) | Press west face |
+| Thermometer | (-1.6, 1.78, 0.25) | Press west face |
 
 ### 7.5 Safe path
 
-1. Enter from the west door.
-2. Walk 1.8 m east to the E-stop pedestal, staying on the dry floor.
-3. Press the E-stop.
-4. Press the alarm on the west wall.
-5. Walk around the puddle along the north or south dry strip to the east panel.
-6. Isolate and lock out.
-7. Return along the dry perimeter to the PPE cabinet and spill kit.
-8. Approach the puddle edge only after PPE and isolation.
-9. Place cones, mats and socks from the dry edge.
-10. Exit through the west door.
+1. Enter from the west portal at `(-7.6, 0, 0)`.
+2. Walk east to the E-stop pedestal at `(-5.6, 0, 0)` along the yellow entry lane.
+3. Press the red E-stop mushroom.
+4. Raise the alarm on the west-north post.
+5. Walk the spacious (`≥ 2.5 m`) Dry Perimeter to the east electrical bay.
+6. Operate Sub-Station 1 (Main Disconnect), Sub-Station 2 (Lockout), and Sub-Station 3 (Voltage Tester until ZERO), then verify Try-Start at the E-stop pedestal.
+7. Open the wide sliding-door PPE cabinet and equip all 4 correct PPE items (Heat Gloves, Chemical Apron, Face Shield, Safety Boots S3).
+8. Close the bright red Valve on the east oil pipe, then grab 4 cones and 4 absorbents from the Spill Kit and snap them onto the glowing Guided Containment Zones.
+9. Walk through the illuminated green west Exit portal to report to the supervisor.
 
 ### 7.6 Layout patterns
 
-Fixed: press, puddle centre, E-stop pedestal, alarm, panel, valve, tester, exit.
+Fixed: press, E-stop pedestal, alarm post, east electrical bay (3 Sub-Stations), east valve, west exit.
 
-Randomised at start (one of three patterns):
+Randomised at start (one of three spacious Layout Patterns in the `18 × 11 m` bay):
 
 | Pattern | PPE cabinet | Spill kit | Extinguisher | Puddle variant |
 |---|---|---|---|---|
-| A | (2.5, 0, -3.9) | (-4.5, 0, -3.2) | (3.5, 1.2, 3.9) | symmetric 7 × 5 |
-| B | (4.5, 0, -3.9) | (-4.5, 0, 3.2) | (5.7, 1.2, 2.5) | east-heavy 6.5 × 5 |
-| C | (-5.7, 0, -2.5) | (3.5, 0, -3.2) | (5.7, 1.2, 3.2) | south-heavy 7 × 4.5 |
+| A | `(2.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, -4.35)` yaw `0°` | `(4.2, 1.25, 5.22)` yaw `180°` | `(0, 0, 0)`, `7.0 × 5.0 m` |
+| B | `(5.8, 0, -5.12)` yaw `0°` | `(-5.2, 0, 4.35)` yaw `180°` | `(0.0, 1.25, 5.22)` yaw `180°` | `(0.5, 0, 0.2)`, `6.6 × 4.8 m` |
+| C | `(-2.5, 0, 5.12)` yaw `180°` | `(4.8, 0, -4.35)` yaw `0°` | `(-6.2, 1.25, -5.22)` yaw `0°` | `(-0.4, 0, -0.25)`, `6.8 × 4.7 m` |
 
-Every pattern must leave at least 1.5 m of dry perimeter. The E-stop, alarm and exit are never blocked.
+Every pattern maintains at least **2.5 m** of Dry Perimeter on all four sides. The E-stop, alarm, and exit are never blocked.
 
 Residual energy: **50%** chance the oil is energised at start. The state is independent of the pattern.
 
 ### 7.7 Lighting and atmosphere
 
-- Baked/static room lighting is the target. For the blockout, use `MNG_Light` plus three ceiling point lights, shadows off.
-- One real-time red alarm beacon (point light, range 8 m, shadows off).
-- Press display: emissive material with a blinking fault pattern.
-- Puddle: dark glossy material, smoothness 0.8, low metallic; no planar reflection.
+- Baked/static lighting: four ceiling industrial fixtures (`MESH_Magazzino_LuceDaSoffitto.fbx` + baked point lights) plus bright industrial ambient light.
+- One directional fill light (realtime, shadows off) and one realtime red alarm beacon point light (range 8 m, shadows off, disabled at start) — at most 2 realtime lights total and 0–1 shadow casters.
+- Press display: emissive material with a blinking fault pattern (`MAT_HMI_Screen` → `MAT_HMI_Off`).
+- Puddle: dark glossy material (`MAT_Oil`, smoothness 0.92, metallic 0; no planar reflection).
 - Steam wisps over the puddle; stronger after water contact.
-- Light haze/fog optional; keep it subtle for readability.
-- Performance budget: ≤100k triangles, ≤60 draw calls, ≤2 dynamic lights, one shadow-casting light maximum, textures ≤1024 ASTC.
+- Performance budget: ≤ 100k triangles, ≤ 2 realtime lights, ≤ 1 shadow caster, ≤ 200 particles/system, ≤ 4 play-on-awake particle systems, textures 1024/2048 ASTC (displacement maps omitted).
 
 ---
 
@@ -291,12 +290,15 @@ No A/X mapping. No `OVRInput`. No XRI.
 - A released cone or absorbent checks the nearest free matching `MachineLockSnapZone` within `config.snapRadius` (default 0.6 m).
 - If a zone is found, the item snaps to the zone transform, its `Interactable.Grabbable` becomes false, and the zone is occupied.
 - If no zone is found, the item stays where it was released and remains grabbable.
-- In Guided, a transparent ghost appears on free zones while the player holds a matching item.
+- In Guided, subtle baseline floor rings/outlines (`VFX_BaselineMarker`) illuminate on all free Containment Zones as soon as full PPE is worn, brighten into full green snap ghosts (`VFX_SnapGhost`) while holding a matching item, and hide individually once occupied.
+- Grabbed and placed cones/absorbents call `Physics.IgnoreCollision` against the Player Rig `CharacterController` (`MachineLockCollisionSafety`) while keeping their colliders non-trigger so `RayInteractor` raycasts keep working without pushing or clipping the player.
 - Once containment is complete, the hazard trigger is disabled.
 
-### 8.4 World labels
+### 8.4 World labels, Diegetic Plaques & Hover Feedback (ADR-0002)
 
-Use `LabelAnchor` with direct Italian text, not `SO_UIStrings_It` keys. The common prompt keys only cover grip/grab; for selectable controls use `ContextHelp` (Guided only) instead of an incorrect “Grip / Afferra” prompt.
+To avoid overlapping 3D cards and depth clipping against walls without modifying `Assets/_Project/Home/`, Scenario 08 combines:
+
+1. **11 sparse World Labels (`LabelAnchor`)** positioned cleanly in open space (max 3 `Risk` anchors, electrical bay collapsed to 1 clean overhead anchor):
 
 | Object | Kind | Title | Detail |
 |---|---|---|---|
@@ -305,14 +307,15 @@ Use `LabelAnchor` with direct Italian text, not `SO_UIStrings_It` keys. The comm
 | Puddle | Risk | Pozza d'olio bollente | Non calpestare |
 | E-stop | ContextHelp | Fungo di emergenza | Premi per fermare la pressa |
 | Alarm | ContextHelp | Allarme reparto | Premi per chiamare i soccorsi |
-| Panel | ContextHelp | Quadro generale | Apri l'interruttore principale |
-| Lockout | ContextHelp | Punto di lockout | Blocca il quadro dopo lo stacco |
-| Tester | ContextHelp | Tester di tensione | Controlla l'energia residua |
-| PPE cabinet | ContextHelp | Armadio DPI | Apri e indossa i DPI |
-| Spill kit | ContextHelp | Kit assorbente | Prendi coni, tappeti e sacchi |
-| Valve | ContextHelp | Valvola | Chiudi per fermare la perdita |
+| Electrical bay (collapsed) | ContextHelp | Quadro elettrico (LOTO) | 1. Stacca · 2. Blocca · 3. Tester |
+| PPE cabinet | ContextHelp | Armadio DPI | Apri e indossa i 4 DPI idonei |
+| Spill kit | ContextHelp | Kit antispandimento | Afferra con Grip coni, tappeti e sacchi |
+| Valve | ContextHelp | Valvola olio | Chiudi per fermare la perdita |
 | Extinguisher | ContextHelp | Estintore ad acqua | Non usare su olio o quadro |
 | Exit | Interaction | Uscita | — |
+
+2. **Flush multi-line Diegetic Plaques (`TEX_Plaque_*`)** mounted directly on each of the 3 electrical Sub-Stations, E-stop pedestal, Alarm, Valve, Spill Kit, Extinguisher, Exit header, and all 6 PPE bays (plus an `EquippedBadge` shelf indicator).
+3. **Throttled hover Action Feedback (`Interactable.HoverEntered`)** emitting the exact control/item name, slot, and live state (including `"<Nome DPI> indossato"` when hovering a worn PPE bay).
 
 Risk labels: press, thermometer and puddle are within 4 m of each other — exactly the maximum of 3. Do not add another Risk anchor near the press.
 
@@ -370,26 +373,28 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
 - If `MainPowerOn` is false: no movement; feedback “Nessun avvio: isolamento ok”; sets `TryStartVerified`.
 - Execution +2 only when `TesterZero` and `TryStartVerified` are both true.
 
-### 9.6 PPE
+### 9.6 PPE (ADR-0004)
 
-- Four slots: **Gloves**, **Body**, **Face**, **Respiratory**.
+- Four required slots: **Gloves**, **Body**, **Face**, **Feet**.
 - Correct items:
   - `Guanti anticalore EN 407` — Gloves.
   - `Grembiule antischizzo` — Body.
   - `Visiera facciale EN 166` — Face.
-  - `Respiratore FFP3` — Respiratory.
-- Wrong items:
-  - `Guanti in lattice monouso` — Gloves.
-  - `Mascherina chirurgica` — Respiratory.
-- The cabinet starts closed. Select it to open; the six items become selectable.
+  - `Scarpe antinfortunistiche S3` — Feet.
+- Distractor PPE (wrong items, cleanly paired on occupied slots):
+  - `Guanti in lattice monouso` — Gloves (replaced by Heat Gloves).
+  - `Mascherina chirurgica` — Face (replaced by Face Shield).
+- Because both distractors share slots with required correct items, equipping all 4 correct items always clears `HasWrongPpeEquipped` with zero soft-lock states.
+- The cabinet is a wide shallow (`1.80 × 2.05 × 0.44 m`) non-blocking sliding-door locker. Selecting it slides both doors open and immediately disables the door colliders so they never block the player's body or raycasts.
+- Each of the 6 bays has a flush Diegetic Plaque, throttled hover Action Feedback showing the item name and slot, and an `EquippedBadge` shelf status; hovering an already-worn bay emits `"<Nome DPI> indossato"`.
 - Selecting an item equips it:
-  - If the slot is empty, the item hides and the slot is filled.
-  - If the slot is occupied, the previous item reappears in the cabinet and the new item hides.
+  - If the slot is empty, the item visuals hide (collider stays hoverable, `Selectable = false`), its `EquippedBadge` shows, and the slot is filled.
+  - If the slot is occupied, the previous item reappears in the cabinet and the new item equips.
   - Wrong items occupy their slot but do not provide protection.
-- `HasFullPpe` is true only with all four correct items.
-- No icons: `SetHint("DPI 2/4 — armadio a sud")`; `Feedback` on each equip; a final `Alert` at 4/4.
+- `HasFullPpe` is true only with all four correct items (`4/4`).
+- No wrist icons: `SetHint("DPI 2/4 — armadio DPI")`; `Feedback` on each equip; a final `Alert` at 4/4.
 - Full PPE: Execution +3.
-- Touching hot oil without `HasFullPpe`: critical; wrong gloves count as no protection.
+- Touching hot oil without `HasFullPpe`: critical; wrong gloves or mask count as no protection.
 
 ### 9.7 Oil leak and valve
 
@@ -457,12 +462,16 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
 - Pressing the E-stop cancels the timer and fades the smoke.
 - The inaction timer is independent of the level time limit.
 
-### 9.13 Damage feedback
+### 9.13 Damage feedback (ADR-0003)
 
-- `MachineLockDamageFeedback` owns a URP `Volume` with a red Vignette and a mild Color Adjustments override.
-- On critical: fade in 0.15 s, hold 0.5 s, fade out 2 s; haptic pulse on the dominant hand; one-shot audio.
-- Fallback if the volume has no profile or post-processing does not render: red point-light flash at the player, haptic pulse, `Feedback("Danno!", Negative)`.
-- Do not attach a panel to the head; do not add a camera or Canvas.
+- `MachineLockDamageFeedback` owns a URP `Volume` (`SO_MachineLockDamageProfile`) plus a scenario-owned head-aligned VR-stereo-safe overlay (`SH_MachineLockDamageOverlay` / `MAT_DamageOverlay`) and fallback red point light (`LIGHT_DamageFlash`).
+- On every Critical Event, it inspects the active camera's `UniversalAdditionalCameraData.renderPostProcessing`:
+  - When camera post-processing is enabled and the Volume profile is valid, it drives the URP Vignette (`0.15 s` in → `0.5 s` hold → `1.5 s` out).
+  - When camera post-processing is disabled (as in `MNG_CoreRig.prefab`), it drives the scenario-owned peripheral red vignette overlay mesh (`ZTest Always`, `Queue=Overlay`, Single-Pass Instanced stereo macros) + red point-light pulse + dual-hand haptics + one-shot audio.
+- On Guided respawn teleport, `PlayRespawnBlink` runs a brief `0.3 s` dark fade-out/fade-in blink synchronized with the teleport.
+- Honors `accessibility.reduce_flashes` (suppresses flashing point light and attenuates overlay intensity).
+- `Clear()` resets all volume weights, overlay alphas, and light intensity immediately.
+- Never modifies `MNG_CoreRig.prefab` and never adds a Camera or Canvas.
 
 ---
 
@@ -1079,7 +1088,7 @@ Edit in place. Do not duplicate.
 5. Open the scene. Delete `MESH_ExampleSign`, `MESH_ExampleTool`, `MESH_ExampleRisk`, `MNG_DecisionTrigger` and the template floor if it is replaced by the room blockout.
 6. Keep `MNG_Light`, `MNG_SpawnPoint`, `MNG_Scenario`.
 7. Add `MachineLockScenario` to `MNG_Scenario`, assign `SO_Mission_MachineLock`, set `editorLevel = Guided`, `loadCoreInEditor = true`, remove the base `ScenarioController`, and **clear** `spawnPoint` (leave it empty).
-8. Add `SpawnPoint` to `MNG_SpawnPoint`; position it at `(-5.2, 0, 0)` with yaw facing east.
+8. Add `SpawnPoint` to `MNG_SpawnPoint`; position it at `(-7.6, 0, 0)` with yaw facing east.
 9. Build the environment and props. Add `LabelAnchor`, `Interactable`, `ScenarioTrigger` and scenario components.
 10. Add `SCN_MachineLock` to Build Settings after `SCN_Core` and `SCN_MockScenario`; keep it active.
 11. Run `SI81/Scenari/Valida scenario` until 0 errors.
@@ -1240,11 +1249,11 @@ Source: `ASSET_AUDIT_Scenario08_MachineLock.txt` (2026-11-26). The audit’s nar
 | Cones | OK | Use `MESH_Magazzino_Cono.fbx`; copy to `MESH_Cone`; the Ludovica prefab is reference only. |
 | Face shield | MISSING | Use `OCCHIALI_PROTETTIVI.fbx` as a temporary stand-in, or create a simple transparent visor `MESH_FaceShield` + `MAT_FaceShield_Visor`. |
 | Apron | MISSING | Create a simple `MESH_ChemicalApron` + `MAT_Apron_Rubber`. |
-| Safety boots | MISSING | **Not used.** Our 4 DPI set is gloves, apron, face shield, respirator. Do not model boots. |
-| Heat-resistant gloves | PARTIAL | Use `GUANTO.fbx`; copy to `MESH_HeatResistantGlove` + `MAT_HeatGlove`. |
-| Surgical mask | OK | Use `MASCHERINA.fbx`; copy to `MESH_SurgicalMask`. |
-| Latex gloves | PARTIAL | Use `GUANTO.fbx`; copy to `MESH_LatexGlove` + white/cream `MAT_Latex`. |
-| Respirator | NOT IN AUDIT | Create `MESH_Respirator` from the mask mesh plus two filter cartridges; `MAT_Respirator`. |
+| Safety boots | OK (ADR-0004) | Modeled as `MESH_SafetyBoots` (high-top leather work boot with steel toe cap and safety-yellow sole, `MAT_SafetyBoot_Leather` / `MAT_SafetyBoot_Sole`) occupying the `Feet` PPE slot. |
+| Heat-resistant gloves | PARTIAL | Use `GUANTO.fbx`; styled with `MAT_HeatGlove` + `NORMAL_GUANTO.png` (`Gloves` slot). |
+| Surgical mask | OK | Modeled as a low-poly pleated hospital-blue disposable mask with white ear loops (`MAT_SurgicalMask_Blue`, `Face` slot distractor; replaces 15,946-tri `MASCHERINA.fbx` to hold the 100k Quest 3 budget). |
+| Latex gloves | PARTIAL | Use `GUANTO.fbx`; styled with white/cream `MAT_Latex` (`Gloves` slot distractor). |
+| Respirator | SUPERSEDED | Superseded by Safety Boots S3 on `Feet` slot (ADR-0004). |
 | Fire extinguisher | OK | Use `Estintore.fbx`; do **not** use `MESH_FireExtinguisher.prefab` (missing GUIDs in this checkout). |
 | Painted steel | PARTIAL | Copy `MAT_OfficePropWhiteMetallic` or `MAT_SteelDark` → `MAT_PaintedSteel`. |
 | Polished steel | OK | Copy `MAT_OfficePropPolishedMetal`. |

@@ -58,6 +58,7 @@ namespace SI81.MachineLock
         private Transform head;
         private int heldCones;
         private int heldAbsorbents;
+        private bool containmentWayfindingActive;
 
         /// <summary>true after the leak valve was closed.</summary>
         public bool ValveClosed { get; private set; }
@@ -71,9 +72,30 @@ namespace SI81.MachineLock
         /// <summary>true when four cones and four absorbents are placed (GDD §9.8).</summary>
         public bool ContainmentComplete => ConesPlaced >= CONE_TARGET && AbsorbentsPlaced >= ABSORBENT_TARGET;
 
+        /// <summary>true when proactive Guided baseline floor rings are active.</summary>
+        public bool ContainmentWayfindingActive => containmentWayfindingActive;
+
         // =====================================================================
-        // Guided ghosts
+        // Guided wayfinding and ghosts
         // =====================================================================
+
+        /// <summary>
+        /// Activates or deactivates proactive Guided baseline floor rings/outlines on all unoccupied
+        /// Containment Zones (4 cone corners + 4 absorbent quadrants). Shown only in Guided mode once full
+        /// PPE is worn; hidden individually as zones are occupied and always hidden outside Guided.
+        /// </summary>
+        /// <param name="active">true once full PPE is worn.</param>
+        public void SetContainmentWayfindingActive(bool active)
+        {
+            bool guided = scenario == null || scenario.Level == DifficultyLevel.Guided;
+            containmentWayfindingActive = guided && active && !ContainmentComplete;
+            for (int i = 0; i < snapZones.Count; i++)
+            {
+                MachineLockSnapZone zone = snapZones[i];
+                if (zone == null) continue;
+                zone.SetBaselineVisible(containmentWayfindingActive);
+            }
+        }
 
         /// <summary>
         /// Shows the ghost of every free zone of a kind while the player holds a matching item. Ghosts are

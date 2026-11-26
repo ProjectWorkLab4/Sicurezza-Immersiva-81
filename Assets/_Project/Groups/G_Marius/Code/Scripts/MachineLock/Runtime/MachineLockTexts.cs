@@ -65,12 +65,63 @@ namespace SI81.MachineLock
 
         // ------------------------------------------------------------------ PPE
 
+        /// <summary>Format for an equipped item (hover, shelf status, action feedback): {0} is the Italian item name.</summary>
+        public const string PpeEquippedFormat = "{0} indossato";
         /// <summary>Format for an equipped item: {0} is the item name.</summary>
-        public const string PpeEquipFormat = "{0} indossato.";
+        public const string PpeEquipFormat = "{0} indossato";
+        /// <summary>Format for hovering an unequipped PPE item: {0} is item name, {1} is Italian slot name.</summary>
+        public const string PpeHoverFormat = "{0} ({1}) — TRIGGER per indossare";
         /// <summary>Format for a wrong item: {0} is the item name.</summary>
         public const string PpeWrongFormat = "{0}: non idoneo.";
         /// <summary>Alert when the four correct PPE items are worn.</summary>
         public const string PpeFull = "DPI completi: 4 su 4.";
+        /// <summary>Italian label for the Gloves PPE slot.</summary>
+        public const string PpeSlotGloves = "Mani";
+        /// <summary>Italian label for the Body PPE slot.</summary>
+        public const string PpeSlotBody = "Corpo";
+        /// <summary>Italian label for the Face PPE slot.</summary>
+        public const string PpeSlotFace = "Viso";
+        /// <summary>Italian label for the Feet PPE slot.</summary>
+        public const string PpeSlotFeet = "Piedi";
+        /// <summary>Hover feedback for the closed PPE locker.</summary>
+        public const string HoverPpeCabinetClosed = "Armadio DPI — TRIGGER per aprire";
+
+        // ------------------------------------------------------------------ Hover Action Feedback
+
+        /// <summary>Hover feedback for Main Disconnect Switch while power is ON.</summary>
+        public const string HoverMainSwitchOn = "Quadro generale: ATTIVO — TRIGGER per isolare";
+        /// <summary>Hover feedback for Main Disconnect Switch after power is OFF.</summary>
+        public const string HoverMainSwitchOff = "Quadro generale: SPENTO (isolato)";
+        /// <summary>Hover feedback for Lockout Station before main power is cut.</summary>
+        public const string HoverLockoutBlocked = "Lockout: BLOCCATO — Apri prima il quadro generale";
+        /// <summary>Hover feedback for Lockout Station once main power is off and ready.</summary>
+        public const string HoverLockoutReady = "Lockout: PRONTO — TRIGGER per bloccare il quadro";
+        /// <summary>Hover feedback for Lockout Station after lockout is applied.</summary>
+        public const string HoverLockoutApplied = "Lockout: APPLICATO (riarmo impedito)";
+        /// <summary>Hover feedback for Voltage Tester while main power is ON.</summary>
+        public const string HoverTesterLivePanel = "Tester tensione: LIVE — TRIGGER per leggere";
+        /// <summary>Hover feedback for Voltage Tester after main power is OFF, before ZERO confirmed.</summary>
+        public const string HoverTesterCheckResidual = "Tester tensione — TRIGGER per verifica energia residua";
+        /// <summary>Hover feedback for Voltage Tester after ZERO confirmed.</summary>
+        public const string HoverTesterZeroConfirmed = "Tester tensione: ZERO — Energia assente confermata";
+        /// <summary>Hover feedback for the open oil leak valve.</summary>
+        public const string HoverValveOpen = "Valvola olio — TRIGGER per chiudere la perdita";
+        /// <summary>Hover feedback for the closed oil leak valve.</summary>
+        public const string HoverValveClosed = "Valvola olio: CHIUSA";
+        /// <summary>Hover feedback for a grabbable cone.</summary>
+        public const string HoverCone = "Cono — GRIP per afferrare e posare agli angoli";
+        /// <summary>Hover feedback for a grabbable absorbent mat.</summary>
+        public const string HoverAbsorbentMat = "Tappeto assorbente — GRIP per posare sulla pozza";
+        /// <summary>Hover feedback for a grabbable absorbent sock.</summary>
+        public const string HoverAbsorbentSock = "Sacco assorbente — GRIP per posare sulla pozza";
+        /// <summary>Hover feedback for the Emergency Stop button.</summary>
+        public const string HoverEStop = "Fungo di emergenza — TRIGGER per fermare la pressa";
+        /// <summary>Hover feedback for the Test Start button.</summary>
+        public const string HoverTryStart = "Prova riavvio — TRIGGER per verificare isolamento";
+        /// <summary>Hover feedback for the department alarm button.</summary>
+        public const string HoverAlarm = "Allarme reparto — TRIGGER per chiamare i soccorsi";
+        /// <summary>Hover feedback for the water extinguisher distractor.</summary>
+        public const string HoverWaterExtinguisher = "Estintore ad acqua — PERICOLO su olio bollente";
 
         // ------------------------------------------------------------------ Spill and containment
 
@@ -143,9 +194,9 @@ namespace SI81.MachineLock
         /// <summary>Hint after the tester reads zero.</summary>
         public const string HintTryStart = "Prova il riavvio: non deve partire";
         /// <summary>Hint after zero energy is verified.</summary>
-        public const string HintPpe = "Indossa i 4 DPI nell'armadio a sud";
+        public const string HintPpe = "Indossa i 4 DPI nell'armadio DPI";
         /// <summary>Partial PPE hint format: {0} is the number of correct items.</summary>
-        public const string HintPpePartialFormat = "DPI {0}/4 — armadio a sud";
+        public const string HintPpePartialFormat = "DPI {0}/4 — completa nell'armadio DPI";
         /// <summary>Hint after the full PPE set.</summary>
         public const string HintValveAndContainment = "Chiudi la valvola e delimita la pozza";
         /// <summary>Partial containment hint format: {0} cones, {1} absorbents.</summary>

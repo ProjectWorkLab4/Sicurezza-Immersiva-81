@@ -3,6 +3,7 @@
     "rootNamespace": "SI81.MachineLock.Tests",
     "references": [
         "SI81.MachineLock",
+        "SI81.MachineLock.Runtime",
         "SI81.UI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

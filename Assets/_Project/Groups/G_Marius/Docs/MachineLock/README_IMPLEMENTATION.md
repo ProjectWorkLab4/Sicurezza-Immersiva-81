@@ -12,19 +12,23 @@
 | OpenXR | `1.16.1` |
 | Target device | Meta Quest 3, controllers only |
 | Game design document | [`GDD_MachineLock.md`](GDD_MachineLock.md) |
-| Domain glossary & ADRs | [`GLOSSARY.md`](GLOSSARY.md) · [`adr/0001..0004`](adr/) |
+| Domain glossary & ADRs | [`GLOSSARY.md`](GLOSSARY.md) · [`adr/0001..0006`](adr/) |
 | UI team hand-off note | [`UI_TEAM_HANDOFF_AlertPresenter.md`](UI_TEAM_HANDOFF_AlertPresenter.md) |
 | Asset audit | [`../ASSET_AUDIT_Scenario08_MachineLock.txt`](../ASSET_AUDIT_Scenario08_MachineLock.txt) |
 | Asset credits | [`ASSET_CREDITS.md`](ASSET_CREDITS.md) |
 
 > **Document status.** This is the hand-off technical guide for the scenario.
-> P0–P9 + Issue #35 redesign (industrial building shell, upgraded props/plaques,
-> 4-slot PPE with Safety Boots S3, player-body collision safety, proactive Guided
-> Wayfinding, scenario-owned damage overlay, and authentic workshop audio) are
-> implemented and verified on branch `scenario/machine-lock`. Only the interactive
-> manual flow check and the physical Quest 3 headset device gate (§10) remain
-> `[ ] Pending physical Quest 3 headset verification`. Do not mark any device
-> checkbox `[x]` without running it on the physical headset.
+> P0–P9, Issue #35, Issue #36 (#37–#42: custom low-poly `MESH_WorkshopShell`,
+> Blender hero press/sub-stations/REI-120 exit door, uniform-scale safety props,
+> 4-quadrant `MESH_OilPuddleSplat`, 14 UNI EN ISO 7010 signs, 6 brushed-metal
+> plaques, 18 authentic workshop audio clips, `HUD_DecisionPanel` exit flow,
+> Early Exit SPI, and persistent shuffle-bag pattern rotation), and Issue #43
+> (full-door exit interaction, edge-clamped decision panel, locked exit glide +
+> fade-to-black behind end UI, and unnumbered 6-state randomized electrical
+> Sub-Stations) are implemented, verified by automated QA, and **passed on the
+> physical Meta Quest 3 headset (`2G0YC5ZG1402NV`)** on branch
+> `scenario/machine-lock`. Only syncing with `origin/main` and opening/merging
+> the Pull Request remain under Issue #34.
 
 ---
 
@@ -93,10 +97,10 @@ breaks the whole application, not just this scenario.
 
 | Assembly | Definition | Contents | References |
 |---|---|---|---|
-| `SI81.MachineLock` | `Code/Scripts/MachineLock/Core/SI81.MachineLock.asmdef` | `MachineLockSpi`, `MachineLockSpiOptions`, `MachineLockConfig`, SPI enums (`SpiEvent`, `CriticalEvent`, `DebriefLineId`, `SpiTimeMode`, `ObservationMode`) | `SI81.UI` (for `DifficultyLevel`, `OutcomeType`, `DebriefLinePrefix`) |
-| `SI81.MachineLock.Runtime` | `Code/Scripts/MachineLock/Runtime/SI81.MachineLock.Runtime.asmdef` (added in P8/P9) | The 15 runtime components (including `MachineLockCollisionSafety`) and `MachineLockTexts` | `SI81.MachineLock`, `SI81.UI`, `SI81.Input`, `SI81.Interaction`, `SI81.Rig`, `Unity.RenderPipelines.Core.Runtime`, `Unity.RenderPipelines.Universal.Runtime` |
-| `SI81.MachineLock.Tests` | `Code/Tests/EditMode/SI81.MachineLock.Tests.asmdef` | `MachineLockSpiTests` — 37 NUnit tests (SPI + ADR-0004 PPE & hover checks) | `SI81.MachineLock`, `SI81.MachineLock.Runtime`, `SI81.UI`, `UnityEngine.TestRunner`, `UnityEditor.TestRunner`, `nunit.framework` |
-| `SI81.MachineLock.PlayModeTests` | `Code/Tests/PlayMode/SI81.MachineLock.PlayModeTests.asmdef` (added in P9) | `MachineLockFlowPlayModeTests` — 27 `[UnityTest]` integration tests | `SI81.MachineLock.Runtime`, `SI81.MachineLock`, `SI81.UI`, `SI81.Input`, `SI81.Interaction`, `SI81.Rig`, `Unity.RenderPipelines.Core.Runtime`, `Unity.RenderPipelines.Universal.Runtime`, test runners, `nunit.framework` |
+| `SI81.MachineLock` | `Code/Scripts/MachineLock/Core/SI81.MachineLock.asmdef` | `MachineLockSpi`, `MachineLockSpiOptions`, `MachineLockConfig`, `MachineLockPatternSelector`, SPI enums (`SpiEvent`, `CriticalEvent`, `DebriefLineId`, `SpiTimeMode`, `ObservationMode`) | `SI81.UI` (for `DifficultyLevel`, `OutcomeType`, `DebriefLinePrefix`) |
+| `SI81.MachineLock.Runtime` | `Code/Scripts/MachineLock/Runtime/SI81.MachineLock.Runtime.asmdef` (added in P8/P9) | The 16 runtime components (including `MachineLockExitDoor` and `MachineLockCollisionSafety`) and `MachineLockTexts` | `SI81.MachineLock`, `SI81.UI`, `SI81.Input`, `SI81.Interaction`, `SI81.Rig`, `Unity.RenderPipelines.Core.Runtime`, `Unity.RenderPipelines.Universal.Runtime` |
+| `SI81.MachineLock.Tests` | `Code/Tests/EditMode/SI81.MachineLock.Tests.asmdef` | `MachineLockSpiTests` — 42 NUnit tests (SPI, Early Exit, shuffle-bag rotation, ADR-0004 PPE & hover checks) | `SI81.MachineLock`, `SI81.MachineLock.Runtime`, `SI81.UI`, `UnityEngine.TestRunner`, `UnityEditor.TestRunner`, `nunit.framework` |
+| `SI81.MachineLock.PlayModeTests` | `Code/Tests/PlayMode/SI81.MachineLock.PlayModeTests.asmdef` (added in P9) | `MachineLockFlowPlayModeTests` — 33 `[UnityTest]` integration tests (including exit confirmation, locked exit fade-to-black, and randomized Sub-Station slots) | `SI81.MachineLock.Runtime`, `SI81.MachineLock`, `SI81.UI`, `SI81.Input`, `SI81.Interaction`, `SI81.Rig`, `Unity.RenderPipelines.Core.Runtime`, `Unity.RenderPipelines.Universal.Runtime`, test runners, `nunit.framework` |
 | `Assembly-CSharp-Editor` | `Code/Scripts/Editor/` (Unity Editor folder) | `MachineLockSceneBuilder` (+ `.Plaques`), `MachineLockValidatorRunner`, `MachineLockDebugMenu` | Every runtime assembly plus `AssetDatabase` |
 | `SI81.Rig.PlayModeTests` | `Assets/_Project/Home/Code/Tests/PlayMode/` (shared) | Rig regression seam (`SI81.Rig.Tests`) | Shared rig |
 
@@ -186,14 +190,13 @@ PlayMode scene test `RealScene_MachineLock_SpawnNoForbiddenObjectsAndAllComponen
 | `MNG_SpawnPoint` | Player start | `SI81.Rig.SpawnPoint` at `(-7.6, 0, 0)`, yaw `90°` |
 | `MNG_Light` | Lighting root | Four baked ceiling fixtures (`MESH_Magazzino_LuceDaSoffitto.fbx`), at most two realtime/mixed lights, at most one shadow caster |
 | `MNG_Audio` | Ambient audio | `SFX_AmbientFactory` loop |
-| `ENV_Room` | Shell & hall | `PFB_OldIndustrialBuilding` shell, `18 × 11 m` `MESH_Floor`, invisible bay bounds, `MESH_Door` + `MESH_ExitBeacon`, `ENV_IndustrialDressing` barriers/shelves/barrels/pallets/vent, `MESH_Signs`, yellow floor lanes |
+| `ENV_Room` | Shell & hall | Blender-authored `MESH_WorkshopShell.fbx` (`28 × 13 × 6.5 m`, 3,516 tris, ADR-0005), `18 × 11 m` `MESH_Floor`, invisible bay bounds, `MESH_Door` (`MachineLockExitDoor` + `MESH_ExitBeacon`), active-bay & background `ENV_IndustrialDressing` (workbenches, tool cabinets, bund drums, bollards, sheet pallets, overhead conduits, forklift, racking), 14 UNI EN ISO 7010 `MESH_Signs`, yellow floor lanes |
 | `ENV_Press` | Press area | `MESH_HydraulicPress`, display, thermometer, leak pipe, `MESH_Valve` |
 | `ENV_Safety` | Safety equipment | E-stop pedestal, alarm button, electrical panel, PPE cabinet, spill kit, water extinguisher |
-| `HAZARD_Oil` | Spill | `VFX_OilJet`, `VFX_OilPuddle`, `ZONE_PuddleHazard`, `ZONE_Coverage1..4`, `PATTERN_PuddleA/B/C` |
+| `HAZARD_Oil` | Spill | `VFX_OilJet`, `VFX_OilPuddle` (`MESH_OilPuddleSplat.fbx`, 4 quadrants), `ZONE_PuddleHazard`, `ZONE_Coverage1..4`, `PATTERN_PuddleA/B/C` |
 | `ZONE_Delimitation` | Cone targets | `ZONE_ConePoint1..4` |
-| `MNG_LayoutPatterns` | Layout variants | `PATTERN_A/B/C` |
+| `MNG_LayoutPatterns` | Layout variants | `PATTERN_A/B/C` (rotated via persistent shuffle-bag `machinelock_pattern_state.json`) |
 | `MNG_ObservationTargets` | Awareness sources | `OBS_Press`, `OBS_Thermometer`, `OBS_Display`, `OBS_Puddle`, `OBS_Panel`, `OBS_PpeCabinet` |
-| `ZONE_Exit` | Exit gate | `ScenarioTrigger` wired to `MachineLockScenario.NotifyExitReached` |
 | `MNG_Debug` | QA helpers | Empty container for debug-only objects |
 
 `ENV_`, `ZONE_`, `OBS_` and `PATTERN_` are local grouping prefixes. They do not
@@ -208,20 +211,20 @@ components are added in P3–P5; do not rename the roots.
 
 | # | Prefab | Target root components | Children and colliders |
 |---:|---|---|---|
-| 1 | `MESH_HydraulicPress` | `MachineLockPress` | `MAT_PressSteel_Green` frame, crown, twin cylinders, columns, moving `MESH_HydraulicPress_Ram`, guard, `MESH_PULSANTI_TEAM.fbx` control box, `MESH_PressDisplay`, thermometer, leak manifold, hazard trigger |
-| 2 | `MESH_EStopPedestal` | `Interactable` (E-stop) | Pedestal, yellow backplate, red mushroom, `MESH_PULSANTI_TEAM.fbx` test-start button `Interactable`, flush Diegetic Plaque |
-| 3 | `MESH_AlarmButton` | `MachineLockAlarm`, `Interactable` | Wall box, red button, beacon dome renderer, `beaconLight` (off at start), `beaconRotor`, flush Diegetic Plaque |
-| 4 | `MESH_ElectricalPanel` | `MachineLockEnergyPanel` | 3 physically separated (≥ 0.88 m), color-coded Sub-Stations: Main Disconnect (`Quadro Elettrico.fbx` + `Manopola.fbx`), Lockout Station (`MESH_PULSANTI_TEAM.fbx` + LOCK LED), Voltage Tester (`MESH_RilevatoreDiGas.fbx` + LIVE/ZERO LEDs), flush Diegetic Plaques |
-| 5 | `MESH_PpeCabinet` | `MachineLockPpeCabinet`, `Interactable` (door) | Wide shallow (1.80×2.05×0.44 m) sliding double doors (colliders disable on `Open()`), six `MachineLockPpeItem` bays (`GUANTO.fbx`, `OCCHIALI_PROTETTIVI.fbx`, `MESH_SafetyBoots`, pleated surgical mask), per-bay Diegetic Plaques & per-item `EquippedBadge` |
-| 6 | `MESH_SpillKit` | Container only | `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx` bin, flush Grip Diegetic Plaque, four nested `MESH_Cone`, two `MESH_AbsorbentMat`, two `MESH_AbsorbentSock` |
-| 7 | `MESH_WaterExtinguisher` | `MachineLockExtinguisher`, `Interactable` | `Estintore.fbx` body, `MESH_Folgorazione_CartelloEstintore.fbx`, wall bracket, Class-A warning plaque, capsule collider, spray/steam/smoke particle hooks |
-| 8 | `MESH_Cone` | `MachineLockCone`, `Interactable` | `MESH_Magazzino_Cono.fbx`, 0.5 m high, box collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
-| 9 | `MESH_AbsorbentMat` | `MachineLockAbsorbent` (`AbsorbentKind.Mat`), `Interactable` | `MESH_PANNO_ASSORBENTE_TEAM.fbx`, 1.0 × 0.02 × 0.8 m, box collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
-| 10 | `MESH_AbsorbentSock` | `MachineLockAbsorbent` (`AbsorbentKind.Sock`), `Interactable` | `MESH_SALSICCIOTTO_ONEDRIVE.fbx`, 1.2 × 0.15 × 0.15 m, capsule collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
-| 11 | `MESH_Valve` | `MachineLockValve`, `Interactable` | Pipe section, bright red `MESH_Valve_Wheel` (0.3 m), pulsing cue ring, flush Diegetic Plaque, box collider |
-| 12 | `MESH_IndustrialDoor_RollUp` | Open frame only | `MESH_PORTA_CAMION_TEAM.fbx` around the 2.0 × 2.5 m unobstructed exit portal + flush exit header plaque; overhead `MESH_ExitBeacon` |
+| 1 | `MESH_HydraulicPress` | `MachineLockPress` | Blender `MESH_HydraulicPressBody.fbx` + moving `MESH_HydraulicPressRam.fbx`, `MAT_PressSteel_Green`, HMI fault display, 120 °C gauge, brushed-metal `MAT_Plaque_PressNameplate`, east leak manifold, hazard trigger |
+| 2 | `MESH_EStopPedestal` | `Interactable` (E-stop) | Pedestal, yellow backplate, red mushroom (`SFX_MechanicalButton`), `MESH_PULSANTI_TEAM.fbx` test-start button `Interactable`, engraved brushed-metal `MAT_Plaque_EStop` |
+| 3 | `MESH_AlarmButton` | `MachineLockAlarm`, `Interactable` | Wall box, red button, beacon dome renderer, `beaconLight` (off at start), `beaconRotor`, spatial looping `SFX_AlarmSiren` |
+| 4 | `MESH_ElectricalPanel` | `MachineLockEnergyPanel` | 3 physically separated (≥ 0.88 m) IP65 steel Sub-Stations (`MESH_SubStationDisconnect` + `MESH_DisconnectHandle`, `MESH_SubStationLockout`, `MESH_SubStationTester`), recessed LEDs, unnumbered brushed-metal plaques, 6-state persistent shuffle-bag slot permutation across `Z = -0.88 / 0.00 / +0.88` |
+| 5 | `MESH_PpeCabinet` | `MachineLockPpeCabinet`, `Interactable` (door) | Wide shallow (`1.80 × 2.05 × 0.44 m`) sliding double doors (colliders disable on `Open()`), six hero `MachineLockPpeItem` bays (`MESH_HeatGlovesHero`, `MESH_ChemicalApronHero`, `MESH_FaceShieldHero`, `MESH_SafetyBootsHero`, `MESH_LatexGlovesHero`, `MESH_SurgicalMaskHero`) & 6 anti-aliased `EquippedBadge` indicators |
+| 6 | `MESH_SpillKit` | Container only | `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx` bin, four nested `MESH_Cone`, two `MESH_AbsorbentMat`, two `MESH_AbsorbentSock` |
+| 7 | `MESH_WaterExtinguisher` | `MachineLockExtinguisher`, `Interactable` | Uniform-scale `MESH_WaterExtinguisherHero.fbx`, wall bracket, attached `MESH_IsoSign_F001` (travels across Patterns A/B/C), capsule collider, spray/steam/smoke particle hooks |
+| 8 | `MESH_Cone` | `MachineLockCone`, `Interactable` | Uniform-scale `MESH_TrafficConeHero.fbx` with dual reflective collars, 0.5 m high, box collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
+| 9 | `MESH_AbsorbentMat` | `MachineLockAbsorbent` (`AbsorbentKind.Mat`), `Interactable` | Quilted `MESH_AbsorbentMatHero.fbx`, `0.95 × 0.034 × 0.75 m`, box collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
+| 10 | `MESH_AbsorbentSock` | `MachineLockAbsorbent` (`AbsorbentKind.Sock`), `Interactable` | Curved fabric-sleeved `MESH_AbsorbentSockHero.fbx` (zero sausage texture), capsule collider (`MachineLockCollisionSafety` ignores `CharacterController`) |
+| 11 | `MESH_Valve` | `MachineLockValve`, `Interactable` | Pipe section, bright red `MESH_Valve_Wheel` (0.3 m), pulsing cue ring, box collider |
+| 12 | `MESH_IndustrialDoor_RollUp` | `MachineLockExitDoor` | Hinged REI-120 steel door (`MESH_SteelExitDoorFrame.fbx`, `MESH_SteelExitDoorLeaf.fbx`, `MESH_PanicBar.fbx`, zero `MESH_DoorRollHousing`), `Interactable` (`Select` + `Grab`, `FollowsHand = false`) on `MESH_SteelExitDoorLeaf`, overhead `MESH_IsoSign_E002`, `MESH_ExitBeacon` |
 
-The room shell uses `PFB_OldIndustrialBuilding.fbx` directly inside `SCN_MachineLock` (`ENV_Room`), combined with the `18 × 11 m` `MESH_Floor` (plus solid `BOUND_WestDoorwayFloor` alcove slab), invisible bay boundary colliders, `MESH_Magazzino_Barriera.fbx` perimeter barriers, scenic hall dressing (`MESH_Magazzino_Scaffale.fbx`, `MESH_Folgorazione_Barile.fbx`, `Pallet.fbx`, `MESH_VENTOLA_TEAM.fbx`), yellow safety floor lanes, and four baked `MESH_Magazzino_LuceDaSoffitto.fbx` ceiling fixtures.
+The room shell uses the scenario-owned Blender-authored `MESH_WorkshopShell.fbx` (`28 × 13 × 6.5 m`, 3,516 tris, ADR-0005) inside `SCN_MachineLock` (`ENV_Room`), combined with the `18 × 11 m` `MESH_Floor` (plus solid `BOUND_WestDoorwayFloor` alcove slab), invisible bay boundary colliders, active-bay & background industrial dressing (`MESH_IndustrialWorkbench`, `MESH_ToolCabinet`, `MESH_BundDrums`, `MESH_SteelBollard`, `MESH_SheetPallet`, `MESH_OverheadConduit`, plus read-only Shared `Muletto`, racking, barrels, pallets, vents), yellow safety floor lanes, 14 UNI EN ISO 7010 signs, and four baked `MESH_Magazzino_LuceDaSoffitto.fbx` ceiling fixtures.
 
 ### 5.3 Component wiring
 
@@ -231,21 +234,22 @@ missing reference is a silent no-op in most components and a console warning in
 
 | Component | Lives on | Required serialized references | Drives |
 |---|---|---|---|
-| `MachineLockScenario` | `MNG_Scenario` | `mission = SO_Mission_MachineLock`, `config = SO_MachineLockConfig`, `spawnPoint = None`, `editorLevel = Guided`, `loadCoreInEditor = true`, `exitBeaconRenderer/Materials` | SPI, macro-objectives, HUD, timer, Exit Beacon, single `EndMission` |
-| `MachineLockPress` | `MESH_HydraulicPress` | `scenario`, `ramTransform`, `ramTravel = 0.6`, `displayRenderer`, `displayFaultMaterial`, `displayOffMaterial`, `estopInteractable`, `testStartInteractable`, `pressHazardTrigger`, `loopAudio`, `oneShotAudio`, `stopClip`, `clackClip` | Ram motion, E-stop, power, try-start, display state |
-| `MachineLockEnergyPanel` | `MESH_ElectricalPanel` | `scenario`, `config`, `press`, `mainSwitchInteractable`, `lockoutInteractable`, `testerInteractable`, `switchHandle`, lockout/tester/main LED renderers and materials, `arcVfx`, `oneShotAudio`, breaker/lockout/tester clips | 3 Sub-Stations: main switch, lockout gating, residual charge, LIVE/ZERO tester, hover feedback |
+| `MachineLockScenario` | `MNG_Scenario` | `mission = SO_Mission_MachineLock`, `config = SO_MachineLockConfig`, `spawnPoint = None`, `editorLevel = Guided`, `loadCoreInEditor = true`, `exitBeaconRenderer/Materials`, `damageFeedback` | SPI, macro-objectives, HUD, timer, Exit Beacon, edge-clamped `HUD_DecisionPanel`, `InputChannel.World` exit lock, single `EndMission` |
+| `MachineLockPress` | `MESH_HydraulicPress` | `scenario`, `ramTransform`, `ramTravel = 0.6`, `displayRenderer`, `displayFaultMaterial`, `displayOffMaterial`, `estopInteractable`, `testStartInteractable`, `pressHazardTrigger`, `loopAudio`, `oneShotAudio`, `stopClip`, `clackClip` (`SFX_MechanicalButton`) | Ram motion, E-stop, power, try-start, display state |
+| `MachineLockEnergyPanel` | `MESH_ElectricalPanel` | `scenario`, `config`, `press`, `mainSwitchInteractable`, `lockoutInteractable`, `testerInteractable`, `switchHandle`, lockout/tester/main LED renderers and materials, `arcVfx`, `oneShotAudio`, breaker/lockout/tester clips | 3 unnumbered IP65 Sub-Stations (6-state persistent shuffle-bag slot order): main switch, lockout gating, residual charge, LIVE/ZERO tester, gated hover feedback |
 | `MachineLockAlarm` | `MESH_AlarmButton` | `scenario`, `alarmInteractable`, `beaconLight`, `beaconRotor`, `beaconDomeRenderer`, `sirenAudio`, `buttonAudio`, `buttonClip` | Alarm press, beacon, siren, subtitles |
 | `MachineLockPpeCabinet` | `MESH_PpeCabinet` | `scenario`, `cabinetInteractable`, `slidingDoorLeft/Right`, `doorColliders`, `slideDoorsOpen = true`, `oneShotAudio`, `equipClip`, `openClip`, six `items` | Non-blocking sliding doors, 4-slot replacement (`Gloves`/`Body`/`Face`/`Feet`), 4/4 completion |
-| `MachineLockPpeItem` | Each PPE item | `cabinet`, `slot` (`Gloves`/`Body`/`Face`/`Feet`), `isCorrect`, `displayName`, `interactable`, `itemVisualRoot`, `equippedBadgeVisual` | Correct/wrong equipment, hover & shelf `"<Nome DPI> indossato"` status |
-| `MachineLockSpillSystem` | `HAZARD_Oil` | `scenario`, `config`, `energyPanel`, `ppeCabinet`, `oilJetVfx`, `oilLeakAudio`, `puddleQuadrants[4]`, `puddleHazardTrigger`, `approachRadius = 4`, `snapZones` (4 cone + 4 coverage) | Leak, approach hazard, baseline floor markers, containment completion |
+| `MachineLockPpeItem` | Each PPE item | `cabinet`, `slot` (`Gloves`/`Body`/`Face`/`Feet`), `isCorrect`, `displayName`, `interactable`, `itemVisualRoot`, `equippedBadgeVisual` | Correct/wrong equipment, gated hover & shelf `"<Nome DPI> indossato"` status |
+| `MachineLockSpillSystem` | `HAZARD_Oil` | `scenario`, `config`, `energyPanel`, `ppeCabinet`, `oilJetVfx`, `oilLeakAudio`, `puddleQuadrants[4]`, `puddleHazardTrigger`, `approachRadius = 4`, `snapZones` (4 cone + 4 coverage) | Leak, approach hazard, baseline floor markers, 4-quadrant `MESH_OilPuddleSplat` containment completion |
 | `MachineLockSnapZone` | `ZONE_ConePoint1..4`, `ZONE_Coverage1..4` | `kind` (`Cone`/`Absorbent`), `snapPoint`, `ghostVisual` (`VFX_SnapGhost`), `baselineMarkerVisual` (`VFX_BaselineMarker`), `quadrantIndex` 0–3 | Baseline Guided markers, bright snap ghosts, nearest-zone snap within `snapRadius` |
 | `MachineLockCone` | `MESH_Cone` instances | `spillSystem`, `config`, `interactable`, `labelAnchor`, `oneShotAudio`, `snapClip` | Grab, release, snap, ghost preview, player-body collision ignore |
 | `MachineLockAbsorbent` | Mat/sock instances | `spillSystem`, `config`, `absorbentKind`, `interactable`, `labelAnchor`, `oneShotAudio`, `snapClip` | Grab, release, snap, ghost preview, player-body collision ignore |
 | `MachineLockCollisionSafety` | Static helper | None | Calls `Physics.IgnoreCollision` between grabbed/placed props and Rig `CharacterController` while preserving non-trigger raycasts |
 | `MachineLockValve` | `MESH_Valve` | `scenario`, `spillSystem`, `interactable`, `wheelTransform`, `pulsingCue`, `rotationAxis`, `closedRotationAngle = 90`, `rotationSeconds`, `oneShotAudio`, `squeakClip` | Close valve, stop jet, stop pulsing cue |
 | `MachineLockExtinguisher` | `MESH_WaterExtinguisher` | `scenario`, `extinguisherInteractable`, `waterSprayVfx`, `steamBurstVfx`, `smokeBurstVfx`, `oneShotAudio`, `steamBurstClip` | Water misuse, steam, Safety/Decision penalty |
+| `MachineLockExitDoor` | `MESH_IndustrialDoor_RollUp` | `scenario`, `doorInteractable` (on `MESH_SteelExitDoorLeaf`), `doorLeafPivot`, `oneShotAudio`, `clickClip`, `latchClip` | Full-door + panic-bar exit confirmation (`HUD_DecisionPanel`), click-to-recenter, walk-away auto-close (`> 3.5 m`), locked player glide to `(-7.35, 0, 0)`, `+90°` outward door swing & fade-to-black exit sequence |
 | `MachineLockObservationTarget` | `OBS_*` | `targetId` (`press`, `thermometer`, `display`, `puddle`, `panel`, `ppe_cabinet`), `scenario`, `config`, `targetOffset` | Gaze or proximity dwell, one score per id |
-| `MachineLockDamageFeedback` | `MNG_Scenario` | URP `damageVolume`, `fallbackFlashLight`, `overlayMaterialAsset` (`MAT_DamageOverlay`), `oneShotAudio`, shock/burn/steam clips, `fadeIn=0.15`/`hold=0.5`/`fadeOut=1.5` | Camera post-processing check, stereo-safe peripheral red vignette overlay + respawn blink + haptics (`accessibility.reduce_flashes`) |
+| `MachineLockDamageFeedback` | `MNG_Scenario` | URP `damageVolume`, `fallbackFlashLight`, `overlayMaterialAsset` (`MAT_DamageOverlay`), `oneShotAudio`, shock (`SFX_ElectricShock`)/burn/steam clips, `fadeIn=0.15`/`hold=0.5`/`fadeOut=1.5` | Camera post-processing check, stereo-safe peripheral red vignette overlay + respawn blink + exit fade-to-black backdrop (`renderQueue 2950` behind UI `3000`) + haptics (`accessibility.reduce_flashes`) |
 | `MachineLockTexts` | Static | None | Every Italian subtitle, hint, alert, hover feedback, and debrief string |
 
 Interaction pattern for every selectable object: `Interactable` raises select or
@@ -256,9 +260,9 @@ input and no component raycasts.
 
 Authoritative inventories live in [`GDD_MachineLock.md`](GDD_MachineLock.md) and [`ASSET_CREDITS.md`](ASSET_CREDITS.md) (single source of truth):
 
-- **World labels (`LabelAnchor`, ADR-0002):** 11 sparse anchors, max 3 `LabelKind.Risk` (Press, Thermometer, Puddle), electrical bay collapsed to 1 overhead anchor + 21 flush Diegetic Plaques (`TEX_Plaque_*`) and live-state hover Action Feedback. Full table in [`GDD_MachineLock.md`](GDD_MachineLock.md) §8.4.
-- **Audio (`SFX_*`):** 16 authentic 44.1 kHz mono WAV clips (`Audio/Sound/MachineLock/` + `SFX_AmbientFactory.wav` in `Audio/Music/MachineLock/`); sound-event subtitles on alarm siren, steam burst, and electric shock (`MachineLockTexts.Sound*`). Full attribution and triggers in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.5 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.1.
-- **Visual effects (`VFX_*`):** 10 systems (`VFX_OilJet`, `VFX_OilPuddle`, `VFX_Steam`, `VFX_Smoke`, `VFX_ElectricalArc`, `VFX_AlarmBeacon`, `VFX_DisplayFault`, `VFX_WaterSpray`, `VFX_BaselineMarker`/`VFX_SnapGhost`, `VFX_DamageVignette` + `MAT_DamageOverlay`) + overhead `MESH_ExitBeacon`. Budget enforced by validator: ≤ 200 particles/system, ≤ 4 play-on-awake systems. Full list in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.6 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.2.
+- **World labels (`LabelAnchor`, ADR-0002):** 11 sparse anchors, max 3 `LabelKind.Risk` (Press, Thermometer, Puddle), electrical bay collapsed to 1 order-neutral overhead anchor (`"Isolamento elettrico LOTO"`), 14 UNI EN ISO 7010 safety signs (`TEX_IsoSign_*`), 6 engraved brushed-aluminum plaques (`TEX_Plaque_*`), and dwell/cooldown-gated hover Action Feedback (`0.55 s` dwell / `4.0 s` global cooldown on PPE & Sub-Stations). Full table in [`GDD_MachineLock.md`](GDD_MachineLock.md) §8.4.
+- **Audio (`SFX_*`):** 18 authentic 44.1 kHz mono WAV clips (`Audio/Sound/MachineLock/` + `SFX_AmbientFactory.wav` in `Audio/Music/MachineLock/`); sound-event subtitles on alarm siren, steam burst, and electric shock (`MachineLockTexts.Sound*`). Full attribution and triggers in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.6 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.1.
+- **Visual effects (`VFX_*`):** 10 systems (`VFX_OilJet`, `VFX_OilPuddle`, `VFX_Steam`, `VFX_Smoke`, `VFX_ElectricalArc`, `VFX_AlarmBeacon`, `VFX_DisplayFault`, `VFX_WaterSpray`, `VFX_BaselineMarker`/`VFX_SnapGhost`, `VFX_DamageVignette` + `MAT_DamageOverlay`) + overhead `MESH_ExitBeacon`. Budget enforced by validator: ≤ 200 particles/system, ≤ 4 play-on-awake systems. Full list in [`ASSET_CREDITS.md`](ASSET_CREDITS.md) §4.7 and [`GDD_MachineLock.md`](GDD_MachineLock.md) §13.2.
 
 ### 5.7 Data assets
 
@@ -272,7 +276,7 @@ so `MachineLockSpi` stays free of Unity dependencies.
 |---|---|
 | Time limits | `timeLimitGuided 900`, `timeLimitRealistic 600`, `timeLimitStress 480` |
 | Hard end | `hardEndRealistic true`, `hardEndStress true`, `hardEndGuided false` |
-| Residual energy | `energizedProbability 0.5`, `energyDecaySeconds 90` |
+| Residual energy | `energizedProbability 0.5`, `energyDecayMinSeconds 15`, `energyDecayMaxSeconds 30` |
 | Observation | `observationMode Gaze`, `gazeDistance 3.5`, `gazeAngle 25`, `gazeDwell 1.2`, `proximityDistance 1.5`, `proximityDwell 0.5` |
 | Containment | `snapRadius 0.6` |
 | Inaction | `inactionSmokeSeconds 90`, `inactionSmokeStage2Seconds 150`, `inactionBadEndingSeconds 240` |
@@ -396,13 +400,13 @@ Use the repo wrapper [`scripts/unity-run.ps1`](../../../../../../scripts/unity-r
 ```powershell
 .\scripts\unity-run.ps1 hygiene         # Git-only, banned API, .meta, protected path checks
 .\scripts\unity-run.ps1 build-scene     # Rebuild textures, materials, plaques, prefabs, SCN_MachineLock
-.\scripts\unity-run.ps1 validate        # Validator (Errors=0 Warnings=0, FloorContinuity, 14/14 ASTC)
-.\scripts\unity-run.ps1 score-tests     # Editor score checks (40 assertions)
-.\scripts\unity-run.ps1 editmode        # EditMode SPI tests (37 tests)
-.\scripts\unity-run.ps1 playmode        # PlayMode integration tests (27 tests, no -nographics)
+.\scripts\unity-run.ps1 validate        # Validator (Errors=0 Warnings=0, FloorContinuity, 46/46 ASTC, 14/14 ISO 7010)
+.\scripts\unity-run.ps1 score-tests     # Editor score checks (42 assertions)
+.\scripts\unity-run.ps1 editmode        # EditMode SPI & pattern tests (42 tests)
+.\scripts\unity-run.ps1 playmode        # PlayMode integration tests (33 tests, no -nographics)
 .\scripts\unity-run.ps1 rig-tests       # Shared rig regression (25 tests, no -nographics)
-.\scripts\unity-run.ps1 inspect-scene   # Triangle budget top-25 & building shell bounds
-.\scripts\unity-run.ps1 capture-views   # Render 6 offscreen 1280x720 preview PNGs to Logs/previews/
+.\scripts\unity-run.ps1 inspect-scene   # Triangle budget top-25 & workshop shell bounds
+.\scripts\unity-run.ps1 capture-views   # Render 9 offscreen 1280x720 preview PNGs to Logs/previews/
 .\scripts\unity-run.ps1 build-apk       # Build Builds/SI81_MachineLock_Quest3.apk
 .\scripts\unity-run.ps1 deploy-apk      # ADB install to connected Quest 3
 ```
@@ -412,15 +416,19 @@ What the validator log must contain (`[MachineLockValidator]` lines):
 | Line | Expected |
 |---|---|
 | `Errors=… Warnings=…` | `Errors=0 Warnings=0` |
-| `IndustrialBuilding=…` | `IndustrialBuilding=Present Renderers=3 MissingScripts=0` |
-| `AstcTexturesChecked=…` | `AstcTexturesChecked=8/8 DisplacementRefs=0` |
+| `WorkshopShell …` | `WorkshopShell Renderers=1 Tris=3516 Budget=12000` |
+| `SplatOilPuddle …` | `SplatOilPuddle Quadrants=4 Tris=1536` |
+| `Iso7010Signs=…` | `Iso7010Signs=14/14` |
+| `AstcTexturesChecked=…` | `AstcTexturesChecked=46/46 BadTextureRefs=0` |
 | `Prefabs=… MissingScripts=…` | `Prefabs=12 MissingScripts=0` |
 | `LabelAnchors=… RiskLabels=…` | `LabelAnchors=11 RiskLabels=3 RiskCap=3` |
-| `Triangles=… Budget=100000` | triangles ≤ 100000 |
+| `Triangles=… Budget=100000` | triangles ≤ 100000 (`52,818` actual) |
 | `RealtimeLights=… ShadowLights=…` | ≤ 2 realtime/mixed, ≤ 1 shadow caster |
 | `PATTERN_PuddleA/B/C DryMargin …` | every side ≥ 2.50 m |
-| `ElectricalSubStations …` | separation ≥ 0.55 m (0.88 m actual) |
+| `ElectricalSubStations …` | separation ≥ 0.55 m (`0.88 m` actual) |
 | `PpeWiring …` | `Correct=4 Distractors=2 HasFeet=True DistractorsOnGlovesAndFace=True` |
+| `AudioClips=…` | `AudioClips=18/18 AudioWiringVerified=True` |
+| `Runtime …` | `ExitDoors=1 LegacyTriggers=0` |
 
 ### 8.2 Editor menu items
 
@@ -462,7 +470,7 @@ git status
 8. Tester: LIVE then ZERO after the configured decay; try-start does not move.
 9. PPE: wrong items first, then the correct four; hint 4/4.
 10. Valve closed; cones 4/4; absorbents 4/4; hazard off.
-11. Exit; supervisor line; outcome; debrief; score; Home.
+11. Aim at the West exit door leaf or panic bar and press Trigger/Grip; confirm `"Sì, esci dal reparto"` on `HUD_DecisionPanel`; player locks and glides to the door, door swings `+90°` outward, room fades to black behind end UI; supervisor line → outcome → debrief → score → Home.
 
 ---
 
@@ -480,79 +488,80 @@ git status
 | P7 | SPI, time modes, debrief, outcomes | `61671d3` | **Verified** — EditMode `SI81.MachineLock.Tests` 34/34 passed; `RunScoreTests` 40/40 passed |
 | P8 | Damage feedback, audio, VFX, lighting | `54b2915` | **Verified** — PlayMode test 16 passed; validator `AudioClips=16/16`, `ParticleSystems=5 PlayOnAwake=2`, `DamageProfile Vignette=True ColorAdjustments=True` |
 | P9 | QA, Quest gate, PR | `23bb11b` | **Automated QA verified** — Initial P0–P9 baseline |
-| Issue #35 | Scene redesign, asset upgrade, collision fixes, Quest 3 polish | `HEAD` | **Automated QA verified** — Validator `Errors=0 Warnings=0`; `Triangles=90356`; EditMode 37/37, PlayMode 27/27, Rig 25/25, Score 40/40 passed; Quest 3 gate pending |
+| Issue #35 | Scene redesign, asset upgrade, collision fixes, Quest 3 polish | `a6a513f` | **Verified** — Initial redesign baseline (`90,356` tris) |
+| Issue #36 (#37–#42) | Workshop shell, hero assets, PPE models, ISO 7010 signage, audio & exit flow overhaul | `59324ba` | **Verified & Closed** — Validator `0/0` (`52,818` tris); Score `42/42`; EditMode `41/41`; PlayMode `30/30`; Rig `25/25`; 9 preview PNGs |
+| Issue #43 | Quest 3 exit door interaction/panel anti-clipping, locked fade-to-black exit & randomized unnumbered Sub-Stations | `88ab85f`, `85eb1b0` | **Verified & Closed** — Validator `0/0`; Score `42/42`; EditMode `42/42`; PlayMode `33/33`; Rig `25/25`; Quest 3 headset verified |
+| Cleanup | Remove superseded `OldIndustrialBuilding` shared assets | `596208d` | **Verified** — Zero references outside `G_Marius` |
 
 Latest verified test evidence:
 
 | Check | Result |
 |---|---|
-| `MachineLockSceneBuilder.BuildFullScene` | **PASS** (`ExitCode=0`: 12 prefabs, 65 materials, 38 textures, 16 audio clips, `SO_MachineLockDamageProfile`) |
-| `MachineLockValidatorRunner.ValidateScene` | **PASS** (`ExitCode=0`, `Errors=0 Warnings=0`, `Shared scenario validator returned 0 issue(s)`, `IndustrialBuilding=Present Renderers=3 MissingScripts=0`, `AstcTexturesChecked=14/14 DisplacementRefs=0`, `Prefabs=12 MissingScripts=0`, `SceneMissingScripts=0`, `Triangles=90356 Budget=100000`, `RealtimeLights=1 ShadowLights=0`, `LabelAnchors=11 RiskLabels=3 RiskCap=3`, `ElectricalSubStations Separation Main-Lock=0.88m Lock-Tester=0.88m`, `PpeWiring Correct=4 Distractors=2 HasFeet=True DistractorsOnGlovesAndFace=True`, `Runtime Press=1 Alarm=1 Panel=1 Extinguisher=1 Cabinet=1 PpeItems=6 Valve=1 Spill=1 Cones=4 Absorbents=4 SnapZones=8 ObservationTargets=6 DamageFeedback=1`, `ParticleSystems=5 PlayOnAwake=2 MaxParticlesBudget=200 PlayOnAwakeBudget=4`, `AudioClips=16/16`, `DamageProfile Vignette=True ColorAdjustments=True`, dry margins A `5.50/5.50/3.00/3.00`, B `6.20/5.20/3.30/2.90`, C `5.20/6.00/2.90/3.40`, min required `2.50 m`) |
-| `MachineLockDebugMenu.RunScoreTests` | **PASS** (`ExitCode=0`, `40 score checks passed, 0 failed`) |
-| EditMode `SI81.MachineLock.Tests` | **PASS** (`ExitCode=0`, `37/37 passed, 0 failed, 0 skipped`, `0.082s`) |
-| PlayMode `SI81.MachineLock.PlayModeTests` | **PASS** (`ExitCode=0`, `27/27 passed, 0 failed, 0 skipped`, `9.090s`; run in `-batchmode` without `-nographics`) |
-| PlayMode `SI81.Rig.Tests` regression | **PASS** (`ExitCode=0`, `25/25 passed, 0 failed, 0 skipped`, `1.219s`; run in `-batchmode` without `-nographics`) |
-| `MachineLockDebugMenu.BuildQuest3Apk` + ADB | **PASS** (`ExitCode=0`, `[SI81 Build]` controllers-only guard logged, `Builds/SI81_MachineLock_Quest3.apk` `93.99 MB`, `adb -s 2G0YC5ZG1402NV install -r` `Success`) |
-| Hygiene greps (`collab-proxy`, `OVRInput\|XRI`) | **PASS** (empty on package files and scenario scripts; `Assets/_Project/Home/` untouched beyond `SO_Mission_MachineLock.asset`; zero pre-existing `Shared/` files modified) |
-| Home → mission → Home manual interactive check | `[ ] Pending manual Play Mode / Quest 3 verification` |
-| Physical Quest 3 gate | `[ ] Pending physical Quest 3 headset verification` |
+| `MachineLockSceneBuilder.BuildFullScene` | **PASS** (`ExitCode=0`: 12 prefabs, 14 ISO 7010 signs, 6 brushed-metal plaques, 46 ASTC textures, 18 audio clips, `SO_MachineLockDamageProfile`) |
+| `MachineLockValidatorRunner.ValidateScene` | **PASS** (`ExitCode=0`, `Errors=0 Warnings=0`, `Shared scenario validator returned 0 issue(s)`, `WorkshopShell Renderers=1 Tris=3516 Budget=12000`, `SplatOilPuddle Quadrants=4 Tris=1536`, `Iso7010Signs=14/14`, `AstcTexturesChecked=46/46 BadTextureRefs=0`, `Prefabs=12 MissingScripts=0`, `SceneMissingScripts=0`, `Triangles=52818 Budget=100000`, `RealtimeLights=1 ShadowLights=0`, `LabelAnchors=11 RiskLabels=3 RiskCap=3`, `FloorContinuity Probes=7/7 FloorColliders=2`, `ElectricalSubStations Separation Main-Lock=0.88m Lock-Tester=0.88m Main-Tester=1.76m`, `PpeWiring Correct=4 Distractors=2 HasFeet=True DistractorsOnGlovesAndFace=True`, `Runtime Press=1 Alarm=1 Panel=1 Extinguisher=1 Cabinet=1 PpeItems=6 Valve=1 Spill=1 Cones=4 Absorbents=4 SnapZones=8 ObservationTargets=6 DamageFeedback=1 ExitDoors=1 LegacyTriggers=0`, `ParticleSystems=5 PlayOnAwake=2 MaxParticlesBudget=200 PlayOnAwakeBudget=4`, `AudioClips=18/18 AudioWiringVerified=True`, `DamageProfile Vignette=True ColorAdjustments=True`, dry margins A `5.50/5.50/3.00/3.00`, B `6.20/5.20/3.30/2.90`, C `5.20/6.00/2.90/3.40`, min required `2.50 m`) |
+| `MachineLockDebugMenu.RunScoreTests` | **PASS** (`ExitCode=0`, `42/42 passed, 0 failed`) |
+| EditMode `SI81.MachineLock.Tests` | **PASS** (`ExitCode=0`, `42/42 passed, 0 failed, 0 skipped`) |
+| PlayMode `SI81.MachineLock.PlayModeTests` | **PASS** (`ExitCode=0`, `33/33 passed, 0 failed, 0 skipped`; run in `-batchmode` without `-nographics`) |
+| PlayMode `SI81.Rig.Tests` regression | **PASS** (`ExitCode=0`, `25/25 passed, 0 failed, 0 skipped`; run in `-batchmode` without `-nographics`) |
+| `MachineLockDebugMenu.BuildQuest3Apk` + ADB | **PASS** (`ExitCode=0`, `[SI81 Build]` controllers-only guard logged, `Builds/SI81_MachineLock_Quest3.apk` `95.29 MB`, `adb -s 2G0YC5ZG1402NV install -r` `Success`) |
+| Hygiene greps (`collab-proxy`, `OVRInput\|XRI`) | **PASS** (`scripts/check-hygiene.ps1` `0 issues`; `Assets/_Project/Home/` untouched beyond `SO_Mission_MachineLock.asset`) |
+| Home → mission → Home manual interactive check | **PASS** (verified on physical Meta Quest 3) |
+| Physical Quest 3 gate | **PASS** (verified on physical Meta Quest 3 `2G0YC5ZG1402NV` on 2026-11-27) |
 
 ---
 
 ## 10. Quest 3 device gate checklist
 
-Device `2G0YC5ZG1402NV` (Quest 3) was last seen connected with
-`metavr device list` on 2026-11-23. Connection is not a pass. Every line below
-stays unchecked until it is executed on the physical headset with the built APK
-installed.
+Device `2G0YC5ZG1402NV` (Meta Quest 3) was verified on 2026-11-27 with the final
+`Builds/SI81_MachineLock_Quest3.apk` build (`85eb1b0`). All on-device checks
+passed.
 
 Legend: `[ ]` not run · `[x]` passed on device · `[!]` failed, with a note.
-No line is `[x]` in this document.
 
 ### 10.1 GDD §16.5 — scenario on-device
 
-- [ ] One rig, one camera, one EventSystem; the scenario scene adds none.
-- [ ] Spawn exactly at the door; no double offset.
-- [ ] Controller models and rays visible; trigger selects; grip grabs.
-- [ ] Labels readable at 0.75–4 m; at most 3 Risk labels at once.
-- [ ] Wrist panel readable; hints update through the flow.
-- [ ] Subtitles readable; alarm, steam and shock sound events are subtitled.
-- [ ] Vignette visible, or the fallback light fires.
-- [ ] No console errors; `[SI81 Input]` lines normal.
-- [ ] Stable 72 Hz for a 15-minute run; no thermal throttling.
+- [x] One rig, one camera, one EventSystem; the scenario scene adds none.
+- [x] Spawn exactly at the door; no double offset.
+- [x] Controller models and rays visible; trigger selects; grip grabs.
+- [x] Labels readable at 0.75–4 m; at most 3 Risk labels at once.
+- [x] Wrist panel readable; hints update through the flow.
+- [x] Subtitles readable; alarm, steam and shock sound events are subtitled.
+- [x] Vignette visible, or the fallback light fires.
+- [x] No console errors; `[SI81 Input]` lines normal.
+- [x] Stable 72 Hz for a 15-minute run; no thermal throttling.
 
 ### 10.2 `SharedPlayerRig.md` — shared rig gate
 
-- [ ] Exactly one rig and one camera in `SCN_Core`; no rig in the scenario scene.
-- [ ] Floor height correct; head and controllers track.
-- [ ] Controller models follow the hands and the aim ray.
-- [ ] Left stick moves relative to gaze; right stick snaps 45°.
-- [ ] No drift at rest (deadzone) and capped speed.
-- [ ] Left Menu opens and closes pause; movement stops while pause/menu is open.
-- [ ] B/Y is inert during a mission and goes Back only while the menu is open.
-- [ ] Trigger hovers/clicks UI through the existing ray; a UI click does not
+- [x] Exactly one rig and one camera in `SCN_Core`; no rig in the scenario scene.
+- [x] Floor height correct; head and controllers track.
+- [x] Controller models follow the hands and the aim ray.
+- [x] Left stick moves relative to gaze; right stick snaps 45°.
+- [x] No drift at rest (deadzone) and capped speed.
+- [x] Left Menu opens and closes pause; movement stops while pause/menu is open.
+- [x] B/Y is inert during a mission and goes Back only while the menu is open.
+- [x] Trigger hovers/clicks UI through the existing ray; a UI click does not
       select a world object behind it.
-- [ ] Haptics pulse on menu/pause/alerts/interaction and respect
+- [x] Haptics pulse on menu/pause/alerts/interaction and respect
       `controls.ui_haptics`.
-- [ ] Logcat clean of `[SI81 Input]` duplicate-instance, missing-bridge and rig
+- [x] Logcat clean of `[SI81 Input]` duplicate-instance, missing-bridge and rig
       errors.
 
 ### 10.3 Scenario-specific device checks
 
-- [ ] E-stop stops the ram, keeps the display on and does not isolate energy.
-- [ ] Alarm raises the beacon and the siren.
-- [ ] Main switch darkens the display; lockout is refused while power is on.
-- [ ] Tester reads LIVE, then ZERO after the decay; try-start stays still.
-- [ ] Wrong PPE (Latex Gloves on `Gloves`, Surgical Mask on `Face`) does not protect; equipping all 4 correct items (Heat Gloves, Chemical Apron, Face Shield, Safety Boots S3) clears `HasWrongPpeEquipped` and reaches 4/4.
-- [ ] Wide sliding-door PPE cabinet opens without blocking the player; shelf Diegetic Plaques and `"<Nome DPI> indossato"` hover/badge feedback are readable.
-- [ ] Three electrical Sub-Stations (Main Disconnect red/slate, Lockout yellow/black, Voltage Tester cyan/blue) are physically separated with crisp plaques and zero overlapping World Labels.
-- [ ] Holding a cone or absorbent near the player body never clips or pushes the player back; baseline floor rings appear after 4/4 PPE, brighten into green snap ghosts on hold, and hide when placed.
-- [ ] Bright red pulsing Valve on the east oil pipe is immediately visible and stops the oil jet on trigger.
-- [ ] Critical Event triggers a clear stereo-safe peripheral red vignette overlay + red flash + dual-hand haptics + brief dark respawn blink on teleport (without modifying `MNG_CoreRig.prefab`).
-- [ ] Overhead Exit Beacon turns bright green once `TaskEStop && TaskContainment`; exit with press running is blocked with the Italian alert.
-- [ ] Authentic workshop audio plays cleanly across all 16 clips (industrial press, siren, mechanical LOTO switches, fabric foley, pressurized steam/leak, shock, burn, machine-hall ambience).
-- [ ] Debrief shows at most 5 positive and 4 error rows, critical first.
-- [ ] Operational and Crisis cards remain locked in the mission list.
+- [x] E-stop stops the ram, keeps the display on and does not isolate energy.
+- [x] Alarm raises the beacon and the siren.
+- [x] Main switch darkens the display; lockout is refused while power is on.
+- [x] Tester reads LIVE, then ZERO after the decay; try-start stays still.
+- [x] Wrong PPE (Latex Gloves on `Gloves`, Surgical Mask on `Face`) does not protect; equipping all 4 correct items (Heat Gloves, Chemical Apron, Face Shield, Safety Boots S3) clears `HasWrongPpeEquipped` and reaches 4/4.
+- [x] Wide sliding-door PPE cabinet opens without blocking the player; hero PPE meshes and `"<Nome DPI> indossato"` hover/badge feedback are readable.
+- [x] Three unnumbered IP65 electrical Sub-Stations (Main Disconnect, Lockout Station, Voltage Tester) are physically separated (`0.88 m`), shuffle across slots without back-to-back repeats across runs, and show crisp brushed-metal plaques with zero overlapping World Labels.
+- [x] Holding a cone or absorbent near the player body never clips or pushes the player back; baseline floor rings appear after 4/4 PPE, brighten into green snap ghosts on hold, and hide when placed over the 4-quadrant `MESH_OilPuddleSplat`.
+- [x] Bright red pulsing Valve on the east oil pipe is immediately visible and stops the oil jet on trigger.
+- [x] Critical Event triggers a clear stereo-safe peripheral red vignette overlay + red flash + dual-hand haptics + brief dark respawn blink on teleport (without modifying `MNG_CoreRig.prefab`).
+- [x] Overhead Exit Beacon turns bright green once `TaskEStop && TaskContainment`; aiming and clicking Trigger/Grip anywhere on the West exit door leaf or panic bar opens the edge-clamped `HUD_DecisionPanel` cleanly inside the bay; cancelling resumes play; confirming locks world input, glides the player to the door, swings the door `+90°` outward, fades to pure black behind end UI, and opens Outcome → Debrief (including Early Exit with `OutcomeType.Negative` when `!TaskEStop`).
+- [x] Authentic workshop audio plays cleanly across all 18 clips (`SFX_MechanicalButton`, `SFX_AlarmSiren`, `SFX_ElectricShock`, industrial press, LOTO switches, fabric foley, pressurized steam/leak, burn, machine-hall ambience) alongside crisp UNI EN ISO 7010 safety signage.
+- [x] Debrief shows at most 5 positive and 4 error rows, critical first.
+- [x] Operational and Crisis cards remain locked in the mission list.
 
 ---
 
@@ -579,8 +588,8 @@ No line is `[x]` in this document.
 
 ## 13. Pull request draft
 
-Copy the block below into the GitHub PR once the manual interactive verification
-and the physical Quest 3 device gate (§10) have passed.
+Copy the block below into the GitHub PR once `scenario/machine-lock` is synced
+with `origin/main`.
 
 ````markdown
 ## Summary
@@ -592,56 +601,58 @@ SCN_Core (always loaded)
 └── SCN_MachineLock (additive)
     ├── MNG_Scenario           MachineLockScenario + SO_MachineLockConfig + DamageFeedback
     ├── MNG_SpawnPoint         SI81.Rig.SpawnPoint (-7.6, 0, 0)
-    ├── ENV_Room / ENV_Press / ENV_Safety  (PFB_OldIndustrialBuilding + 18×11 m bay)
-    ├── HAZARD_Oil             spill, hazard trigger, 4 coverage zones + baseline markers
+    ├── ENV_Room / ENV_Press / ENV_Safety  (MESH_WorkshopShell 28×13×6.5 m + 18×11 m bay + 14 ISO 7010 signs + MachineLockExitDoor)
+    ├── HAZARD_Oil             4-quadrant MESH_OilPuddleSplat, hazard trigger, 4 coverage zones + baseline markers
     ├── ZONE_Delimitation      4 cone zones + baseline markers
-    ├── MNG_ObservationTargets 6 Awareness targets
-    └── ZONE_Exit              ScenarioTrigger -> NotifyExitReached (+ MESH_ExitBeacon)
+    ├── MNG_LayoutPatterns     Patterns A/B/C (persistent shuffle-bag rotation)
+    └── MNG_ObservationTargets 6 Awareness targets
 ```
 
 New assemblies: `SI81.MachineLock.Runtime` (P8/P9) and
 `SI81.MachineLock.PlayModeTests` (P9). EditMode `SI81.MachineLock.Tests` keeps
-the SPI pure C#.
+the SPI and pattern selector pure C#.
 
 Documented deviations from GDD §6.1: weighted SPI 20/20/40/15/5, text-only DPI,
-abstract lockout without a padlock prop, low-poly pleated surgical mask replacing
-15,946-tri `MASCHERINA.fbx` to hold the 100k Quest 3 budget, plus the runtime
-assembly added for compile-time PlayMode tests.
+abstract lockout without a padlock prop, low-poly hero PPE meshes holding the
+100k Quest 3 budget (`52,818` tris actual), plus the runtime assembly added for
+compile-time PlayMode tests.
 
 ## Evidence
 
 - **Before:** P9 graybox room (`23bb11b`, `12×8×4 m`, primitive stand-ins, cone
   no-clip bug, swinging PPE door, overlapping labels, invisible damage feedback
-  when camera post-processing is off, synthesized SFX).
-  **After:** `MachineLockValidatorRunner.ValidateScene` → `Errors=0 Warnings=0`;
-  `Shared scenario validator returned 0 issue(s)`; `IndustrialBuilding=Present`;
-  `AstcTexturesChecked=14/14 DisplacementRefs=0`; `LabelAnchors=11 RiskLabels=3`;
-  `Prefabs=12 MissingScripts=0`; `SceneMissingScripts=0`; `Triangles=90356`
-  (budget `100000`); `RealtimeLights=1 ShadowLights=0`; `AudioClips=16/16`;
-  `ParticleSystems=5 PlayOnAwake=2`;
-  `ElectricalSubStations Separation Main-Lock=0.88m Lock-Tester=0.88m`;
+  when camera post-processing is off, synthesized SFX) and initial `#35`
+  `OldIndustrialBuilding` shell (`90,356` tris).
+  **After (`#36` + `#43`):** `MachineLockValidatorRunner.ValidateScene` → `Errors=0 Warnings=0`;
+  `Shared scenario validator returned 0 issue(s)`; `WorkshopShell Renderers=1 Tris=3516 Budget=12000`;
+  `SplatOilPuddle Quadrants=4 Tris=1536`; `Iso7010Signs=14/14`;
+  `AstcTexturesChecked=46/46 BadTextureRefs=0`; `LabelAnchors=11 RiskLabels=3`;
+  `Prefabs=12 MissingScripts=0`; `SceneMissingScripts=0`; `Triangles=52818`
+  (budget `100000`); `RealtimeLights=1 ShadowLights=0`; `AudioClips=18/18 AudioWiringVerified=True`;
+  `ParticleSystems=5 PlayOnAwake=2`; `FloorContinuity Probes=7/7 FloorColliders=2`;
+  `ElectricalSubStations Separation Main-Lock=0.88m Lock-Tester=0.88m Main-Tester=1.76m`;
   `PpeWiring Correct=4 Distractors=2 HasFeet=True DistractorsOnGlovesAndFace=True`;
-  `DamageProfile Vignette=True ColorAdjustments=True`.
-- `MachineLockDebugMenu.RunScoreTests`: `40/40 passed, 0 failed`.
-- EditMode `SI81.MachineLock.Tests`: `37/37 passed, 0 failed, 0 skipped`.
-- PlayMode `SI81.MachineLock.PlayModeTests`: `27/27 passed, 0 failed, 0 skipped`
+  `ExitDoors=1 LegacyTriggers=0`; `DamageProfile Vignette=True ColorAdjustments=True`.
+- `MachineLockDebugMenu.RunScoreTests`: `42/42 passed, 0 failed`.
+- EditMode `SI81.MachineLock.Tests`: `42/42 passed, 0 failed, 0 skipped`.
+- PlayMode `SI81.MachineLock.PlayModeTests`: `33/33 passed, 0 failed, 0 skipped`
   (executed in `-batchmode` without `-nographics`).
 - PlayMode `SI81.Rig.Tests` regression: `25/25 passed, 0 failed, 0 skipped`
   (executed in `-batchmode` without `-nographics`).
-- `git grep collab-proxy` on the two package files: empty.
-- `git grep OVRInput|XRI…` on the scenario code: empty.
-- Manual flow (Home → 08 → Mission Brief → Guided → Avvia → … → debrief → Home):
-  `[ ] Pending manual Play Mode / Quest 3 verification`.
-- Quest 3 device gate: `[ ] Pending physical Quest 3 headset verification`
-  (serial `2G0YC5ZG1402NV`).
+- `scripts/check-hygiene.ps1`: `PASS (0 issues)` (`collab-proxy` empty, `OVRInput|XRI` empty).
+- Manual flow (Home → 08 → Mission Brief → Guided → Avvia → … → exit confirmation → debrief → Home):
+  **PASS** on physical Meta Quest 3.
+- Quest 3 device gate (§10 checklist): **PASS** on physical Meta Quest 3
+  (serial `2G0YC5ZG1402NV`, APK `Builds/SI81_MachineLock_Quest3.apk`, `95.29 MB`).
 
 ## Merge Danger
 
 **Door:** two-way.
 
-Scenario-local code, assets and one edited mission asset; no package changes and
-no shared-scene edits. Reverting the merge removes the scenario without
-touching the rig or the Home UI.
+Scenario-local code, assets and one edited mission asset (plus removal of the
+unreferenced `PFB_OldIndustrialBuilding` shared assets in `596208d`); no package
+changes and no shared-scene edits. Reverting the merge removes the scenario
+without touching the rig or the Home UI.
 
 **Blast Radius:** scenario.
 
@@ -654,10 +665,10 @@ infrastructure; both are covered by the validator and the rig regression.
 ### PR hygiene
 
 - [ ] Branch `scenario/machine-lock` is up to date with `origin/main`.
-- [ ] `git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json` prints nothing.
-- [ ] `git grep -n -E "OVRInput|XRGrabInteractable|XRRayInteractable|XRInteractionManager" -- Assets/_Project/Groups/G_Marius/Code/Scripts/MachineLock` prints nothing.
-- [ ] Validator log attached with `Errors=0 Warnings=0`.
-- [ ] EditMode and PlayMode XML results attached.
-- [ ] Quest 3 checklist completed on device with notes for every failure.
-- [ ] `ASSET_CREDITS.md` covers every asset added since P2, including audio and VFX.
-- [ ] Every commit message follows Conventional Commits.
+- [x] `git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json` prints nothing.
+- [x] `git grep -n -E "OVRInput|XRGrabInteractable|XRRayInteractable|XRInteractionManager" -- Assets/_Project/Groups/G_Marius/Code/Scripts/MachineLock` prints nothing.
+- [x] Validator log attached with `Errors=0 Warnings=0`.
+- [x] EditMode and PlayMode XML results attached.
+- [x] Quest 3 checklist completed on device with notes for every failure.
+- [x] `ASSET_CREDITS.md` covers every asset added since P2, including audio and VFX.
+- [x] Every commit message follows Conventional Commits.

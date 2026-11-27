@@ -835,6 +835,33 @@ namespace SI81.MachineLock.Tests
             return BuildLines(spi).Count(line => line.EndsWith(id, System.StringComparison.Ordinal));
         }
 
+        [Test]
+        public void Config_EnergyDecayDefaults_Are15To30Seconds_AndRollWithinRange()
+        {
+            var cfg = UnityEngine.ScriptableObject.CreateInstance<MachineLockConfig>();
+            try
+            {
+                Assert.That(cfg.energyDecayMinSeconds, Is.EqualTo(15f));
+                Assert.That(cfg.energyDecayMaxSeconds, Is.EqualTo(30f));
+
+                float minSeen = float.MaxValue;
+                float maxSeen = float.MinValue;
+                for (int i = 0; i < 40; i++)
+                {
+                    float rolled = cfg.RollEnergyDecaySeconds();
+                    Assert.That(rolled, Is.InRange(15f, 30f));
+                    if (rolled < minSeen) minSeen = rolled;
+                    if (rolled > maxSeen) maxSeen = rolled;
+                }
+                Assert.That(maxSeen - minSeen, Is.GreaterThan(0.5f),
+                    "RollEnergyDecaySeconds should produce varied values across runs.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cfg);
+            }
+        }
+
         private static int CountLinesWithPrefix(MachineLockSpi spi, string prefix)
         {
             return BuildLines(spi).Count(line => line.StartsWith(prefix, System.StringComparison.Ordinal));

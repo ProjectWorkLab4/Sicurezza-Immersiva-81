@@ -43,8 +43,10 @@ namespace SI81.MachineLock
         [Tooltip("Probability that the oil is energised at start.")]
         [Range(0f, 1f)]
         public float energizedProbability = 0.5f;
-        [Tooltip("Seconds needed for the residual charge to decay after main power is off.")]
-        public float energyDecaySeconds = 90f;
+        [Tooltip("Minimum seconds needed for the residual charge to decay after main power is off.")]
+        public float energyDecayMinSeconds = 15f;
+        [Tooltip("Maximum seconds needed for the residual charge to decay after main power is off.")]
+        public float energyDecayMaxSeconds = 30f;
 
         [Header("Observation")]
         [Tooltip("Observation mode used to score Awareness.")]
@@ -127,6 +129,17 @@ namespace SI81.MachineLock
         public int awarenessTargets = 6;
         [Tooltip("Maximum Time points.")]
         public int timeMax = 5;
+
+        /// <summary>
+        /// Rolls a uniform random residual-energy discharge duration within the configured [min, max] range.
+        /// </summary>
+        /// <returns>Decay duration in seconds.</returns>
+        public float RollEnergyDecaySeconds()
+        {
+            float min = Mathf.Max(0f, energyDecayMinSeconds);
+            float max = Mathf.Max(min, energyDecayMaxSeconds);
+            return max > min ? Random.Range(min, max) : min;
+        }
 
         /// <summary>
         /// Time limit of a project level.

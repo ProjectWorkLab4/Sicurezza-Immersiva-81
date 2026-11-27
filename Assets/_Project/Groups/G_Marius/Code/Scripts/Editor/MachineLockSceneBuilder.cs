@@ -1298,12 +1298,18 @@ namespace SI81.MachineLock.EditorTools
                 new Vector3(0.28f, 0.86f, 0.62f));
             Interactable lockoutInteractable = AddInteractable(lockoutPoint, true, false, false);
 
-            // ---- SUB-STATION 3 (Z = +0.88): VOLTAGE TESTER (authentic multimeter station) ----
+            // ---- SUB-STATION 3 (Z = +0.88): VOLTAGE TESTER (diegetic 7-segment Digital Meter, Issue #45) ----
             var subTester = NewChild(root, "SUB_VoltageTester", new Vector3(0f, 0f, 0.88f));
             AddHeroModelChild(subTester, "MESH_SubTesterBody", "MESH_SubStationTester.fbx", Vector3.zero, Vector3.zero);
             var voltageTester = NewChild(subTester, "MESH_VoltageTester", new Vector3(-0.14f, 0.14f, 0f));
-            AddBox(subTester, "MESH_VoltageTesterScreen", new Vector3(0.012f, 0.095f, 0.175f),
-                new Vector3(-0.205f, 0.19f, 0f), matHmiScreen, false);
+            // Panel-mount charcoal outer housing (0.25 m wide x 0.205 m tall x 0.024 m deep), seated cleanly above the yellow dial and below the pilot LEDs.
+            AddBox(subTester, "MESH_VoltageTesterMeterHousing", new Vector3(0.024f, 0.205f, 0.25f),
+                new Vector3(-0.212f, 0.220f, 0f), matDarkSlate, false);
+            // Front diegetic Digital Meter faceplate + 7-segment LCD quad facing -X into the stamping bay (starts dark/unlit via matHmiOff).
+            GameObject testerScreenQuad = AddQuad(subTester, "MESH_VoltageTesterScreen", new Vector2(0.244f, 0.199f),
+                new Vector3(-0.225f, 0.220f, 0f), new Vector3(0f, 90f, 0f), matHmiOff);
+            MachineLockDigitalMeterDisplay digitalMeter = testerScreenQuad.AddComponent<MachineLockDigitalMeterDisplay>();
+            SetRef(digitalMeter, "screenRenderer", testerScreenQuad.GetComponent<Renderer>());
             GameObject testerLedRed = AddCylinder(subTester, "MESH_TesterLedRed", 0.026f, 0.018f,
                 new Vector3(-0.148f, 0.42f, -0.12f), new Vector3(0f, 0f, 90f), matLedOff, false);
             GameObject testerLedGreen = AddCylinder(subTester, "MESH_TesterLedGreen", 0.026f, 0.018f,
@@ -1316,7 +1322,7 @@ namespace SI81.MachineLock.EditorTools
                 new Vector3(0.28f, 0.86f, 0.62f));
             Interactable testerInteractable = AddInteractable(voltageTester, true, false, false);
 
-            ParticleSystem arc = AddParticles(subTester, "VFX_ElectricalArc", new Vector3(-0.24f, 0.19f, 0f), Vector3.zero,
+            ParticleSystem arc = AddParticles(subTester, "VFX_ElectricalArc", new Vector3(-0.25f, 0.165f, 0f), Vector3.zero,
                 matParticleSoft, 40, false, 30f, new Color(0.6f, 0.85f, 1f, 0.9f), 0.05f, 1.2f, 0.25f, 0.04f,
                 ParticleSystemShapeType.Sphere, false);
             arc.gameObject.SetActive(false);
@@ -1329,6 +1335,7 @@ namespace SI81.MachineLock.EditorTools
             SetRef(panel, "mainSwitchInteractable", switchInteractable);
             SetRef(panel, "lockoutInteractable", lockoutInteractable);
             SetRef(panel, "testerInteractable", testerInteractable);
+            SetRef(panel, "digitalMeterDisplay", digitalMeter);
             SetRef(panel, "switchHandle", disconnectHandle.transform);
             SetVector3(panel, "switchRotationAxis", Vector3.right);
             SetRef(panel, "mainSwitchOnLedRenderer", mainOnLed.GetComponent<Renderer>());

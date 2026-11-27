@@ -103,6 +103,15 @@ namespace SI81.MachineLock.EditorTools
                 RenderTexture prevActive = RenderTexture.active;
                 RenderTexture.active = rt;
 
+                // Initialize diegetic Digital Meter to its unlit OFF faceplate before capturing room shots.
+                foreach (GameObject root in scene.GetRootGameObjects())
+                {
+                    MachineLockDigitalMeterDisplay initMeter = root.GetComponentInChildren<MachineLockDigitalMeterDisplay>(true);
+                    if (initMeter == null) continue;
+                    initMeter.SetPoweredOff();
+                    break;
+                }
+
                 foreach (var shot in shots)
                 {
                     camObj.transform.position = shot.Position;
@@ -137,6 +146,36 @@ namespace SI81.MachineLock.EditorTools
                     Debug.Log($"{LOG_PREFIX}PREVIEW {ppeFile}");
                     if (doorL != null) doorL.gameObject.SetActive(true);
                     if (doorR != null) doorR.gameObject.SetActive(true);
+                    break;
+                }
+
+                // Shots 10 & 11: Close-up of the Voltage Tester Digital Meter (OFF vs LIVE 222 V / 0.00 A / 0.0 W).
+                foreach (GameObject root in scene.GetRootGameObjects())
+                {
+                    MachineLockDigitalMeterDisplay meter = root.GetComponentInChildren<MachineLockDigitalMeterDisplay>(true);
+                    if (meter == null) continue;
+                    cam.fieldOfView = 34f;
+                    Vector3 meterPos = meter.transform.position;
+                    camObj.transform.position = meterPos + new Vector3(-0.62f, 0.02f, 0f);
+                    camObj.transform.LookAt(meterPos, Vector3.up);
+
+                    meter.SetPoweredOff();
+                    cam.Render();
+                    tex.ReadPixels(new Rect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT), 0, 0);
+                    tex.Apply(false, false);
+                    string meterOffFile = Path.Combine(outDir, "10_tester_meter_off.png");
+                    File.WriteAllBytes(meterOffFile, tex.EncodeToPNG());
+                    Debug.Log($"{LOG_PREFIX}PREVIEW {meterOffFile}");
+
+                    meter.SetPoweredOn(222f, 0f, 0f);
+                    cam.Render();
+                    tex.ReadPixels(new Rect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT), 0, 0);
+                    tex.Apply(false, false);
+                    string meterOnFile = Path.Combine(outDir, "11_tester_meter_live.png");
+                    File.WriteAllBytes(meterOnFile, tex.EncodeToPNG());
+                    Debug.Log($"{LOG_PREFIX}PREVIEW {meterOnFile}");
+
+                    meter.SetPoweredOff();
                     break;
                 }
 

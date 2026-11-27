@@ -152,7 +152,8 @@ namespace SI81.MachineLock.Tests
         [UnityTest]
         public IEnumerator EnergyPanel_MainOffDarkensPress_UnlocksLockout_DecaysCharge()
         {
-            config.energyDecaySeconds = 0.5f;
+            config.energyDecayMinSeconds = 0.5f;
+            config.energyDecayMaxSeconds = 0.5f;
             MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
             PressFixture press = CreatePress(scenario);
             PanelFixture panel = CreatePanel(scenario, press.Press);
@@ -225,6 +226,130 @@ namespace SI81.MachineLock.Tests
             Assert.That(scenario.TaskTesterZero, Is.True);
             Assert.That(scenario.Spi.TaskTesterZero, Is.True);
             yield return null;
+        }
+
+        /// <summary>
+        /// Diegetic Digital Meter starts powered OFF, powers ON continuously on select, reflects running
+        /// vs E-stopped load while main power is ON, streams a curved residual voltage drop to 0 V after
+        /// main power opens, auto-confirms TaskTesterZero without a second click, and stays ON on re-click (Issue #45).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnergyPanel_DigitalMeter_StartsOff_StreamsDrop_AndAutoConfirmsZero()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            yield return null;
+
+            panel.Panel.InitializeState(true);
+            panel.Panel.SetDecayDurationForTest(0.45f);
+            yield return null;
+
+            Assert.That(panel.Panel.TesterDisplayOn, Is.False, "Digital Meter must start powered OFF.");
+            Assert.That(panel.Meter.IsPoweredOn, Is.False);
+
+            // First click while main power is ON and press is running powers meter ON with active load.
+            Assert.That(panel.Panel.ReadTester(), Is.EqualTo(MachineLockTexts.TesterReadLivePanel));
+            Assert.That(panel.Panel.TesterDisplayOn, Is.True);
+            Assert.That(panel.Meter.IsPoweredOn, Is.True);
+            Assert.That(panel.Panel.DisplayedVoltage, Is.InRange(225f, 235f));
+            Assert.That(panel.Panel.DisplayedCurrent, Is.GreaterThan(10f));
+            Assert.That(panel.Panel.DisplayedPower, Is.GreaterThan(2000f));
+
+            // E-Stop drops motor current to standby while mains voltage stays ~230 V.
+            press.Press.PressEStop();
+            yield return new WaitForSeconds(0.30f);
+            Assert.That(panel.Panel.DisplayedVoltage, Is.InRange(225f, 235f));
+            Assert.That(panel.Panel.DisplayedCurrent, Is.InRange(0.5f, 1.5f));
+            Assert.That(panel.Panel.DisplayedPower, Is.InRange(100f, 350f));
+
+            // Re-clicking while already ON keeps the meter ON (never toggles OFF).
+            Assert.That(panel.Panel.ReadTester(), Is.EqualTo(MachineLockTexts.TesterReadLivePanel));
+            Assert.That(panel.Panel.TesterDisplayOn, Is.True);
+            Assert.That(panel.Meter.IsPoweredOn, Is.True);
+
+            // Open Main Disconnect: current/power drop to 0 and voltage decays monotonically until auto-ZERO.
+            panel.Panel.SetMainPower(false);
+            float initialResidualV = panel.Panel.DisplayedVoltage;
+            Assert.That(panel.Panel.DisplayedCurrent, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(panel.Panel.DisplayedPower, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(initialResidualV, Is.InRange(200f, 226f));
+            Assert.That(panel.Panel.TesterZero, Is.False);
+
+            yield return new WaitForSeconds(0.22f);
+            float midResidualV = panel.Panel.DisplayedVoltage;
+            Assert.That(midResidualV, Is.LessThan(initialResidualV - 30f),
+                "Displayed voltage must visibly decrease while residual charge decays.");
+            Assert.That(midResidualV, Is.GreaterThan(0f));
+
+            // Wait until decay crosses ENERGIZED_THRESHOLD (0.05) -> auto-confirms ZERO without a second click.
+            float deadline = Time.realtimeSinceStartup + 2.0f;
+            while (!panel.Panel.TesterZero && Time.realtimeSinceStartup < deadline)
+                yield return null;
+
+            Assert.That(panel.Panel.TesterZero, Is.True, "Active Digital Meter must auto-confirm TesterZero at safe zero.");
+            Assert.That(scenario.TaskTesterZero, Is.True);
+            Assert.That(scenario.Spi.TaskTesterZero, Is.True);
+            Assert.That(panel.Panel.DisplayedVoltage, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(panel.Meter.FormattedVoltage, Is.EqualTo("0"));
+            Assert.That(panel.Meter.FormattedCurrent, Is.EqualTo("0.00"));
+            Assert.That(panel.Meter.FormattedPower, Is.EqualTo("0.0"));
+        }
+
+        /// <summary>
+        /// In a 50% no-residual run, if the meter is already ON when the Main Disconnect opens, it settles
+        /// smoothly to 0 V over ~0.5 s and then auto-confirms TaskTesterZero (Issue #45).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnergyPanel_DigitalMeter_NoResidualWhileAlreadyOn_SettlesAndAutoConfirmsZero()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            yield return null;
+
+            panel.Panel.InitializeState(false);
+            yield return null;
+
+            Assert.That(panel.Panel.ReadTester(), Is.EqualTo(MachineLockTexts.TesterReadLivePanel));
+            Assert.That(panel.Panel.TesterDisplayOn, Is.True);
+
+            panel.Panel.SetMainPower(false);
+            Assert.That(panel.Panel.TesterZero, Is.False, "No-residual settle should ramp briefly before confirming zero.");
+            Assert.That(panel.Panel.DisplayedVoltage, Is.GreaterThan(100f));
+
+            float deadline = Time.realtimeSinceStartup + 2.0f;
+            while (!panel.Panel.TesterZero && Time.realtimeSinceStartup < deadline)
+                yield return null;
+
+            Assert.That(panel.Panel.TesterZero, Is.True);
+            Assert.That(scenario.TaskTesterZero, Is.True);
+            Assert.That(panel.Panel.DisplayedVoltage, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(panel.Meter.FormattedVoltage, Is.EqualTo("0"));
+        }
+
+        /// <summary>
+        /// Residual energy discharge duration rolls randomly within [15, 30] seconds per run (Issue #45).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnergyPanel_ResidualDecayDuration_RollsRandomlyWithin15To30Seconds()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PanelFixture panel = CreatePanel(scenario, null);
+            yield return null;
+
+            float minSeen = float.MaxValue;
+            float maxSeen = float.MinValue;
+            for (int i = 0; i < 20; i++)
+            {
+                panel.Panel.InitializeState(true);
+                float rolled = panel.Panel.ActiveDecaySeconds;
+                Assert.That(rolled, Is.InRange(15f, 30f));
+                if (rolled < minSeen) minSeen = rolled;
+                if (rolled > maxSeen) maxSeen = rolled;
+            }
+            Assert.That(maxSeen - minSeen, Is.GreaterThan(0.5f),
+                "ActiveDecaySeconds must randomize across runs within [15, 30] seconds.");
         }
 
         /// <summary>
@@ -2101,13 +2226,14 @@ namespace SI81.MachineLock.Tests
             public Transform Ram;
         }
 
-        /// <summary>Electrical panel under test with its three Sub-Station interactables.</summary>
+        /// <summary>Electrical panel under test with its three Sub-Station interactables and digital meter.</summary>
         private sealed class PanelFixture
         {
             public MachineLockEnergyPanel Panel;
             public Interactable MainSwitch;
             public Interactable Lockout;
             public Interactable Tester;
+            public MachineLockDigitalMeterDisplay Meter;
         }
 
         /// <summary>Alarm under test with its beacon light.</summary>
@@ -2268,6 +2394,12 @@ namespace SI81.MachineLock.Tests
             testerObject.transform.SetParent(root.transform, false);
             var tester = testerObject.AddComponent<Interactable>();
 
+            GameObject meterQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            meterQuad.name = "MESH_VoltageTesterScreen";
+            meterQuad.transform.SetParent(root.transform, false);
+            var meter = meterQuad.AddComponent<MachineLockDigitalMeterDisplay>();
+            WireObject(meter, "screenRenderer", meterQuad.GetComponent<Renderer>());
+
             var panel = root.AddComponent<MachineLockEnergyPanel>();
             WireObject(panel, "scenario", scenario);
             WireObject(panel, "config", config);
@@ -2275,6 +2407,7 @@ namespace SI81.MachineLock.Tests
             WireObject(panel, "mainSwitchInteractable", mainSwitch);
             WireObject(panel, "lockoutInteractable", lockout);
             WireObject(panel, "testerInteractable", tester);
+            WireObject(panel, "digitalMeterDisplay", meter);
             WireObject(panel, "switchHandle", switchObject.transform);
             root.SetActive(true);
 
@@ -2283,7 +2416,8 @@ namespace SI81.MachineLock.Tests
                 Panel = panel,
                 MainSwitch = mainSwitch,
                 Lockout = lockout,
-                Tester = tester
+                Tester = tester,
+                Meter = meter
             };
         }
 

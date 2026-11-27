@@ -25,10 +25,24 @@ namespace SI81.MachineLock
         /// <summary>Number of distinct left-to-right permutations of the three Sub-Stations (3! = 6).</summary>
         public const int SUB_STATION_PERMUTATION_COUNT = 6;
 
-        private const float DEFAULT_DECAY_SECONDS = 90f;
+        /// <summary>Default minimum residual-energy discharge duration in seconds (Issue #45).</summary>
+        public const float DEFAULT_DECAY_MIN_SECONDS = 15f;
+        /// <summary>Default maximum residual-energy discharge duration in seconds (Issue #45).</summary>
+        public const float DEFAULT_DECAY_MAX_SECONDS = 30f;
+
         private const float DEFAULT_ENERGIZED_PROBABILITY = 0.5f;
         private const float SWITCH_OFF_ANGLE = -80f;
         private const float ARC_PULSE_SECONDS = 0.35f;
+
+        // Simulated industrial digital meter constants (Issue #45: clear visual feedback, no physics solver).
+        private const float MAINS_NOMINAL_VOLTAGE = 230f;
+        private const float RESIDUAL_PEAK_VOLTAGE = 222f;
+        private const float RESIDUAL_VOLTAGE_EXPONENT = 1.35f;
+        private const float RUNNING_LOAD_CURRENT = 12.40f;
+        private const float STANDBY_LOAD_CURRENT = 0.85f;
+        private const float NO_RESIDUAL_SETTLE_SECONDS = 0.5f;
+        private const float DISPLAY_ACTIVE_REFRESH_SECONDS = 0.10f;
+        private const float DISPLAY_STEADY_REFRESH_SECONDS = 0.25f;
 
         private static readonly WaitForSeconds ArcPulseWait = new WaitForSeconds(ARC_PULSE_SECONDS);
         private static readonly float[] DefaultSubStationSlotZ = { -0.88f, 0f, 0.88f };
@@ -67,6 +81,8 @@ namespace SI81.MachineLock
         [SerializeField] private Interactable lockoutInteractable;
         [Tooltip("Voltage tester Interactable.")]
         [SerializeField] private Interactable testerInteractable;
+        [Tooltip("Diegetic 7-segment Digital Meter display mounted on the Voltage Tester Sub-Station.")]
+        [SerializeField] private MachineLockDigitalMeterDisplay digitalMeterDisplay;
         [Tooltip("Rotary disconnect handle on the Main Disconnect Switch Sub-Station.")]
         [SerializeField] private Transform switchHandle;
         [Tooltip("Local rotation axis of the rotary disconnect handle (Z for legacy box, X for front-facing shaft).")]
@@ -108,6 +124,10 @@ namespace SI81.MachineLock
         private Quaternion switchOnRotation;
         private Coroutine arcRoutine;
         private ParticleSystem arcParticles;
+        private float forcedDecaySecondsOverride = -1f;
+        private float noResidualSettleRemaining;
+        private float noResidualSettleStartVoltage;
+        private float nextDisplayRefreshTime;
 
         /// <summary>true while the main circuit is closed (starts ON, GDD §9.3).</summary>
         public bool MainPowerOn { get; private set; } = true;
@@ -117,8 +137,18 @@ namespace SI81.MachineLock
         public bool OilEnergized => Charge01 > ENERGIZED_THRESHOLD;
         /// <summary>Normalized residual charge, 0 to 1.</summary>
         public float Charge01 { get; private set; }
+        /// <summary>Active per-run residual energy discharge duration rolled in [15, 30] seconds (Issue #45).</summary>
+        public float ActiveDecaySeconds { get; private set; }
         /// <summary>true after the tester confirmed ZERO.</summary>
         public bool TesterZero { get; private set; }
+        /// <summary>true while the diegetic Digital Meter display is powered on.</summary>
+        public bool TesterDisplayOn { get; private set; }
+        /// <summary>Simulated voltage currently shown on the Digital Meter (0 while OFF).</summary>
+        public float DisplayedVoltage { get; private set; }
+        /// <summary>Simulated current in amperes currently shown on the Digital Meter (0 while OFF).</summary>
+        public float DisplayedCurrent { get; private set; }
+        /// <summary>Simulated power in watts currently shown on the Digital Meter (0 while OFF).</summary>
+        public float DisplayedPower { get; private set; }
         /// <summary>Most recent hover Action Feedback string emitted by any of the three Sub-Stations.</summary>
         public string LastHoverFeedback => hoverFeedback.LastFeedback;
         /// <summary>Active Sub-Station slot permutation index, 0 to 5.</summary>
@@ -136,11 +166,15 @@ namespace SI81.MachineLock
 
             float probability = config != null ? config.energizedProbability : DEFAULT_ENERGIZED_PROBABILITY;
             Charge01 = UnityEngine.Random.value < probability ? 1f : 0f;
+            ActiveDecaySeconds = RollDecaySeconds();
+            TesterDisplayOn = false;
+            noResidualSettleRemaining = 0f;
 
             RefreshStatusLamps();
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledOffMaterial);
             SetLockoutSelectable(false);
+            SyncDisplayOff();
         }
 
         private void Start()
@@ -200,14 +234,36 @@ namespace SI81.MachineLock
         private void Update()
         {
             hoverFeedback.Tick();
-            if (MainPowerOn || Charge01 <= 0f) return;
-            float decaySeconds = config != null ? config.energyDecaySeconds : DEFAULT_DECAY_SECONDS;
-            if (decaySeconds <= 0f)
+
+            if (!MainPowerOn && Charge01 > 0f)
             {
-                Charge01 = 0f;
+                if (ActiveDecaySeconds <= 0f)
+                {
+                    Charge01 = 0f;
+                }
+                else
+                {
+                    Charge01 = Mathf.Max(0f, Charge01 - Time.deltaTime / ActiveDecaySeconds);
+                }
+            }
+
+            if (noResidualSettleRemaining > 0f)
+            {
+                noResidualSettleRemaining = Mathf.Max(0f, noResidualSettleRemaining - Time.deltaTime);
+            }
+
+            if (!TesterDisplayOn) return;
+
+            if (!MainPowerOn && !OilEnergized && !TesterZero && noResidualSettleRemaining <= 0f)
+            {
+                ConfirmZeroEnergyFromLiveDisplay();
                 return;
             }
-            Charge01 = Mathf.Max(0f, Charge01 - Time.deltaTime / decaySeconds);
+
+            if (Time.time >= nextDisplayRefreshTime)
+            {
+                UpdateLiveMeterDisplay(forceImmediate: false);
+            }
         }
 
         // =====================================================================
@@ -274,15 +330,18 @@ namespace SI81.MachineLock
         // =====================================================================
 
         /// <summary>
-        /// Resets the panel to a known state: main power on, no lockout and the charge passed in.
-        /// Used by the tests and the debug menu; the tester must still be read to confirm ZERO.
+        /// Resets the panel to a known state: main power on, no lockout, meter display OFF, freshly
+        /// rolled decay duration, and the charge passed in. Used by tests and the debug menu.
         /// </summary>
         public void InitializeState(bool energized)
         {
             MainPowerOn = true;
             LockedOut = false;
             Charge01 = energized ? 1f : 0f;
+            ActiveDecaySeconds = RollDecaySeconds();
             TesterZero = false;
+            TesterDisplayOn = false;
+            noResidualSettleRemaining = 0f;
 
             ApplySwitchHandle(true);
             RefreshStatusLamps();
@@ -291,6 +350,18 @@ namespace SI81.MachineLock
             SetLockoutSelectable(false);
             if (arcVfx != null) arcVfx.SetActive(false);
             if (press != null) press.SetPower(true);
+            SyncDisplayOff();
+        }
+
+        /// <summary>
+        /// Overrides the rolled residual-energy decay duration for deterministic automated tests.
+        /// Pass a negative value to restore normal random rolling from <see cref="MachineLockConfig"/>.
+        /// </summary>
+        /// <param name="seconds">Fixed decay duration in seconds, or negative to clear override.</param>
+        public void SetDecayDurationForTest(float seconds)
+        {
+            forcedDecaySecondsOverride = seconds;
+            ActiveDecaySeconds = RollDecaySeconds();
         }
 
         /// <summary>Forces the oil to full residual charge and invalidates a previous ZERO reading.</summary>
@@ -298,6 +369,12 @@ namespace SI81.MachineLock
         {
             Charge01 = 1f;
             TesterZero = false;
+            noResidualSettleRemaining = 0f;
+            if (TesterDisplayOn)
+            {
+                ShowLive(false);
+                UpdateLiveMeterDisplay(forceImmediate: true);
+            }
         }
 
         /// <summary>Forces the oil to zero charge and invalidates a previous ZERO reading.</summary>
@@ -305,6 +382,7 @@ namespace SI81.MachineLock
         {
             Charge01 = 0f;
             TesterZero = false;
+            noResidualSettleRemaining = 0f;
         }
 
         // =====================================================================
@@ -321,10 +399,16 @@ namespace SI81.MachineLock
             {
                 if (MainPowerOn || LockedOut) return;
                 MainPowerOn = true;
+                noResidualSettleRemaining = 0f;
                 ApplySwitchHandle(true);
                 RefreshStatusLamps();
                 SetLockoutSelectable(false);
                 if (press != null) press.SetPower(true);
+                if (TesterDisplayOn)
+                {
+                    ShowLive(false);
+                    UpdateLiveMeterDisplay(forceImmediate: true);
+                }
                 return;
             }
 
@@ -336,6 +420,16 @@ namespace SI81.MachineLock
             if (press != null) press.SetPower(false);
             PlayClip(breakerOffClip);
             if (scenario != null) scenario.NotifyMainPowerOff();
+
+            if (TesterDisplayOn)
+            {
+                if (!OilEnergized && !TesterZero)
+                {
+                    noResidualSettleStartVoltage = Mathf.Max(DisplayedVoltage, MAINS_NOMINAL_VOLTAGE);
+                    noResidualSettleRemaining = NO_RESIDUAL_SETTLE_SECONDS;
+                }
+                UpdateLiveMeterDisplay(forceImmediate: true);
+            }
         }
 
         /// <summary>Opens the main switch. Bound to the switch <see cref="Interactable"/>.</summary>
@@ -359,16 +453,19 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Reads the voltage tester without discharging the oil: LIVE with the main circuit closed or
-        /// residual charge left, ZERO only below <see cref="ENERGIZED_THRESHOLD"/>.
+        /// Powers on (or keeps on) and reads the voltage tester without discharging the oil: LIVE with
+        /// the main circuit closed or residual charge left, ZERO only below <see cref="ENERGIZED_THRESHOLD"/>.
         /// </summary>
         public string ReadTester()
         {
+            TesterDisplayOn = true;
+            noResidualSettleRemaining = 0f;
             PlayClip(testerBeepClip);
 
             if (MainPowerOn)
             {
                 ShowLive(true);
+                UpdateLiveMeterDisplay(forceImmediate: true);
                 if (scenario != null) scenario.NotifyTesterRead(false, MachineLockTexts.TesterReadLivePanel);
                 return MachineLockTexts.TesterReadLivePanel;
             }
@@ -376,6 +473,7 @@ namespace SI81.MachineLock
             if (Charge01 > ENERGIZED_THRESHOLD)
             {
                 ShowLive(false);
+                UpdateLiveMeterDisplay(forceImmediate: true);
                 if (scenario != null) scenario.NotifyTesterRead(false, MachineLockTexts.TesterReadLiveCharge);
                 return MachineLockTexts.TesterReadLiveCharge;
             }
@@ -383,6 +481,7 @@ namespace SI81.MachineLock
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledGreenMaterial);
             TesterZero = true;
+            UpdateLiveMeterDisplay(forceImmediate: true);
             if (scenario != null) scenario.NotifyTesterRead(true, MachineLockTexts.TesterReadZero);
             return MachineLockTexts.TesterReadZero;
         }
@@ -390,6 +489,86 @@ namespace SI81.MachineLock
         // =====================================================================
         // Helpers
         // =====================================================================
+
+        private float RollDecaySeconds()
+        {
+            if (forcedDecaySecondsOverride >= 0f) return forcedDecaySecondsOverride;
+            if (config != null) return config.RollEnergyDecaySeconds();
+            return UnityEngine.Random.Range(DEFAULT_DECAY_MIN_SECONDS, DEFAULT_DECAY_MAX_SECONDS);
+        }
+
+        private void ConfirmZeroEnergyFromLiveDisplay()
+        {
+            ApplyLed(testerRedLedRenderer, ledOffMaterial);
+            ApplyLed(testerGreenLedRenderer, ledGreenMaterial);
+            TesterZero = true;
+            PlayClip(testerBeepClip);
+            UpdateLiveMeterDisplay(forceImmediate: true);
+            if (scenario != null) scenario.NotifyTesterRead(true, MachineLockTexts.TesterReadZero);
+        }
+
+        private void SyncDisplayOff()
+        {
+            DisplayedVoltage = 0f;
+            DisplayedCurrent = 0f;
+            DisplayedPower = 0f;
+            if (digitalMeterDisplay != null) digitalMeterDisplay.SetPoweredOff();
+        }
+
+        private void UpdateLiveMeterDisplay(bool forceImmediate)
+        {
+            float t = Time.time;
+            float jitter = Mathf.Sin(t * 7.3f) * 0.6f + Mathf.Cos(t * 13.1f) * 0.4f;
+
+            float voltage;
+            float current;
+            float power;
+            bool fastRefresh = false;
+
+            if (MainPowerOn)
+            {
+                bool pressRunning = press == null || press.IsRunning;
+                voltage = MAINS_NOMINAL_VOLTAGE + jitter * (pressRunning ? 1.2f : 1.0f);
+                current = pressRunning
+                    ? RUNNING_LOAD_CURRENT + jitter * 0.14f
+                    : STANDBY_LOAD_CURRENT + jitter * 0.02f;
+                power = voltage * current;
+            }
+            else if (noResidualSettleRemaining > 0f)
+            {
+                float ratio = Mathf.Clamp01(noResidualSettleRemaining / NO_RESIDUAL_SETTLE_SECONDS);
+                voltage = noResidualSettleStartVoltage * (ratio * ratio);
+                current = 0f;
+                power = 0f;
+                fastRefresh = true;
+            }
+            else if (Charge01 > ENERGIZED_THRESHOLD)
+            {
+                // Curved capacitor-bleed voltage profile snapping cleanly to 0 V once <= ENERGIZED_THRESHOLD.
+                float baseVoltage = RESIDUAL_PEAK_VOLTAGE * Mathf.Pow(Mathf.Clamp01(Charge01), RESIDUAL_VOLTAGE_EXPONENT);
+                float flicker = baseVoltage > 10f ? jitter * 0.8f : 0f;
+                voltage = Mathf.Max(1f, baseVoltage + flicker);
+                current = 0f;
+                power = 0f;
+                fastRefresh = true;
+            }
+            else
+            {
+                voltage = 0f;
+                current = 0f;
+                power = 0f;
+            }
+
+            DisplayedVoltage = voltage;
+            DisplayedCurrent = current;
+            DisplayedPower = power;
+
+            if (digitalMeterDisplay != null)
+                digitalMeterDisplay.SetPoweredOn(voltage, current, power);
+
+            float interval = fastRefresh ? DISPLAY_ACTIVE_REFRESH_SECONDS : DISPLAY_STEADY_REFRESH_SECONDS;
+            nextDisplayRefreshTime = forceImmediate ? t + interval : t + interval;
+        }
 
         private void RefreshStatusLamps()
         {

@@ -356,12 +356,13 @@ Risk labels: press, thermometer and puddle are within 4 m of each other — exac
 
 - At start, 50% chance the oil is energised.
 - If energised, `Charge01 = 1`.
-- When main power is OFF, charge decays linearly over `energyDecaySeconds` (default 90 s). When it reaches 0, the oil is no longer energised.
+- When main power is OFF, charge decays linearly over a per-run uniform random duration between `energyDecayMinSeconds` (`15 s`) and `energyDecayMaxSeconds` (`30 s`) across all difficulty levels (Issue #45, ADR-0007). When it reaches `≤ 0.05`, the oil is no longer energised.
 - If main power is ON, charge does not decay.
-- The tester is wall-mounted next to the panel. Select it to read:
-  - Main ON: `LIVE — quadro inserito`.
-  - Main OFF and charge > 0.05: `LIVE — energia residua`.
-  - Main OFF and charge ≈ 0: `ZERO — energia assente`.
+- The tester Sub-Station carries a diegetic panel-mount 7-segment **Digital Meter** (`VOLTAGE` in `V`, `CURRENT` in `A`, `POWER` in `W`, Issue #45) that starts powered **OFF** (unlit dark LCD glass). Selecting the tester powers the backlit blue-grey LCD **ON** and streams live values continuously (re-clicking keeps it ON and re-reads):
+  - Main ON: `~230 V` (`12.40 A / ~2850 W` while the press runs, `0.85 A / ~195 W` when E-stopped); readout `LIVE — quadro inserito`.
+  - Main OFF and charge > 0.05: curved capacitor-bleed `~222 V × Charge01^1.35` down toward `0 V`, `0.00 A`, `0.0 W`; readout `LIVE — energia residua`.
+  - Main OFF and charge ≤ 0.05: snaps cleanly to `0 V`, `0.00 A`, `0.0 W` (or settles over `~0.5 s` if the meter was already ON when the main switch opened in a 50% no-residual run); readout `ZERO — energia assente`.
+- When the meter is already ON and reaches safe zero, it automatically switches the cabinet LEDs from red LIVE to green ZERO, beeps, and confirms `TaskTesterZero` (*"Energia zero confermata."*).
 - The tester shows a red LED for LIVE and a green LED for ZERO; the HUD alert reports the text.
 - The tester does not discharge the oil; it only measures.
 - Touching live oil causes a shock regardless of PPE.
@@ -988,7 +989,8 @@ hardEndRealistic = true;
 hardEndStress = true;
 hardEndGuided = false;
 energizedProbability = 0.5f;
-energyDecaySeconds = 90f;
+energyDecayMinSeconds = 15f;
+energyDecayMaxSeconds = 30f;
 gazeDistance = 3.5f;
 gazeAngle = 25f;
 gazeDwell = 1.2f;
@@ -1169,7 +1171,7 @@ Debrief_Cap5Good4Error
 5. E-stop from the west pedestal; press stops; display stays on.
 6. Alarm; beacon and siren.
 7. Main off; display dark; lockout; red LED.
-8. Tester: LIVE then ZERO after 90 s; try-start no movement.
+8. Tester: Digital Meter powers ON, shows LIVE dropping to ZERO after 15–30 s (or immediately on no-residual runs), auto-confirms ZERO; try-start no movement.
 9. PPE: wrong items, then correct 4; hint 4/4.
 10. Valve closed; cones 4/4; mats/socks 4/4; hazard off.
 11. Exit; Preposto line; outcome; debrief; score; Home.

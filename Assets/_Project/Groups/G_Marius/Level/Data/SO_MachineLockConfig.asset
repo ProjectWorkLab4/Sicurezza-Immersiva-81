@@ -19,7 +19,8 @@ MonoBehaviour:
   hardEndStress: 1
   hardEndGuided: 0
   energizedProbability: 0.5
-  energyDecaySeconds: 90
+  energyDecayMinSeconds: 15
+  energyDecayMaxSeconds: 30
   observationMode: 0
   gazeDistance: 3.5
   gazeAngle: 25

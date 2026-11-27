@@ -650,7 +650,14 @@ namespace SI81.MachineLock.EditorTools
                 {
                     errors += Error("MachineLockEnergyPanel must wire mainSwitchStationRoot, lockoutStationRoot, and testerStationRoot for randomized slot order (Issue #43).");
                 }
+                if (panelSo.FindProperty("digitalMeterDisplay").objectReferenceValue == null)
+                {
+                    errors += Error("MachineLockEnergyPanel must wire digitalMeterDisplay on SUB_VoltageTester (Issue #45).");
+                }
             }
+
+            if (testSub != null && testSub.GetComponentInChildren<MachineLockDigitalMeterDisplay>(true) == null)
+                errors += Error("SUB_VoltageTester must contain a MachineLockDigitalMeterDisplay component (Issue #45).");
 
             Transform doorLeafTransform = FindDeep(scene, "MESH_SteelExitDoorLeaf");
             if (doorLeafTransform == null || doorLeafTransform.GetComponent<SI81.Interaction.Interactable>() == null)

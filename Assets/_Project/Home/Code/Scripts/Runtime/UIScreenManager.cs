@@ -63,6 +63,8 @@ namespace SI81.UI
         private bool initialized;
         // Input Service a cui siamo iscritti per il tasto Back (stessa istanza in OnDisable).
         private InputService inputService;
+        // Offset verticale (m) applicato al TrackingOrigin in modalità seduto, sottratto da floorY in PlaceInFront.
+        private float seatedHeightOffset;
 
         /// <summary>L'unico gestore attivo (null se non esiste o è stato distrutto).</summary>
         public static UIScreenManager Instance { get; private set; }
@@ -93,6 +95,12 @@ namespace SI81.UI
         public Transform Head => head;
         /// <summary>Origine del tracciamento assegnata con <see cref="SetTrackingOrigin"/> (null se non assegnata).</summary>
         public Transform TrackingOrigin => inputSetup != null ? inputSetup.XrTrackingOrigin : null;
+        /// <summary>Offset verticale (metri) applicato al TrackingOrigin in modalità seduto, compensato nel calcolo dell'altezza del menu.</summary>
+        public float SeatedHeightOffset
+        {
+            get => seatedHeightOffset;
+            set => seatedHeightOffset = Mathf.Max(0f, value);
+        }
         /// <summary>Camera della testa assegnata (cercata anche nei figli), null se non c'è.</summary>
         public Camera HeadCamera => head != null ? (head.GetComponent<Camera>() ?? head.GetComponentInChildren<Camera>()) : null;
 
@@ -414,7 +422,7 @@ namespace SI81.UI
             forward = forward.sqrMagnitude < 0.0001f ? Vector3.forward : forward.normalized;
 
             Transform origin = TrackingOrigin;
-            float floorY = origin != null ? origin.position.y : 0f;
+            float floorY = origin != null ? origin.position.y - seatedHeightOffset : 0f;
             Vector3 position = headTransform.position + forward * theme.MenuDistance;
             position.y = floorY + theme.MenuCenterHeight;
             // Il Canvas guarda lungo +Z: orientato come lo sguardo, il suo fronte è rivolto alla testa.

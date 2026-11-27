@@ -20,6 +20,8 @@ namespace SI81.UI
     {
         /// <summary>Numero massimo di obiettivi standard mostrati (MissionDefinition.MAX_OBJECTIVES).</summary>
         private const int MAX_OBJECTIVES = MissionDefinition.MAX_OBJECTIVES;
+        /// <summary>Id del Blackout: i suoi obiettivi sono provvisori e restano solo in Guided.</summary>
+        private const string ID_BLACKOUT = "02";
         private const float SCROLLBAR_WIDTH = 10f;
         private const float SCROLLBAR_GUTTER = 18f;
         private const float FALLBACK_VIEWPORT_HEIGHT = 200f;
@@ -45,6 +47,8 @@ namespace SI81.UI
         [Tooltip("Contenitore degli obiettivi (sotto il titolo \"Obiettivi\").")]
         [SerializeField] private RectTransform objectivesRoot;
         [SerializeField] private ObjectiveItem[] objectiveItems = new ObjectiveItem[MAX_OBJECTIVES];
+        // Titolo "Obiettivi", fratello di PANEL_Objectives nel builder: cercato a runtime per nasconderlo insieme alla lista.
+        private GameObject objectiveTitle;
 
         [Header("Pulsanti")]
         [SerializeField] private UIButton resumeButton;
@@ -80,6 +84,11 @@ namespace SI81.UI
             if (restartButton != null) restartButton.Clicked += HandleRestart;
             if (quickSettingsButton != null) quickSettingsButton.Clicked += HandleQuickSettings;
             if (exitButton != null) exitButton.Clicked += HandleExit;
+            if (objectivesRoot != null && objectivesRoot.parent != null)
+            {
+                Transform titolo = objectivesRoot.parent.Find("LBL_ObjTitle");
+                if (titolo != null) objectiveTitle = titolo.gameObject;
+            }
         }
 
         /// <summary>
@@ -132,15 +141,22 @@ namespace SI81.UI
         /// <param name="mission">Scenario (null = nessun obiettivo).</param>
         private void RefreshObjectives(MissionDefinition mission)
         {
-            IReadOnlyList<PauseChecklistEntry> checklist = MissionFlow.PauseChecklist;
+            bool mostra = mission == null || mission.Id != ID_BLACKOUT || MissionSession.Level == DifficultyLevel.Guided;
+            if (objectiveTitle != null) PanelLayout.SetActive(objectiveTitle, mostra);
+
+            IReadOnlyList<PauseChecklistEntry> checklist = mostra ? MissionFlow.PauseChecklist : null;
             bool useChecklist = checklist != null && checklist.Count > 0;
-            bool hasStandard = mission != null && mission.Objectives != null && mission.Objectives.Count > 0;
+            bool hasStandard = mostra && mission != null && mission.Objectives != null && mission.Objectives.Count > 0;
             bool hasAny = useChecklist || hasStandard;
 
             if (objectivesRoot != null) PanelLayout.SetActive(objectivesRoot.gameObject, hasAny);
             if (!hasAny)
             {
                 VisibleObjectiveCount = 0;
+                for (int i = 0; i < objectiveItems.Length; i++)
+                {
+                    if (objectiveItems[i] != null) PanelLayout.SetActive(objectiveItems[i].gameObject, false);
+                }
                 HideExtraPooledItems(0);
                 return;
             }

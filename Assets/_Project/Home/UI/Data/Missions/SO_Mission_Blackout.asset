@@ -14,9 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
   Id: 02
   Title: Blackout
-  Context: 'Ruolo: tecnico di reparto. Un blackout improvviso lascia il magazzino
-    al buio con i macchinari ancora in moto. Raggiungi il quadro in sicurezza, segnala
-    il guasto e guida i colleghi verso l''uscita senza usare fiamme libere.'
+  Context: 'Ruolo: dipendente d''ufficio. Il dipendente lavora alla sua postazione in ufficio quando va via la corrente e scatta l''allarme antincendio. Con le sole luci d''emergenza e la segnaletica luminosa deve raggiungere l''uscita d''emergenza prima che il fumo invada la stanza, senza perdere tempo né compiere azioni pericolose.'
   Icon: {fileID: 21300000, guid: ce1f6a6d9d60afd40a869cbdedfad091, type: 3}
   Image: {fileID: 0}
   GradientTop: {r: 0.24313726, g: 0.10980392, b: 0.4, a: 1}
@@ -24,17 +22,15 @@ MonoBehaviour:
   Complexity: 3
   SceneName: SCN_Blackout
   Objectives:
-  - Attiva la luce d'emergenza
-  - Avvisa i colleghi vicini
-  - Raggiungi il quadro elettrico
-  - Segnala il guasto
+  - Segui la segnaletica luminosa
+  - Evacua l'edificio
   Criteria:
   - Outcome: 0
-    Text: Tutti al sicuro e guasto segnalato
+    Text: Hai evacuato l'edificio in sicurezza
   - Outcome: 1
     Text: Tutti al sicuro, segnalazione tardiva
   - Outcome: 2
-    Text: Un collega resta al buio in zona pericolosa
+    Text: 
   Levels:
   - Level: 1
     UnlockedByDefault: 1

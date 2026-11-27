@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e854ede8a9d475b4ea0cc6436fc8d2f9, type: 3}
+  m_Name: SO_Mission_GasLeak
+  m_EditorClassIdentifier: SI81.UI::SI81.UI.MissionDefinition
+  Id: 11
+  Title: GasLeak
+  Context: 'Ruolo: lavoratore in una zona uffici. Due colleghi hanno mal di testa
+    e nausea: riconosci i sintomi, usa il rilevatore di CO, apri le finestre, spegni
+    la stufetta, chiama il 112 ed esci con il collega.'
+  Icon: {fileID: 21300000, guid: ce1f6a6d9d60afd40a869cbdedfad091, type: 3}
+  Image: {fileID: 0}
+  GradientTop: {r: 0.24313726, g: 0.10980392, b: 0.4, a: 1}
+  GradientBottom: {r: 0.48235294, g: 0.35686275, b: 0.6509804, a: 1}
+  Complexity: 4
+  SceneName: SCN_GasLeak
+  Objectives:
+  - Riconosci i sintomi
+  - Misura il CO
+  - Aera e spegni
+  - Chiama ed esci
+  Criteria:
+  - Outcome: 0
+    Text: Collega fuori e 112 chiamato
+  - Outcome: 1
+    Text: Usciti ma senza 112
+  - Outcome: 2
+    Text: Intossicazione o tempo scaduto
+  Levels:
+  - Level: 1
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 240
+  - Level: 2
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 180
+  - Level: 3
+    UnlockedByDefault: 1
+    TimeLimitSecondsOverride: 120
+  IsTraining: 0
+  DesignerNote: 'Migrazione G_Simone: missione del scenario Gas Leak, livelli allineati
+    a ImpostazioniDifficolta.'

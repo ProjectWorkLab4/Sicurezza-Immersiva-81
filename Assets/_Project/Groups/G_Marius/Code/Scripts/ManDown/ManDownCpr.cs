@@ -357,6 +357,15 @@ namespace SI81.ManDown
             ResetCycle();
         }
 
+        /// <summary>
+        /// Interruzione richiesta dalla procedura DAE: invalida un ciclo in corso senza azzerare
+        /// statistiche globali e senza toccare la progressione RCP (affidata ad altri componenti).
+        /// </summary>
+        public void InterruptForAed()
+        {
+            Invalidate("aed_analysis");
+        }
+
         /// <summary>Azzaera lo stato del ciclo senza contare un tentativo (nuova missione/disattivazione).</summary>
         private void ResetCycle()
         {

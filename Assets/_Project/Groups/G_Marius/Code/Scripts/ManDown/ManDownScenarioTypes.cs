@@ -359,6 +359,22 @@ namespace SI81.ManDown
         public float WithoutAedCompletedAt { get; }
         /// <summary>Secondi dell'interruzione esplicita per il DAE; -1 se non avvenuta.</summary>
         public float InterruptedForAedAt { get; }
+        /// <summary>Valore RCP grezzo cumulativo: somma delle qualità degli intervalli valutati.</summary>
+        public float RcpAccumulatedValue { get; }
+        /// <summary>Secondi di missione della prima compressione valida; -1 se non avvenuta.</summary>
+        public float FirstCompressionAt { get; }
+        /// <summary>Secondi di missione dell'ultima compressione valida; -1 se non avvenuta.</summary>
+        public float LastCompressionAt { get; }
+        /// <summary>Compressioni valide prima della scarica.</summary>
+        public int CompressionsBeforeShock { get; }
+        /// <summary>Compressioni valide dopo la scarica.</summary>
+        public int CompressionsAfterShock { get; }
+        /// <summary>Compressioni valide registrate durante la proroga.</summary>
+        public int GraceCompressions { get; }
+        /// <summary>Somma delle qualità degli intervalli registrati durante la proroga (non usata dallo scoring).</summary>
+        public float GraceIntervalQualitySum { get; }
+        /// <summary>Durata complessiva della sospensione RCP per analisi/autorizzazione/scarica.</summary>
+        public float AedSuspensionSeconds { get; }
 
         /// <summary>Crea uno snapshot completo; i timestamp non impostati usano -1.</summary>
         public ManDownCprQualitySnapshot(
@@ -381,7 +397,15 @@ namespace SI81.ManDown
             float initialPhaseCompletedAt = -1f,
             float afterAedPhaseCompletedAt = -1f,
             float withoutAedCompletedAt = -1f,
-            float interruptedForAedAt = -1f)
+            float interruptedForAedAt = -1f,
+            float rcpAccumulatedValue = 0f,
+            float firstCompressionAt = -1f,
+            float lastCompressionAt = -1f,
+            int compressionsBeforeShock = 0,
+            int compressionsAfterShock = 0,
+            int graceCompressions = 0,
+            float graceIntervalQualitySum = 0f,
+            float aedSuspensionSeconds = 0f)
         {
             StartedAt = startedAt;
             CompletedInitialWithAed = completedInitialWithAed;
@@ -403,7 +427,44 @@ namespace SI81.ManDown
             AfterAedPhaseCompletedAt = afterAedPhaseCompletedAt;
             WithoutAedCompletedAt = withoutAedCompletedAt;
             InterruptedForAedAt = interruptedForAedAt;
+            RcpAccumulatedValue = Mathf.Max(0f, rcpAccumulatedValue);
+            FirstCompressionAt = firstCompressionAt;
+            LastCompressionAt = lastCompressionAt;
+            CompressionsBeforeShock = compressionsBeforeShock;
+            CompressionsAfterShock = compressionsAfterShock;
+            GraceCompressions = graceCompressions;
+            GraceIntervalQualitySum = Mathf.Max(0f, graceIntervalQualitySum);
+            AedSuspensionSeconds = Mathf.Max(0f, aedSuspensionSeconds);
         }
+    }
+
+    /// <summary>
+    /// Dati operativi grezzi del DAE (stato, analisi, autorizzazioni, scarica, errori). Non contiene
+    /// punteggi né penalità: è la fotografia che il futuro scoring leggerà senza dipendere dal dispositivo.
+    /// </summary>
+    public struct ManDownAedSnapshot
+    {
+        public string StateLabel;
+        public bool PoweredOn;
+        public bool ElectrodesApplied;
+        public int AnalysisStartedCount;
+        public int AnalysisInterruptedCount;
+        public int ContactInterruptCount;
+        public float FirstAnalysisAt;
+        public bool ShockAdvised;
+        public int AuthorizationCount;
+        public float FirstAuthorizationAt;
+        public float LastAuthorizationAt;
+        public float SignalAt;
+        public float ShockAt;
+        public float ResponseTime;
+        public float ResponseQuality;
+        public bool ShockCompleted;
+        public int InvalidEarlyPressCount;
+        public int InvalidContactCount;
+        public int InvalidMissingElectrodesCount;
+        public int InvalidNotAdvisedCount;
+        public int InappropriateUseCount;
     }
 
     /// <summary>
@@ -447,6 +508,38 @@ namespace SI81.ManDown
         public bool ReassessmentAfterCorrectPositionMissing { get; }
         /// <summary>Dati grezzi della RCP al momento della conclusione (default se non eseguita).</summary>
         public ManDownCprQualitySnapshot CprQuality { get; }
+        /// <summary>Primo recupero del DAE registrato, distinto dall'utilizzo corretto.</summary>
+        public bool AedRetrieved { get; }
+        /// <summary>Secondo del primo recupero del DAE; -1 se non avvenuto.</summary>
+        public float AedRetrievedAt { get; }
+        /// <summary>Prima accensione automatica del DAE registrata.</summary>
+        public bool AedPoweredOn { get; }
+        /// <summary>Secondo della prima accensione del DAE; -1 se non avvenuta.</summary>
+        public float AedPoweredOnAt { get; }
+        /// <summary>Elettrodi agganciati alla conclusione.</summary>
+        public int AedElectrodesAppliedCount { get; }
+        /// <summary>Entrambe le zone risultavano occupate alla conclusione.</summary>
+        public bool AedApplicationComplete { get; }
+        /// <summary>Prima applicazione completa storica; -1 se mai avvenuta.</summary>
+        public float AedFirstFullApplicationAt { get; }
+        /// <summary>Ultimo snapshot operativo del DAE (default se non utilizzato).</summary>
+        public ManDownAedSnapshot AedSnapshot { get; }
+        /// <summary>Motivo della conclusione ordinaria (finestra, proroga, timeout, esplicita).</summary>
+        public string ConclusionReason { get; }
+        /// <summary>La finestra del ramo anomalo è scaduta ordinariamente.</summary>
+        public bool AbnormalWindowElapsed { get; }
+        /// <summary>Secondi di missione dell'avvio della finestra anomala; -1 se non avviata.</summary>
+        public float AbnormalWindowStartedAt { get; }
+        /// <summary>Secondi di missione della scadenza della finestra principale; -1 se non scaduta.</summary>
+        public float AbnormalWindowEndedAt { get; }
+        /// <summary>La proroga DAE è stata concessa.</summary>
+        public bool GraceGranted { get; }
+        /// <summary>Secondi di missione dell'avvio della proroga; -1 se non concessa.</summary>
+        public float GraceStartedAt { get; }
+        /// <summary>Proroga ancora attiva alla conclusione.</summary>
+        public bool GraceActiveAtConclusion { get; }
+        /// <summary>Snapshot RCP congelato alla scadenza della finestra principale.</summary>
+        public ManDownCprQualitySnapshot CprWindowSnapshot { get; }
 
         internal ManDownScenarioResult(
             OutcomeType outcome,
@@ -464,7 +557,23 @@ namespace SI81.ManDown
             int breathingAssessmentCount,
             float lastCorrectPositionAt,
             bool reassessmentAfterCorrectPositionMissing,
-            ManDownCprQualitySnapshot cprQuality = default)
+            ManDownCprQualitySnapshot cprQuality = default,
+            bool aedRetrieved = false,
+            float aedRetrievedAt = -1f,
+            bool aedPoweredOn = false,
+            float aedPoweredOnAt = -1f,
+            int aedElectrodesAppliedCount = 0,
+            bool aedApplicationComplete = false,
+            float aedFirstFullApplicationAt = -1f,
+            ManDownAedSnapshot aedSnapshot = default,
+            string conclusionReason = "",
+            bool abnormalWindowElapsed = false,
+            float abnormalWindowStartedAt = -1f,
+            float abnormalWindowEndedAt = -1f,
+            bool graceGranted = false,
+            float graceStartedAt = -1f,
+            bool graceActiveAtConclusion = false,
+            ManDownCprQualitySnapshot cprWindowSnapshot = default)
         {
             Outcome = outcome;
             Score = score;
@@ -482,6 +591,22 @@ namespace SI81.ManDown
             LastCorrectPositionAt = lastCorrectPositionAt;
             ReassessmentAfterCorrectPositionMissing = reassessmentAfterCorrectPositionMissing;
             CprQuality = cprQuality;
+            AedRetrieved = aedRetrieved;
+            AedRetrievedAt = aedRetrievedAt;
+            AedPoweredOn = aedPoweredOn;
+            AedPoweredOnAt = aedPoweredOnAt;
+            AedElectrodesAppliedCount = aedElectrodesAppliedCount;
+            AedApplicationComplete = aedApplicationComplete;
+            AedFirstFullApplicationAt = aedFirstFullApplicationAt;
+            AedSnapshot = aedSnapshot;
+            ConclusionReason = conclusionReason;
+            AbnormalWindowElapsed = abnormalWindowElapsed;
+            AbnormalWindowStartedAt = abnormalWindowStartedAt;
+            AbnormalWindowEndedAt = abnormalWindowEndedAt;
+            GraceGranted = graceGranted;
+            GraceStartedAt = graceStartedAt;
+            GraceActiveAtConclusion = graceActiveAtConclusion;
+            CprWindowSnapshot = cprWindowSnapshot;
         }
     }
 }

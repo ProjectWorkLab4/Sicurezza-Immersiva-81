@@ -35,17 +35,29 @@ namespace SI81.ManDown
 
         /// <summary>Penalizzazione: 112 non chiamato.</summary>
         public const string PENALTY_EMERGENCY_NOT_CALLED = "EMERGENCY_NOT_CALLED";
-        /// <summary>Penalizzazione: DAE presente e necessario ma mai usato.</summary>
+        /// <summary>Penalizzazione: DAE presente e necessario ma mai recuperato (ignorato).</summary>
         public const string PENALTY_AED_OMITTED = "AED_OMITTED";
         /// <summary>Penalizzazione: RCP eseguita male.</summary>
         public const string PENALTY_CPR_POOR_QUALITY = "CPR_POOR_QUALITY";
         /// <summary>Penalizzazione: DAE usato in modo scorretto (recuperabile).</summary>
         public const string PENALTY_AED_INCORRECT_USE = "AED_INCORRECT_USE";
 
-        /// <summary>Punteggio minimo per il successo.</summary>
+        /// <summary>Punteggio minimo per il successo (valore iniziale, modificabile dall'Inspector).</summary>
         public const int SUCCESS_SCORE_MIN = 80;
-        /// <summary>Punteggio minimo per il successo parziale.</summary>
+        /// <summary>Punteggio minimo per il successo parziale (valore iniziale, modificabile dall'Inspector).</summary>
         public const int PARTIAL_SCORE_MIN = 50;
+
+        [Header("Soglie esito (modificabili)")]
+        [Tooltip("SPI >= soglia → OutcomeType.Positive.")]
+        [SerializeField] private int positiveOutcomeThreshold = SUCCESS_SCORE_MIN;
+        [Tooltip("SPI >= soglia e < soglia positiva → OutcomeType.Partial.")]
+        [SerializeField] private int partialOutcomeThreshold = PARTIAL_SCORE_MIN;
+        [Tooltip("Execution sotto questa soglia limita l'esito al massimo a parziale.")]
+        [SerializeField] private int partialExecutionThreshold = 50;
+
+        [Header("Scoring")]
+        [Tooltip("Componente di calcolo scoring sullo stesso GameObject; vuoto = ricercato in OnEnable.")]
+        [SerializeField] private ManDownScoring scoring;
 
         // Identificativi delle azioni registrate.
         /// <summary>Azione: verifica della coscienza.</summary>
@@ -64,14 +76,12 @@ namespace SI81.ManDown
         public const string ACTION_CALL_112 = "CALL_112";
         /// <summary>Azione: avvio della RCP.</summary>
         public const string ACTION_CPR_START = "CPR_START";
-        /// <summary>Azione: RCP iniziale con DAE completata.</summary>
-        public const string ACTION_CPR_INITIAL_WITH_AED = "CPR_INITIAL_WITH_AED";
-        /// <summary>Azione: RCP dopo defibrillazione completata.</summary>
-        public const string ACTION_CPR_AFTER_DEFIBRILLATION = "CPR_AFTER_DEFIBRILLATION";
-        /// <summary>Azione: RCP senza DAE completata.</summary>
-        public const string ACTION_CPR_WITHOUT_AED = "CPR_WITHOUT_AED";
         /// <summary>Azione: problema di qualità della RCP.</summary>
         public const string ACTION_CPR_QUALITY_ISSUE = "CPR_QUALITY_ISSUE";
+        /// <summary>Azione: primo recupero del DAE dalla scatola (non equivale a un utilizzo corretto).</summary>
+        public const string ACTION_AED_RETRIEVED = "AED_RETRIEVED";
+        /// <summary>Azione: prima accensione automatica del DAE al recupero.</summary>
+        public const string ACTION_AED_POWERED_ON = "AED_POWERED_ON";
         /// <summary>Azione: attivazione del DAE.</summary>
         public const string ACTION_AED_ACTIVATE = "AED_ACTIVATE";
         /// <summary>Azione: elettrodo sinistro posizionato.</summary>
@@ -82,12 +92,18 @@ namespace SI81.ManDown
         public const string ACTION_AED_INSTRUCTION = "AED_INSTRUCTION";
         /// <summary>Azione: uso scorretto del DAE.</summary>
         public const string ACTION_AED_INCORRECT_USE = "AED_INCORRECT_USE";
+        /// <summary>Azione: tentativo non valido sul DAE (dettaglio nella nota, nessuna penalità automatica).</summary>
+        public const string ACTION_AED_INVALID_ATTEMPT = "AED_INVALID_ATTEMPT";
         /// <summary>Azione: ripresa della RCP dopo il DAE.</summary>
         public const string ACTION_CPR_RESUME = "CPR_RESUME";
         /// <summary>Azione: posizione laterale.</summary>
         public const string ACTION_SIDE_POSITION = "SIDE_POSITION";
         /// <summary>Azione: monitoraggio completato.</summary>
         public const string ACTION_MONITORING = "MONITORING";
+        /// <summary>Azione: avvio della finestra temporale del ramo respiratorio anormale.</summary>
+        public const string ACTION_ABNORMAL_WINDOW_START = "ABNORMAL_WINDOW_START";
+        /// <summary>Azione: proroga concessa per completare il DAE.</summary>
+        public const string ACTION_AED_GRACE_START = "AED_GRACE_START";
         /// <summary>Azione: inizio della fase finale di assistenza.</summary>
         public const string ACTION_FINAL_ASSISTANCE_START = "FINAL_ASSISTANCE_START";
         /// <summary>Azione: assistenza completata.</summary>
@@ -122,16 +138,15 @@ namespace SI81.ManDown
         [Min(1f)]
         [SerializeField] private float monitoringDurationSeconds = 15f;
 
+        [Header("Ramificazione respiratoria anomala (nuova progressione)")]
+        [Tooltip("Durata della finestra temporale del ramo anomalo, in secondi (valore approvato: 45).")]
+        [Min(1f)]
+        [SerializeField] private float abnormalBreathingDuration = 45f;
+        [Tooltip("Proroga massima concessa una sola volta se il DAE è stato estratto e la scarica non è completata.")]
+        [Min(0f)]
+        [SerializeField] private float aedGracePeriod = 15f;
+
         [Header("RCP — ricezione risultati (nessuna validazione in questo task)")]
-        [Tooltip("Compressioni valide richieste per la RCP iniziale quando il DAE è disponibile.")]
-        [Min(1)]
-        [SerializeField] private int initialWithAedCompressions = 20;
-        [Tooltip("Compressioni valide richieste per la RCP dopo la defibrillazione.")]
-        [Min(1)]
-        [SerializeField] private int afterDefibrillationCompressions = 20;
-        [Tooltip("Compressioni valide complessive richieste per la RCP senza DAE.")]
-        [Min(1)]
-        [SerializeField] private int withoutAedCompressions = 30;
         [Tooltip("Frequenza di riferimento minima (compressioni al minuto). Solo dato, non validata in questo task.")]
         [Min(0)]
         [SerializeField] private int referenceRateMin = 100;
@@ -151,7 +166,6 @@ namespace SI81.ManDown
         private readonly List<ManDownBreathingAssessmentRecord> breathingAssessments = new List<ManDownBreathingAssessmentRecord>();
         private readonly List<string> failureCauses = new List<string>();
         private readonly List<string> penalties = new List<string>();
-        private readonly HashSet<ManDownCprPhase> completedCprPhases = new HashSet<ManDownCprPhase>();
         private readonly HashSet<int> electrodesPlaced = new HashSet<int>();
 
         private bool initialized;
@@ -169,6 +183,14 @@ namespace SI81.ManDown
         private bool lastReassessmentValid;
         private bool call112Made;
         private bool cprStarted;
+        private bool aedRetrieved;
+        private float aedRetrievedAt = -1f;
+        private bool aedPoweredOn;
+        private float aedPoweredOnAt = -1f;
+        private int aedElectrodesAppliedCount;
+        private bool aedApplicationComplete;
+        private float aedFirstFullApplicationAt = -1f;
+        private ManDownAedSnapshot lastAedSnapshot;
         private bool aedActivated;
         private bool aedInstructionConfirmed;
         private bool cprResumed;
@@ -184,6 +206,7 @@ namespace SI81.ManDown
         private float missionStartTime;
         private ManDownPhase phase = ManDownPhase.NotStarted;
         private ManDownScenarioResult lastResult;
+        private ManDownScoreResult lastScoreResult;
         private Coroutine finalAssistanceRoutine;
         private Coroutine finalMonitoringRoutine;
         private bool finalMonitoringStarted;
@@ -191,6 +214,18 @@ namespace SI81.ManDown
         private float finalMonitoringStartedAt = -1f;
         private float cprStartedAt = -1f;
         private ManDownCprQualitySnapshot? lastCprQualitySnapshot;
+        private ManDownCprQualitySnapshot? cprWindowSnapshot;
+
+        private Coroutine abnormalWindowRoutine;
+        private Coroutine graceRoutine;
+        private bool abnormalWindowActive;
+        private bool abnormalWindowElapsed;
+        private float abnormalWindowStartedAt = -1f;
+        private float abnormalWindowEndedAt = -1f;
+        private bool graceActive;
+        private bool graceGrantedOnce;
+        private float graceStartedAt = -1f;
+        private string conclusionReason = string.Empty;
 
         // =================================================================
         // Eventi per le future classi
@@ -214,6 +249,22 @@ namespace SI81.ManDown
         public event Action<ManDownCprResult> CprResultRegistered;
         /// <summary>Registrato un problema di qualità della RCP.</summary>
         public event Action CprQualityIssueReported;
+        /// <summary>Primo recupero del DAE registrato.</summary>
+        public event Action AedRetrieved;
+        /// <summary>Prima accensione automatica del DAE registrata.</summary>
+        public event Action AedPoweredOn;
+        /// <summary>Numero di zone di aggancio occupate o stato di applicazione cambiato.</summary>
+        public event Action AedApplicationStateChanged;
+        /// <summary>Snapshot operativo del DAE aggiornato dal dispositivo (dato grezzo per il debriefing).</summary>
+        public event Action<ManDownAedSnapshot> AedSnapshotReported;
+        /// <summary>Finestra temporale del ramo anomalo avviata (timestamp di missione).</summary>
+        public event Action<float> AbnormalWindowStarted;
+        /// <summary>Finestra principale scaduta, prima dell'eventuale proroga.</summary>
+        public event Action<float> AbnormalWindowElapsed;
+        /// <summary>Proroga DAE concessa (timestamp di missione).</summary>
+        public event Action<float> GraceStarted;
+        /// <summary>Proroga terminata (timestamp e motivo).</summary>
+        public event Action<float, string> GraceEnded;
         /// <summary>DAE attivato.</summary>
         public event Action AedActivated;
         /// <summary>Elettrodo posizionato (0 = sinistro, 1 = destro).</summary>
@@ -353,7 +404,26 @@ namespace SI81.ManDown
         public bool IsCall112Made => call112Made;
         /// <summary>RCP avviata o risultato RCP ricevuto.</summary>
         public bool IsCprStarted => cprStarted;
-        /// <summary>DAE attivato.</summary>
+        /// <summary>Primo recupero del DAE registrato.</summary>
+        public bool IsAedRetrieved => aedRetrieved;
+        /// <summary>Secondo di missione del primo recupero; -1 se non ancora avvenuto.</summary>
+        public float AedRetrievedAt => aedRetrievedAt;
+        /// <summary>Prima accensione automatica del DAE registrata.</summary>
+        public bool IsAedPoweredOn => aedPoweredOn;
+        /// <summary>Secondo di missione della prima accensione; -1 se non ancora avvenuta.</summary>
+        public float AedPoweredOnAt => aedPoweredOnAt;
+        /// <summary>Elettrodi attualmente agganciati all'NPC (0, 1 o 2).</summary>
+        public int AedElectrodesAppliedCount => aedElectrodesAppliedCount;
+        /// <summary>Entrambe le zone di aggancio sono occupate.</summary>
+        public bool IsAedApplicationComplete => aedApplicationComplete;
+        /// <summary>
+        /// Primo istante in cui entrambe le zone risultarono occupate; -1 se mai accaduto.
+        /// Non viene sovrascritto da una rimozione o da una successiva applicazione.
+        /// </summary>
+        public float AedFirstFullApplicationAt => aedFirstFullApplicationAt;
+        /// <summary>Ultimo snapshot operativo del DAE ricevuto (default se non ancora disponibile).</summary>
+        public ManDownAedSnapshot LastAedSnapshot => lastAedSnapshot;
+        /// <summary>DAE attivato (procedura clinica futura, distinta dal semplice recupero).</summary>
         public bool IsAedActivated => aedActivated;
         /// <summary>Entrambi gli elettrodi posizionati.</summary>
         public bool AreElectrodesPlaced => electrodesPlaced.Count >= 2;
@@ -382,6 +452,35 @@ namespace SI81.ManDown
         public bool HasCprQualityData => lastCprQualitySnapshot.HasValue;
         /// <summary>Ultimo snapshot grezzo della RCP (default se non presente).</summary>
         public ManDownCprQualitySnapshot LastCprQualitySnapshot => lastCprQualitySnapshot ?? default;
+        /// <summary>Snapshot RCP congelato alla scadenza della finestra principale (default se non ancora scaduta).</summary>
+        public ManDownCprQualitySnapshot CprWindowSnapshot => cprWindowSnapshot ?? default;
+        /// <summary>
+        /// Snapshot RCP autorevole per scoring, esito e debriefing: quello congelato alla scadenza della
+        /// finestra principale se la finestra è scaduta, altrimenti l'ultimo registrato. In proroga le
+        /// compressioni sono registrate a parte e non alterano questo dato.
+        /// </summary>
+        public ManDownCprQualitySnapshot ScoringCprSnapshot =>
+            abnormalWindowElapsed && cprWindowSnapshot.HasValue ? cprWindowSnapshot.Value : (lastCprQualitySnapshot ?? default);
+        /// <summary>Durata configurata della finestra respiratoria anomala.</summary>
+        public float AbnormalBreathingDuration => abnormalBreathingDuration;
+        /// <summary>Durata configurata della proroga DAE.</summary>
+        public float AedGracePeriod => aedGracePeriod;
+        /// <summary>true se la finestra del ramo anomalo è in corso.</summary>
+        public bool IsAbnormalWindowActive => abnormalWindowActive;
+        /// <summary>true se la finestra principale è scaduta.</summary>
+        public bool IsAbnormalWindowElapsed => abnormalWindowElapsed;
+        /// <summary>Secondi di missione dell'avvio della finestra; -1 se non avviata.</summary>
+        public float AbnormalWindowStartedAt => abnormalWindowStartedAt;
+        /// <summary>Secondi di missione della scadenza della finestra principale; -1 se non scaduta.</summary>
+        public float AbnormalWindowEndedAt => abnormalWindowEndedAt;
+        /// <summary>true se la proroga è in corso.</summary>
+        public bool IsGraceActive => graceActive;
+        /// <summary>true se la proroga è già stata concessa in questa missione.</summary>
+        public bool GraceGrantedOnce => graceGrantedOnce;
+        /// <summary>Secondi di missione dell'avvio della proroga; -1 se non concessa.</summary>
+        public float GraceStartedAt => graceStartedAt;
+        /// <summary>Motivo della conclusione ordinaria (finestra, proroga, timeout, esplicita).</summary>
+        public string ConclusionReason => conclusionReason;
         /// <summary>Secondi dall'inizio effettivo della missione.</summary>
         public float MissionElapsedSeconds => initialized && !concluded ? Time.time - missionStartTime : lastResult != null ? lastResult.ElapsedSeconds : 0f;
         /// <summary>Registro azioni in sola lettura.</summary>
@@ -394,6 +493,8 @@ namespace SI81.ManDown
         public IReadOnlyList<string> Penalties => penalties;
         /// <summary>Ultimo risultato congelato (null finché la missione non finisce).</summary>
         public ManDownScenarioResult LastResult => lastResult;
+        /// <summary>Ultimo calcolo scoring (default se non ancora concluso); non mostra punteggi in gioco.</summary>
+        public ManDownScoreResult LastScoreResult => lastScoreResult;
 
         // =================================================================
         // Ciclo di vita
@@ -452,10 +553,16 @@ namespace SI81.ManDown
             phase = ManDownPhase.NotStarted;
             missionStartTime = 0f;
             lastResult = null;
+            lastScoreResult = default;
 
             Debug.Log("[SI81 ManDown] Reset dello scenario eseguito.", this);
 
             if (restart) InitializeScenario();
+        }
+
+        private void OnEnable()
+        {
+            if (scoring == null) scoring = GetComponent<ManDownScoring>();
         }
 
         /// <summary>
@@ -477,7 +584,7 @@ namespace SI81.ManDown
             if (!AcceptsActions) return;
             timedOut = true;
             Debug.Log("[SI81 ManDown] Timer scaduto: fallimento automatico TIMEOUT.", this);
-            Conclude(CalculateProvisionalScore());
+            Conclude(-1);
         }
 
         // =================================================================
@@ -522,6 +629,9 @@ namespace SI81.ManDown
                 if (phase == ManDownPhase.Initialization || phase == ManDownPhase.ConsciousnessAssessment ||
                     phase == ManDownPhase.BreathingAssessment || phase == ManDownPhase.Assistance || phase == ManDownPhase.Cpr)
                     ChangePhase(breathingAbnormal ? ManDownPhase.Cpr : ManDownPhase.Assistance);
+
+                // La finestra parte solo alla prima valutazione anomala: le rivalutazioni non la riavviano.
+                if (breathingAbnormal) StartAbnormalWindow();
             }
 
             // Ogni valutazione ha una voce propria nello storico: la prima è iniziale, le altre sono rivalutazioni.
@@ -744,13 +854,6 @@ namespace SI81.ManDown
             cprResults.Add(result);
             if (result.InvalidCompressions > 0) ReportCprPoorQuality();
 
-            if (result.ValidCompressions >= GetRequiredCprCompressions(result.Phase) &&
-                completedCprPhases.Add(result.Phase))
-            {
-                RecordAction(GetCprCompletionAction(result.Phase), true, true,
-                    $"valid={result.ValidCompressions}, invalid={result.InvalidCompressions}, cpm={result.AverageCompressionsPerMinute:F0}");
-            }
-
             ChangePhase(result.Phase == ManDownCprPhase.AfterDefibrillation ? ManDownPhase.CprResume : ManDownPhase.Cpr);
             CprResultRegistered?.Invoke(result);
         }
@@ -784,6 +887,71 @@ namespace SI81.ManDown
             AddPenalty(PENALTY_CPR_POOR_QUALITY);
             RecordAction(ACTION_CPR_QUALITY_ISSUE, true, false, null);
             CprQualityIssueReported?.Invoke();
+        }
+
+        /// <summary>
+        /// Registra il primo recupero valido del DAE. Non modifica fase, obiettivi, RCP, condizioni
+        /// dell'NPC né punteggio: il recupero non equivale al corretto utilizzo del dispositivo.
+        /// </summary>
+        public void ReportAedRetrieved()
+        {
+            if (!AcceptsActions || !aedAvailable || aedRetrieved) return;
+
+            aedRetrieved = true;
+            aedRetrievedAt = Time.time - missionStartTime;
+            RecordAction(ACTION_AED_RETRIEVED, true, true, null);
+            AedRetrieved?.Invoke();
+        }
+
+        /// <summary>
+        /// Registra la prima accensione automatica del DAE. Richiede un recupero già registrato e
+        /// non coincidenza con <see cref="ActivateAed"/>, che resta l'attivazione della procedura clinica.
+        /// </summary>
+        public void ReportAedPoweredOn()
+        {
+            if (!AcceptsActions || !aedAvailable || !aedRetrieved || aedPoweredOn) return;
+
+            aedPoweredOn = true;
+            aedPoweredOnAt = Time.time - missionStartTime;
+            RecordAction(ACTION_AED_POWERED_ON, true, true, null);
+            AedPoweredOn?.Invoke();
+        }
+
+        /// <summary>
+        /// Aggiorna lo stato di applicazione degli elettrodi. Il timestamp della prima applicazione
+        /// completa è storico e non viene sovrascritto da rimozioni o applicazioni successive.
+        /// Non assegna punteggi, penalità né progressione clinica.
+        /// </summary>
+        public void ReportAedApplicationState(int appliedCount, bool complete)
+        {
+            if (!AcceptsActions) return;
+            appliedCount = Mathf.Clamp(appliedCount, 0, 2);
+            if (appliedCount == aedElectrodesAppliedCount && complete == aedApplicationComplete) return;
+
+            aedElectrodesAppliedCount = appliedCount;
+            aedApplicationComplete = complete;
+            if (complete && aedFirstFullApplicationAt < 0f)
+                aedFirstFullApplicationAt = Time.time - missionStartTime;
+            AedApplicationStateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Registra un tentativo non valido sul DAE senza applicare penalità automatiche: la nota
+        /// distingue pressione anticipata, contatto, elettrodi mancanti e scarica non consigliata.
+        /// </summary>
+        public void ReportAedInvalidAttempt(string note)
+        {
+            if (!AcceptsActions) return;
+            RecordAction(ACTION_AED_INVALID_ATTEMPT, true, false, note ?? string.Empty);
+        }
+
+        /// <summary>Riceve lo snapshot operativo del DAE senza modificarne lo Stato o il punteggio.</summary>
+        public void ReportAedSnapshot(ManDownAedSnapshot snapshot)
+        {
+            if (!AcceptsActions) return;
+            lastAedSnapshot = snapshot;
+            if (snapshot.ShockCompleted && graceActive) EndGrace("shock_completed");
+            AedSnapshotReported?.Invoke(snapshot);
         }
 
         /// <summary>Attivazione del DAE. Ignorata se il DAE non è disponibile nella partita.</summary>
@@ -974,6 +1142,91 @@ namespace SI81.ManDown
         }
 
         // =================================================================
+        // Finestra temporale del ramo anomalo e proroga DAE
+        // =================================================================
+
+        /// <summary>
+        /// Avvia la finestra del ramo anomalo alla prima valutazione respiratoria anomala. Usa
+        /// WaitForSeconds quindi il tempo scalato della sessione: il timer generale conserva la priorità.
+        /// </summary>
+        private void StartAbnormalWindow()
+        {
+            if (!AcceptsActions || abnormalWindowActive || abnormalWindowStartedAt >= 0f) return;
+            abnormalWindowActive = true;
+            abnormalWindowStartedAt = Time.time - missionStartTime;
+            RecordAction(ACTION_ABNORMAL_WINDOW_START, true, true, $"duration={abnormalBreathingDuration:F0}");
+            AbnormalWindowStarted?.Invoke(abnormalWindowStartedAt);
+            if (Application.isPlaying) abnormalWindowRoutine = StartCoroutine(AbnormalWindowDelay());
+        }
+
+        private IEnumerator AbnormalWindowDelay()
+        {
+            yield return new WaitForSeconds(Mathf.Max(0.01f, abnormalBreathingDuration));
+            abnormalWindowRoutine = null;
+            OnAbnormalWindowElapsed();
+        }
+
+        private void OnAbnormalWindowElapsed()
+        {
+            if (!AcceptsActions || !abnormalWindowActive) return;
+            abnormalWindowActive = false;
+            abnormalWindowElapsed = true;
+            abnormalWindowEndedAt = Time.time - missionStartTime;
+            // Congela qui le statistiche RCP che il futuro scoring userà per la finestra principale.
+            cprWindowSnapshot = lastCprQualitySnapshot;
+            AbnormalWindowElapsed?.Invoke(abnormalWindowEndedAt);
+
+            if (CanGrantGrace()) StartGrace();
+            else
+            {
+                conclusionReason = "abnormal_window_elapsed";
+                FinishMission();
+            }
+        }
+
+        private bool CanGrantGrace()
+        {
+            return AcceptsActions && aedAvailable && aedRetrieved &&
+                   !lastAedSnapshot.ShockCompleted && !graceGrantedOnce;
+        }
+
+        private void StartGrace()
+        {
+            if (graceActive || !CanGrantGrace()) return;
+            graceActive = true;
+            graceGrantedOnce = true;
+            graceStartedAt = Time.time - missionStartTime;
+            RecordAction(ACTION_AED_GRACE_START, true, true, $"duration={aedGracePeriod:F0}");
+            GraceStarted?.Invoke(graceStartedAt);
+            if (Application.isPlaying) graceRoutine = StartCoroutine(GraceDelay());
+        }
+
+        private IEnumerator GraceDelay()
+        {
+            yield return new WaitForSeconds(Mathf.Max(0.01f, aedGracePeriod));
+            graceRoutine = null;
+            EndGrace("grace_elapsed");
+        }
+
+        private void EndGrace(string reason)
+        {
+            if (!graceActive) return;
+            graceActive = false;
+            GraceEnded?.Invoke(Time.time - missionStartTime, reason);
+            if (!AcceptsActions) return;
+            conclusionReason = reason == "shock_completed" ? "aed_shock_completed" : reason;
+            FinishMission();
+        }
+
+        private void StopAbnormalTimers()
+        {
+            if (abnormalWindowRoutine != null) { StopCoroutine(abnormalWindowRoutine); abnormalWindowRoutine = null; }
+            if (graceRoutine != null) { StopCoroutine(graceRoutine); graceRoutine = null; }
+            abnormalWindowActive = false;
+            graceActive = false;
+        }
+
+        // =================================================================
         // Conclusione
         // =================================================================
 
@@ -984,7 +1237,7 @@ namespace SI81.ManDown
         public void FinishMission()
         {
             if (!AcceptsActions) return;
-            Conclude(CalculateProvisionalScore());
+            Conclude(-1);
         }
 
         /// <summary>
@@ -996,22 +1249,6 @@ namespace SI81.ManDown
         {
             if (!AcceptsActions) return;
             Conclude(Mathf.Clamp(safetyScore, 0, 100));
-        }
-
-        /// <summary>
-        /// Soglia di compressioni valide per una fase RCP, dai valori configurati nell'Inspector.
-        /// </summary>
-        /// <param name="cprPhase">Fase RCP.</param>
-        /// <returns>Compressioni valide richieste.</returns>
-        public int GetRequiredCprCompressions(ManDownCprPhase cprPhase)
-        {
-            switch (cprPhase)
-            {
-                case ManDownCprPhase.InitialWithAed: return initialWithAedCompressions;
-                case ManDownCprPhase.AfterDefibrillation: return afterDefibrillationCompressions;
-                case ManDownCprPhase.WithoutAed: return withoutAedCompressions;
-                default: return initialWithAedCompressions;
-            }
         }
 
         // =================================================================
@@ -1089,59 +1326,72 @@ namespace SI81.ManDown
             if (!failureCauses.Contains(failureId)) failureCauses.Add(failureId);
         }
 
-        private static string GetCprCompletionAction(ManDownCprPhase cprPhase)
-        {
-            switch (cprPhase)
-            {
-                case ManDownCprPhase.AfterDefibrillation: return ACTION_CPR_AFTER_DEFIBRILLATION;
-                case ManDownCprPhase.WithoutAed: return ACTION_CPR_WITHOUT_AED;
-                default: return ACTION_CPR_INITIAL_WITH_AED;
-            }
-        }
-
-        private void Conclude(int safetyScore)
+        /// <summary>
+        /// Unico percorso di conclusione. Acquisisce lo stato finale, calcola le cinque dimensioni con
+        /// <see cref="ManDownScoring"/>, determina l'esito con le condizioni vincolanti e chiude una sola volta
+        /// con <see cref="ScenarioController.EndMission"/>, passando -1 perché la UI comune calcoli lo SPI.
+        /// </summary>
+        private void Conclude(int spiOverride)
         {
             if (concluded) return;
-            safetyScore = Mathf.Clamp(safetyScore, 0, 100);
 
-            // Il timeout generale ha la precedenza: in qualunque caso il monitoraggio viene annullato.
             StopFinalMonitoring();
+            StopAbnormalTimers();
+            StopFinalAssistanceRoutine();
+            if (string.IsNullOrEmpty(conclusionReason))
+                conclusionReason = timedOut ? "general_timeout" : "explicit_finish";
+
+            // Blocca nuove modifiche prima di leggere lo stato finale.
+            concluded = true;
+
+            ManDownScoreResult score = scoring != null ? scoring.Calculate(this) : default;
+            if (spiOverride >= 0) score.Overall = Mathf.Clamp(spiOverride, 0, 100);
+            lastScoreResult = score;
+
+            int[] dimensions = score.Dimensions;
+            // Lo SPI dell'esito usa esattamente le dimensioni passate alla UI comune.
+            int spi = spiOverride >= 0 ? score.Overall : ScoreRules.ScoreFromDimensions(dimensions);
+
+            bool noValidCompression = breathingAbnormal && ScoringCprSnapshot.TotalCompleted == 0;
 
             failureCauses.Clear();
             penalties.Clear();
-
-            bool cprOmitted = breathingAbnormal && !cprStarted && cprResults.Count == 0;
-
             if (timedOut) AddFailure(FAILURE_TIMEOUT);
-            if (cprOmitted) AddFailure(FAILURE_CPR_OMITTED);
-            if (safetyScore < PARTIAL_SCORE_MIN) AddFailure(FAILURE_LOW_SCORE);
+            if (noValidCompression) AddFailure(FAILURE_CPR_OMITTED);
+            if (spi < partialOutcomeThreshold) AddFailure(FAILURE_LOW_SCORE);
 
             if (!call112Made) AddPenalty(PENALTY_EMERGENCY_NOT_CALLED);
-            if (breathingAbnormal && aedAvailable && !aedActivated) AddPenalty(PENALTY_AED_OMITTED);
+            // "Omesso" significa mai recuperato. Chi recupera il DAE senza completare la procedura
+            // perde i punti Execution previsti, ma non riceve anche la penalità di omissione.
+            if (breathingAbnormal && aedAvailable && !aedRetrieved) AddPenalty(PENALTY_AED_OMITTED);
             if (cprPoorQuality) AddPenalty(PENALTY_CPR_POOR_QUALITY);
             if (aedIncorrectUse) AddPenalty(PENALTY_AED_INCORRECT_USE);
 
-            bool automaticFailure = timedOut || cprOmitted || safetyScore < PARTIAL_SCORE_MIN;
+            OutcomeType baseOutcome = spi >= positiveOutcomeThreshold ? OutcomeType.Positive :
+                spi >= partialOutcomeThreshold ? OutcomeType.Partial : OutcomeType.Negative;
             OutcomeType outcome;
-            if (automaticFailure) outcome = OutcomeType.Negative;
-            else if (safetyScore >= SUCCESS_SCORE_MIN) outcome = call112Made ? OutcomeType.Positive : OutcomeType.Partial;
-            else outcome = OutcomeType.Partial;
+            if (timedOut || noValidCompression) outcome = OutcomeType.Negative;
+            else if (!call112Made || score.Execution < partialExecutionThreshold)
+                outcome = baseOutcome == OutcomeType.Positive ? OutcomeType.Partial : baseOutcome;
+            else outcome = baseOutcome;
 
-            int[] dimensions = CalculateProvisionalDimensions(safetyScore);
             bool rescue = call112Made;
             float elapsed = Time.time - missionStartTime;
-
             bool reassessmentMissing = lastCorrectPosition != ManDownPositionChoice.None &&
                                        breathingAssessments.Count > 0 &&
                                        !HasValidReassessmentAfterCorrectPosition;
             var result = new ManDownScenarioResult(
-                outcome, safetyScore, dimensions, failureCauses, penalties, rescue, elapsed,
+                outcome, spi, dimensions, failureCauses, penalties, rescue, elapsed,
                 breathingAbnormal, aedAvailable, call112Made, timedOut,
                 finalMonitoringCompleted, breathingAssessments.Count, lastCorrectPositionAt, reassessmentMissing,
-                lastCprQualitySnapshot ?? default);
+                lastCprQualitySnapshot ?? default,
+                aedRetrieved, aedRetrievedAt, aedPoweredOn, aedPoweredOnAt,
+                aedElectrodesAppliedCount, aedApplicationComplete, aedFirstFullApplicationAt,
+                lastAedSnapshot,
+                conclusionReason, abnormalWindowElapsed, abnormalWindowStartedAt, abnormalWindowEndedAt,
+                graceGrantedOnce, graceStartedAt, graceActive, cprWindowSnapshot ?? default);
 
             lastResult = result;
-            concluded = true;
             timedOut = false;
 
             SetPhase(PHASE_RESOLUTION);
@@ -1149,131 +1399,138 @@ namespace SI81.ManDown
             PhaseChanged?.Invoke(ManDownPhase.Concluded);
             MissionConcluded?.Invoke(result);
 
-            base.EndMission(outcome, safetyScore, dimensions, BuildDebriefLines(outcome, rescue));
+            base.EndMission(outcome, -1, dimensions, BuildDebriefLines(outcome, rescue, score));
 
-            Debug.Log($"[SI81 ManDown] Missione conclusa: {outcome}, punteggio {safetyScore}, " +
+            Debug.Log($"[SI81 ManDown] Missione conclusa: {outcome}, SPI={spi}, " +
                       $"cause=[{string.Join(", ", failureCauses)}], penalizzazioni=[{string.Join(", ", penalties)}], " +
                       $"soccorsi simulati={rescue}.", this);
         }
 
         /// <summary>
-        /// Punteggio provvisorio basato sulle cinque dimensioni approvate, in attesa del task di scoring definitivo.
-        /// Safety 5/5; Awareness 10; Decision 30 meno i malus; Execution solo dalle azioni registrate; Time non ancora
-        /// calcolato. La somma ponderata è quella di <c>Man_Down_Scoring_System.md</c>.
+        /// Righe italiane generate dai soli dati registrati: azione + conseguenza. Nessun valore numerico,
+        /// nessun giudizio clinico sull'esito della persona e nessun messaggio duplicato.
         /// </summary>
-        private int CalculateProvisionalScore()
-        {
-            int[] dims = CalculateProvisionalDimensions(-1);
-            float weighted = 0.05f * dims[0] + 0.10f * dims[1] + 0.30f * dims[2] + 0.30f * dims[3] + 0.25f * dims[4];
-            return Mathf.Clamp(Mathf.RoundToInt(weighted), 0, 100);
-        }
-
-        /// <summary>
-        /// Costruisce le cinque dimensioni normalizzate 0-100. Se <paramref name="fixedScore"/> è &gt;= 0 il punteggio
-        /// resta quello esplicito, ma le dimensioni continuano a descrivere lo stato registrato.
-        /// </summary>
-        private int[] CalculateProvisionalDimensions(int fixedScore)
-        {
-            int safety = 100;
-            int awareness = (consciousnessChecked ? 50 : 0) + (breathingChecked ? 50 : 0);
-
-            int decisionMalus = 0;
-            if (!call112Made) decisionMalus += 15;
-            if (breathingAbnormal && aedAvailable && !aedActivated) decisionMalus += 5;
-            if (incompatibleProcedure) decisionMalus += 5;
-            int decision = Mathf.Clamp(30 - decisionMalus, 0, 30) * 100 / 30;
-
-            float executionPoints;
-            if (breathingAbnormal)
-            {
-                float cprPoints = 0f;
-                if (aedAvailable)
-                {
-                    float initial = GetCprProgress(ManDownCprPhase.InitialWithAed);
-                    float after = GetCprProgress(ManDownCprPhase.AfterDefibrillation);
-                    cprPoints = (initial + after) * 10f; // due fasi condividono il cap di 20 punti.
-                }
-                else
-                {
-                    cprPoints = GetCprProgress(ManDownCprPhase.WithoutAed) * 30f;
-                }
-
-                float aedPoints = 0f;
-                if (aedAvailable)
-                {
-                    int steps = 0;
-                    if (aedActivated) steps++;
-                    if (electrodesPlaced.Count >= 2) steps++;
-                    if (aedInstructionConfirmed) steps++;
-                    aedPoints = 10f * steps / 3f;
-                }
-
-                executionPoints = cprPoints + aedPoints;
-            }
-            else
-            {
-                executionPoints = (sidePositionPlaced ? 15f : 0f) + (monitoringCompleted ? 15f : 0f);
-            }
-
-            int execution = Mathf.Clamp(Mathf.RoundToInt(executionPoints / 30f * 100f), 0, 100);
-            int time = 0; // T_target/T_max non ancora forniti: il task di scoring li calcolerà.
-
-            if (fixedScore >= 0)
-                return new[] { safety, awareness, decision, execution, time };
-            return new[] { safety, awareness, decision, execution, time };
-        }
-
-        private float GetCprProgress(ManDownCprPhase cprPhase)
-        {
-            int target = Mathf.Max(1, GetRequiredCprCompressions(cprPhase));
-            int best = 0;
-            for (int i = 0; i < cprResults.Count; i++)
-                if (cprResults[i].Phase == cprPhase && cprResults[i].ValidCompressions > best)
-                    best = cprResults[i].ValidCompressions;
-            return Mathf.Clamp01((float)best / target);
-        }
-
-        private List<string> BuildDebriefLines(OutcomeType outcome, bool rescue)
+        private List<string> BuildDebriefLines(OutcomeType outcome, bool rescue, ManDownScoreResult score)
         {
             var lines = new List<string>();
 
-            switch (outcome)
-            {
-                case OutcomeType.Positive:
-                    lines.Add(DebriefLinePrefix.GOOD + "Scenario completato: soccorsi attivati e procedure eseguite.");
-                    break;
-                case OutcomeType.Partial:
-                    lines.Add(DebriefLinePrefix.BAD + "Esito parziale: procedure non completate o non corrette.");
-                    break;
-                default:
-                    lines.Add(DebriefLinePrefix.CRITICAL + "Esito negativo: il collega non ha ricevuto l'assistenza necessaria.");
-                    break;
-            }
-
-            if (failureCauses.Contains(FAILURE_TIMEOUT))
+            // Il flag timedOut viene azzerato in Conclude prima di questa chiamata: il risultato
+            // congelato è l'unica fonte affidabile del motivo effettivo di conclusione.
+            bool timedOutAtConclusion = lastResult != null && lastResult.TimedOut;
+            if (timedOutAtConclusion)
                 lines.Add(DebriefLinePrefix.CRITICAL + "Tempo scaduto prima di completare le procedure.");
-            if (failureCauses.Contains(FAILURE_CPR_OMITTED))
-                lines.Add(DebriefLinePrefix.CRITICAL + "RCP non eseguita nonostante la respirazione anormale.");
-            if (failureCauses.Contains(FAILURE_LOW_SCORE))
-                lines.Add(DebriefLinePrefix.BAD + "Punteggio finale insufficiente.");
 
-            if (penalties.Contains(PENALTY_EMERGENCY_NOT_CALLED))
-                lines.Add(DebriefLinePrefix.BAD + "112 non chiamato: soccorsi non simulati e collega non dichiarato fuori pericolo.");
-            if (penalties.Contains(PENALTY_AED_OMITTED))
-                lines.Add(DebriefLinePrefix.BAD + "DAE presente ma non utilizzato.");
-            if (penalties.Contains(PENALTY_CPR_POOR_QUALITY))
-                lines.Add(DebriefLinePrefix.BAD + "RCP eseguita con qualità insufficiente.");
-            if (penalties.Contains(PENALTY_AED_INCORRECT_USE))
-                lines.Add(DebriefLinePrefix.BAD + "DAE utilizzato in modo scorretto.");
+            lines.Add(consciousnessChecked
+                ? DebriefLinePrefix.GOOD + "Hai verificato la coscienza della persona."
+                : DebriefLinePrefix.CRITICAL + "Non hai verificato la coscienza della persona.");
+            lines.Add(breathingChecked
+                ? DebriefLinePrefix.GOOD + "Hai valutato la respirazione della persona."
+                : DebriefLinePrefix.CRITICAL + "Non hai valutato la respirazione della persona.");
 
             if (rescue)
-                lines.Add(DebriefLinePrefix.GOOD + "Soccorsi simulati in arrivo dopo la chiamata al 112.");
+            {
+                float t = FirstActionTimestamp(ACTION_CALL_112);
+                float fullUntil = scoring != null && scoring.CallFullScoreUntil > 0f ? scoring.CallFullScoreUntil : 20f;
+                lines.Add(DebriefLinePrefix.GOOD + "Hai chiamato il 112 " +
+                          (t >= 0f && t <= fullUntil ? "tempestivamente" : "in ritardo") + " → soccorsi attivati.");
+            }
+            else
+            {
+                lines.Add(DebriefLinePrefix.CRITICAL + "Non hai chiamato il 112 → soccorsi non attivati.");
+            }
 
-            if (lastCorrectPosition != ManDownPositionChoice.None && breathingAssessments.Count > 0 &&
-                !HasValidReassessmentAfterCorrectPosition)
-                lines.Add(DebriefLinePrefix.BAD + "Rivalutazione della respirazione non effettuata dopo il posizionamento.");
+            // Gli errori di sicurezza derivano da azioni realmente eseguite: vengono inseriti prima
+            // delle righe del ramo così il limite di 8 righe della UI non può scartare un CRITICAL.
+            string safety = score.SafetyPenalties ?? string.Empty;
+            if (safety.Contains("unsafe_shock"))
+                lines.Add(DebriefLinePrefix.CRITICAL + "Tentativo di scarica non sicura → procedura interrotta.");
+            else if (safety.Contains("unauthorized_shock"))
+                lines.Add(DebriefLinePrefix.BAD + "Hai premuto il pulsante di scarica senza autorizzazione.");
+            if (safety.Contains("analysis_contact"))
+                lines.Add(DebriefLinePrefix.BAD + "Hai interrotto l'analisi del DAE toccando la persona.");
+            if (safety.Contains("inappropriate_electrodes"))
+                lines.Add(DebriefLinePrefix.BAD + "Hai applicato gli elettrodi senza necessità.");
 
+            // Senza valutazione respiratoria non si attribuiscono al giocatore le azioni del ramo:
+            // non ha acquisito l'informazione necessaria per sceglierle. La mancata valutazione
+            // è già segnalata sopra; qui si evitano anche i messaggi sul DAE, la cui applicabilità
+            // dipende dal ramo.
+            if (breathingChecked && breathingAbnormal)
+            {
+                ManDownCprQualitySnapshot cpr = ScoringCprSnapshot;
+                if (cpr.TotalCompleted <= 0)
+                {
+                    lines.Add(DebriefLinePrefix.CRITICAL + "Non hai effettuato compressioni toraciche quando necessarie.");
+                }
+                else
+                {
+                    // La quantità è giudicata con lo stesso riferimento dello scoring: con DAE il cap
+                    // RCP è 60, quindi raggiungerlo non viene mai segnalato come insufficiente.
+                    if (score.RcpMaxPoints > 0 && score.RcpPoints >= score.RcpMaxPoints)
+                        lines.Add(DebriefLinePrefix.GOOD + "Hai eseguito le compressioni toraciche necessarie.");
+                    else
+                        lines.Add(DebriefLinePrefix.BAD + "Le compressioni toraciche eseguite non sono state sufficienti.");
+
+                    // In assenza di intervalli valutabili non si dà alcun giudizio sul ritmo.
+                    if (cpr.EvaluatedIntervals > 0)
+                        lines.Add(cpr.RhythmQuality >= 0.6f
+                            ? DebriefLinePrefix.GOOD + "Hai mantenuto un ritmo adeguato durante le compressioni toraciche."
+                            : DebriefLinePrefix.BAD + "Il ritmo delle compressioni toraciche è stato irregolare.");
+                }
+
+                if (positionChoices.Count > 0)
+                    lines.Add(DebriefLinePrefix.BAD + "Hai cambiato posizione della persona con respirazione anomala.");
+
+                // Il DAE è pertinente solo nel ramo anomalo e solo se presente all'inizio della partita.
+                if (aedAvailable)
+                {
+                    if (!aedRetrieved)
+                        lines.Add(DebriefLinePrefix.BAD + "Il DAE era disponibile, ma non è stato recuperato.");
+                    else if (score.ShockCompleted)
+                        lines.Add(DebriefLinePrefix.GOOD + "Hai completato correttamente la procedura di defibrillazione.");
+                    else if (score.AppliedElectrodesEver >= 2 && lastAedSnapshot.AuthorizationCount > 0)
+                        lines.Add(DebriefLinePrefix.BAD + "Scarica autorizzata ma non eseguita.");
+                    else if (score.AppliedElectrodesEver >= 1)
+                        lines.Add(DebriefLinePrefix.BAD + "Hai applicato gli elettrodi senza completare la procedura di defibrillazione.");
+                    else if (lastAedSnapshot.AnalysisStartedCount > 0 || HasAction(ACTION_AED_INVALID_ATTEMPT))
+                        lines.Add(DebriefLinePrefix.BAD + "Hai tentato di utilizzare il DAE senza completare la procedura.");
+                    else
+                        lines.Add(DebriefLinePrefix.BAD + "Hai recuperato il DAE senza utilizzarlo.");
+                }
+            }
+            else if (breathingChecked)
+            {
+                // Respirazione normale: nessuna penalità né messaggio per RCP/DAE non eseguiti.
+                if (cprStarted)
+                    lines.Add(DebriefLinePrefix.CRITICAL + "Hai effettuato compressioni toraciche non necessarie.");
+
+                bool sidePosition = currentPosition == ManDownPositionChoice.SidePosition && lastCorrectPositionAt >= 0f;
+                if (sidePosition && positionErrors.Count > 0 && positionCorrections.Count > 0)
+                    lines.Add(DebriefLinePrefix.GOOD + "Hai inizialmente scelto una posizione inappropriata, ma successivamente l'hai corretta.");
+                else if (sidePosition)
+                    lines.Add(DebriefLinePrefix.GOOD + "Hai posizionato correttamente la persona in posizione laterale di sicurezza.");
+                else if (positionChoices.Count > 0)
+                    lines.Add(DebriefLinePrefix.BAD + "Non hai mantenuto la persona in posizione laterale di sicurezza.");
+                else
+                    lines.Add(DebriefLinePrefix.BAD + "Non hai posizionato la persona in posizione laterale di sicurezza.");
+            }
+
+            if (lines.Count > 8) lines.RemoveRange(8, lines.Count - 8);
             return lines;
+        }
+
+        private bool HasAction(string id)
+        {
+            for (int i = 0; i < actions.Count; i++)
+                if (actions[i].ActionId == id) return true;
+            return false;
+        }
+
+        private float FirstActionTimestamp(string id)
+        {
+            for (int i = 0; i < actions.Count; i++)
+                if (actions[i].ActionId == id) return actions[i].Timestamp;
+            return -1f;
         }
 
         private IEnumerator FinalAssistanceDelay()
@@ -1294,6 +1551,7 @@ namespace SI81.ManDown
 
         private void ClearRuntimeData()
         {
+            StopAbnormalTimers();
             actions.Clear();
             cprResults.Clear();
             positionChoices.Clear();
@@ -1302,7 +1560,6 @@ namespace SI81.ManDown
             breathingAssessments.Clear();
             failureCauses.Clear();
             penalties.Clear();
-            completedCprPhases.Clear();
             electrodesPlaced.Clear();
 
             concluded = false;
@@ -1319,6 +1576,14 @@ namespace SI81.ManDown
             lastReassessmentValid = false;
             call112Made = false;
             cprStarted = false;
+            aedRetrieved = false;
+            aedRetrievedAt = -1f;
+            aedPoweredOn = false;
+            aedPoweredOnAt = -1f;
+            aedElectrodesAppliedCount = 0;
+            aedApplicationComplete = false;
+            aedFirstFullApplicationAt = -1f;
+            lastAedSnapshot = default;
             aedActivated = false;
             aedInstructionConfirmed = false;
             cprResumed = false;
@@ -1330,6 +1595,13 @@ namespace SI81.ManDown
             finalMonitoringStartedAt = -1f;
             cprStartedAt = -1f;
             lastCprQualitySnapshot = null;
+            cprWindowSnapshot = null;
+            abnormalWindowStartedAt = -1f;
+            abnormalWindowEndedAt = -1f;
+            abnormalWindowElapsed = false;
+            graceStartedAt = -1f;
+            graceGrantedOnce = false;
+            conclusionReason = string.Empty;
             finalAssistanceStarted = false;
             assistanceCompleted = false;
             cprPoorQuality = false;
@@ -1350,6 +1622,14 @@ namespace SI81.ManDown
             CprStarted = null;
             CprResultRegistered = null;
             CprQualityIssueReported = null;
+            AedRetrieved = null;
+            AedPoweredOn = null;
+            AedApplicationStateChanged = null;
+            AedSnapshotReported = null;
+            AbnormalWindowStarted = null;
+            AbnormalWindowElapsed = null;
+            GraceStarted = null;
+            GraceEnded = null;
             AedActivated = null;
             AedElectrodePlaced = null;
             AedInstructionConfirmed = null;

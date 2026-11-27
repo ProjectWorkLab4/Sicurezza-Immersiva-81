@@ -6,6 +6,25 @@
 
 Il sistema valuta la prestazione attraverso cinque dimensioni. Il punteggio ponderato di progetto ha un massimo di 100 punti. La priorità è riconoscere la situazione, attivare tempestivamente i soccorsi ed eseguire correttamente le azioni richieste dal ramo della missione. Pericolo ambientale, pozzanghera, danni all'operatore e primo soccorso aziendale sono esclusi.
 
+> **SISTEMA IMPLEMENTATO IN TASK 09.1 — sostituisce i modelli di scoring precedenti.** Le vecchie soglie 20/20/30 non sono più progressione di gameplay e i vecchi pesi/cap non si applicano. Il calcolo vive in `ManDownScoring` (solo elaborazione dei dati registrati); l'SPI è `ScoreRules.ScoreFromDimensions`, cioè la media aritmetica delle cinque dimensioni, senza modificare la formula condivisa. L'integrazione con `EndMission`, esiti e debriefing resta al Task 09.2. I riferimenti a 20/20/30 più avanti nel documento sono storici.
+
+## Sistema attuale — TASK 09.1
+
+| Dimensione | Regola |
+|---|---|
+| **Safety** (0-100) | Base 100. Penalità una sola volta ciascuna: posizionamento inappropriato −30; contatto che interrompe l'analisi DAE −15; scarica non sicura (contatto) −50; scarica non autorizzata (pressione anticipata/non consigliata/elettrodi mancanti) −30; RCP con respirazione normale −100; elettrodi con respirazione normale −30. Una stessa pressione non conteggia in due categorie (unsafe ha priorità su unauthorized). |
+| **Awareness** (0-100) | Coscienza verificata 30; respirazione verificata 70. Ripetizioni senza punti extra. |
+| **Decision** (0-100) | Chiamata al 112: 70. Normali: laterale mantenuta alla conclusione 30. Anomali con DAE: RCP valida almeno una volta 20 + elettrodi applicati almeno una volta 10. Anomali senza DAE: RCP valida 30. La sola estrazione del DAE non dà punti. |
+| **Execution — anomalo** (0-100) | `rcpNorm = rcpAccumulated / 90 * 100`. Senza DAE: `Clamp(rcpNorm)`. Con DAE: `min(rcpNorm, 60) + 5 (1° elettrodo) + 5 (2°) + 10 (analisi completata) + 20 (scarica valida)`. Proroga: compressioni/qualità non entrano nel valore RCP, ma i traguardi DAE restano validi. |
+| **Execution — normale** (0-100) | Laterale mantenuta 100, altrimenti 0; −50 se è stata effettuata RCP inappropriata. Nessun punto per RCP/DAE in questo ramo. |
+| **Time** (0-100) | 112: ≤20 s → 80; 20-60 s → lineare 80→30; >60 s → 30; omesso → 0. Valutazione iniziale: ≤20 s → 20; 20-60 s → lineare 20→0; oltre/omessa → 0. Tempo effettivo di missione, coerente con le pause. |
+
+Tutti i valori (penalità, pesi, riferimento RCP 90, cap 60, soglie temporali 20/60) sono campi serializzati modificabili dall'Inspector su `ManDownScoring`. Nessun punteggio è mostrato durante la missione.
+
+**Integrazione Task 09.2:** `ManDownScenario` calcola internamente lo SPI come media aritmetica delle cinque dimensioni con lo stesso arrotondamento della UI e passa `-1` a `EndMission`, perché la UI comune ricalcoli lo SPI. Esito: SPI ≥80 Positive, ≥50 Partial, <50 Negative; timeout generale o nessuna compressione valida nel ramo anomalo → Negative; 112 omesso o Execution <50 → al massimo Partial. La scadenza ordinaria della finestra 45 s e della proroga 15 s non è un timeout. Il debrief è generato da dati registrati con i prefissi `DebriefLinePrefix`, in italiano, senza numeri, formule o giudizi clinici; righe duplicate evitate e limite 8. Soglie 80/50 ed Execution 50 sono campi configurabili su `ManDownScenario`.
+
+**Revisione TASK 10.1 (coerenza, pesi e formule invariati):** scoring, esito e debrief leggono un unico snapshot RCP autorevole — `ManDownScenario.ScoringCprSnapshot`, cioè quello congelato alla scadenza della finestra se la finestra è scaduta, altrimenti l'ultimo registrato. Le compressioni in proroga restano escluse dal valore RCP e dal conteggio usato per `CPR_OMITTED`, mentre i traguardi DAE in proroga restano validi. `ManDownScoreResult` espone `RcpPoints` e `RcpMaxPoints` (cap 60 con DAE, 100 senza) per giudicare la quantità RCP con lo stesso riferimento dello scoring: raggiunto il cap non viene segnalato come insufficiente. Il ritmo viene giudicato solo con almeno un intervallo valutabile. Il debrief distingue respirazione non valutata / normale / anomala: senza valutazione non attribuisce al giocatore azioni o omissioni del ramo, e i messaggi DAE compaiono solo con respirazione anomala valutata e DAE disponibile all'inizio; DAE ignorato, recuperato ma inutilizzato, parziale e completato restano messaggi distinti. `AED_OMITTED` è registrato solo se il DAE non è mai stato recuperato, senza penalità aggiuntive per chi lo ha recuperato senza completarlo. Il timeout generale è letto dal risultato congelato (non da un flag azzerato prima del debrief). La soglia di tempestività del messaggio 112 riutilizza il parametro Time. Nessun peso, cap, soglia o formula approvata è stata modificata.
+
 ## Panoramica delle dimensioni
 
 | Dimensione | Peso | Punteggio iniziale | Meccanica | Descrizione |

@@ -9,34 +9,27 @@ namespace SI81.ManDown
     [Serializable]
     public struct ManDownCprFlowSnapshot
     {
-        public string phase;
-        public int initialCount;
-        public int afterAedCount;
-        public int withoutAedCount;
-        public int initialTarget;
-        public int afterAedTarget;
-        public int withoutAedTarget;
-        public bool initialComplete;
-        public bool afterAedComplete;
-        public bool withoutAedComplete;
+        public bool suspendedByAed;
+        public int compressionsBeforeShock;
+        public int compressionsAfterShock;
+        public int graceCompressions;
+        public float accumulatedValue;
+        public float graceQualitySum;
+        public float suspensionSeconds;
         public bool instructionShown;
         public int poorRhythmAlerts;
         public float lastPoorRhythmAlertAt;
-        public bool afterAedPhase;
+        public bool graceActive;
         public bool missionEnded;
     }
 
     /// <summary>
-    /// Integra il rilevamento fisico (<see cref="ManDownCpr"/>) e la valutazione ritmica
-    /// (<see cref="ManDownCprRhythm"/>) nella progressione di <see cref="ManDownScenario"/>, usando
-    /// solo la UI comune tramite <see cref="ScenarioController.Alert"/>: messaggio iniziale non bloccante
-    /// e avviso di ritmo insufficiente. Non apre popup, non mostra contatori/percentuali e non tocca il
-    /// punteggio: produce soltanto dati grezzi e registrazioni di fase per il futuro scoring.
-    ///
-    /// Una compressione fisicamente completa conta per la progressione indipendentemente dal ritmo;
-    /// una compressione invalida non conta. La qualità ritmica resta separata dalle soglie di progressione.
-    /// Il DAE non è implementato: <see cref="InterruptForAed"/> predispone solo l'interruzione esplicita
-    /// della sequenza ritmica e il cambiamento di fase, senza simulare alcuna azione sul dispositivo.
+    /// Integra rilevamento fisico e valutazione ritmica della RCP nello scenario, senza soglie di
+    /// progressione: la quantità e la qualità delle compressioni sono solo dati grezzi per il Task 09.
+    /// Durante analisi/autorizzazione/scarica la registrazione delle compressioni valide è sospesa,
+    /// ma la rilevazione del contatto delle mani resta attiva (gestita dai componenti dedicati).
+    /// Nella proroga DAE le compressioni sono contate a parte e non alimentano il valore destinato allo scoring.
+    /// Nessun timer visibile, metronomo, popup o calcolo di punteggio.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/Man Down/CPR Scenario Flow")]
@@ -47,6 +40,7 @@ namespace SI81.ManDown
         [SerializeField] private ManDownCprRhythm rhythm;
         [SerializeField] private ManDownScenario scenario;
         [SerializeField] private ManDownNpc npc;
+        [SerializeField] private ManDownAedDevice aedDevice;
 
         [Header("Feedback qualità ritmica")]
         [Tooltip("Qualità complessiva sotto la quale viene mostrato l'avviso (valore iniziale: 0,60).")]
@@ -60,26 +54,27 @@ namespace SI81.ManDown
         [SerializeField] private float poorRhythmAlertCooldownSeconds = 5f;
 
         [Header("Debug")]
-        [Tooltip("Se true, registra solo istruzione, avvisi, soglie raggiunte, interruzioni e reset.")]
+        [Tooltip("Log solo su istruzione, avvisi, sospensioni, scarica e reset: non ogni frame.")]
         [SerializeField] private bool debugLog;
         [SerializeField] private ManDownCprFlowSnapshot debugSnapshot;
 
         private const string INSTRUCTION_PREFIX = "Esegui le compressioni toraciche mantenendo un intervallo di circa ";
         private const string INSTRUCTION_SUFFIX = " secondi tra una pressione e l'altra.";
         private const string POOR_RHYTHM_MESSAGE = "Attenzione: il ritmo delle compressioni non è adeguato.";
-        private const string MONITORING_NOTE = "abnormal_breathing_cpr_completed";
 
-        private int initialCount;
-        private int afterAedCount;
-        private int withoutAedCount;
-        private bool initialComplete;
-        private bool afterAedComplete;
-        private bool withoutAedComplete;
-        private bool afterAedPhase;
+        private int compressionsBeforeShock;
+        private int compressionsAfterShock;
+        private int graceCompressions;
+        private float accumulatedValue;
+        private float graceQualitySum;
+        private float firstCompressionAt = -1f;
+        private float lastCompressionAt = -1f;
+        private float suspensionStartAt = -1f;
+        private float suspensionSeconds;
+        private bool suspendedByAed;
         private bool instructionShown;
         private int poorRhythmAlertCount;
         private float lastPoorRhythmAlertAt = -1f;
-        private float interruptedForAedAt = -1f;
         private bool missionEnded;
 
         /// <summary>Testo dell'istruzione iniziale, con il valore configurato nel valutatore ritmico.</summary>
@@ -94,66 +89,24 @@ namespace SI81.ManDown
             }
         }
 
-        /// <summary>Soglia di qualità sotto la quale viene mostrato l'avviso.</summary>
         public float PoorRhythmQualityThreshold => poorRhythmQualityThreshold;
-        /// <summary>Intervalli minimi valutati prima del primo avviso.</summary>
         public int MinEvaluatedIntervalsForAlert => minEvaluatedIntervalsForAlert;
-        /// <summary>Cooldown dell'avviso in secondi di missione.</summary>
         public float PoorRhythmAlertCooldownSeconds => poorRhythmAlertCooldownSeconds;
-
-        /// <summary>Fase RCP a cui appartengono le compressioni correnti.</summary>
-        public ManDownCprPhase CurrentCprPhase
-        {
-            get
-            {
-                if (scenario == null || !scenario.IsAedAvailable) return ManDownCprPhase.WithoutAed;
-                if (afterAedPhase || scenario.IsCprResumed) return ManDownCprPhase.AfterDefibrillation;
-                return ManDownCprPhase.InitialWithAed;
-            }
-        }
-
-        /// <summary>Compressioni complete della fase corrente.</summary>
-        public int CurrentPhaseCompressionCount
-        {
-            get
-            {
-                switch (CurrentCprPhase)
-                {
-                    case ManDownCprPhase.AfterDefibrillation: return afterAedCount;
-                    case ManDownCprPhase.WithoutAed: return withoutAedCount;
-                    default: return initialCount;
-                }
-            }
-        }
-
-        /// <summary>Soglia della fase corrente, letta dalle tre configurazioni dello scenario.</summary>
-        public int CurrentPhaseTarget => scenario != null ? scenario.GetRequiredCprCompressions(CurrentCprPhase) : 0;
-
-        /// <summary>Compressioni fisicamente complete della fase iniziale con DAE.</summary>
-        public int InitialCount => initialCount;
-        /// <summary>Compressioni fisicamente complete della fase dopo il DAE.</summary>
-        public int AfterAedCount => afterAedCount;
-        /// <summary>Compressioni fisicamente complete del percorso senza DAE.</summary>
-        public int WithoutAedCount => withoutAedCount;
-        /// <summary>True se la fase RCP iniziale con DAE ha raggiunto la soglia.</summary>
-        public bool InitialPhaseComplete => initialComplete;
-        /// <summary>True se la fase RCP dopo il DAE ha raggiunto la soglia.</summary>
-        public bool AfterAedPhaseComplete => afterAedComplete;
-        /// <summary>True se la RCP senza DAE ha raggiunto la soglia.</summary>
-        public bool WithoutAedPhaseComplete => withoutAedComplete;
-        /// <summary>True se l'istruzione iniziale è già stata mostrata in questa missione.</summary>
+        public int CompressionsBeforeShock => compressionsBeforeShock;
+        public int CompressionsAfterShock => compressionsAfterShock;
+        public int GraceCompressions => graceCompressions;
+        /// <summary>Somma delle qualità degli intervalli della finestra principale (dato grezzo, non punteggio).</summary>
+        public float AccumulatedValue => accumulatedValue;
+        public float GraceQualitySum => graceQualitySum;
+        public float FirstCompressionAt => firstCompressionAt;
+        public float LastCompressionAt => lastCompressionAt;
+        public float SuspensionSeconds => suspensionSeconds;
+        public bool IsSuspendedByAed => suspendedByAed;
         public bool InstructionShown => instructionShown;
-        /// <summary>Numero di avvisi di ritmo insufficiente mostrati nella missione.</summary>
         public int PoorRhythmAlertCount => poorRhythmAlertCount;
-        /// <summary>Timestamp di missione dell'ultimo avviso di ritmo; -1 se mai mostrato.</summary>
         public float LastPoorRhythmAlertAt => lastPoorRhythmAlertAt;
-        /// <summary>True dopo un'interruzione esplicita per il DAE.</summary>
-        public bool IsAfterAedPhase => afterAedPhase;
-        /// <summary>True se la missione è conclusa e il flusso RCP è disabilitato.</summary>
         public bool IsFlowDisabled => missionEnded;
 
-        /// <summary>Soglia di fase raggiunta (fase e conteggio).</summary>
-        public event Action<ManDownCprPhase, int> PhaseThresholdReached;
         /// <summary>Istruzione iniziale mostrata una sola volta.</summary>
         public event Action InstructionShownOnce;
         /// <summary>Avviso di ritmo insufficiente mostrato (timestamp di missione).</summary>
@@ -170,7 +123,17 @@ namespace SI81.ManDown
             }
             if (rhythm != null) rhythm.IntervalEvaluated += OnIntervalEvaluated;
             if (npc != null) npc.PositionApplied += OnNpcPositionApplied;
-            if (scenario != null) scenario.MissionConcluded += OnMissionConcluded;
+            if (scenario != null)
+            {
+                scenario.MissionConcluded += OnMissionConcluded;
+                scenario.AbnormalWindowElapsed += OnWindowElapsed;
+            }
+            if (aedDevice != null)
+            {
+                aedDevice.AnalysisStarted += OnAedAnalysisStarted;
+                aedDevice.AnalysisInterrupted += OnAedAnalysisInterrupted;
+                aedDevice.ShockCompleted += OnAedShockCompleted;
+            }
             MissionSession.Started += OnMissionStarted;
             UpdateSnapshot();
         }
@@ -188,11 +151,6 @@ namespace SI81.ManDown
             poorRhythmQualityThreshold = Mathf.Clamp01(poorRhythmQualityThreshold);
         }
 
-        /// <summary>
-        /// Mostra l'istruzione iniziale una sola volta, quando entrambe le mani raggiungono la
-        /// condizione di rilascio nella zona torace. Solo nel ramo con respirazione anormale,
-        /// dopo la valutazione respiratoria e in posizione supina.
-        /// </summary>
         private void Update()
         {
             if (instructionShown || !CanOperate() || !IsAbnormalBranch) return;
@@ -214,57 +172,40 @@ namespace SI81.ManDown
 
         private bool IsAbnormalBranch => scenario != null && scenario.IsBreathingAbnormal;
 
-        /// <summary>
-        /// Una compressione fisicamente completa conta per la progressione anche se il ritmo è
-        /// scorretto. La qualità ritmica viene registrata separatamente senza modificare il punteggio.
-        /// </summary>
         private void OnCompressionCompleted(float timestamp)
         {
-            if (!CanOperate()) return;
+            if (!CanOperate() || !IsAbnormalBranch) return;
 
-            if (!IsAbnormalBranch)
+            if (scenario.IsGraceActive)
             {
-                // RCP eseguita su persona che respira: StartCpr() l'ha già registrata come azione
-                // inappropriata. Nessuna progressione, nessun DAE, nessuna conclusione automatica.
-                ReportSnapshot(true);
+                // Proroga: il gesto resta valido e viene registrato, ma non entra nello scoring RCP.
+                graceCompressions++;
+                ReportSnapshot();
                 return;
             }
+            if (suspendedByAed) return;
 
-            switch (CurrentCprPhase)
-            {
-                case ManDownCprPhase.AfterDefibrillation: afterAedCount++; break;
-                case ManDownCprPhase.WithoutAed: withoutAedCount++; break;
-                default: initialCount++; break;
-            }
+            if (scenario.LastAedSnapshot.ShockCompleted) compressionsAfterShock++;
+            else compressionsBeforeShock++;
 
-            ManDownCprPhase phase = CurrentCprPhase;
-            int count = CurrentPhaseCompressionCount;
-            int target = scenario.GetRequiredCprCompressions(phase);
-
-            if (count >= target && !IsPhaseComplete(phase))
-            {
-                MarkPhaseComplete(phase, timestamp);
-                // InvalidCompressions = 0: i tentativi invalidi restano dati grezzi e non attivano
-                // la penalità CPR_POOR_QUALITY, demandata al futuro task di scoring.
-                scenario.ReportCprResult(new ManDownCprResult(phase, count, 0, 0f));
-                PhaseThresholdReached?.Invoke(phase, count);
-                if (phase == ManDownCprPhase.WithoutAed)
-                    scenario.StartFinalMonitoring(MONITORING_NOTE);
-
-                if (debugLog) Debug.Log($"[SI81 ManDown CPR] Soglia {phase} raggiunta: {count}/{target}.", this);
-            }
-
-            ReportSnapshot(false);
+            if (firstCompressionAt < 0f) firstCompressionAt = timestamp;
+            lastCompressionAt = timestamp;
+            ReportSnapshot();
         }
 
-        /// <summary>
-        /// Avviso di ritmo insufficiente: solo dopo il numero minimo di intervalli valutati, solo
-        /// durante la RCP, solo nel ramo anormale e non prima del cooldown. Non interrompe nulla.
-        /// </summary>
         private void OnIntervalEvaluated(float timestamp, float interval, float error, float quality,
             ManDownCprIntervalOutcome outcome)
         {
             if (!CanOperate() || !IsAbnormalBranch) return;
+
+            if (scenario.IsGraceActive)
+            {
+                graceQualitySum += Mathf.Clamp01(quality);
+                ReportSnapshot();
+                return;
+            }
+            if (!suspendedByAed) accumulatedValue += Mathf.Clamp01(quality);
+
             if (cpr != null && !cpr.IsArmed && !cpr.IsPressurePending) return;
             if (rhythm == null || rhythm.EvaluatedIntervalCount < minEvaluatedIntervalsForAlert) return;
             if (rhythm.OverallRhythmQuality >= poorRhythmQualityThreshold) return;
@@ -280,111 +221,108 @@ namespace SI81.ManDown
             if (debugLog) Debug.Log($"[SI81 ManDown CPR] Avviso ritmo insufficiente @ {now:F2}s.", this);
         }
 
-        /// <summary>
-        /// Predispone l'interruzione per il futuro DAE: azzera solo il riferimento ritmico, conserva
-        /// le statistiche e fa contare le compressioni successive nella fase dopo defibrillazione.
-        /// Non simula il dispositivo e non chiama API del DAE.
-        /// </summary>
-        public void InterruptForAed()
+        /// <summary>Analisi DAE: interrompe la sequenza ritmica e sospende il conteggio delle compressioni.</summary>
+        private void OnAedAnalysisStarted(float timestamp)
         {
-            if (rhythm != null) rhythm.InterruptSequence();
-            afterAedPhase = true;
-            interruptedForAedAt = scenario != null ? scenario.MissionElapsedSeconds : -1f;
-            UpdateSnapshot();
-            if (debugLog) Debug.Log($"[SI81 ManDown CPR] Interruzione per DAE @ {interruptedForAedAt:F2}s; statistiche conservate.", this);
+            if (suspendedByAed || missionEnded) return;
+            rhythm?.InterruptSequence();
+            cpr?.InterruptForAed();
+            suspendedByAed = true;
+            suspensionStartAt = scenario != null ? scenario.MissionElapsedSeconds : timestamp;
+            ReportSnapshot();
+            if (debugLog) Debug.Log($"[SI81 ManDown CPR] RCP sospesa per analisi DAE @ {suspensionStartAt:F2}s.", this);
         }
 
-        /// <summary>
-        /// Un ciclo fisico invalido non conta per la progressione; il detector l'ha già scartato.
-        /// Qui non si azzerano le statistiche ritmiche deliberate del Task 07.2.
-        /// </summary>
+        /// <summary>Se l'analisi viene interrotta senza necessità di mani lontane, la RCP riprende subito.</summary>
+        private void OnAedAnalysisInterrupted(string reason)
+        {
+            if (!suspendedByAed || aedDevice == null || aedDevice.NeedsHandsClear) return;
+            ResumeCpr("analysis_interrupted");
+        }
+
+        private void OnAedShockCompleted(float timestamp, float quality)
+        {
+            if (suspendedByAed) ResumeCpr("shock_completed");
+        }
+
+        private void ResumeCpr(string reason)
+        {
+            suspendedByAed = false;
+            if (suspensionStartAt >= 0f && scenario != null)
+                suspensionSeconds += Mathf.Max(0f, scenario.MissionElapsedSeconds - suspensionStartAt);
+            suspensionStartAt = -1f;
+            // Nuova sequenza: la prima compressione successiva stabilisce un nuovo riferimento temporale.
+            rhythm?.InterruptSequence();
+            ReportSnapshot();
+            if (debugLog) Debug.Log($"[SI81 ManDown CPR] RCP ripristinata ({reason}); sospensione totale {suspensionSeconds:F2}s.", this);
+        }
+
+        private void OnWindowElapsed(float timestamp)
+        {
+            // Le statistiche della finestra principale sono state congelate dallo scenario in questo istante.
+            ReportSnapshot();
+        }
+
         private void OnCprAttemptInvalidated(float timestamp, string reason)
         {
             UpdateSnapshot();
         }
 
-        /// <summary>
-        /// Cambio di posa: il detector invalida la pressione in corso; il flusso non riavvia il
-        /// monitoraggio né avanza la progressione, e non tocca le statistiche già raccolte.
-        /// </summary>
         private void OnNpcPositionApplied()
         {
             UpdateSnapshot();
         }
 
-        private bool IsPhaseComplete(ManDownCprPhase phase)
-        {
-            switch (phase)
-            {
-                case ManDownCprPhase.AfterDefibrillation: return afterAedComplete;
-                case ManDownCprPhase.WithoutAed: return withoutAedComplete;
-                default: return initialComplete;
-            }
-        }
-
-        private void MarkPhaseComplete(ManDownCprPhase phase, float timestamp)
-        {
-            switch (phase)
-            {
-                case ManDownCprPhase.AfterDefibrillation:
-                    afterAedComplete = true;
-                    snapshotAfterAedAt = timestamp;
-                    break;
-                case ManDownCprPhase.WithoutAed:
-                    withoutAedComplete = true;
-                    snapshotWithoutAedAt = timestamp;
-                    break;
-                default:
-                    initialComplete = true;
-                    snapshotInitialAt = timestamp;
-                    break;
-            }
-        }
-
-        private float snapshotInitialAt = -1f;
-        private float snapshotAfterAedAt = -1f;
-        private float snapshotWithoutAedAt = -1f;
-
         /// <summary>Invia al controller lo stato grezzo corrente senza calcolare punteggi.</summary>
-        private void ReportSnapshot(bool inappropriate)
+        private void ReportSnapshot()
         {
             if (scenario == null || rhythm == null || cpr == null) return;
+            var list = cpr.CompletedCompressionTimestamps;
+            float first = list.Count > 0 ? list[0] : firstCompressionAt;
+            float last = list.Count > 0 ? list[list.Count - 1] : lastCompressionAt;
             var snapshot = new ManDownCprQualitySnapshot(
                 scenario.CprStartedAt,
-                initialCount, afterAedCount, withoutAedCount,
+                compressionsBeforeShock, compressionsAfterShock, graceCompressions,
                 cpr.CompletedCompressionCount, cpr.InvalidAttemptCount,
                 rhythm.EvaluatedIntervalCount, rhythm.CorrectIntervalCount,
                 rhythm.TooShortIntervalCount, rhythm.TooLongIntervalCount,
                 rhythm.CorrectIntervalPercentage, rhythm.CumulativeTimingError,
                 rhythm.AverageTimingError, rhythm.AverageInterval, rhythm.OverallRhythmQuality,
-                inappropriate || !IsAbnormalBranch,
-                snapshotInitialAt, snapshotAfterAedAt, snapshotWithoutAedAt, interruptedForAedAt);
+                // Inappropriata solo se la respirazione effettiva è normale: non dipende dal fatto
+                // che il gesto sia riportato allo scenario.
+                !IsAbnormalBranch,
+                -1f, -1f, -1f,
+                -1f,
+                accumulatedValue, first, last, compressionsBeforeShock, compressionsAfterShock,
+                graceCompressions, graceQualitySum, suspensionSeconds +
+                (suspendedByAed && scenario != null && suspensionStartAt >= 0f
+                    ? Mathf.Max(0f, scenario.MissionElapsedSeconds - suspensionStartAt) : 0f));
             scenario.ReportCprQualitySnapshot(snapshot);
         }
 
         private void OnMissionConcluded(ManDownScenarioResult result)
         {
             missionEnded = true;
+            suspendedByAed = false;
             UnsubscribeGameplayEvents();
             UpdateSnapshot();
         }
 
         private void OnMissionStarted()
         {
-            initialCount = 0;
-            afterAedCount = 0;
-            withoutAedCount = 0;
-            initialComplete = false;
-            afterAedComplete = false;
-            withoutAedComplete = false;
-            afterAedPhase = false;
+            compressionsBeforeShock = 0;
+            compressionsAfterShock = 0;
+            graceCompressions = 0;
+            accumulatedValue = 0f;
+            graceQualitySum = 0f;
+            firstCompressionAt = -1f;
+            lastCompressionAt = -1f;
+            suspensionStartAt = -1f;
+            suspensionSeconds = 0f;
+            suspendedByAed = false;
             instructionShown = false;
             poorRhythmAlertCount = 0;
             lastPoorRhythmAlertAt = -1f;
-            interruptedForAedAt = -1f;
-            snapshotInitialAt = -1f;
-            snapshotAfterAedAt = -1f;
-            snapshotWithoutAedAt = -1f;
             missionEnded = false;
             FlowReset?.Invoke();
             UpdateSnapshot();
@@ -399,27 +337,34 @@ namespace SI81.ManDown
             }
             if (rhythm != null) rhythm.IntervalEvaluated -= OnIntervalEvaluated;
             if (npc != null) npc.PositionApplied -= OnNpcPositionApplied;
-            if (scenario != null) scenario.MissionConcluded -= OnMissionConcluded;
+            if (scenario != null)
+            {
+                scenario.MissionConcluded -= OnMissionConcluded;
+                scenario.AbnormalWindowElapsed -= OnWindowElapsed;
+            }
+            if (aedDevice != null)
+            {
+                aedDevice.AnalysisStarted -= OnAedAnalysisStarted;
+                aedDevice.AnalysisInterrupted -= OnAedAnalysisInterrupted;
+                aedDevice.ShockCompleted -= OnAedShockCompleted;
+            }
         }
 
         private void UpdateSnapshot()
         {
             debugSnapshot = new ManDownCprFlowSnapshot
             {
-                phase = CurrentCprPhase.ToString(),
-                initialCount = initialCount,
-                afterAedCount = afterAedCount,
-                withoutAedCount = withoutAedCount,
-                initialTarget = scenario != null ? scenario.GetRequiredCprCompressions(ManDownCprPhase.InitialWithAed) : 0,
-                afterAedTarget = scenario != null ? scenario.GetRequiredCprCompressions(ManDownCprPhase.AfterDefibrillation) : 0,
-                withoutAedTarget = scenario != null ? scenario.GetRequiredCprCompressions(ManDownCprPhase.WithoutAed) : 0,
-                initialComplete = initialComplete,
-                afterAedComplete = afterAedComplete,
-                withoutAedComplete = withoutAedComplete,
+                suspendedByAed = suspendedByAed,
+                compressionsBeforeShock = compressionsBeforeShock,
+                compressionsAfterShock = compressionsAfterShock,
+                graceCompressions = graceCompressions,
+                accumulatedValue = accumulatedValue,
+                graceQualitySum = graceQualitySum,
+                suspensionSeconds = suspensionSeconds,
                 instructionShown = instructionShown,
                 poorRhythmAlerts = poorRhythmAlertCount,
                 lastPoorRhythmAlertAt = lastPoorRhythmAlertAt,
-                afterAedPhase = afterAedPhase,
+                graceActive = scenario != null && scenario.IsGraceActive,
                 missionEnded = missionEnded
             };
         }

@@ -20,6 +20,26 @@ namespace SI81.UI
     }
 
     /// <summary>
+    /// Una voce dettagliata opzionale per la checklist della schermata di Pausa (<see cref="MissionFlow.PauseChecklist"/>).
+    /// Quando uno scenario la popola, <see cref="PauseScreen"/> la mostra in un elenco scorrevole mantenendo intatti
+    /// gli obiettivi sintetici del pannello da polso.
+    /// </summary>
+    public readonly struct PauseChecklistEntry
+    {
+        /// <summary>Testo descrittivo del passo.</summary>
+        public string Text { get; }
+        /// <summary>Stato corrente del passo (Done / Current / Todo).</summary>
+        public ObjectiveState State { get; }
+
+        /// <summary>Crea una voce della checklist di pausa.</summary>
+        public PauseChecklistEntry(string text, ObjectiveState state)
+        {
+            Text = text ?? string.Empty;
+            State = state;
+        }
+    }
+
+    /// <summary>
     /// Colla del flusso di missione (Blocco C · C3), stato statico + azioni: pausa (Time.timeScale 0/1, HUD nascosta, PANEL_Pause),
     /// ricomincia, esci alla Home, esito di fine missione e badge nuovi. Il "motore" che ascolta eventi e tasti è
     /// <see cref="MissionFlowDriver"/> su MNG_UI; qui stanno le regole, così le schermate (Pausa, Score &amp; Replay) le usano senza duplicarle.
@@ -57,6 +77,64 @@ namespace SI81.UI
         /// Lo aggiorna chi gestisce gli obiettivi (HUDService.SetObjective o lo scenario).
         /// </summary>
         public static int ObjectiveIndex { get; set; }
+        /// <summary>
+        /// Checklist dettagliata opzionale per <see cref="PauseScreen"/>: se popolata, la Pausa mostra queste voci
+        /// in un elenco scorrevole mantenendo intatti gli obiettivi sintetici del pannello da polso.
+        /// </summary>
+        public static IReadOnlyList<PauseChecklistEntry> PauseChecklist { get; set; }
+
+        // Stato facoltativo dei singoli obiettivi: quando lo scenario chiama SetObjectiveCompleted, la Pausa
+        // mostra i check veri anche per obiettivi completati fuori ordine. Gli scenari che aggiornano solo
+        // ObjectiveIndex restano sul comportamento storico (i < current).
+        private static bool[] objectiveCompleted = new bool[0];
+        private static bool objectiveStateExplicitlyUsed;
+
+        /// <summary>True se lo scenario ha segnato almeno uno stato tramite <see cref="SetObjectiveCompleted"/>.</summary>
+        public static bool HasObjectiveCompletionState => objectiveStateExplicitlyUsed && objectiveCompleted != null && objectiveCompleted.Length > 0;
+        /// <summary>Numero di obiettivi segnati come completati.</summary>
+        public static int CompletedObjectiveCount
+        {
+            get
+            {
+                if (objectiveCompleted == null) return 0;
+                int count = 0;
+                foreach (bool done in objectiveCompleted)
+                    if (done) count++;
+                return count;
+            }
+        }
+
+        /// <summary>Prepara lo stato dettagliato degli obiettivi senza azzerare quelli già completati.</summary>
+        public static void EnsureObjectiveState(int count)
+        {
+            int length = Mathf.Max(0, count);
+            if (objectiveCompleted == null || objectiveCompleted.Length != length)
+                objectiveCompleted = new bool[length];
+        }
+
+        /// <summary>Segna un obiettivo come completato (o lo ripristina).</summary>
+        public static void SetObjectiveCompleted(int index, bool value)
+        {
+            if (objectiveCompleted == null || index < 0 || index >= objectiveCompleted.Length)
+                return;
+            objectiveStateExplicitlyUsed = true;
+            objectiveCompleted[index] = value;
+        }
+
+        /// <summary>True se l'obiettivo indicato è stato completato.</summary>
+        public static bool IsObjectiveCompleted(int index)
+        {
+            return objectiveCompleted != null && index >= 0 && index < objectiveCompleted.Length && objectiveCompleted[index];
+        }
+
+        /// <summary>Indice del primo obiettivo non ancora completato; -1 se tutti sono fatti.</summary>
+        public static int FirstIncompleteObjectiveIndex()
+        {
+            if (objectiveCompleted == null) return 0;
+            for (int i = 0; i < objectiveCompleted.Length; i++)
+                if (!objectiveCompleted[i]) return i;
+            return -1;
+        }
 
         /// <summary>Lanciato quando si entra (true) o si esce (false) dalla pausa.</summary>
         public static event Action<bool> PausedChanged;
@@ -73,6 +151,9 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            PauseChecklist = null;
+            objectiveCompleted = new bool[0];
+            objectiveStateExplicitlyUsed = false;
             PausedChanged = null;
         }
 
@@ -164,6 +245,11 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            PauseChecklist = null;
+            objectiveStateExplicitlyUsed = false;
+            EnsureObjectiveState(MissionSession.Current != null && MissionSession.Current.Objectives != null
+                ? MissionSession.Current.Objectives.Count
+                : 0);
             CaptureBadgeSnapshot();
             SetHudVisible(true);
         }
@@ -263,6 +349,8 @@ namespace SI81.UI
             bool training = MissionSession.IsTraining;
             ClearPauseState();
             IsOutcomeShowing = false;
+            PauseChecklist = null;
+            objectiveStateExplicitlyUsed = false;
             if (UIScreenManager.Instance != null) UIScreenManager.Instance.HideMenu();
             SetHudVisible(true);
             if (training) UIServices.Launcher.LaunchTraining(mission);
@@ -277,6 +365,9 @@ namespace SI81.UI
         {
             ClearPauseState();
             IsOutcomeShowing = false;
+            PauseChecklist = null;
+            objectiveCompleted = new bool[0];
+            objectiveStateExplicitlyUsed = false;
             SetHudVisible(false);
             if (UIServices.Launcher != null)
             {

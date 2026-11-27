@@ -233,10 +233,6 @@ PrefabInstance:
       propertyPath: uiBridge
       value: 
       objectReference: {fileID: 2011411990}
-    - target: {fileID: 6566184009258513574, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
-      propertyPath: movementLock
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 2841253088658155431, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -277,6 +273,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2841253088658155431, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3439765028489319531, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
       propertyPath: m_ClearFlags
       value: 2
@@ -304,6 +304,10 @@ PrefabInstance:
     - target: {fileID: 3439765028489319531, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
       propertyPath: m_BackGroundColor.r
       value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 6566184009258513574, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
+      propertyPath: movementLock
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8398612847378405214, guid: 738f8c7eb2be3ab4cac889c41b8e081c, type: 3}
       propertyPath: m_Name
@@ -1797,6 +1801,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: MNG_HUD
       objectReference: {fileID: 0}
+    - target: {fileID: 3431965955088507665, guid: 32ef80ab6787dc64bbfc87da29dc73fd, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
     - target: {fileID: 9167348193712509852, guid: 32ef80ab6787dc64bbfc87da29dc73fd, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -1939,6 +1947,10 @@ PrefabInstance:
     - target: {fileID: 3556769357190122378, guid: cf9624019b3729b4f81e45716c0cb4e3, type: 3}
       propertyPath: m_Name
       value: MNG_UI
+      objectReference: {fileID: 0}
+    - target: {fileID: 7788385586526517641, guid: cf9624019b3729b4f81e45716c0cb4e3, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 8054172573144389650, guid: cf9624019b3729b4f81e45716c0cb4e3, type: 3}
       propertyPath: m_LocalPosition.x

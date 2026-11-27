@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07cf34d3b51b99e41925ba3564361cd0, type: 3}
+  m_Name: SO_EvacuationConfig_Crisis
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Data.EvacuationConfig
+  difficulty: 2
+  totalDurationSeconds: 120
+  hasTimeLimit: 1
+  hearts: 1
+  fireEnabled: 1
+  activeFireCount: 5
+  lethalContacts: 3
+  contactCooldownSeconds: 2
+  highlightEnabled: 0
+  hintsEnabled: 0
+  hintIdleSeconds: 20
+  orderedHints: []
+  startWithReducedEffects: 1
+  disturbancesEnabled: 1
+  npcCountRoom1: 3
+  npcCountRoom2: 2
+  routeLaneWidth: 1.2
+  interactionDwellSeconds: 0.75
+  inspectMaxDistance: 1.2
+  successPoints: 50
+  partialPoints: 20
+  failurePoints: 0
+  scoring:
+    SafetyContactPenalty: 25
+    AwarenessNoPlanScore: 30
+    DecisionMissingNpcPenalty: 30
+    DecisionInternalStairsPenalty: 40
+    DecisionElevatorPenalty: 60
+    TimeFullScoreFraction: 0.6
+    TimeMinScore: 40
+    GuidedFullScoreSeconds: 90
+    GuidedMinScoreSeconds: 240
+    ImpulsivePenalty: 20
+    ImpulsiveWindowSeconds: 5

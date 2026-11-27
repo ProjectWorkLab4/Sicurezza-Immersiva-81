@@ -1433,6 +1433,24 @@
       "note": ""
     },
     {
+      "key": "hud.prompt.button.trigger",
+      "text": "TRIGGER",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2"
+      ],
+      "note": "Pillola del grilletto per i prompt di interazione (Select)."
+    },
+    {
+      "key": "hud.prompt.action.interact",
+      "text": "Interagisci",
+      "screens": [
+        "HUD Livello 1",
+        "HUD Livello 2"
+      ],
+      "note": "Verbo dei prompt di interazione col grilletto (Select)."
+    },
+    {
       "key": "hud.subtitles.speaker_line",
       "text": "{0}: {1}",
       "screens": [

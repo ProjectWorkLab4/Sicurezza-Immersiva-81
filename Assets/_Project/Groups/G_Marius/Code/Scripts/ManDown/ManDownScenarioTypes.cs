@@ -1,0 +1,612 @@
+using System;
+using System.Collections.Generic;
+using SI81.UI;
+using UnityEngine;
+
+namespace SI81.ManDown
+{
+    /// <summary>
+    /// Fase logica dello scenario Man Down. Le fasi non sono una sequenza obbligatoria: le azioni possono essere
+    /// tentate in ordine diverso e corrette. Servono a esporre lo stato corrente alle future classi e alla UI comune.
+    /// </summary>
+    public enum ManDownPhase
+    {
+        /// <summary>Scenario non ancora inizializzato.</summary>
+        NotStarted,
+        /// <summary>Inizializzazione: condizioni casuali, timer e registro azioni.</summary>
+        Initialization,
+        /// <summary>Valutazione dello stato di coscienza.</summary>
+        ConsciousnessAssessment,
+        /// <summary>Valutazione della respirazione.</summary>
+        BreathingAssessment,
+        /// <summary>Assistenza nel ramo con respirazione normale.</summary>
+        Assistance,
+        /// <summary>RCP nel ramo con respirazione anormale.</summary>
+        Cpr,
+        /// <summary>Utilizzo del DAE, se disponibile.</summary>
+        Aed,
+        /// <summary>Ripresa della RCP dopo la defibrillazione.</summary>
+        CprResume,
+        /// <summary>Fase finale di assistenza prima della conclusione.</summary>
+        FinalAssistance,
+        /// <summary>Scenario concluso: dati congelati, nessuna nuova azione accettata.</summary>
+        Concluded
+    }
+
+    /// <summary>
+    /// Fase della RCP a cui si riferisce un risultato inviato dalla futura meccanica di rilevamento.
+    /// Le soglie di compressioni valide sono 20 / 20 / 30, configurabili in <see cref="ManDownScenario"/>.
+    /// </summary>
+    public enum ManDownCprPhase
+    {
+        /// <summary>RCP iniziale con DAE disponibile (20 compressioni valide).</summary>
+        InitialWithAed,
+        /// <summary>RCP dopo la defibrillazione (20 compressioni valide).</summary>
+        AfterDefibrillation,
+        /// <summary>RCP senza DAE (30 compressioni valide complessive).</summary>
+        WithoutAed
+    }
+
+    /// <summary>Come determinare la respirazione iniziale dell'NPC.</summary>
+    public enum ManDownBreathingMode
+    {
+        /// <summary>Random con la probabilità configurata (70% anormale).</summary>
+        Random,
+        /// <summary>Forza respirazione normale (test).</summary>
+        ForceNormal,
+        /// <summary>Forza respirazione anormale (test).</summary>
+        ForceAbnormal
+    }
+
+    /// <summary>
+    /// Ramo della respirazione dopo la valutazione. Non duplica lo stato del controller: descrive solo
+    /// la distinzione tra respirazione normale e respirazione assente o anomala, già presente in
+    /// <see cref="ManDownScenario.IsBreathingAbnormal"/>. Prima della verifica il ramo è NotAssessed.
+    /// </summary>
+    public enum ManDownBreathingBranch
+    {
+        /// <summary>Respirazione non ancora valutata.</summary>
+        NotAssessed,
+        /// <summary>Ramo con respirazione normale (monitoraggio e posizione laterale).</summary>
+        Normal,
+        /// <summary>Ramo con respirazione assente o anomala (RCP).</summary>
+        AbsentOrAbnormal
+    }
+
+    /// <summary>
+    /// Posizione logica selezionata dal giocatore per l'NPC. È indipendente dalla posa visiva applicata
+    /// da <see cref="ManDownPoseController"/>: una scelta può essere registrata anche se la posa non esiste.
+    /// </summary>
+    public enum ManDownPositionChoice
+    {
+        /// <summary>Nessuna scelta effettuata: posizione iniziale supina.</summary>
+        None,
+        /// <summary>Posizione laterale di sicurezza.</summary>
+        SidePosition,
+        /// <summary>Gambe sollevate.</summary>
+        LegsRaised,
+        /// <summary>Posizione prona.</summary>
+        Prone,
+        /// <summary>Posizione seduta.</summary>
+        Seated
+    }
+
+    /// <summary>Esito decisionale di una scelta di posizione, valutato rispetto alla respirazione.</summary>
+    public enum ManDownPositionOutcome
+    {
+        /// <summary>Laterale di sicurezza con respirazione normale: scelta corretta.</summary>
+        Correct,
+        /// <summary>Scelta errata oppure inappropriata per la respirazione rilevata.</summary>
+        Incorrect
+    }
+
+    /// <summary>
+    /// Tipo di una voce pronta per la futura timeline delle scelte del Debrief. I valori ricalcano
+    /// le icone delle righe di debrief; la conversione a ChoiceKind avverrà quando l'API comune sarà
+    /// disponibile. Non viene chiamato alcun metodo UI in questo task.
+    /// </summary>
+    public enum ManDownChoiceKind
+    {
+        /// <summary>Scelta corretta.</summary>
+        Good,
+        /// <summary>Scelta errata recuperabile.</summary>
+        Bad,
+        /// <summary>Scelta inappropriata con respirazione assente o anomala.</summary>
+        Critical
+    }
+
+    /// <summary>
+    /// Una scelta di posizione registrata dal controller. Conserva la posizione selezionata e quella
+    /// precedente, il timestamp e la valutazione decisionale; non modifica la rappresentazione visiva.
+    /// </summary>
+    public sealed class ManDownPositionChoiceRecord
+    {
+        /// <summary>Posizione scelta dal giocatore.</summary>
+        public ManDownPositionChoice SelectedPosition { get; }
+        /// <summary>Posizione logica dell'NPC prima della scelta.</summary>
+        public ManDownPositionChoice PreviousPosition { get; }
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float Timestamp { get; }
+        /// <summary>Fase logica al momento della scelta.</summary>
+        public ManDownPhase Phase { get; }
+        /// <summary>Correttezza della scelta rispetto alla respirazione conosciuta.</summary>
+        public ManDownPositionOutcome Outcome { get; }
+        /// <summary>True se la scelta corretta corregge un errore precedente ancora registrato.</summary>
+        public bool IsCorrection { get; }
+        /// <summary>Nota tecnica, non mostrata al giocatore.</summary>
+        public string Note { get; }
+        /// <summary>Azione in seconda persona per la futura timeline del Debrief (al massimo 60 caratteri).</summary>
+        public string ActionText { get; }
+        /// <summary>Conseguenza breve per la futura timeline del Debrief (al massimo 40 caratteri).</summary>
+        public string ConsequenceText { get; }
+        /// <summary>Tipo previsto per la futura timeline del Debrief.</summary>
+        public ManDownChoiceKind Kind { get; }
+
+        internal ManDownPositionChoiceRecord(
+            ManDownPositionChoice selectedPosition,
+            ManDownPositionChoice previousPosition,
+            float timestamp,
+            ManDownPhase phase,
+            ManDownPositionOutcome outcome,
+            bool isCorrection,
+            string note,
+            string actionText,
+            string consequenceText,
+            ManDownChoiceKind kind)
+        {
+            SelectedPosition = selectedPosition;
+            PreviousPosition = previousPosition;
+            Timestamp = timestamp;
+            Phase = phase;
+            Outcome = outcome;
+            IsCorrection = isCorrection;
+            Note = note;
+            ActionText = actionText;
+            ConsequenceText = consequenceText;
+            Kind = kind;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{SelectedPosition} @ {Timestamp:F2}s (from={PreviousPosition}, outcome={Outcome}, correction={IsCorrection})";
+        }
+    }
+
+    /// <summary>
+    /// Una valutazione della respirazione. La prima è l'iniziale; le successive sono rivalutazioni.
+    /// Ogni voce conserva il timestamp e la posizione logica dell'NPC al momento della verifica.
+    /// </summary>
+    public sealed class ManDownBreathingAssessmentRecord
+    {
+        /// <summary>Numero progressivo della valutazione nella partita (1 = iniziale).</summary>
+        public int Sequence { get; }
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float Timestamp { get; }
+        /// <summary>true solo per la prima valutazione della partita.</summary>
+        public bool IsInitial => Sequence == 1;
+        /// <summary>true se la respirazione era assente o anomala.</summary>
+        public bool Abnormal { get; }
+        /// <summary>Posizione logica dell'NPC al momento della valutazione.</summary>
+        public ManDownPositionChoice PositionAtAssessment { get; }
+        /// <summary>true se la valutazione è avvenuta dopo un posizionamento corretto.</summary>
+        public bool FollowsCorrectPosition { get; }
+        /// <summary>
+        /// true finché non viene effettuato un nuovo posizionamento: una rivalutazione non resta valida
+        /// per una posizione diversa da quella in cui è stata fatta.
+        /// </summary>
+        public bool ValidForCurrentPosition { get; internal set; }
+
+        internal ManDownBreathingAssessmentRecord(
+            int sequence, float timestamp, bool abnormal, ManDownPositionChoice positionAtAssessment,
+            bool followsCorrectPosition)
+        {
+            Sequence = sequence;
+            Timestamp = timestamp;
+            Abnormal = abnormal;
+            PositionAtAssessment = positionAtAssessment;
+            FollowsCorrectPosition = followsCorrectPosition;
+            ValidForCurrentPosition = true;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"#{Sequence} @ {Timestamp:F2}s (initial={IsInitial}, abnormal={Abnormal}, " +
+                   $"position={PositionAtAssessment}, afterCorrect={FollowsCorrectPosition}, valid={ValidForCurrentPosition})";
+        }
+    }
+
+    /// <summary>
+    /// Dato grezzo già nel formato previsto da <c>RecordChoice</c>, da passare alla UI comune quando
+    /// l'API sarà implementata. Non viene usato adesso per calcolare punteggi.
+    /// </summary>
+    public readonly struct ManDownChoiceData
+    {
+        /// <summary>Secondi dall'inizio della missione.</summary>
+        public float ElapsedSeconds { get; }
+        /// <summary>Azione in seconda persona, al massimo 60 caratteri.</summary>
+        public string Action { get; }
+        /// <summary>Conseguenza breve, al massimo 40 caratteri.</summary>
+        public string Consequence { get; }
+        /// <summary>Tipo della scelta per la timeline del Debrief.</summary>
+        public ManDownChoiceKind Kind { get; }
+
+        public ManDownChoiceData(float elapsedSeconds, string action, string consequence, ManDownChoiceKind kind)
+        {
+            ElapsedSeconds = elapsedSeconds;
+            Action = action;
+            Consequence = consequence;
+            Kind = kind;
+        }
+    }
+
+    /// <summary>Come determinare la disponibilità iniziale del DAE.</summary>
+    public enum ManDownAedAvailabilityMode
+    {
+        /// <summary>Random con la probabilità configurata (75% presente).</summary>
+        Random,
+        /// <summary>Forza DAE presente (test).</summary>
+        ForceAvailable,
+        /// <summary>Forza DAE assente (test).</summary>
+        ForceUnavailable
+    }
+
+    /// <summary>
+    /// Una voce del registro azioni: cosa è stato tentato o completato e quando.
+    /// </summary>
+    public sealed class ManDownActionRecord
+    {
+        /// <summary>Identificativo tecnico dell'azione (costante di <see cref="ManDownScenario"/>).</summary>
+        public string ActionId { get; }
+        /// <summary>Fase dello scenario al momento della registrazione.</summary>
+        public ManDownPhase Phase { get; }
+        /// <summary>Secondi dall'inizio effettivo della missione.</summary>
+        public float Timestamp { get; }
+        /// <summary>true se l'azione è stata completata; false se solo tentata.</summary>
+        public bool Completed { get; }
+        /// <summary>true se l'azione è corretta/riuscita; false se errata o parziale.</summary>
+        public bool Success { get; }
+        /// <summary>Nota tecnica facoltativa (non mostrata al giocatore).</summary>
+        public string Note { get; }
+
+        internal ManDownActionRecord(string actionId, ManDownPhase phase, float timestamp, bool completed, bool success, string note)
+        {
+            ActionId = actionId;
+            Phase = phase;
+            Timestamp = timestamp;
+            Completed = completed;
+            Success = success;
+            Note = note;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{ActionId} @ {Timestamp:F2}s (phase={Phase}, completed={Completed}, success={Success})";
+        }
+    }
+
+    /// <summary>
+    /// Risultato grezzo inviato dalla futura meccanica RCP. Il controller non rileva né valida le compressioni:
+    /// registra i valori e li userà nel task di scoring.
+    /// </summary>
+    public readonly struct ManDownCprResult
+    {
+        /// <summary>Fase RCP a cui appartiene il risultato.</summary>
+        public ManDownCprPhase Phase { get; }
+        /// <summary>Compressioni considerate valide dalla futura meccanica.</summary>
+        public int ValidCompressions { get; }
+        /// <summary>Compressioni errate rilevanti (qualità).</summary>
+        public int InvalidCompressions { get; }
+        /// <summary>Frequenza media in compressioni al minuto (0 = non disponibile).</summary>
+        public float AverageCompressionsPerMinute { get; }
+
+        /// <summary>Crea un risultato RCP grezzo.</summary>
+        public ManDownCprResult(ManDownCprPhase phase, int validCompressions, int invalidCompressions, float averageCompressionsPerMinute)
+        {
+            Phase = phase;
+            ValidCompressions = Math.Max(0, validCompressions);
+            InvalidCompressions = Math.Max(0, invalidCompressions);
+            AverageCompressionsPerMinute = Math.Max(0f, averageCompressionsPerMinute);
+        }
+    }
+
+    /// <summary>
+    /// Dati grezzi della RCP prodotti dall'integrazione tra rilevamento fisico e valutazione ritmica.
+    /// Il controller li conserva senza calcolare punteggi né applicare penalità: sono destinati al
+    /// futuro task di scoring e debriefing. Le quantità sono soglie di gameplay, non protocolli clinici.
+    /// </summary>
+    public readonly struct ManDownCprQualitySnapshot
+    {
+        /// <summary>Secondi di missione dell'avvio della RCP; -1 se non avviata.</summary>
+        public float StartedAt { get; }
+        /// <summary>Compressioni fisicamente complete nella fase iniziale con DAE.</summary>
+        public int CompletedInitialWithAed { get; }
+        /// <summary>Compressioni fisicamente complete nella fase successiva alla defibrillazione.</summary>
+        public int CompletedAfterDefibrillation { get; }
+        /// <summary>Compressioni fisicamente complete nel percorso senza DAE.</summary>
+        public int CompletedWithoutAed { get; }
+        /// <summary>Totale delle compressioni fisicamente complete.</summary>
+        public int TotalCompleted { get; }
+        /// <summary>Tentativi fisicamente invalidi registrati dal detector.</summary>
+        public int InvalidAttempts { get; }
+        /// <summary>Intervalli ritmici valutati.</summary>
+        public int EvaluatedIntervals { get; }
+        /// <summary>Intervalli ritmici corretti.</summary>
+        public int CorrectIntervals { get; }
+        /// <summary>Intervalli ritmici troppo brevi.</summary>
+        public int TooShortIntervals { get; }
+        /// <summary>Intervalli ritmici troppo lunghi.</summary>
+        public int TooLongIntervals { get; }
+        /// <summary>Percentuale di intervalli corretti (0 se non ci sono intervalli).</summary>
+        public float CorrectPercent { get; }
+        /// <summary>Errore temporale cumulativo, in secondi.</summary>
+        public float CumulativeError { get; }
+        /// <summary>Errore temporale medio, in secondi.</summary>
+        public float AverageError { get; }
+        /// <summary>Intervallo medio, in secondi.</summary>
+        public float AverageInterval { get; }
+        /// <summary>Qualità ritmica complessiva (0 se non ci sono intervalli).</summary>
+        public float RhythmQuality { get; }
+        /// <summary>true se la RCP è stata eseguita su una persona che respira normalmente.</summary>
+        public bool Inappropriate { get; }
+        /// <summary>Secondi di completamento della fase RCP iniziale; -1 se non completata.</summary>
+        public float InitialPhaseCompletedAt { get; }
+        /// <summary>Secondi di completamento della fase RCP dopo il DAE; -1 se non completata.</summary>
+        public float AfterAedPhaseCompletedAt { get; }
+        /// <summary>Secondi di completamento della RCP senza DAE; -1 se non completata.</summary>
+        public float WithoutAedCompletedAt { get; }
+        /// <summary>Secondi dell'interruzione esplicita per il DAE; -1 se non avvenuta.</summary>
+        public float InterruptedForAedAt { get; }
+        /// <summary>Valore RCP grezzo cumulativo: somma delle qualità degli intervalli valutati.</summary>
+        public float RcpAccumulatedValue { get; }
+        /// <summary>Secondi di missione della prima compressione valida; -1 se non avvenuta.</summary>
+        public float FirstCompressionAt { get; }
+        /// <summary>Secondi di missione dell'ultima compressione valida; -1 se non avvenuta.</summary>
+        public float LastCompressionAt { get; }
+        /// <summary>Compressioni valide prima della scarica.</summary>
+        public int CompressionsBeforeShock { get; }
+        /// <summary>Compressioni valide dopo la scarica.</summary>
+        public int CompressionsAfterShock { get; }
+        /// <summary>Compressioni valide registrate durante la proroga.</summary>
+        public int GraceCompressions { get; }
+        /// <summary>Somma delle qualità degli intervalli registrati durante la proroga (non usata dallo scoring).</summary>
+        public float GraceIntervalQualitySum { get; }
+        /// <summary>Durata complessiva della sospensione RCP per analisi/autorizzazione/scarica.</summary>
+        public float AedSuspensionSeconds { get; }
+
+        /// <summary>Crea uno snapshot completo; i timestamp non impostati usano -1.</summary>
+        public ManDownCprQualitySnapshot(
+            float startedAt,
+            int completedInitialWithAed,
+            int completedAfterDefibrillation,
+            int completedWithoutAed,
+            int totalCompleted,
+            int invalidAttempts,
+            int evaluatedIntervals,
+            int correctIntervals,
+            int tooShortIntervals,
+            int tooLongIntervals,
+            float correctPercent,
+            float cumulativeError,
+            float averageError,
+            float averageInterval,
+            float rhythmQuality,
+            bool inappropriate,
+            float initialPhaseCompletedAt = -1f,
+            float afterAedPhaseCompletedAt = -1f,
+            float withoutAedCompletedAt = -1f,
+            float interruptedForAedAt = -1f,
+            float rcpAccumulatedValue = 0f,
+            float firstCompressionAt = -1f,
+            float lastCompressionAt = -1f,
+            int compressionsBeforeShock = 0,
+            int compressionsAfterShock = 0,
+            int graceCompressions = 0,
+            float graceIntervalQualitySum = 0f,
+            float aedSuspensionSeconds = 0f)
+        {
+            StartedAt = startedAt;
+            CompletedInitialWithAed = completedInitialWithAed;
+            CompletedAfterDefibrillation = completedAfterDefibrillation;
+            CompletedWithoutAed = completedWithoutAed;
+            TotalCompleted = totalCompleted;
+            InvalidAttempts = invalidAttempts;
+            EvaluatedIntervals = evaluatedIntervals;
+            CorrectIntervals = correctIntervals;
+            TooShortIntervals = tooShortIntervals;
+            TooLongIntervals = tooLongIntervals;
+            CorrectPercent = Math.Max(0f, correctPercent);
+            CumulativeError = Math.Max(0f, cumulativeError);
+            AverageError = Math.Max(0f, averageError);
+            AverageInterval = Math.Max(0f, averageInterval);
+            RhythmQuality = Mathf.Clamp01(rhythmQuality);
+            Inappropriate = inappropriate;
+            InitialPhaseCompletedAt = initialPhaseCompletedAt;
+            AfterAedPhaseCompletedAt = afterAedPhaseCompletedAt;
+            WithoutAedCompletedAt = withoutAedCompletedAt;
+            InterruptedForAedAt = interruptedForAedAt;
+            RcpAccumulatedValue = Mathf.Max(0f, rcpAccumulatedValue);
+            FirstCompressionAt = firstCompressionAt;
+            LastCompressionAt = lastCompressionAt;
+            CompressionsBeforeShock = compressionsBeforeShock;
+            CompressionsAfterShock = compressionsAfterShock;
+            GraceCompressions = graceCompressions;
+            GraceIntervalQualitySum = Mathf.Max(0f, graceIntervalQualitySum);
+            AedSuspensionSeconds = Mathf.Max(0f, aedSuspensionSeconds);
+        }
+    }
+
+    /// <summary>
+    /// Dati operativi grezzi del DAE (stato, analisi, autorizzazioni, scarica, errori). Non contiene
+    /// punteggi né penalità: è la fotografia che il futuro scoring leggerà senza dipendere dal dispositivo.
+    /// </summary>
+    public struct ManDownAedSnapshot
+    {
+        public string StateLabel;
+        public bool PoweredOn;
+        public bool ElectrodesApplied;
+        public int AnalysisStartedCount;
+        public int AnalysisInterruptedCount;
+        public int ContactInterruptCount;
+        public float FirstAnalysisAt;
+        public bool ShockAdvised;
+        public int AuthorizationCount;
+        public float FirstAuthorizationAt;
+        public float LastAuthorizationAt;
+        public float SignalAt;
+        public float ShockAt;
+        public float ResponseTime;
+        public float ResponseQuality;
+        public bool ShockCompleted;
+        public int InvalidEarlyPressCount;
+        public int InvalidContactCount;
+        public int InvalidMissingElectrodesCount;
+        public int InvalidNotAdvisedCount;
+        public int InappropriateUseCount;
+    }
+
+    /// <summary>
+    /// Fotografia congelata della conclusione: esito, punteggio provvisorio, cause, penalizzazioni e condizioni iniziali.
+    /// Le future classi e i test leggono da qui senza dipendere dallo stato vivo del componente.
+    /// </summary>
+    public sealed class ManDownScenarioResult
+    {
+        /// <summary>Esito finale.</summary>
+        public OutcomeType Outcome { get; }
+        /// <summary>Punteggio sicurezza 0-100 usato per l'esito (provvisorio finché non arriva lo scoring definitivo).</summary>
+        public int Score { get; }
+        /// <summary>Cinque dimensioni grezze 0-100 (Safety, Awareness, Decision, Execution, Time).</summary>
+        public int[] Dimensions { get; }
+        /// <summary>Cause di fallimento registrate (anche più di una).</summary>
+        public IReadOnlyList<string> FailureCauses { get; }
+        /// <summary>Errori e omissioni con penalizzazione.</summary>
+        public IReadOnlyList<string> Penalties { get; }
+        /// <summary>true solo se il 112 è stato chiamato: i soccorsi possono essere simulati.</summary>
+        public bool RescueSimulated { get; }
+        /// <summary>Secondi dall'inizio effettivo della missione.</summary>
+        public float ElapsedSeconds { get; }
+        /// <summary>Respirazione iniziale dell'NPC (true = anormale).</summary>
+        public bool BreathingAbnormal { get; }
+        /// <summary>DAE disponibile nella partita.</summary>
+        public bool AedAvailable { get; }
+        /// <summary>Chiamata al 112 registrata.</summary>
+        public bool EmergencyCalled { get; }
+        /// <summary>true se il timer è scaduto.</summary>
+        public bool TimedOut { get; }
+        /// <summary>true se il monitoraggio finale è stato completato (ramo con respirazione normale).</summary>
+        public bool FinalMonitoringCompleted { get; }
+        /// <summary>Numero di valutazioni della respirazione registrate nella partita.</summary>
+        public int BreathingAssessmentCount { get; }
+        /// <summary>Timestamp dell'ultimo posizionamento corretto; -1 se assente.</summary>
+        public float LastCorrectPositionAt { get; }
+        /// <summary>
+        /// true se era prevista una rivalutazione dopo il posizionamento corretto ma non è stata effettuata
+        /// (dato grezzo per il futuro scoring; non modifica il punteggio provvisorio).
+        /// </summary>
+        public bool ReassessmentAfterCorrectPositionMissing { get; }
+        /// <summary>Dati grezzi della RCP al momento della conclusione (default se non eseguita).</summary>
+        public ManDownCprQualitySnapshot CprQuality { get; }
+        /// <summary>Primo recupero del DAE registrato, distinto dall'utilizzo corretto.</summary>
+        public bool AedRetrieved { get; }
+        /// <summary>Secondo del primo recupero del DAE; -1 se non avvenuto.</summary>
+        public float AedRetrievedAt { get; }
+        /// <summary>Prima accensione automatica del DAE registrata.</summary>
+        public bool AedPoweredOn { get; }
+        /// <summary>Secondo della prima accensione del DAE; -1 se non avvenuta.</summary>
+        public float AedPoweredOnAt { get; }
+        /// <summary>Elettrodi agganciati alla conclusione.</summary>
+        public int AedElectrodesAppliedCount { get; }
+        /// <summary>Entrambe le zone risultavano occupate alla conclusione.</summary>
+        public bool AedApplicationComplete { get; }
+        /// <summary>Prima applicazione completa storica; -1 se mai avvenuta.</summary>
+        public float AedFirstFullApplicationAt { get; }
+        /// <summary>Ultimo snapshot operativo del DAE (default se non utilizzato).</summary>
+        public ManDownAedSnapshot AedSnapshot { get; }
+        /// <summary>Motivo della conclusione ordinaria (finestra, proroga, timeout, esplicita).</summary>
+        public string ConclusionReason { get; }
+        /// <summary>La finestra del ramo anomalo è scaduta ordinariamente.</summary>
+        public bool AbnormalWindowElapsed { get; }
+        /// <summary>Secondi di missione dell'avvio della finestra anomala; -1 se non avviata.</summary>
+        public float AbnormalWindowStartedAt { get; }
+        /// <summary>Secondi di missione della scadenza della finestra principale; -1 se non scaduta.</summary>
+        public float AbnormalWindowEndedAt { get; }
+        /// <summary>La proroga DAE è stata concessa.</summary>
+        public bool GraceGranted { get; }
+        /// <summary>Secondi di missione dell'avvio della proroga; -1 se non concessa.</summary>
+        public float GraceStartedAt { get; }
+        /// <summary>Proroga ancora attiva alla conclusione.</summary>
+        public bool GraceActiveAtConclusion { get; }
+        /// <summary>Snapshot RCP congelato alla scadenza della finestra principale.</summary>
+        public ManDownCprQualitySnapshot CprWindowSnapshot { get; }
+
+        internal ManDownScenarioResult(
+            OutcomeType outcome,
+            int score,
+            int[] dimensions,
+            List<string> failureCauses,
+            List<string> penalties,
+            bool rescueSimulated,
+            float elapsedSeconds,
+            bool breathingAbnormal,
+            bool aedAvailable,
+            bool emergencyCalled,
+            bool timedOut,
+            bool finalMonitoringCompleted,
+            int breathingAssessmentCount,
+            float lastCorrectPositionAt,
+            bool reassessmentAfterCorrectPositionMissing,
+            ManDownCprQualitySnapshot cprQuality = default,
+            bool aedRetrieved = false,
+            float aedRetrievedAt = -1f,
+            bool aedPoweredOn = false,
+            float aedPoweredOnAt = -1f,
+            int aedElectrodesAppliedCount = 0,
+            bool aedApplicationComplete = false,
+            float aedFirstFullApplicationAt = -1f,
+            ManDownAedSnapshot aedSnapshot = default,
+            string conclusionReason = "",
+            bool abnormalWindowElapsed = false,
+            float abnormalWindowStartedAt = -1f,
+            float abnormalWindowEndedAt = -1f,
+            bool graceGranted = false,
+            float graceStartedAt = -1f,
+            bool graceActiveAtConclusion = false,
+            ManDownCprQualitySnapshot cprWindowSnapshot = default)
+        {
+            Outcome = outcome;
+            Score = score;
+            Dimensions = dimensions;
+            FailureCauses = failureCauses.ToArray();
+            Penalties = penalties.ToArray();
+            RescueSimulated = rescueSimulated;
+            ElapsedSeconds = elapsedSeconds;
+            BreathingAbnormal = breathingAbnormal;
+            AedAvailable = aedAvailable;
+            EmergencyCalled = emergencyCalled;
+            TimedOut = timedOut;
+            FinalMonitoringCompleted = finalMonitoringCompleted;
+            BreathingAssessmentCount = breathingAssessmentCount;
+            LastCorrectPositionAt = lastCorrectPositionAt;
+            ReassessmentAfterCorrectPositionMissing = reassessmentAfterCorrectPositionMissing;
+            CprQuality = cprQuality;
+            AedRetrieved = aedRetrieved;
+            AedRetrievedAt = aedRetrievedAt;
+            AedPoweredOn = aedPoweredOn;
+            AedPoweredOnAt = aedPoweredOnAt;
+            AedElectrodesAppliedCount = aedElectrodesAppliedCount;
+            AedApplicationComplete = aedApplicationComplete;
+            AedFirstFullApplicationAt = aedFirstFullApplicationAt;
+            AedSnapshot = aedSnapshot;
+            ConclusionReason = conclusionReason;
+            AbnormalWindowElapsed = abnormalWindowElapsed;
+            AbnormalWindowStartedAt = abnormalWindowStartedAt;
+            AbnormalWindowEndedAt = abnormalWindowEndedAt;
+            GraceGranted = graceGranted;
+            GraceStartedAt = graceStartedAt;
+            GraceActiveAtConclusion = graceActiveAtConclusion;
+            CprWindowSnapshot = cprWindowSnapshot;
+        }
+    }
+}

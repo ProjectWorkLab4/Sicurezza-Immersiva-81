@@ -1,0 +1,1199 @@
+using System.Collections.Generic;
+using System.Linq;
+using SI81.UI;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using Unity.AI.Navigation;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace SI81.Ludovica.ElectricShock.EditorTools
+{
+    /// <summary>
+    /// Costruisce da codice il graybox dello scenario 10 (coordinate della specifica §4: griglia 1 m, origine in basso a sinistra,
+    /// x della mappa = X di Unity, y della mappa = Z di Unity) e la missione SO_Mission_ElectricShock per la UI comune.
+    /// Tutti i modelli mancanti sono primitive con nome "PLACEHOLDER_*", da sostituire con gli FBX a fine lavoro.
+    /// Rieseguibile: riscrive SCN_ElectricShock e aggiorna la missione (catalogo e Build Settings hanno un comando a parte).
+    /// </summary>
+    public static class ElectricShockSceneBuilder
+    {
+        private const string ROOT = "Assets/_Project/Groups/G_Ludovica/Scenari/ElectricShock";
+        private const string MAT_DIR = ROOT + "/Art/Materials";
+        private const string DATA_DIR = ROOT + "/Data";
+        /// <summary>Percorso della scena dello scenario.</summary>
+        public const string SCENARIO_SCENE = ROOT + "/SCN_ElectricShock.unity";
+        /// <summary>Percorso della missione dello scenario.</summary>
+        public const string MISSION_PATH = ROOT + "/SO_Mission_ElectricShock.asset";
+        private const string SAMPLE_MISSION = "Assets/_Project/Home/UI/Data/Missions/SO_Mission_ElectricShock.asset";
+        private const string CATALOG = "Assets/_Project/Home/UI/Data/Missions/SO_MissionCatalog.asset";
+        private const string ICON = "Assets/_Project/Home/Art/Textures/Icons/ICN_ElectricBolt.png";
+        private const string MODELS = "Assets/_Project/Shared/Art/Models/";
+        /// <summary>Numero di barriere da 0,75 m (MESH_Magazzino_Barriera) per chiudere i 4 m del varco DR-03.</summary>
+        /// <summary>3 barriere da 0,75 m: chiudono la parte sud del varco DR-03 e lasciano libero il passaggio (z 8,4-10).</summary>
+        private const int BARRIER_COUNT = 3;
+
+        private static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
+
+        /// <summary>Costruisce materiali, dati e le due scene.</summary>
+        [MenuItem("SI81/G_Ludovica/Electric Shock/Costruisci scene (graybox)")]
+        public static void BuildAll()
+        {
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            BuildMaterials();
+            LoadOrCreateSettings();
+            LoadOrCreateMission();
+            BuildScenarioScene();
+            EditorSceneManager.OpenScene(SCENARIO_SCENE, OpenSceneMode.Single);
+            Debug.Log("[SI81 ElectricShock] Scena costruita: " + SCENARIO_SCENE);
+        }
+
+        // =====================================================================
+        // Materiali e dati
+        // =====================================================================
+
+        /// <summary>Crea (o riusa) i materiali segnaposto.</summary>
+        private static void BuildMaterials()
+        {
+            mats.Clear();
+            Lit("Floor", new Color(0.45f, 0.45f, 0.47f));
+            Lit("Wall", new Color(0.78f, 0.78f, 0.76f));
+            Lit("Generator", new Color(0.85f, 0.6f, 0.1f));
+            Lit("StopButton", new Color(0.85f, 0.05f, 0.05f));
+            Lit("StopButtonBase", new Color(0.95f, 0.85f, 0.1f));
+            Lit("Cable", new Color(0.05f, 0.05f, 0.05f));
+            Lit("FuelPool", new Color(0.12f, 0.08f, 0.05f), 0.95f);
+            Lit("FuelTank", new Color(0.7f, 0.1f, 0.05f));
+            Lit("Victim", new Color(0.15f, 0.3f, 0.7f));
+            Lit("Bystander", new Color(0.95f, 0.45f, 0.1f));
+            Lit("Paramedic", new Color(0.9f, 0.15f, 0.15f));
+            Lit("Barrier", new Color(0.95f, 0.8f, 0.05f));
+            Lit("Rack", new Color(0.35f, 0.35f, 0.38f));
+            Lit("Radio", new Color(0.15f, 0.15f, 0.15f));
+            Lit("Extinguisher", new Color(0.8f, 0.05f, 0.05f));
+            Lit("LabelWater", new Color(0.1f, 0.35f, 0.95f));
+            Lit("LabelPowder", new Color(0.95f, 0.95f, 0.95f));
+            Lit("LabelCO2", new Color(0.05f, 0.05f, 0.05f));
+            Lit("SafeZone", new Color(0.1f, 0.7f, 0.25f));
+            Lit("Marker", new Color(1f, 0.85f, 0.1f));
+            Lit("Hand", new Color(0.9f, 0.75f, 0.6f));
+            // Pavimento e pareti: texture PBR 2K in Shared/Art/Textures (originali), materiali nel gruppo.
+            TexLit("ConcreteWall", "TEX_ConcreteWall");
+            TexLit("ConcreteFloorWorn", "TEX_ConcreteFloorWorn");
+            // Personaggi: il modello non ha texture, i colori distinguono lavoratori e paramedici (materiali del gruppo, FBX invariato).
+            Lit("CharSkin", new Color(0.80f, 0.62f, 0.50f));
+            Lit("CharHair", new Color(0.15f, 0.10f, 0.07f));
+            Lit("CharBoots", new Color(0.12f, 0.10f, 0.08f));
+            Lit("CharPantsWorker", new Color(0.18f, 0.25f, 0.40f));
+            Lit("CharShirtWorker", new Color(0.55f, 0.55f, 0.55f));
+            Lit("CharVestWorker", new Color(1.00f, 0.45f, 0.05f));
+            Lit("CharHelmetWorker", new Color(0.95f, 0.80f, 0.10f));
+            Lit("CharPantsParamedic", new Color(0.12f, 0.12f, 0.14f));
+            Lit("CharShirtParamedic", new Color(0.90f, 0.90f, 0.90f));
+            Lit("CharVestParamedic", new Color(0.85f, 0.10f, 0.10f));
+            Lit("CharHelmetParamedic", new Color(0.95f, 0.95f, 0.95f));
+            Particle("Fire", new Color(1f, 0.55f, 0.15f), true);
+            Particle("Smoke", new Color(0.25f, 0.25f, 0.25f, 0.6f), false);
+            Particle("Spray", new Color(0.95f, 0.95f, 0.95f, 0.6f), false);
+            Particle("Spark", new Color(0.7f, 0.85f, 1f), true);
+            Particle("BlastRing", new Color(1f, 0.2f, 0.1f), true);
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>Materiale URP Lit segnaposto.</summary>
+        private static void Lit(string name, Color color, float smoothness = 0.2f)
+        {
+            string path = $"{MAT_DIR}/MAT_Placeholder{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.SetColor("_BaseColor", color);
+            m.SetFloat("_Smoothness", smoothness);
+            // Emissione accesa ma nera: l'evidenziazione (Guided) cambia solo il colore per renderer, senza toccare l'asset.
+            m.EnableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", Color.black);
+            // Senza questo flag URP considera l'emissione "nera" e alla prima validazione toglie la keyword _EMISSION.
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            EditorUtility.SetDirty(m);
+            mats[name] = m;
+        }
+
+        /// <summary>
+        /// Materiale URP Lit con texture PBR di Shared/Art/Textures: Albedo, Normal e MetallicSmoothness
+        /// (metallico 0, levigatezza = 1 - roughness, generata dalla roughness originale).
+        /// </summary>
+        private static void TexLit(string name, string texPrefix)
+        {
+            string path = $"{MAT_DIR}/MAT_{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(m, path);
+            }
+            string T = "Assets/_Project/Shared/Art/Textures/" + texPrefix;
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_Albedo.jpg");
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_Normal.exr");
+            var metalSmooth = AssetDatabase.LoadAssetAtPath<Texture2D>(T + "_MetallicSmoothness.png");
+            if (albedo == null || normal == null || metalSmooth == null) Debug.LogError("[SI81 ElectricShock] Texture mancanti per " + texPrefix);
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BaseMap", albedo);
+            m.SetTexture("_BumpMap", normal);
+            m.SetFloat("_BumpScale", 1f);
+            m.EnableKeyword("_NORMALMAP");
+            m.SetTexture("_MetallicGlossMap", metalSmooth);
+            m.EnableKeyword("_METALLICSPECGLOSSMAP");
+            m.SetFloat("_Metallic", 0f);
+            m.SetFloat("_Smoothness", 1f);
+            m.SetFloat("_SmoothnessTextureChannel", 0f);
+            EditorUtility.SetDirty(m);
+            mats[name] = m;
+        }
+
+        /// <summary>Materiale URP Particles Unlit trasparente (additivo o alpha).</summary>
+        private static void Particle(string name, Color color, bool additive)
+        {
+            string path = $"{MAT_DIR}/MAT_VFX_Placeholder{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.SetColor("_BaseColor", color);
+            var tex = AssetDatabase.GetBuiltinExtraResource<Texture2D>("Default-Particle.psd");
+            if (tex != null) m.SetTexture("_BaseMap", tex);
+            m.SetFloat("_Surface", 1f);
+            m.SetFloat("_Blend", additive ? 2f : 0f);
+            m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", additive ? (float)UnityEngine.Rendering.BlendMode.One : (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetFloat("_ZWrite", 0f);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(m);
+            mats[name] = m;
+        }
+
+        /// <summary>Carica o crea SO_ElectricShockSettings.</summary>
+        private static ElectricShockSettings LoadOrCreateSettings()
+        {
+            string path = DATA_DIR + "/SO_ElectricShockSettings.asset";
+            var s = AssetDatabase.LoadAssetAtPath<ElectricShockSettings>(path);
+            if (s != null) return s;
+            s = ScriptableObject.CreateInstance<ElectricShockSettings>();
+            AssetDatabase.CreateAsset(s, path);
+            AssetDatabase.SaveAssets();
+            return s;
+        }
+
+        // =====================================================================
+        // Scena dello scenario
+        // =====================================================================
+
+        /// <summary>Costruisce SCN_ElectricShock (niente camera, rig, Canvas o EventSystem: guida UI §6).</summary>
+        private static void BuildScenarioScene()
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            // NewScene scarica gli asset non referenziati: ricarica materiali e dati dopo averla creata.
+            BuildMaterials();
+            var settings = LoadOrCreateSettings();
+            var mission = LoadOrCreateMission();
+
+            var light = new GameObject("MNG_Light").AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 1.1f;
+            light.shadows = LightShadows.Soft;
+            light.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
+
+            var env = new GameObject("ENV_Graybox").transform;
+            BuildEnvironment(env);
+
+            var spawn = new GameObject("MNG_SpawnPoint").transform;
+            spawn.SetPositionAndRotation(P(8f, 8f), Quaternion.Euler(0f, 90f, 0f));
+            // Spawn del rig condiviso (guida migrazione rig/UI B.2.3): porta MNG_CoreRig qui e lo ripristina allo scaricamento.
+            spawn.gameObject.AddComponent<SI81.Rig.SpawnPoint>();
+
+            var points = new GameObject("PTS_Points").transform;
+            var safe = Marker("SAFE01_SafePoint", points, 14.5f, 4f, 3f, 3f, "SafeZone", true);
+            var assembly = Marker("AP02_AssemblyPoint", points, 3f, 8f, 4f, 4f, "SafeZone", false);
+            var victimApproach = Point("PT_VictimApproach", points, 16f, 6.7f);
+            // Colleghi e PM-2 attraversano il varco dal passaggio lasciato libero dalle barriere (z 9,2).
+            var exit = new[] { Point("PT_Exit_1", points, 14.5f, 6f), Point("PT_Exit_2", points, 13.8f, 9.2f), Point("PT_Exit_3", points, 12f, 9.2f), Point("PT_Exit_4", points, 6f, 8f), Point("PT_Exit_5", points, 3f, 8f) };
+            var zoneEntry = new[] { Point("PT_ZoneEntry_1", points, 13.8f, 9.2f), Point("PT_ZoneEntry_2", points, 14.5f, 6f) };
+            var pm2Path = new[] { Point("PT_PM2_Spawn", points, 1f, 8f), Point("PT_PM2_DR01", points, 6f, 8f), Point("PT_PM2_Gate", points, 12.3f, 9.2f) };
+
+            // Segnaletica sempre visibile (tutti i livelli): dove le persone sono al sicuro e dove resta il passaggio.
+            Sign(safe, "SGN_SafeZone", "ZONA SICURA", 14.5f, 5.7f, 0f);
+            FloorText(safe, "TXT_SafeZone", "ZONA SICURA", 14.5f, 4f, new Vector2(20f, 8f));
+            Sign(assembly, "SGN_AssemblyPoint", "PUNTO DI RACCOLTA", 3f, 10.3f, 0f);
+            FloorText(assembly, "TXT_AssemblyPoint", "PUNTO DI\nRACCOLTA", 3f, 8f, new Vector2(10f, 8f));
+            FloorText(points, "TXT_Passage", "PASSAGGIO", 13.6f, 9.2f, new Vector2(20f, 9.2f));
+
+            // Generatore, pulsante, cavo
+            var hazards = new GameObject("HZD_Hazards").transform;
+            var gen = Root("GEN01_Generator", hazards, 20f, 9.5f);
+            // Modello lungo sull'asse Z: ruotato di 90° per avere il lato lungo sulla X della mappa (come GEN-01 nella specifica).
+            var genModel = PlaceModel("MESH_Folgorazione_Generatore", gen, P(20f, 9.5f), 90f, 1f, true);
+            AddBoundsCollider(gen.gameObject, genModel);
+            MarkNotWalkable(gen.gameObject);
+            var generator = gen.gameObject.AddComponent<GeneratorUnit>();
+            SetField(generator, "vibratingPart", genModel.transform);
+            SetField(generator, "engineAudio", Audio3D("SFX_Engine", gen, Vector3.up * 0.5f, true, 0.5f));
+
+            // PB-01 = la "Chiave (Interagibile)" del modello: gira di 90° come la sua animazione e ferma il generatore.
+            var key = FindChild(genModel.transform, "Chiave (Interagibile)");
+            var pb = new GameObject("PB01_EmergencyStop").transform;
+            pb.SetParent(gen, false);
+            pb.position = key != null ? key.GetComponent<Renderer>().bounds.center : P(20f, 9.1f, 0.6f);
+            // Collider della chiave sporgente di 15 cm dalla faccia del generatore più vicina: il raggio condiviso prende il
+            // collider più vicino, e un collider a filo (o dentro) quello del generatore perde contro il generatore.
+            var pbCollider = pb.gameObject.AddComponent<BoxCollider>();
+            Bounds genBounds = RendererBounds(genModel);
+            Vector3 k = pb.position;
+            float[] gaps = { k.x - genBounds.min.x, genBounds.max.x - k.x, k.z - genBounds.min.z, genBounds.max.z - k.z };
+            Vector3[] normals = { Vector3.left, Vector3.right, Vector3.back, Vector3.forward };
+            int face = 0;
+            for (int i = 1; i < 4; i++) if (gaps[i] < gaps[face]) face = i;
+            const float KEY_PROTRUDE = 0.15f;
+            float depth = gaps[face] + KEY_PROTRUDE + 0.05f;
+            Vector3 worldCenter = k + normals[face] * (KEY_PROTRUDE + gaps[face] - depth * 0.5f);
+            Vector3 worldSize = new Vector3(normals[face].x != 0f ? depth : 0.2f, 0.2f, normals[face].z != 0f ? depth : 0.2f);
+            pbCollider.center = pb.InverseTransformPoint(worldCenter);
+            Vector3 localSize = pb.InverseTransformVector(worldSize);
+            pbCollider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            var stop = pb.gameObject.AddComponent<EmergencyStopButton>();
+            SetField(stop, "cap", key);
+            var stopSo = new SerializedObject(stop);
+            stopSo.FindProperty("turnKey").boolValue = key != null;
+            stopSo.FindProperty("keyTurnedEuler").vector3Value = Vector3.zero;
+            stopSo.ApplyModifiedPropertiesWithoutUndo();
+            SetInteractable(stop, "Chiave di arresto", key != null ? key.GetComponent<Renderer>() : null);
+            Label(pb.gameObject, LabelKind.Interaction, "Chiave di arresto", "Grilletto: gira la chiave e ferma il generatore", new Vector3(0f, 0.25f, 0f), triggerPrompt: true);
+
+            var cableRoot = Root("CB01_LiveCable", hazards, 18.8f, 8.5f);
+            var sockets = FindChild(genModel.transform, "Prese");
+            Vector3 socket = sockets != null ? sockets.GetComponent<Renderer>().bounds.center : P(20f, 9.1f, 0.6f);
+            var cablePoints = new[] { socket, new Vector3(socket.x, 0.03f, socket.z - 0.4f), P(18.8f, 8.5f, 0.03f), P(16.9f, 7.6f, 0.03f) };
+            var lr = cableRoot.gameObject.AddComponent<LineRenderer>();
+            lr.useWorldSpace = true;
+            lr.positionCount = cablePoints.Length;
+            lr.SetPositions(cablePoints);
+            lr.widthMultiplier = 0.035f;
+            lr.sharedMaterial = mats["Cable"];
+            for (int i = 0; i < cablePoints.Length - 1; i++) CableSegment(cableRoot, cablePoints[i], cablePoints[i + 1], i);
+            var sparks = Sparks("VFX_CableSparks", cableRoot, cablePoints[cablePoints.Length - 1]);
+            var cableFlame = FireParticles("VFX_CableFlame", sparks.transform, 0.15f, 0.25f, 20f);
+            cableFlame.transform.position = cablePoints[2];
+            var cable = cableRoot.gameObject.AddComponent<LiveCable>();
+            SetField(cable, "sparks", sparks);
+            SetField(cable, "crackleAudio", Audio3D("SFX_Crackle", sparks.transform, Vector3.zero, true, 0.6f));
+            IgnoreForNavMesh(cableRoot.gameObject);
+            SetInteractable(cable, "Cavo sotto tensione", null);
+            AddObservable(cableRoot.gameObject, "cable");
+            Label(cableRoot.gameObject, LabelKind.Risk, "Cavo sotto tensione", "Non toccarlo: prima togli la corrente", new Vector3(0f, 0.4f, 0f));
+
+            // Pozza e fuoco (si muovono insieme tra le 3 posizioni di replay)
+            var pool = Root("PZ01_FuelPool", hazards, 22f, 9f);
+            Box("PLACEHOLDER_FuelPool", pool, Vector3.up * 0.006f, new Vector3(2.8f, 0.012f, 1.2f), "FuelPool", false);
+            AddObservable(pool.gameObject, "pool");
+            Label(pool.gameObject, LabelKind.Risk, "Pozza di benzina", "Una scintilla può incendiarla", new Vector3(0f, 0.3f, 0f));
+            var poolPositions = new[] { Point("PT_Pool_A", points, 21.6f, 9.2f), Point("PT_Pool_B", points, 22f, 9f), Point("PT_Pool_C", points, 21.8f, 8.8f) };
+            var fireRoot = new GameObject("FR01_Fire").transform;
+            fireRoot.SetParent(pool, false);
+            fireRoot.localPosition = new Vector3(0.2f, 0f, 0f);
+            var flames = FireParticles("VFX_Fire", fireRoot, 0.8f, 1.2f, 80f);
+            var smoke = SmokeParticles("VFX_Smoke", fireRoot, new Vector3(0f, 1.5f, 0f), 1.2f, 25f);
+            var sprayTarget = fireRoot.gameObject.AddComponent<SphereCollider>();
+            sprayTarget.isTrigger = true;
+            sprayTarget.radius = 1.1f;
+            sprayTarget.center = Vector3.up * 0.4f;
+            var fireLight = new GameObject("LGT_Fire").AddComponent<Light>();
+            fireLight.transform.SetParent(fireRoot, false);
+            fireLight.transform.localPosition = Vector3.up * 1f;
+            fireLight.type = LightType.Point;
+            fireLight.color = new Color(1f, 0.55f, 0.2f);
+            fireLight.range = 7f;
+            var fire = fireRoot.gameObject.AddComponent<FireSource>();
+            SetField(fire, "flames", flames);
+            SetField(fire, "smoke", smoke);
+            SetField(fire, "sprayTarget", sprayTarget);
+            SetField(fire, "fireLight", fireLight);
+            SetField(fire, "fireAudio", Audio3D("SFX_Fire", fireRoot, Vector3.up * 0.5f, true, 0.9f));
+            var fireObstacle = fireRoot.gameObject.AddComponent<NavMeshObstacle>();
+            fireObstacle.shape = NavMeshObstacleShape.Capsule;
+            fireObstacle.radius = 1.2f;
+            fireObstacle.height = 2f;
+            fireObstacle.center = Vector3.up;
+            fireObstacle.carving = true;
+            fireObstacle.enabled = false;
+            SetField(fire, "navObstacle", fireObstacle);
+            IgnoreForNavMesh(fireRoot.gameObject);
+            var crisisSmoke = SmokeParticles("VFX_CrisisSmoke", pool, new Vector3(0f, 0.4f, 0f), 2f, 15f);
+
+            // Tanica e serbatoio (rischio nascosto)
+            var tank = Root("FC01_FuelTank", hazards, 23.6f, 11.2f);
+            // Tanica (rischio nascosto): modello alto 2,63 m nel file, scalato in scena x0,18 (circa 0,47 m, come una tanica vera).
+            var tankVisual = PlaceModel("MESH_Folgorazione_FuelTank2", tank, P(23.6f, 11.2f), 0f, 0.18f, true);
+            AddBoundsCollider(tank.gameObject, tankVisual);
+            MarkNotWalkable(tank.gameObject);
+            var blast = BlastParticles("VFX_Blast", tank);
+            var ring = new GameObject("VFX_BlastRing").AddComponent<LineRenderer>();
+            ring.transform.SetParent(tank, false);
+            ring.useWorldSpace = true;
+            ring.loop = true;
+            ring.widthMultiplier = 0.08f;
+            ring.sharedMaterial = mats["BlastRing"];
+            const int seg = 64;
+            ring.positionCount = seg;
+            for (int i = 0; i < seg; i++)
+            {
+                float a = i * Mathf.PI * 2f / seg;
+                ring.SetPosition(i, P(22.2f + Mathf.Cos(a) * settings.BlastRadius, 9f + Mathf.Sin(a) * settings.BlastRadius, 0.05f));
+            }
+            var tankHazard = tank.gameObject.AddComponent<FuelTankHazard>();
+            SetField(tankHazard, "swellingPart", tankVisual.transform);
+            SetField(tankHazard, "blast", blast);
+            SetField(tankHazard, "blastRing", ring);
+            SetField(tankHazard, "hissAudio", Audio3D("SFX_Hiss", tank, Vector3.up * 0.5f, true, 0.7f));
+            SetField(tankHazard, "blastAudio", Audio3D("SFX_Blast", tank, Vector3.up * 0.5f, false, 1f, 40f));
+
+            // Zona di fumo ZN-11
+            var air = Root("ZN11_HarmfulAir", hazards, 25f, 6.2f);
+            var airBox = air.gameObject.AddComponent<BoxCollider>();
+            airBox.isTrigger = true;
+            airBox.center = Vector3.up * 1.5f;
+            airBox.size = new Vector3(4f, 3f, 3f);
+            var airSmoke = SmokeParticles("VFX_HarmfulAir", air, new Vector3(0f, 1.2f, 0f), 2f, 12f);
+            var airMain = airSmoke.main;
+            airMain.playOnAwake = true; // fumo sempre presente nella zona ZN-11
+
+            // Attrezzature
+            var tools = new GameObject("TLS_Tools").transform;
+            Box("PLACEHOLDER_RackExtinguishers", tools, P(7f, 12.3f, 0.75f), new Vector3(1.6f, 1.5f, 0.1f), "Rack", true);
+            // Cartello: pannello piatto con la faccia stampata verso -X locale; scala corretta in scena (7 cm -> 30 cm).
+            PlaceModel("MESH_Folgorazione_CartelloEstintore", tools, P(7f, 12.235f, 1.65f), 270f, 4.4f, false);
+            var slotRoot = new GameObject("RK02_ExtinguisherSlots").transform;
+            var rackHelp = new GameObject("LBL_ExtinguisherRack").transform;
+            rackHelp.SetParent(tools, false);
+            rackHelp.position = P(7f, 12f, 1.2f);
+            Label(rackHelp.gameObject, LabelKind.ContextHelp, "Estintori", "Grilletto: leggi l'etichetta. Grip: prendi", Vector3.zero);
+            slotRoot.SetParent(tools, false);
+            var slots = new Transform[3];
+            for (int i = 0; i < 3; i++)
+            {
+                slots[i] = Point($"PT_ExtSlot_{i + 1}", slotRoot, 6.5f + i * 0.5f, 12f);
+                slots[i].rotation = Quaternion.Euler(0f, 180f, 0f);
+            }
+            var extinguishers = new[]
+            {
+                MakeExtinguisher(tools, "EXT1_Water", ExtinguisherAgent.Water, "LabelWater", slots[0]),
+                MakeExtinguisher(tools, "EXT2_Powder", ExtinguisherAgent.Powder, "LabelPowder", slots[1]),
+                MakeExtinguisher(tools, "EXT3_CO2", ExtinguisherAgent.CO2, "LabelCO2", slots[2])
+            };
+
+            MarkNotWalkable(Box("PLACEHOLDER_RackBarriersRadio", tools, P(11.8f, 10.6f, 0.45f), new Vector3(0.9f, 0.9f, 1.2f), "Rack", true));
+            // Barriere: 3 pezzi da 0,75 m (MESH_Magazzino_Barriera) in fila vicino al rack, da portare sul varco DR-03.
+            var barriers = new BarrierPanel[BARRIER_COUNT];
+            for (int i = 0; i < BARRIER_COUNT; i++)
+                barriers[i] = MakeBarrier(tools, $"BAR{i + 1}_Barrier", P(9.2f + i * 0.8f, 13.3f), 0f);
+            var radio = MakeRadio(tools, P(11.8f, 10.6f, 0.9f));
+
+            var lineRoot = Root("BL10_BarrierLine", tools, 13f, 8f);
+            var lineSlots = new Transform[BARRIER_COUNT];
+            var markers = new GameObject[BARRIER_COUNT];
+            for (int i = 0; i < BARRIER_COUNT; i++)
+            {
+                lineSlots[i] = Point($"PT_BarrierSlot_{i + 1}", lineRoot, 13f, 6.4f + i * 0.8f);
+                lineSlots[i].rotation = Quaternion.Euler(0f, 90f, 0f);
+                markers[i] = Box($"PLACEHOLDER_SlotMarker_{i + 1}", lineSlots[i], Vector3.up * 0.005f, new Vector3(0.75f, 0.01f, 0.15f), "Marker", false);
+            }
+            var line = lineRoot.gameObject.AddComponent<BarrierSnapLine>();
+            SetArray(line, "slots", lineSlots);
+            SetArray(line, "barriers", barriers);
+            SetArray(line, "slotMarkers", markers);
+            Label(lineRoot.gameObject, LabelKind.ContextHelp, "Varco DR-03", "Grip: 3 barriere sui segni gialli, lascia libero il passaggio", new Vector3(0f, 1.2f, 0f));
+
+            // Persone
+            var people = new GameObject("CHR_People").transform;
+            var victimRoot = Root("VT01_Victim", people, 16f, 7.5f);
+            // Lavoratore a terra (clip Worker_Hurt): ruotato di 90° per stare lungo la X come nella specifica.
+            AddCharacter(victimRoot, null, false, "Hurt", "Hurt", 90f);
+            var victimCollider = victimRoot.gameObject.AddComponent<BoxCollider>();
+            victimCollider.center = new Vector3(0f, 0.17f, 0f);
+            victimCollider.size = new Vector3(1.8f, 0.35f, 0.5f);
+            var victim = victimRoot.gameObject.AddComponent<InjuredPerson>();
+            SetField(victim, "cable", cable);
+            SetInteractable(victim, "Collega folgorato", null);
+            var victimObstacle = victimRoot.gameObject.AddComponent<NavMeshObstacle>();
+            victimObstacle.shape = NavMeshObstacleShape.Box;
+            victimObstacle.center = new Vector3(0f, 0.17f, 0f);
+            victimObstacle.size = new Vector3(1.8f, 0.35f, 0.5f);
+            victimObstacle.carving = true;
+            Label(victimRoot.gameObject, LabelKind.ContextHelp, "Collega folgorato", "Prima togli la corrente. Grip: trascinalo nella zona sicura verde", new Vector3(0f, 0.6f, 0f));
+
+            var by1 = MakeBystander(people, "BY01_Colleague", 14.1f, 4f);
+            var by2 = MakeBystander(people, "BY02_Colleague", 15.4f, 4.2f);
+            var by3 = MakeBystander(people, "BY03_Colleague", 16.6f, 4.3f);
+            AddObservable(by1.gameObject, "people");
+
+
+            var pm2Root = Root("PM2_ArrivingParamedic", people, 1f, 8f);
+            var pm2 = pm2Root.gameObject.AddComponent<NpcMover>();
+            AddCharacter(pm2Root, pm2, true, "Idle", "", 0f);
+            AddCapsuleCollider(pm2Root.gameObject);
+            SetInteractable(pm2Root.gameObject.AddComponent<ShoutTarget>(), "Paramedico", null);
+            Label(pm2Root.gameObject, LabelKind.Interaction, "Paramedico", "Grilletto: digli di fermarsi", new Vector3(0f, 2.0f, 0f), triggerPrompt: true);
+            pm2Root.gameObject.SetActive(false);
+
+            // MNG_Scenario
+            var mng = new GameObject("MNG_Scenario");
+            var scenario = mng.AddComponent<ElectricShockScenario>();
+            var so = new SerializedObject(scenario);
+            so.FindProperty("mission").objectReferenceValue = mission;
+            so.FindProperty("spawnPoint").objectReferenceValue = spawn;
+            so.FindProperty("settings").objectReferenceValue = settings;
+            so.FindProperty("debriefPhrases").objectReferenceValue = AssetDatabase.LoadAssetAtPath<TextAsset>(DATA_DIR + "/ElectricShock_DebriefPhrases.json");
+            so.FindProperty("generator").objectReferenceValue = generator;
+            so.FindProperty("emergencyStop").objectReferenceValue = stop;
+            so.FindProperty("cable").objectReferenceValue = cable;
+            so.FindProperty("fuelPool").objectReferenceValue = pool;
+            Assign(so.FindProperty("fuelPoolPositions"), poolPositions);
+            so.FindProperty("fire").objectReferenceValue = fire;
+            so.FindProperty("fuelTank").objectReferenceValue = tankHazard;
+            so.FindProperty("harmfulAirZone").objectReferenceValue = airBox;
+            so.FindProperty("crisisSmoke").objectReferenceValue = crisisSmoke;
+            Assign(so.FindProperty("extinguishers"), extinguishers);
+            Assign(so.FindProperty("extinguisherSlots"), slots);
+            so.FindProperty("barrierLine").objectReferenceValue = line;
+            so.FindProperty("radio").objectReferenceValue = radio;
+            so.FindProperty("victim").objectReferenceValue = victim;
+            Assign(so.FindProperty("bystanders"), new Object[] { by1, by2 });
+            so.FindProperty("extraBystander").objectReferenceValue = by3;
+            so.FindProperty("paramedicGeneratorPoint").objectReferenceValue = Point("PT_PM2_Generator", points, 19.9f, 8.2f);
+            so.FindProperty("arrivingParamedic").objectReferenceValue = pm2;
+            so.FindProperty("safePoint").objectReferenceValue = safe;
+            so.FindProperty("assemblyPoint").objectReferenceValue = assembly;
+            Assign(so.FindProperty("exitPath"), exit);
+            Assign(so.FindProperty("paramedicPath"), pm2Path);
+            Assign(so.FindProperty("zoneEntryPath"), zoneEntry);
+            so.FindProperty("victimApproachPoint").objectReferenceValue = victimApproach;
+            Assign(so.FindProperty("observables"), new Object[] { cableRoot.GetComponent<ObservableHazard>(), pool.GetComponent<ObservableHazard>(), by1.GetComponent<ObservableHazard>() });
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // Arredo: barili (solo decorazione, la tanica FC-01 resta un segnaposto).
+            var decor = new GameObject("DEC_Decor").transform;
+            MarkNotWalkable(decor.gameObject);
+            AddBoundsCollider(PlaceModel("MESH_Folgorazione_Barile", decor, P(27.6f, 12.9f), 0f, 1f, true));
+            AddBoundsCollider(PlaceModel("MESH_Folgorazione_Barile", decor, P(28.4f, 12.6f), 30f, 1f, true));
+
+            // NavMesh: escluse persone e oggetti mobili (barriere, estintori, radio, cavo, trigger).
+            IgnoreForNavMesh(people.gameObject);
+            IgnoreForNavMesh(air.gameObject);
+            foreach (var e in extinguishers) IgnoreForNavMesh(e.gameObject);
+            foreach (var b in barriers) IgnoreForNavMesh(b.gameObject);
+            IgnoreForNavMesh(radio.gameObject);
+            BakeNavMesh();
+
+            EditorSceneManager.SaveScene(scene, SCENARIO_SCENE);
+        }
+
+        /// <summary>
+        /// Mette in scena un modello FBX di Shared/Art/Models (istanza collegata all'asset, nome = nome dell'asset):
+        /// ruota sul piano, scala uniforme in scena e allinea la base (o il centro) dei renderer al punto indicato.
+        /// </summary>
+        private static GameObject PlaceModel(string fbx, Transform parent, Vector3 worldPos, float yaw, float scale, bool alignBase)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MODELS + fbx + ".fbx");
+            if (prefab == null) { Debug.LogError("[SI81 ElectricShock] Modello mancante: " + fbx); return new GameObject(fbx + "_MANCANTE"); }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent.gameObject.scene);
+            go.transform.SetParent(parent, true);
+            go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * prefab.transform.rotation;
+            go.transform.localScale = prefab.transform.localScale * scale;
+            go.transform.position = worldPos;
+            var b = RendererBounds(go);
+            Vector3 anchor = alignBase ? new Vector3(b.center.x, b.min.y, b.center.z) : b.center;
+            go.transform.position += worldPos - anchor;
+            return go;
+        }
+
+        /// <summary>Bounds mondo di tutti i renderer del modello.</summary>
+        private static Bounds RendererBounds(GameObject go)
+        {
+            var rends = go.GetComponentsInChildren<Renderer>(true);
+            if (rends.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
+            var b = rends[0].bounds;
+            foreach (var r in rends) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        /// <summary>BoxCollider sul proprietario grande quanto i renderer del modello.</summary>
+        private static BoxCollider AddBoundsCollider(GameObject owner, GameObject model)
+        {
+            var b = RendererBounds(model);
+            var c = owner.AddComponent<BoxCollider>();
+            c.center = owner.transform.InverseTransformPoint(b.center);
+            Vector3 size = owner.transform.InverseTransformVector(b.size);
+            c.size = new Vector3(Mathf.Abs(size.x), Mathf.Abs(size.y), Mathf.Abs(size.z));
+            return c;
+        }
+
+        /// <summary>BoxCollider sul modello stesso (arredo statico).</summary>
+        private static BoxCollider AddBoundsCollider(GameObject model) => AddBoundsCollider(model, model);
+
+        /// <summary>Cerca un figlio per nome in tutta la gerarchia.</summary>
+        private static Transform FindChild(Transform root, string name) =>
+            root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+
+        /// <summary>
+        /// Ostacolo basso (sotto 0,8 m): senza questo la NavMesh lo considera scalabile (step 0,75 m) e ci cammina sopra.
+        /// Area "Not Walkable" (indice 1, integrata): nessuna modifica a ProjectSettings.
+        /// </summary>
+        private static void MarkNotWalkable(GameObject go)
+        {
+            var m = go.AddComponent<NavMeshModifier>();
+            m.overrideArea = true;
+            m.area = 1;
+        }
+
+        /// <summary>Esclude un oggetto (e i figli) dalla cottura della NavMesh.</summary>
+        private static void IgnoreForNavMesh(GameObject go)
+        {
+            var m = go.AddComponent<NavMeshModifier>();
+            m.ignoreFromBuild = true;
+        }
+
+        /// <summary>Cuoce la NavMesh della scena con l'agente di default (nessuna modifica a ProjectSettings) e la salva in Data/.</summary>
+        private static void BakeNavMesh()
+        {
+            var go = new GameObject("NAV_Surface");
+            var surface = go.AddComponent<NavMeshSurface>();
+            surface.collectObjects = CollectObjects.All;
+            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
+            surface.BuildNavMesh();
+            string path = DATA_DIR + "/NAV_ElectricShock.asset";
+            AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(surface.navMeshData, path);
+            surface.navMeshData = AssetDatabase.LoadAssetAtPath<NavMeshData>(path);
+            surface.AddData();
+        }
+
+        /// <summary>Sorgente audio 3D segnaposto (il clip viene generato a runtime se manca).</summary>
+        private static AudioSource Audio3D(string name, Transform parent, Vector3 localPos, bool loop, float volume, float maxDistance = 20f)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            var a = go.AddComponent<AudioSource>();
+            a.playOnAwake = false;
+            a.loop = loop;
+            a.volume = volume;
+            a.spatialBlend = 1f;
+            a.rolloffMode = AudioRolloffMode.Linear;
+            a.minDistance = 1f;
+            a.maxDistance = maxDistance;
+            return a;
+        }
+
+        /// <summary>Pavimento, pareti con i varchi DR-01 e DR-03, marcatori di zona.</summary>
+        private static void BuildEnvironment(Transform env)
+        {
+            var floor = Box("ENV_Floor", env, new Vector3(15f, -0.05f, 8f), new Vector3(30f, 0.1f, 16f), "ConcreteFloorWorn", true);
+            floor.AddComponent<TextureTiling>().Configure(TextureTiling.Mode.Floor, 2f);
+            const float h = 3f, t = 0.2f;
+            Wall(env, "South", 6f, 2f, 30f, 2f, h, t);
+            Wall(env, "North", 6f, 14f, 30f, 14f, h, t);
+            Wall(env, "East", 30f, 2f, 30f, 14f, h, t);
+            Wall(env, "West_A", 6f, 2f, 6f, 6f, h, t);
+            Wall(env, "West_B", 6f, 10f, 6f, 14f, h, t);
+            Wall(env, "Middle_A", 13f, 2f, 13f, 6f, h, t);
+            Wall(env, "Middle_B", 13f, 10f, 13f, 14f, h, t);
+
+            // Tetto sopra le due stanze, appoggiato sulle pareti; non proietta ombre, cosi' la luce direzionale illumina l'interno.
+            var roof = Box("ENV_Roof", env, new Vector3(18f, h + 0.05f, 8f), new Vector3(24f + t, 0.1f, 12f + t), "Rack", false);
+            roof.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
+        /// <summary>Parete tra due punti della mappa.</summary>
+        private static void Wall(Transform parent, string name, float x0, float y0, float x1, float y1, float height, float thickness)
+        {
+            Vector3 a = P(x0, y0), b = P(x1, y1);
+            Vector3 c = (a + b) * 0.5f + Vector3.up * height * 0.5f;
+            bool alongX = Mathf.Abs(x1 - x0) > Mathf.Abs(y1 - y0);
+            float len = (b - a).magnitude + thickness;
+            var wall = Box("ENV_Wall_" + name, parent, c, alongX ? new Vector3(len, height, thickness) : new Vector3(thickness, height, len), "ConcreteWall", true);
+            wall.AddComponent<TextureTiling>().Configure(TextureTiling.Mode.Wall, 2f);
+        }
+
+        /// <summary>Estintore segnaposto con banda colorata, ugello e spruzzo.</summary>
+        private static Extinguisher MakeExtinguisher(Transform parent, string name, ExtinguisherAgent agent, string labelMat, Transform slot)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.SetPositionAndRotation(slot.position, slot.rotation);
+            // Modello alto 0,28 m: scalato in scena x2 (circa 0,55 m, come un estintore reale).
+            var model = PlaceModel("MESH_Folgorazione_Estintore", root, slot.position, slot.eulerAngles.y, 2f, true);
+            var body = model.GetComponentInChildren<Renderer>();
+            // Banda colorata del tipo (acqua blu, polvere bianca, CO2 nera) finché non ci sono etichette vere.
+            Cylinder("PLACEHOLDER_ExtinguisherLabel", root, Vector3.up * 0.3f, new Vector3(0.17f, 0.05f, 0.17f), labelMat, false);
+            var nozzle = new GameObject("Nozzle").transform;
+            nozzle.SetParent(root, false);
+            nozzle.localPosition = new Vector3(0f, 0.5f, 0.1f);
+            AddBoundsCollider(root.gameObject, model);
+            var spray = SprayParticles("VFX_Spray", nozzle, agent == ExtinguisherAgent.Water ? new Color(0.5f, 0.7f, 1f, 0.6f) : agent == ExtinguisherAgent.CO2 ? new Color(0.9f, 0.95f, 1f, 0.5f) : new Color(1f, 1f, 1f, 0.8f));
+            var ext = root.gameObject.AddComponent<Extinguisher>();
+            SetField(ext, "nozzle", nozzle);
+            SetField(ext, "spray", spray);
+            var so = new SerializedObject(ext);
+            so.FindProperty("agent").enumValueIndex = (int)agent;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            SetInteractable(ext, "Estintore", body);
+            return ext;
+        }
+
+        /// <summary>Barriera mobile da 0,75 m (MESH_Magazzino_Barriera, larga sulla X locale).</summary>
+        private static BarrierPanel MakeBarrier(Transform parent, string name, Vector3 pos, float yaw)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.SetPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            var model = PlaceModel("MESH_Magazzino_Barriera", root, pos, yaw, 1f, true);
+            AddBoundsCollider(root.gameObject, model);
+            // Posata e ferma scava la NavMesh: colleghi e PM-2 calcolano il percorso attorno alle barriere (passaggio libero).
+            var obstacle = root.gameObject.AddComponent<NavMeshObstacle>();
+            obstacle.shape = NavMeshObstacleShape.Box;
+            obstacle.center = new Vector3(0f, 0.35f, 0f);
+            obstacle.size = new Vector3(0.75f, 0.7f, 0.32f);
+            obstacle.carving = true;
+            obstacle.carveOnlyStationary = true;
+            var b = root.gameObject.AddComponent<BarrierPanel>();
+            SetInteractable(b, "Barriera", null);
+            return b;
+        }
+
+        /// <summary>Radio segnaposto per il 112.</summary>
+        private static EmergencyRadio MakeRadio(Transform parent, Vector3 pos)
+        {
+            var root = new GameObject("RD01_Radio").transform;
+            root.SetParent(parent, false);
+            root.position = pos;
+            // Modello alto 0,57 m: scalato in scena (circa 0,22 m, una radio portatile).
+            var model = PlaceModel("MESH_Magazzino_Radio", root, pos, 0f, 0.385f, true);
+            // La radio è piccola (7 x 22 x 4 cm): collider allargato a 15 cm per lato, più facile da puntare col raggio sul visore.
+            var radioCollider = AddBoundsCollider(root.gameObject, model);
+            radioCollider.size = Vector3.Max(radioCollider.size, new Vector3(0.15f, 0.22f, 0.15f));
+            var r = root.gameObject.AddComponent<EmergencyRadio>();
+            SetInteractable(r, "Radio 112", null);
+            // Etichetta 0,6 m sopra la base: più in basso il pannello entra nella radio e nel rack.
+            Label(root.gameObject, LabelKind.Interaction, "Radio", "Grilletto: chiama il 112", new Vector3(0f, 0.6f, 0f), triggerPrompt: true);
+            return r;
+        }
+
+        /// <summary>Collega segnaposto.</summary>
+        private static Bystander MakeBystander(Transform parent, string name, float x, float y)
+        {
+            var root = Root(name, parent, x, y);
+            var mover = root.gameObject.AddComponent<NpcMover>();
+            // Collega al lavoro (clip Worker_Work); quando si muove corre, quando si ferma resta in piedi.
+            AddCharacter(root, mover, false, "Work", "", 0f);
+            AddCapsuleCollider(root.gameObject);
+            // Grilletto puntando il collega = "Fermi! Allontanatevi!" (A/X e B/Y non sono disponibili nell'input condiviso).
+            SetInteractable(root.gameObject.AddComponent<ShoutTarget>(), "Collega", null);
+            Label(root.gameObject, LabelKind.Interaction, "Collega", "Grilletto: Fermi! Allontanatevi!", new Vector3(0f, 2.0f, 0f), triggerPrompt: true);
+            return root.gameObject.AddComponent<Bystander>();
+        }
+
+        /// <summary>Modello animato di tutti i personaggi: è l'unico FBX con le clip (Pm1 e Pm2 hanno solo la mesh in posa).</summary>
+        private const string CHARACTER_MODEL = "Anim_Folgorazione_Worker";
+
+        /// <summary>Clip del modello: nome breve, nome nell'FBX, loop.</summary>
+        private static readonly (string key, string clip, bool loop)[] CHARACTER_CLIPS =
+        {
+            ("Idle", "Anim_General_Idle", true),
+            ("Run", "Anim_General_Running", true),
+            ("Work", "Anim_Worker_Work", true),
+            ("Hurt", "Anim_Worker_Hurt", false),
+            ("GetUp", "Anim_Worker_Rescued", false),
+            ("ShockLying", "Anim_Pm1_Hurt", false),
+            ("ShockRescued", "Anim_Pm1_Rescued", false),
+            ("Kneel", "Anim_Pm2_Rescue", false)
+        };
+
+        /// <summary>
+        /// Tratti ripetuti avanti e indietro (s), misurati sull'altezza della testa: Anim_Pm2_Rescue è in ginocchio da 0,7 a
+        /// 3,5 s, poi si rialza; senza questo PM-2 resterebbe in piedi immobile accanto al collega.
+        /// </summary>
+        private static readonly Dictionary<string, Vector2> CLIP_LOOP_RANGES = new Dictionary<string, Vector2>
+        {
+            { "Kneel", new Vector2(0.8f, 3.4f) }
+        };
+
+        /// <summary>
+        /// Mette il modello animato sotto la radice del personaggio: colori per ruolo sui singoli pezzi (pelle, casco, gilet...),
+        /// Animator senza controller e CharacterAnimator con la correzione di posizione calcolata per ogni clip
+        /// (le clip spostano il corpo rispetto al pivot: qui lo si riporta a terra e centrato sulla radice).
+        /// </summary>
+        /// <summary>
+        /// Lavoratore animato (Anim_Folgorazione_Worker con le stesse clip e colori di questo scenario) sotto <paramref name="root"/>:
+        /// usato anche da altri scenari del gruppo (es. i colleghi di Forklift Chaos).
+        /// </summary>
+        public static CharacterAnimator AddWorkerCharacter(Transform root, NpcMover mover, string idleKey, float yaw)
+        {
+            if (!mats.ContainsKey("CharSkin")) BuildMaterials();
+            return AddCharacter(root, mover, false, idleKey, "", yaw);
+        }
+
+        private static CharacterAnimator AddCharacter(Transform root, NpcMover mover, bool paramedic, string idleKey, string startKey, float yaw)
+        {
+            string path = MODELS + CHARACTER_MODEL + ".fbx";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) { Debug.LogError("[SI81 ElectricShock] Modello mancante: " + CHARACTER_MODEL); return null; }
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root.gameObject.scene);
+            model.transform.SetParent(root, false);
+            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * prefab.transform.localRotation;
+            model.transform.localPosition = Vector3.zero;
+
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                string n = smr.name;
+                string mat = n.Contains("Hair") || n.Contains("Eyelash") ? "CharHair"
+                    : n.Contains("Boots") ? "CharBoots"
+                    : n.Contains("Pants") ? (paramedic ? "CharPantsParamedic" : "CharPantsWorker")
+                    : n.Contains("Shirt") ? (paramedic ? "CharShirtParamedic" : "CharShirtWorker")
+                    : n.Contains("Vest") ? (paramedic ? "CharVestParamedic" : "CharVestWorker")
+                    : n.Contains("Helmet") ? (paramedic ? "CharHelmetParamedic" : "CharHelmetWorker")
+                    : "CharSkin";
+                var arr = new Material[smr.sharedMaterials.Length];
+                for (int i = 0; i < arr.Length; i++) arr[i] = mats[mat];
+                smr.sharedMaterials = arr;
+                smr.updateWhenOffscreen = false;
+            }
+
+            var animator = model.GetComponent<Animator>();
+            if (animator == null) animator = model.AddComponent<Animator>();
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+
+            var allClips = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().ToList();
+            var anim = root.gameObject.AddComponent<CharacterAnimator>();
+            var so = new SerializedObject(anim);
+            so.FindProperty("animator").objectReferenceValue = animator;
+            so.FindProperty("model").objectReferenceValue = model.transform;
+            so.FindProperty("mover").objectReferenceValue = mover;
+            so.FindProperty("idleKey").stringValue = idleKey;
+            so.FindProperty("startKey").stringValue = startKey;
+            var entries = so.FindProperty("entries");
+            entries.arraySize = CHARACTER_CLIPS.Length;
+            Vector3 startOffset = Vector3.zero;
+            for (int i = 0; i < CHARACTER_CLIPS.Length; i++)
+            {
+                var (key, clipName, loop) = CHARACTER_CLIPS[i];
+                var clip = allClips.FirstOrDefault(c => c.name.EndsWith(clipName));
+                Vector3 offset = Vector3.zero;
+                if (clip != null)
+                {
+                    // Posa al primo fotogramma: base dei renderer a terra e centro sul piano sulla radice.
+                    model.transform.localPosition = Vector3.zero;
+                    clip.SampleAnimation(model, 0f);
+                    var b = RendererBounds(model);
+                    Vector3 world = new Vector3(root.position.x - b.center.x, root.position.y - b.min.y, root.position.z - b.center.z);
+                    offset = root.InverseTransformVector(world);
+                }
+                var e = entries.GetArrayElementAtIndex(i);
+                e.FindPropertyRelative("Key").stringValue = key;
+                e.FindPropertyRelative("Clip").objectReferenceValue = clip;
+                Vector2 range = CLIP_LOOP_RANGES.TryGetValue(key, out var r) ? r : Vector2.zero;
+                e.FindPropertyRelative("LoopStart").floatValue = range.x;
+                e.FindPropertyRelative("LoopEnd").floatValue = range.y;
+                e.FindPropertyRelative("Loop").boolValue = loop;
+                e.FindPropertyRelative("ModelOffset").vector3Value = offset;
+                if (key == (string.IsNullOrEmpty(startKey) ? idleKey : startKey)) startOffset = offset;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // Nell'Editor la scena mostra già la posa iniziale.
+            var first = allClips.FirstOrDefault(c => c.name.EndsWith(CHARACTER_CLIPS.First(k => k.key == (string.IsNullOrEmpty(startKey) ? idleKey : startKey)).clip));
+            if (first != null) first.SampleAnimation(model, 0f);
+            model.transform.localPosition = startOffset;
+            return anim;
+        }
+
+        /// <summary>Collider a capsula di una persona in piedi (1,8 m).</summary>
+        private static void AddCapsuleCollider(GameObject go)
+        {
+            var c = go.AddComponent<CapsuleCollider>();
+            c.center = Vector3.up * 0.9f;
+            c.height = 1.8f;
+            c.radius = 0.3f;
+        }
+
+        /// <summary>Segmento di collider del cavo (non trigger, per il contatto della mano).</summary>
+        private static void CableSegment(Transform parent, Vector3 a, Vector3 b, int index)
+        {
+            var go = new GameObject($"COL_CableSegment_{index + 1}");
+            go.transform.SetParent(parent, true);
+            go.transform.position = (a + b) * 0.5f;
+            go.transform.rotation = Quaternion.LookRotation(b - a);
+            var c = go.AddComponent<CapsuleCollider>();
+            c.direction = 2;
+            c.radius = 0.05f;
+            c.height = (b - a).magnitude;
+        }
+
+        // =====================================================================
+        // Missione, catalogo e Build Settings (UI comune)
+        // =====================================================================
+
+        /// <summary>Crea o aggiorna SO_Mission_ElectricShock nella cartella dello scenario (dati della specifica, testi in italiano).</summary>
+        public static MissionDefinition LoadOrCreateMission()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<MissionDefinition>(MISSION_PATH);
+            if (m == null)
+            {
+                m = ScriptableObject.CreateInstance<MissionDefinition>();
+                AssetDatabase.CreateAsset(m, MISSION_PATH);
+            }
+            m.Id = "10";
+            m.Title = "Electric Shock";
+            m.Context = "Sei un lavoratore del turno. Un collega ha preso la scossa da un generatore portatile ed è a terra, ancora a contatto con il cavo. "
+                + "Sotto il generatore c'è una pozza di benzina. Togli la corrente, isola la zona e porta il collega al sicuro.";
+            m.Icon = AssetDatabase.LoadAssetAtPath<Sprite>(ICON);
+            m.GradientTop = new Color(0.549f, 0.478f, 0.071f, 1f);
+            m.GradientBottom = new Color(0.851f, 0.769f, 0.227f, 1f);
+            m.Complexity = 4;
+            m.SceneName = "SCN_ElectricShock";
+            // Massimo 4 obiettivi (UI comune): evacuazione e barriere stanno nello stesso obiettivo, i passi sono nei suggerimenti.
+            m.Objectives = new List<string> { "Ferma il generatore", "Evacua e isola la zona", "Spegni l'incendio", "Porta il collega al sicuro" };
+            m.Criteria = new List<CompletionCriterion>
+            {
+                new CompletionCriterion { Outcome = OutcomeType.Positive, Text = "Corrente tolta, fuoco spento, tutti al sicuro" },
+                new CompletionCriterion { Outcome = OutcomeType.Partial, Text = "Zona aperta o collega non al sicuro" },
+                new CompletionCriterion { Outcome = OutcomeType.Negative, Text = "Persone ferite o estintore errato" }
+            };
+            m.Levels = new List<MissionLevel>
+            {
+                new MissionLevel { Level = DifficultyLevel.Guided, UnlockedByDefault = true, TimeLimitSecondsOverride = 0 },
+                new MissionLevel { Level = DifficultyLevel.Operational, UnlockedByDefault = true, TimeLimitSecondsOverride = 240 },
+                new MissionLevel { Level = DifficultyLevel.Crisis, UnlockedByDefault = true, TimeLimitSecondsOverride = 180 }
+            };
+            m.IsTraining = false;
+            m.DesignerNote = "Scenario 10 · G_Ludovica. Specifica 10_Electric_Shock_LITE. Missione generata da ElectricShockSceneBuilder.";
+            EditorUtility.SetDirty(m);
+            AssetDatabase.SaveAssets();
+            return m;
+        }
+
+        /// <summary>
+        /// Mette la missione nel catalogo comune al posto di quella d'esempio (Id 10), elimina l'esempio e aggiunge la scena alle
+        /// Build Settings dopo SCN_Core. Tocca file condivisi: eseguire una volta sola, dopo aver aggiornato il progetto.
+        /// </summary>
+        [MenuItem("SI81/G_Ludovica/Electric Shock/Registra nel catalogo e nelle Build Settings")]
+        public static void RegisterMission()
+        {
+            var mission = LoadOrCreateMission();
+            var catalog = AssetDatabase.LoadAssetAtPath<MissionCatalog>(CATALOG);
+            if (catalog == null) { Debug.LogError("[SI81 ElectricShock] SO_MissionCatalog non trovato: " + CATALOG); return; }
+            var sample = AssetDatabase.LoadAssetAtPath<MissionDefinition>(SAMPLE_MISSION);
+            int index = sample != null ? catalog.Missions.IndexOf(sample) : -1;
+            catalog.Missions.RemoveAll(x => x == null || x == sample);
+            if (!catalog.Missions.Contains(mission))
+            {
+                if (index >= 0 && index <= catalog.Missions.Count) catalog.Missions.Insert(index, mission);
+                else catalog.Missions.Add(mission);
+            }
+            EditorUtility.SetDirty(catalog);
+            AssetDatabase.SaveAssets();
+            if (sample != null) AssetDatabase.DeleteAsset(SAMPLE_MISSION);
+
+            var scenes = EditorBuildSettings.scenes.ToList();
+            if (!scenes.Any(sc => sc.path == SCENARIO_SCENE))
+            {
+                scenes.Add(new EditorBuildSettingsScene(SCENARIO_SCENE, true));
+                EditorBuildSettings.scenes = scenes.ToArray();
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("[SI81 ElectricShock] Missione 10 nel catalogo, scena nelle Build Settings.");
+        }
+
+        /// <summary>
+        /// Etichetta nel mondo della UI comune (LabelAnchor) con testo in italiano. I prompt Interaction mostrano tasto e verbo
+        /// dalle chiavi della UI (vuote = GRIP / Afferra): con <paramref name="triggerPrompt"/> mostrano TRIGGER / Interagisci.
+        /// </summary>
+        private static void Label(GameObject go, LabelKind kind, string title, string detail, Vector3 offset, bool triggerPrompt = false)
+        {
+            var anchor = go.AddComponent<LabelAnchor>();
+            var so = new SerializedObject(anchor);
+            so.FindProperty("kind").enumValueIndex = (int)kind;
+            so.FindProperty("title").stringValue = title;
+            so.FindProperty("detail").stringValue = detail;
+            so.FindProperty("offset").vector3Value = offset;
+            if (triggerPrompt)
+            {
+                so.FindProperty("buttonKey").stringValue = "hud.prompt.button.trigger";
+                so.FindProperty("actionKey").stringValue = "hud.prompt.action.interact";
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // =====================================================================
+        // Particellari segnaposto (da sostituire con i VFX del Common Core)
+        // =====================================================================
+
+        /// <summary>Fiamme.</summary>
+        private static ParticleSystem FireParticles(string name, Transform parent, float radius, float size, float rate)
+        {
+            var ps = NewParticles(name, parent, mats["Fire"]);
+            var main = ps.main;
+            main.startLifetime = 0.8f;
+            main.startSpeed = 1.2f;
+            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.5f, size);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.8f, 0.3f), new Color(1f, 0.35f, 0.05f));
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            main.maxParticles = 300;
+            var em = ps.emission; em.rateOverTime = rate;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = radius; sh.rotation = new Vector3(-90f, 0f, 0f);
+            var col = ps.colorOverLifetime; col.enabled = true;
+            col.color = Fade(new Color(1f, 0.7f, 0.2f), new Color(0.8f, 0.1f, 0f));
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0.3f));
+            return ps;
+        }
+
+        /// <summary>Fumo.</summary>
+        private static ParticleSystem SmokeParticles(string name, Transform parent, Vector3 localPos, float radius, float rate)
+        {
+            var ps = NewParticles(name, parent, mats["Smoke"]);
+            ps.transform.localPosition = localPos;
+            var main = ps.main;
+            main.startLifetime = 4f;
+            main.startSpeed = 0.5f;
+            main.startSize = new ParticleSystem.MinMaxCurve(1f, 2f);
+            main.startColor = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+            main.maxParticles = 200;
+            var em = ps.emission; em.rateOverTime = rate;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = radius; sh.rotation = new Vector3(-90f, 0f, 0f);
+            var col = ps.colorOverLifetime; col.enabled = true; col.color = Fade(new Color(0.35f, 0.35f, 0.35f), new Color(0.2f, 0.2f, 0.2f));
+            return ps;
+        }
+
+        /// <summary>Scintille del cavo (attive all'avvio).</summary>
+        private static ParticleSystem Sparks(string name, Transform parent, Vector3 worldPos)
+        {
+            var ps = NewParticles(name, parent, mats["Spark"]);
+            ps.transform.position = worldPos;
+            var main = ps.main;
+            main.playOnAwake = true;
+            main.startLifetime = 0.3f;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1f, 3f);
+            main.startSize = 0.04f;
+            main.gravityModifier = 1f;
+            var em = ps.emission; em.rateOverTime = 0f;
+            em.SetBursts(new[] { new ParticleSystem.Burst(0f, 6, 12, -1, 0.4f) });
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Hemisphere; sh.radius = 0.05f; sh.rotation = new Vector3(-90f, 0f, 0f);
+            return ps;
+        }
+
+        /// <summary>Spruzzo dell'estintore lungo l'asse Z dell'ugello.</summary>
+        private static ParticleSystem SprayParticles(string name, Transform parent, Color color)
+        {
+            var ps = NewParticles(name, parent, mats["Spray"]);
+            var main = ps.main;
+            main.startLifetime = 0.6f;
+            main.startSpeed = 6f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.35f);
+            main.startColor = color;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            var em = ps.emission; em.rateOverTime = 120f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 10f; sh.radius = 0.02f;
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.4f, 1f, 2f));
+            return ps;
+        }
+
+        /// <summary>Vampata dell'esplosione (scoppio singolo).</summary>
+        private static ParticleSystem BlastParticles(string name, Transform parent)
+        {
+            var ps = NewParticles(name, parent, mats["Fire"]);
+            ps.transform.localPosition = Vector3.up * 0.5f;
+            var main = ps.main;
+            main.loop = false;
+            main.duration = 1f;
+            main.startLifetime = 1.2f;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 9f);
+            main.startSize = new ParticleSystem.MinMaxCurve(1f, 2.5f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.9f, 0.4f), new Color(1f, 0.3f, 0f));
+            main.maxParticles = 400;
+            var em = ps.emission; em.rateOverTime = 0f; em.SetBursts(new[] { new ParticleSystem.Burst(0f, 250) });
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.5f;
+            var col = ps.colorOverLifetime; col.enabled = true; col.color = Fade(new Color(1f, 0.7f, 0.2f), new Color(0.3f, 0.1f, 0.05f));
+            return ps;
+        }
+
+        /// <summary>Crea un particellare fermo (non parte da solo).</summary>
+        private static ParticleSystem NewParticles(string name, Transform parent, Material material)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            go.GetComponent<ParticleSystemRenderer>().sharedMaterial = material;
+            return ps;
+        }
+
+        /// <summary>Gradiente da un colore pieno a trasparente.</summary>
+        private static ParticleSystem.MinMaxGradient Fade(Color from, Color to)
+        {
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(from, 0f), new GradientColorKey(to, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.15f), new GradientAlphaKey(0f, 1f) });
+            return new ParticleSystem.MinMaxGradient(g);
+        }
+
+        // =====================================================================
+        // Utilità
+        // =====================================================================
+
+        /// <summary>Punto della mappa (x, y) in coordinate Unity (x, h, y).</summary>
+        private static Vector3 P(float x, float y, float h = 0f) => new Vector3(x, h, y);
+
+        /// <summary>Oggetto radice a terra in un punto della mappa.</summary>
+        private static Transform Root(string name, Transform parent, float x, float y)
+        {
+            var t = new GameObject(name).transform;
+            t.SetParent(parent, false);
+            t.position = P(x, y);
+            return t;
+        }
+
+        /// <summary>Punto vuoto in un punto della mappa.</summary>
+        private static Transform Point(string name, Transform parent, float x, float y) => Root(name, parent, x, y);
+
+        /// <summary>Marcatore piatto a terra (zona sicura, punto di raccolta).</summary>
+        /// <summary>Cartello in piedi (palo + pannello verde) con il testo su entrambe le facce.</summary>
+        private static void Sign(Transform parent, string name, string text, float x, float y, float yaw)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.SetPositionAndRotation(P(x, y, 0f), Quaternion.Euler(0f, yaw, 0f));
+            Box("PLACEHOLDER_Post", root, new Vector3(0f, 0.9f, 0f), new Vector3(0.06f, 1.8f, 0.06f), "Rack", false);
+            Box("PLACEHOLDER_Panel", root, new Vector3(0f, 1.95f, 0f), new Vector3(1.3f, 0.36f, 0.03f), "SafeZone", false);
+            for (int side = 0; side < 2; side++)
+            {
+                var t = new GameObject(side == 0 ? "TXT_Front" : "TXT_Back").transform;
+                t.SetParent(root, false);
+                t.localPosition = new Vector3(0f, 1.95f, side == 0 ? -0.02f : 0.02f);
+                t.localRotation = Quaternion.Euler(0f, side == 0 ? 0f : 180f, 0f);
+                var tmp = t.gameObject.AddComponent<TMPro.TextMeshPro>();
+                tmp.text = text;
+                tmp.fontSize = 2f;
+                tmp.fontStyle = TMPro.FontStyles.Bold;
+                tmp.alignment = TMPro.TextAlignmentOptions.Center;
+                tmp.color = Color.white;
+                tmp.enableWordWrapping = false;
+                tmp.rectTransform.sizeDelta = new Vector2(1.25f, 0.34f);
+                tmp.enableAutoSizing = true;
+                tmp.fontSizeMin = 0.5f;
+                tmp.fontSizeMax = 2f;
+            }
+        }
+
+        /// <summary>Scritta a terra leggibile da chi guarda dal punto <paramref name="readerFrom"/> (coordinate della mappa).</summary>
+        private static void FloorText(Transform parent, string name, string text, float x, float y, Vector2 readerFrom)
+        {
+            var t = new GameObject(name).transform;
+            t.SetParent(parent, false);
+            Vector3 away = P(x, y, 0f) - P(readerFrom.x, readerFrom.y, 0f);
+            float yaw = Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg;
+            t.SetPositionAndRotation(P(x, y, 0.02f), Quaternion.Euler(90f, yaw, 0f));
+            var tmp = t.gameObject.AddComponent<TMPro.TextMeshPro>();
+            tmp.text = text;
+            tmp.fontSize = 3f;
+            tmp.fontStyle = TMPro.FontStyles.Bold;
+            tmp.alignment = TMPro.TextAlignmentOptions.Center;
+            tmp.color = new Color(1f, 1f, 1f, 0.9f);
+            tmp.enableWordWrapping = false;
+            tmp.rectTransform.sizeDelta = new Vector2(2.6f, 1.2f);
+        }
+
+        private static Transform Marker(string name, Transform parent, float x, float y, float sx, float sy, string mat, bool round)
+        {
+            var root = Root(name, parent, x, y);
+            if (round) Cylinder("PLACEHOLDER_Marker", root, Vector3.up * 0.005f, new Vector3(sx, 0.005f, sy), mat, false);
+            else Box("PLACEHOLDER_Marker", root, Vector3.up * 0.005f, new Vector3(sx, 0.01f, sy), mat, false);
+            return root;
+        }
+
+        /// <summary>Cubo segnaposto.</summary>
+        private static GameObject Box(string name, Transform parent, Vector3 localPos, Vector3 size, string mat, bool collider)
+            => Primitive(PrimitiveType.Cube, name, parent, localPos, Quaternion.identity, size, mat, collider);
+
+        /// <summary>Cilindro segnaposto (scala Y = metà altezza).</summary>
+        private static GameObject Cylinder(string name, Transform parent, Vector3 localPos, Vector3 scale, string mat, bool collider)
+            => Primitive(PrimitiveType.Cylinder, name, parent, localPos, Quaternion.identity, scale, mat, collider);
+
+        /// <summary>Capsula segnaposto (scala Y = metà altezza).</summary>
+        private static GameObject Capsule(string name, Transform parent, Vector3 localPos, Quaternion localRot, Vector3 scale, string mat, bool collider)
+            => Primitive(PrimitiveType.Capsule, name, parent, localPos, localRot, scale, mat, collider);
+
+        /// <summary>Primitiva con materiale; collider rimosso se non richiesto.</summary>
+        private static GameObject Primitive(PrimitiveType type, string name, Transform parent, Vector3 localPos, Quaternion localRot, Vector3 scale, string mat, bool collider)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = localRot;
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = mats[mat];
+            if (!collider) Object.DestroyImmediate(go.GetComponent<Collider>());
+            return go;
+        }
+
+        /// <summary>Aggiunge un ObservableHazard con l'ID indicato.</summary>
+        private static void AddObservable(GameObject go, string id)
+        {
+            var o = go.AddComponent<ObservableHazard>();
+            var so = new SerializedObject(o);
+            so.FindProperty("hazardId").stringValue = id;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Imposta nome e renderer evidenziabili di un oggetto interattivo dello scenario.</summary>
+        private static void SetInteractable(ScenarioInteractable it, string displayName, Renderer highlight)
+        {
+            var so = new SerializedObject(it);
+            so.FindProperty("displayName").stringValue = displayName;
+            var arr = so.FindProperty("highlightRenderers");
+            arr.arraySize = highlight != null ? 1 : 0;
+            if (highlight != null) arr.GetArrayElementAtIndex(0).objectReferenceValue = highlight;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Imposta un campo serializzato (anche privato) con un riferimento.</summary>
+        private static void SetField(Object target, string field, Object value)
+        {
+            var so = new SerializedObject(target);
+            var p = so.FindProperty(field);
+            if (p == null) { Debug.LogError($"[SI81 ElectricShock] Campo {field} non trovato su {target.GetType().Name}"); return; }
+            p.objectReferenceValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Imposta un campo array serializzato con dei riferimenti.</summary>
+        private static void SetArray(Object target, string field, Object[] values)
+        {
+            var so = new SerializedObject(target);
+            Assign(so.FindProperty(field), values);
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Copia i riferimenti in una proprietà array.</summary>
+        private static void Assign(SerializedProperty p, Object[] values)
+        {
+            p.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++) p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+        }
+    }
+}

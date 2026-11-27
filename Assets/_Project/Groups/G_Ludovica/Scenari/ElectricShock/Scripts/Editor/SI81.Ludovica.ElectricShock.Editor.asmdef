@@ -1,0 +1,24 @@
+{
+    "name": "SI81.Ludovica.ElectricShock.Editor",
+    "rootNamespace": "SI81.Ludovica.ElectricShock.EditorTools",
+    "references": [
+        "SI81.Ludovica.ElectricShock",
+        "SI81.UI",
+        "SI81.Input",
+        "SI81.Interaction",
+        "SI81.Rig",
+        "Unity.AI.Navigation",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

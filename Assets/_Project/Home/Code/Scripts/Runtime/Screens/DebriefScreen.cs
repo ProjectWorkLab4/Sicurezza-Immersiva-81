@@ -20,6 +20,9 @@ namespace SI81.UI
     [AddComponentMenu("SI81/UI/Screens/Debrief Screen")]
     public class DebriefScreen : MonoBehaviour
     {
+        /// <summary>Id del Blackout: il suo "Percorso corretto" è provvisorio e resta solo in Guided.</summary>
+        const string ID_BLACKOUT = "02";
+
         /// <summary>Tipo di una riga di debrief.</summary>
         private enum LineKind
         {
@@ -122,7 +125,7 @@ namespace SI81.UI
         {
             MissionResult result = ResolveResult(out MissionDefinition mission);
             if (header != null) header.Show(result, mission);
-            RefreshSteps(mission);
+            RefreshSteps(mission, result.Level);
             RefreshCards(result);
         }
 
@@ -144,14 +147,18 @@ namespace SI81.UI
 
         /// <summary>
         /// "Percorso corretto": gli obiettivi ordinati dello scenario, ognuno con la sua altezza dal testo; poi ricalcola PANEL_Side.
+        /// Per Blackout l'elenco è provvisorio: solo in Guided, negli altri livelli si nasconde l'intero PANEL_Side.
         /// </summary>
-        private void RefreshSteps(MissionDefinition mission)
+        private void RefreshSteps(MissionDefinition mission, DifficultyLevel level)
         {
+            bool mostraPercorso = mission == null || mission.Id != ID_BLACKOUT || level == DifficultyLevel.Guided;
+            if (side != null) PanelLayout.SetActive(side.gameObject, mostraPercorso);
+
             for (int i = 0; i < steps.Length; i++)
             {
                 StepRow step = steps[i];
                 if (step == null || step.Root == null) continue;
-                bool visible = mission != null && mission.Objectives != null && i < mission.Objectives.Count && !string.IsNullOrEmpty(mission.Objectives[i]);
+                bool visible = mostraPercorso && mission != null && mission.Objectives != null && i < mission.Objectives.Count && !string.IsNullOrEmpty(mission.Objectives[i]);
                 PanelLayout.SetActive(step.Root.gameObject, visible);
                 if (!visible) continue;
                 SetText(step.Number, (i + 1).ToString());
@@ -159,7 +166,7 @@ namespace SI81.UI
                 float textHeight = Mathf.Ceil(step.Text.GetPreferredValues(mission.Objectives[i], stepTextWidth, 0f).y);
                 step.Root.sizeDelta = new Vector2(step.Root.sizeDelta.x, Mathf.Max(26f, textHeight));
             }
-            if (side != null) side.RefreshLayout();
+            if (side != null && mostraPercorso) side.RefreshLayout();
         }
 
         /// <summary>

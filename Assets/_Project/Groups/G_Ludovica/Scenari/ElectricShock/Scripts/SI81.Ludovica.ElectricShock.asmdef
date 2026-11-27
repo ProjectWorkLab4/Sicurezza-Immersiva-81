@@ -1,0 +1,19 @@
+{
+    "name": "SI81.Ludovica.ElectricShock",
+    "rootNamespace": "SI81.Ludovica.ElectricShock",
+    "references": [
+        "SI81.UI",
+        "SI81.Input",
+        "SI81.Interaction",
+        "SI81.Rig"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

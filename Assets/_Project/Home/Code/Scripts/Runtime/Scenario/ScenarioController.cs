@@ -138,8 +138,9 @@ namespace SI81.UI
             yield return null;
             LevelConfig cfg = UIServices.Catalog != null ? UIServices.Catalog.GetLevelConfig(MissionSession.Level) : null;
             if (HUDService.IsReady && cfg != null) HUDService.ApplyLevel(cfg);
+            MissionFlow.EnsureObjectiveState(ObjectiveCount);
             currentObjective = 0;
-            objectivesCompleted = 0;
+            objectivesCompleted = MissionFlow.CompletedObjectiveCount;
             if (ObjectiveCount > 0) SetObjective(0);
             SetPhase(PHASE_SCAN);
 
@@ -156,22 +157,57 @@ namespace SI81.UI
         {
             HUDService.TimerExpired -= HandleTimerExpired;
             if (decisionPanel != null && decisionPanel.IsOpen) decisionPanel.Close();
-            if (movedOrigin != null) movedOrigin.SetPositionAndRotation(originalOriginPosition, originalOriginRotation);
+            if (movedOrigin != null)
+            {
+                movedOrigin.localPosition = originalOriginPosition;
+                movedOrigin.localRotation = originalOriginRotation;
+            }
         }
 
         /// <summary>
-        /// Porta l'origine del tracciamento del rig sul punto di partenza (posizione e imbardata). La posa originale viene
-        /// ripristinata quando la scena si scarica. Con un rig reale (VR Interaction System) questa regola va confermata con quel team.
+        /// Porta l'origine del tracciamento del rig sul punto di partenza (posizione e imbardata) solo se la scena non
+        /// usa già <c>SI81.Rig.SpawnPoint</c>. Quando <c>SpawnPoint</c> è presente, è il componente del rig a spostare
+        /// e ripristinare la radice del rig senza spostare il <c>TrackingOrigin</c> figlio (che altrimenti corromperebbe
+        /// lo spawn degli scenari successivi e l'offset della modalità seduto).
         /// </summary>
         private void MoveRigToSpawnPoint()
         {
             if (spawnPoint == null || UIScreenManager.Instance == null) return;
+            if (HasRigSpawnPoint()) return;
             Transform origin = UIScreenManager.Instance.TrackingOrigin;
             if (origin == null) return;
             movedOrigin = origin;
-            originalOriginPosition = origin.position;
-            originalOriginRotation = origin.rotation;
+            originalOriginPosition = origin.localPosition;
+            originalOriginRotation = origin.localRotation;
             origin.SetPositionAndRotation(spawnPoint.position, Quaternion.Euler(0f, spawnPoint.eulerAngles.y, 0f));
+        }
+
+        /// <summary>
+        /// True se lo spawnPoint assegnato o un oggetto della stessa scena monta già <c>SI81.Rig.SpawnPoint</c>.
+        /// Controllo per nome di tipo per non introdurre una dipendenza da <c>SI81.UI</c> verso <c>SI81.Rig</c>.
+        /// </summary>
+        private bool HasRigSpawnPoint()
+        {
+            if (spawnPoint != null && HasRigSpawnPointComponent(spawnPoint.gameObject)) return true;
+            UnityEngine.SceneManagement.Scene scene = gameObject.scene;
+            if (!scene.IsValid() || !scene.isLoaded) return false;
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] != null && HasRigSpawnPointComponent(roots[i])) return true;
+            }
+            return false;
+        }
+
+        private static bool HasRigSpawnPointComponent(GameObject root)
+        {
+            MonoBehaviour[] behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                MonoBehaviour b = behaviours[i];
+                if (b != null && b.GetType().FullName == "SI81.Rig.SpawnPoint") return true;
+            }
+            return false;
         }
 
 #if UNITY_EDITOR
@@ -243,8 +279,29 @@ namespace SI81.UI
         public void CompleteObjective()
         {
             if (!IsRunning) return;
-            objectivesCompleted = Mathf.Min(objectivesCompleted + 1, ObjectiveCount);
+            if (MissionFlow.HasObjectiveCompletionState)
+                MissionFlow.SetObjectiveCompleted(currentObjective, true);
+            objectivesCompleted = MissionFlow.HasObjectiveCompletionState
+                ? MissionFlow.CompletedObjectiveCount
+                : Mathf.Min(objectivesCompleted + 1, ObjectiveCount);
             if (currentObjective + 1 < ObjectiveCount) SetObjective(currentObjective + 1);
+        }
+
+        /// <summary>
+        /// Segna completato un obiettivo specifico e porta il polso al primo obiettivo ancora da fare.
+        /// Utile negli scenari in cui le azioni possono avvenire in ordine libero.
+        /// </summary>
+        /// <param name="index">Indice 0-based in MissionDefinition.Objectives.</param>
+        public void SetObjectiveCompleted(int index)
+        {
+            if (!IsRunning || index < 0 || index >= ObjectiveCount)
+                return;
+
+            MissionFlow.EnsureObjectiveState(ObjectiveCount);
+            MissionFlow.SetObjectiveCompleted(index, true);
+            objectivesCompleted = MissionFlow.CompletedObjectiveCount;
+            int next = MissionFlow.FirstIncompleteObjectiveIndex();
+            SetObjective(next >= 0 ? next : ObjectiveCount - 1);
         }
 
         /// <summary>

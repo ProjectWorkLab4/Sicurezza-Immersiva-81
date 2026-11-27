@@ -1,0 +1,16 @@
+{
+    "name": "SI81.MachineLock",
+    "rootNamespace": "SI81.MachineLock",
+    "references": [
+        "SI81.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

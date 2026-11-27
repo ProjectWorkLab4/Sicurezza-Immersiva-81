@@ -435,6 +435,80 @@ namespace SI81.UI.Rig.Tests
                 PlayerPrefs.Save();
             }
         }
+
+        [UnityTest]
+        public IEnumerator ScenarioController_WithRigSpawnPoint_DoesNotCorruptTrackingOriginAcrossScenarios()
+        {
+            head.localPosition = new Vector3(0f, 1.20f, 0f);
+            store.SetBool(SettingsCatalog.COMFORT_SEATED_MODE, true);
+            yield return null;
+
+            float seatedOffset = bridge.AppliedSeatedOffset;
+            Assert.That(seatedOffset, Is.EqualTo(0.40f).Within(0.001f));
+
+            MissionDefinition mission = ScriptableObject.CreateInstance<MissionDefinition>();
+            GameObject scenario1SpawnGo = null;
+            GameObject scenario1ControllerGo = null;
+            GameObject scenario2SpawnGo = null;
+            try
+            {
+                MissionSession.Begin(mission, DifficultyLevel.Guided, false);
+
+                // Scenario 1: wires BOTH SI81.Rig.SpawnPoint and ScenarioController.spawnPoint (like ElectricShock/GasLeak/Evacuation/ManDown).
+                scenario1SpawnGo = new GameObject("MNG_SpawnPoint_Scenario1");
+                scenario1SpawnGo.transform.SetPositionAndRotation(new Vector3(5f, 0f, -3f), Quaternion.Euler(0f, 180f, 0f));
+                scenario1SpawnGo.AddComponent<SpawnPoint>();
+
+                scenario1ControllerGo = new GameObject("MNG_Scenario_Scenario1");
+                ScenarioController controller = scenario1ControllerGo.AddComponent<ScenarioController>();
+                var so = new SerializedObject(controller);
+                so.FindProperty("mission").objectReferenceValue = mission;
+                so.FindProperty("spawnPoint").objectReferenceValue = scenario1SpawnGo.transform;
+                so.FindProperty("loadCoreInEditor").boolValue = false;
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                yield return null;
+                yield return null;
+
+                Assert.That(Vector3.Distance(rigRoot.transform.position, new Vector3(5f, 0f, -3f)), Is.LessThan(0.001f));
+                Assert.That(trackingOrigin.localPosition.x, Is.EqualTo(0f).Within(0.001f));
+                Assert.That(trackingOrigin.localPosition.y, Is.EqualTo(seatedOffset).Within(0.001f));
+                Assert.That(trackingOrigin.localPosition.z, Is.EqualTo(0f).Within(0.001f));
+
+                // Unload Scenario 1 (SpawnPoint disables first, then ScenarioController destroys).
+                Object.DestroyImmediate(scenario1SpawnGo);
+                scenario1SpawnGo = null;
+                Object.DestroyImmediate(scenario1ControllerGo);
+                scenario1ControllerGo = null;
+                MissionSession.Clear();
+                yield return null;
+
+                Assert.That(Vector3.Distance(rigRoot.transform.position, Vector3.zero), Is.LessThan(0.001f),
+                    "Unloading Scenario 1 must restore rig root to origin.");
+                Assert.That(Vector3.Distance(trackingOrigin.localPosition, new Vector3(0f, seatedOffset, 0f)), Is.LessThan(0.001f),
+                    "Unloading Scenario 1 must NOT leak world-space offset into TrackingOrigin.localPosition.");
+                Assert.That(Quaternion.Angle(trackingOrigin.localRotation, Quaternion.identity), Is.LessThan(0.1f));
+
+                // Scenario 2 (Machine Lock style): relies solely on SI81.Rig.SpawnPoint at (-7.6, 0, 0), yaw 90 deg.
+                scenario2SpawnGo = new GameObject("MNG_SpawnPoint_MachineLock");
+                scenario2SpawnGo.transform.SetPositionAndRotation(new Vector3(-7.6f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
+                scenario2SpawnGo.AddComponent<SpawnPoint>();
+                yield return null;
+
+                Assert.That(Vector3.Distance(rigRoot.transform.position, new Vector3(-7.6f, 0f, 0f)), Is.LessThan(0.001f));
+                Assert.That(Vector3.Distance(trackingOrigin.position, new Vector3(-7.6f, seatedOffset, 0f)), Is.LessThan(0.001f),
+                    "Scenario 2 must spawn TrackingOrigin cleanly at (-7.6, seatedOffset, 0) with zero drift.");
+                Assert.That(Mathf.Abs(Mathf.DeltaAngle(trackingOrigin.eulerAngles.y, 90f)), Is.LessThan(0.1f));
+            }
+            finally
+            {
+                if (scenario2SpawnGo != null) Object.DestroyImmediate(scenario2SpawnGo);
+                if (scenario1ControllerGo != null) Object.DestroyImmediate(scenario1ControllerGo);
+                if (scenario1SpawnGo != null) Object.DestroyImmediate(scenario1SpawnGo);
+                MissionSession.Clear();
+                Object.DestroyImmediate(mission);
+            }
+        }
 #endif
     }
 }

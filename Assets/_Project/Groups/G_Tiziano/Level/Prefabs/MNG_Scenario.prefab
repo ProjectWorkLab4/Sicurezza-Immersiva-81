@@ -1,0 +1,108 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2958509888238100818
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6026888822680916159}
+  - component: {fileID: 869715408196147823}
+  - component: {fileID: 334001316693301934}
+  - component: {fileID: 1070518646462130399}
+  m_Layer: 0
+  m_Name: MNG_Scenario
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6026888822680916159
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2958509888238100818}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &869715408196147823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2958509888238100818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c17e3ad8300e04242bc34768b945a208, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Debug.DebugCommands
+  teleportMarker: {fileID: 0}
+  teleportMarkers:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  markerName: DebugSpawnMarker
+  chemicalAlertConfigs:
+  - {fileID: 11400000, guid: b484d29349d4e3a48a3d876de3bbd857, type: 2}
+  - {fileID: 11400000, guid: 5ad019fec37259e4db3d3f02d1c087d0, type: 2}
+  - {fileID: 11400000, guid: e5fd55f40d8981846b82a2b900626e18, type: 2}
+  replaySeedForDebug: 81081
+--- !u!114 &334001316693301934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2958509888238100818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94eff0ca9c3e9f245a1c686a7d4f7ab6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Systems.PlayerPPEState
+  director: {fileID: 0}
+  debugCorrectSet:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  debugDecoySet: []
+  debugVariant: {fileID: 11400000, guid: 1574a64395e3f534692b46bda9047232, type: 2}
+  cabinetItems:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  maskItem: {fileID: 11400000, guid: 5d1d4ef95a22cc2438157e47b6f334ba, type: 2}
+  glovesItem: {fileID: 11400000, guid: f2016798df2befa4b840b3fa428ff663, type: 2}
+  eyeProtectionItem: {fileID: 11400000, guid: d38dfed623620744dbe24ba6d337dd8c, type: 2}
+--- !u!114 &1070518646462130399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2958509888238100818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34bd2906195e249498583a4c58446f32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.ChemicalAlert.Systems.ChemicalAlertScenarioController
+  mission: {fileID: 11400000, guid: 33087081ca5c261488e95854e7b06b0c, type: 2}
+  spawnPoint: {fileID: 0}
+  editorLevel: 1
+  loadCoreInEditor: 0
+  director: {fileID: 0}

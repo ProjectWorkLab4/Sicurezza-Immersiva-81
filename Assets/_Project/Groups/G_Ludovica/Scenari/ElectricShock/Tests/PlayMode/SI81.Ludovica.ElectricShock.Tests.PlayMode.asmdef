@@ -1,0 +1,26 @@
+{
+    "name": "SI81.Ludovica.ElectricShock.Tests.PlayMode",
+    "rootNamespace": "SI81.Ludovica.ElectricShock.Tests",
+    "references": [
+        "SI81.Ludovica.ElectricShock",
+        "SI81.UI",
+        "SI81.Input",
+        "SI81.Interaction",
+        "SI81.Rig",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

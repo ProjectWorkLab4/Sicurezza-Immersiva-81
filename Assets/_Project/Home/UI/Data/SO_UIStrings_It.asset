@@ -348,6 +348,10 @@ MonoBehaviour:
     Text: GRIP
   - Key: hud.prompt.action.grab
     Text: Afferra
+  - Key: hud.prompt.button.trigger
+    Text: TRIGGER
+  - Key: hud.prompt.action.interact
+    Text: Interagisci
   - Key: hud.subtitles.speaker_line
     Text: '{0}: {1}'
   - Key: hud.subtitles.sound_event

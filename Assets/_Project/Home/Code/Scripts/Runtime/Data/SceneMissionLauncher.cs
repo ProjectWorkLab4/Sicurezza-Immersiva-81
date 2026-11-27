@@ -107,8 +107,24 @@ namespace SI81.UI
             }
             Time.timeScale = 1f;
             // Ricomincia / Riprova / Cambia livello: se uno scenario è ancora caricato lo scarica, altrimenti la scena si duplica.
-            UnloadLoadedScene();
+            // La nuova scena si carica solo a scaricamento finito: se le due operazioni si sovrappongono, lo SpawnPoint della scena
+            // vecchia (in OnDisable) riporta il rig alla posa di prima DOPO lo spawn della scena nuova, e il giocatore parte fuori
+            // dallo scenario (piu' probabile sul visore, dove i caricamenti sono lenti).
+            AsyncOperation unload = UnloadLoadedScene();
             MissionSession.Begin(m, level, training);
+            if (unload != null && !unload.isDone)
+            {
+                unload.completed += _ => LoadMissionScene(m);
+                if (UIScreenManager.Instance != null) UIScreenManager.Instance.HideMenu();
+                return;
+            }
+            LoadMissionScene(m);
+        }
+
+        /// <summary>Carica la scena dello scenario (additiva o singola) e la rende attiva a caricamento finito.</summary>
+        /// <param name="m">Scenario.</param>
+        private void LoadMissionScene(MissionDefinition m)
+        {
             AsyncOperation op = SceneManager.LoadSceneAsync(m.SceneName, additive ? LoadSceneMode.Additive : LoadSceneMode.Single);
             if (op == null)
             {
@@ -133,14 +149,15 @@ namespace SI81.UI
         /// <summary>
         /// Scarica la scena di scenario ancora caricata (se c'è) e rimette attiva la scena di base.
         /// </summary>
-        private void UnloadLoadedScene()
+        /// <returns>L'operazione di scaricamento, o null se non c'era nulla da scaricare.</returns>
+        private AsyncOperation UnloadLoadedScene()
         {
-            if (!additive || string.IsNullOrEmpty(loadedMissionScene)) return;
+            if (!additive || string.IsNullOrEmpty(loadedMissionScene)) return null;
             Scene scene = SceneManager.GetSceneByName(loadedMissionScene);
             loadedMissionScene = null;
-            if (!scene.isLoaded) return;
+            if (!scene.isLoaded) return null;
             SetCoreSceneActive(scene);
-            SceneManager.UnloadSceneAsync(scene);
+            return SceneManager.UnloadSceneAsync(scene);
         }
 
         /// <summary>

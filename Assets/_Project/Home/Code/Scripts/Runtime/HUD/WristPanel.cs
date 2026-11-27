@@ -73,6 +73,7 @@ namespace SI81.UI
         private int objectiveTotal;
         private string phaseKey;
         private string hint = string.Empty;
+        private string countdown = string.Empty;
         private string lastAlert = string.Empty;
         private int shownSeconds = -1;
         private bool timerWarning;
@@ -221,6 +222,17 @@ namespace SI81.UI
         }
 
         /// <summary>
+        /// Conto alla rovescia di scenario (es. "Soccorsi 1:05") nella riga del suggerimento: mostrato in tutti i livelli
+        /// e prioritario sul suggerimento finché non viene svuotato. Indipendente dal timer missione.
+        /// </summary>
+        /// <param name="text">Testo; vuoto = nascosto (torna il suggerimento).</param>
+        public void SetCountdown(string text)
+        {
+            countdown = text ?? string.Empty;
+            Relayout();
+        }
+
+        /// <summary>
         /// Copia l'ultimo avviso mostrato sul polso.
         /// </summary>
         /// <param name="text">Testo dell'avviso.</param>
@@ -354,14 +366,16 @@ namespace SI81.UI
 
             // Suggerimento (solo livelli con ShowHints) e ultimo avviso.
             float lineHeight = PanelLayout.LineHeight(theme.Body);
-            bool hasHint = showHints && !string.IsNullOrEmpty(hint) && hintRow != null;
+            bool hasCountdown = !string.IsNullOrEmpty(countdown);
+            string rowText = hasCountdown ? countdown : hint;
+            bool hasHint = (hasCountdown || (showHints && !string.IsNullOrEmpty(hint))) && hintRow != null;
             bool hasAlert = !string.IsNullOrEmpty(lastAlert) && alertRow != null;
             float alertHeight = hasAlert ? lineHeight + 2f : 0f;
             if (hasHint)
             {
                 float textWidth = contentWidth - ICON_SIZE - 8f;
-                if (hintText.text != hint) hintText.text = hint;
-                float preferred = Mathf.Ceil(hintText.GetPreferredValues(hint, textWidth, 0f).y);
+                if (hintText.text != rowText) hintText.text = rowText;
+                float preferred = Mathf.Ceil(hintText.GetPreferredValues(rowText, textWidth, 0f).y);
                 float available = height - PADDING - y - alertHeight - (hasAlert ? ROW_GAP : 0f);
                 float hintHeight = Mathf.Min(preferred, 2f * lineHeight);
                 if (hintHeight > available) hintHeight = lineHeight;

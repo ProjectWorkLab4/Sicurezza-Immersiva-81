@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9351a8404c02e2c438b182ce86a9c18e, type: 3}
+  m_Name: SO_Replay_ForkliftChaos
+  m_EditorClassIdentifier: Assembly-CSharp::G_Ludovica.ForkliftChaos.ForkliftChaosReplayConfig
+  seed: 7
+  fixedReplay: 0
+  m2DelayAfterCallGuided: {x: 60, y: 120}
+  m2DelayAfterCallOperational: {x: 30, y: 90}
+  m2DelayWithoutCall: 150
+  hornLeadSeconds: 6
+  colleagueArrivalAfterShout: {x: 60, y: 90}
+  colleagueCountMin: 2
+  colleagueCountMax: 2
+  forceApnea: 0
+  apneaChanceGuided: 0
+  apneaChanceOperational: 0.33
+  apneaChanceCrisis: 0.5
+  apneaAtSeconds: 150
+  cprDeadlineSeconds: 120
+  pa02High: 0
+  rackEast: 0

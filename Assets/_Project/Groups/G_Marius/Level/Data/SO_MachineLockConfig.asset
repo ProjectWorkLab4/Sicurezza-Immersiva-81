@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2395a86eb975dfb45a70fb383d148e56, type: 3}
+  m_Name: SO_MachineLockConfig
+  m_EditorClassIdentifier: SI81.MachineLock::SI81.MachineLock.MachineLockConfig
+  timeLimitGuided: 900
+  timeLimitRealistic: 600
+  timeLimitStress: 480
+  hardEndRealistic: 1
+  hardEndStress: 1
+  hardEndGuided: 0
+  energizedProbability: 0.5
+  energyDecayMinSeconds: 15
+  energyDecayMaxSeconds: 30
+  observationMode: 0
+  gazeDistance: 3.5
+  gazeAngle: 25
+  gazeDwell: 1.2
+  proximityDistance: 1.5
+  proximityDwell: 0.5
+  snapRadius: 0.6
+  inactionSmokeSeconds: 90
+  inactionSmokeStage2Seconds: 150
+  inactionBadEndingSeconds: 240
+  criticalCooldownSeconds: 5
+  respawnDelaySeconds: 2
+  criticalSafetyPenalty: 10
+  waterSafetyPenalty: 5
+  tryStartSafetyPenalty: 5
+  criticalDecisionPenalty: 10
+  missingEStopSafetyPenalty: 20
+  missingEStopDecisionPenalty: 40
+  missingAlarmPenalty: 8
+  missingMainPenalty: 2
+  missingLockoutPenalty: 2
+  missingConesPenalty: 4
+  missingContainmentPenalty: 5
+  timeoutPenalty: 5
+  executionEStop: 2
+  executionAlarm: 2
+  executionIsolation: 3
+  executionZeroEnergy: 2
+  executionPpe: 3
+  executionContainment: 2
+  executionExit: 1
+  awarenessMax: 20
+  awarenessTargets: 6
+  timeMax: 5

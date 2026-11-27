@@ -1,0 +1,64 @@
+name: Repository Hygiene
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ban Unity Version Control (collab-proxy / Plastic)
+        run: |
+          if git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json; then
+            echo "::error::com.unity.collab-proxy is forbidden (Git-only repository)."
+            exit 1
+          fi
+          if [ -n "$(git ls-files -- '.plastic/*' 'plastic.workspace*' 'ignore.conf')" ]; then
+            echo "::error::Plastic/UVCS workspace files are forbidden."
+            exit 1
+          fi
+
+      - name: Ban OVRInput and XR Interaction Toolkit in scenario scripts
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess, sys
+          pat = re.compile(r'\b(OVRInput|XRGrabInteractable|XRRayInteractable|XRInteractionManager)\b|UnityEngine\.XR\.Interaction')
+          files = subprocess.check_output(['git', 'ls-files', 'Assets/_Project/Groups'], text=True).splitlines()
+          bad = []
+          for f in files:
+              if '/Code/Scripts/' not in f or not f.endswith('.cs'):
+                  continue
+              for idx, line in enumerate(pathlib.Path(f).read_text(encoding='utf-8', errors='replace').splitlines(), 1):
+                  s = line.lstrip()
+                  if s.startswith('//') or s.startswith('*'):
+                      continue
+                  if pat.search(line):
+                      bad.append(f'{f}:{idx}: {s}')
+          if bad:
+              print('Banned VR APIs found:\n' + '\n'.join(bad))
+              sys.exit(1)
+          print('No banned VR APIs in scenario scripts.')
+          PY
+
+      - name: Verify Unity .meta pairing and no auto-generated Meta XR overlay asset
+        run: |
+          python3 - <<'PY'
+          import subprocess, sys
+          tracked = set(subprocess.check_output(['git', 'ls-files', 'Assets'], text=True).splitlines())
+          errors = []
+          for p in sorted(tracked):
+              if p.startswith('Assets/Resources/OVROverlayCanvasSettings.asset'):
+                  errors.append(f'Auto-generated Meta XR asset must not be committed: {p}')
+              if p.endswith('.meta'):
+                  continue
+              if f'{p}.meta' not in tracked:
+                  errors.append(f'Missing .meta file for tracked asset: {p}')
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+          print(f'Verified .meta pairing across {len(tracked)} tracked paths under Assets/.')
+          PY

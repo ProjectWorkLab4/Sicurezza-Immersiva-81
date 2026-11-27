@@ -1,0 +1,410 @@
+================================================================================
+SICUREZZA IMMERSIVA 81 - SCENARIO 08 "MACHINE LOCK"
+ASSET AVAILABILITY AUDIT
+================================================================================
+Source list : "Lista asset Scenario ManDown" (received 2026-11-26)
+Repository  : D:\lavoro\ProjectWork_Lab4\ProjectWork_Lab4
+Branch      : feat/movement-lock (HEAD 3bd2ea1)
+Audit date  : 2026-11-26
+
+STATUS KEY
+  [OK]      Real file present in the current checkout.
+  [PARTIAL] Something related exists, but it is not the requested item.
+  [MISSING] Nothing usable found in any branch of the repository.
+  [BRANCH]  File exists only on an unmerged origin/* branch, not in this checkout.
+
+HOW TO READ THE ENTRIES
+  - "Unity path" is relative to the project root and starts with Assets/.
+  - "Technical name" is the Unity asset name, i.e. the file name without extension.
+  - When a shared file name is not a good production name (for example
+    Material.036), the entry also gives a suggested name for the G_Marius copy.
+
+CONTEXT AND WARNINGS
+  1. Scenario 08 mission data is
+     Assets/_Project/Home/UI/Data/Missions/SO_Mission_MachineLock.asset
+     (Id 08, Title "Machine Lock", SceneName SCN_MachineLock). Its brief is:
+     a press jams during its cycle, the maintainer must apply lockout/tagout,
+     verify residual energy and only then free the part.
+  2. Scenario 03 is Man Down (SO_Mission_ManDown.asset, scene SCN_ManDown).
+     The supplied list is titled "ManDown", but its contents (press, PPE,
+     extinguisher) match the Machine Lock brief. This audit treats the list as
+     the scenario 08 list.
+  3. No SCN_MachineLock scene exists in any branch yet. Only the mission
+     definition exists.
+  4. In this checkout Assets/_Project/Groups/G_Marius/ contains only
+     PLACEHOLDER.txt files. Marius' real content (a Man Down office scene) is on
+     origin/group_marius and is an office, not a factory.
+  5. There is no hydraulic press model anywhere in the repository. This is the
+     main blocker for scenario 08.
+  6. Assets on origin/group_tiziano, origin/gruppo_ludovica and
+     origin/group_simone are other groups' work. Read them, do not edit them;
+     copy what you need into G_Marius, as required by README.md.
+  7. The concrete textures are 4K and heavy for Quest. Import at 1024 or 2048
+     with ASTC compression, or use a lower-resolution variant.
+
+SUMMARY
+  [OK]       7 entries
+  [PARTIAL]  7 entries
+  [MISSING]  8 entries
+  Total     22 entries
+
+Suggested folders for new G_Marius content (matches the project skeleton):
+  Assets/_Project/Groups/G_Marius/Art/Models/MachineLock/
+  Assets/_Project/Groups/G_Marius/Art/Materials/MachineLock/
+  Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/
+  Assets/_Project/Groups/G_Marius/Level/Prefabs/MachineLock/
+
+
+================================================================================
+A. STUDIO / ENVIRONMENT
+================================================================================
+
+1. Industrial factory modular kit
+   STATUS: MISSING
+   No modular factory kit exists in any branch.
+   Closest reusable pieces (not a kit):
+   - Assets/_Project/Shared/Level/Prefabs/Chemical_Alert_Room/
+     Ten modular room FBX: MESH_LATO_CORTO_TEAM, MESH_LATO_CORTO_FINESTRE_TEAM,
+     MESH_LATO_LUNGO_TEAM, MESH_LATO_LUNGO_FINESTRE_TEAM, MESH_PAVIMENTO_TEAM,
+     MESH_TETTO_TEAM, MESH_PORTA_CAMION_TEAM, MESH_PORTA_CAMION_FINESTRE_TEAM,
+     MESH_STANZA_FINESTRE, MESH_STANZA__NO_FINESTRE.
+   - Assets/_Project/Shared/Art/Models/ warehouse props:
+     MESH_Magazzino_Scaffale, MESH_Magazzino_Barriera, MESH_Magazzino_Pallet,
+     MESH_Magazzino_LuceDaSoffitto, MESH_Magazzino_Radio, MESH_Magazzino_Cono.
+   - origin/group_tiziano: graybox warehouse in
+     Assets/_Project/Groups/G_Tiziano/Level/Scenes/SCN_ChemicalAlert.unity with
+     primitive prefabs Floor, Shelf_Left, Shelf_Right, Truck, Barrel, ServiceDoor.
+     These are grayboxes, not production geometry.
+   Suggested names if imported: MESH_FactoryKit_<Module> (MESH_FactoryKit_Wall,
+   MESH_FactoryKit_Pillar, MESH_FactoryKit_Window, MESH_FactoryKit_Roof).
+
+2. Industrial concrete floor PBR
+   STATUS: OK
+   Textures (4K):
+   - Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_diff_4k.jpg
+     Technical name: concrete_floor_worn_001_diff_4k (albedo / base color)
+   - Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_nor_gl_4k.exr
+     Technical name: concrete_floor_worn_001_nor_gl_4k (normal, OpenGL)
+   - Assets/_Project/Shared/Art/Textures/concrete_floor_worn_001_rough_4k.jpg
+     Technical name: concrete_floor_worn_001_rough_4k (roughness)
+   Ready material:
+   - Assets/_Project/Shared/Art/Materials/Material.036.mat
+     Technical name: Material.036
+     URP Lit, already wired to the three textures above.
+     Suggested production name for the G_Marius copy: MAT_ConcreteFloorWorn
+   Alternative set:
+   - Assets/_Project/Shared/Art/Textures/concrete_layers_02_diff_4k.jpg
+   - Assets/_Project/Shared/Art/Textures/concrete_layers_02_nor_gl_4k.exr
+   - Assets/_Project/Shared/Art/Textures/concrete_layers_02_rough_4k.exr
+   - Assets/_Project/Shared/Art/Materials/Material.038.mat
+     Technical name: Material.038 (MAT_ConcreteLayers)
+
+3. Floor safety marking decal
+   STATUS: MISSING
+   No decal projector, decal texture or painted floor marking exists.
+   Only flat color stand-ins (branch-only, origin/group_tiziano):
+   - .../Art/Materials/MAT_Hazard.mat     Technical name: MAT_Hazard (yellow)
+   - .../Art/Materials/MAT_Safety.mat     Technical name: MAT_Safety (green)
+   - .../Art/Materials/Evacuation/MAT_EV_PlanMark.mat
+     Technical name: MAT_EV_PlanMark (green)
+   Not a decal: origin/group_simone
+   Assets/_Project/Groups/G_Simone/Art/Models/MESH_SegnaleticaLuminosa.fbx
+   (MESH_SegnaleticaLuminosa, illuminated safety sign; materials MAT_LuceExit
+   and MAT_LuceEmergenza).
+   Suggested names: TEX_FloorSafetyMarking_<Type> plus
+   MAT_FloorSafetyMarking_<Type> on a URP Decal Projector.
+
+4. Industrial door
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Level/Prefabs/PortaCamion.prefab
+     Technical name: PortaCamion
+     Note: scaled Cube graybox (built-in mesh), not the FBX below.
+   - Assets/_Project/Shared/Level/Prefabs/Chemical_Alert_Room/MESH_PORTA_CAMION_TEAM.fbx
+     Technical name: MESH_PORTA_CAMION_TEAM (solid roll-up / shipping door)
+   - Assets/_Project/Shared/Level/Prefabs/Chemical_Alert_Room/MESH_PORTA_CAMION_FINESTRE_TEAM.fbx
+     Technical name: MESH_PORTA_CAMION_FINESTRE_TEAM (with windows)
+   Office door, not industrial (branch-only, origin/group_marius):
+   - Assets/_Project/Groups/G_Marius/Art/Models/Man_Down/MESH_OfficeDoor.fbx
+     Technical name: MESH_OfficeDoor
+   Suggested production name for a group copy: MESH_IndustrialDoor_RollUp.
+
+5. Industrial pipes
+   STATUS: MISSING
+   Only one pipe-shaped prop exists:
+   - Assets/_Project/Shared/Art/Models/MESH_Folgorazione_TuboDiCemento.fbx
+     Technical name: MESH_Folgorazione_TuboDiCemento
+     Note: concrete pipe section used in the electric-shock set. It is a single
+     prop, not a piping kit (no elbows, flanges, valves or supports).
+   Suggested names: MESH_IndustrialPipe_Straight, MESH_IndustrialPipe_Elbow,
+   MESH_IndustrialPipe_Flange, MESH_IndustrialPipe_Support.
+
+6. Hydraulic press
+   STATUS: MISSING
+   No press, pressa, hydraulic machine mesh, prefab, texture or script exists in
+   any branch. This is the central prop of scenario 08 and the main blocker.
+   Suggested names: MESH_HydraulicPress, MESH_HydraulicPress_Ram (moving part),
+   MESH_HydraulicPress_ControlPanel.
+   Minimum graybox: frame plus ram. Keep the ram as a separate child transform
+   so the scenario script can animate its local Y position.
+
+7. Industrial panel / display
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Oggetti/Quadro Elettrico/Quadro Elettrico.fbx
+     Technical name: Quadro Elettrico (electrical cabinet, not an HMI/display)
+     Companion files: Quadro Elettrico.blend, Quadro_elettrico_atlas.png
+   - Assets/_Project/Shared/Art/Models/MESH_PULSANTI_TEAM.fbx
+     Technical name: MESH_PULSANTI_TEAM (pushbutton panel)
+   - Assets/_Project/Shared/Art/Models/MESH_Computer.fbx
+     Technical name: MESH_Computer (office PC, not industrial)
+   - Assets/_Project/Shared/Level/Prefabs/Office/TV_DA_UFFICIO_ONEDRIVE.fbx
+     Technical name: TV_DA_UFFICIO_ONEDRIVE (office TV; can act as a screen)
+   No industrial HMI screen exists.
+   Suggested: MESH_IndustrialHMI (frame plus screen) and MAT_HMI_Screen
+   (emissive material).
+
+8. Emergency stop button
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Art/Models/MESH_PULSANTI_TEAM.fbx
+     Technical name: MESH_PULSANTI_TEAM
+     Note: generic pushbuttons. No red mushroom head, no yellow backplate.
+   No e-stop interaction script exists; use the shared Interactable /
+   RayInteractor contract.
+   Suggested: MESH_EmergencyStopButton, MAT_EmergencyStop_Red,
+   MAT_EmergencyStop_Yellow.
+
+9. Disconnected switch (contatore)
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Oggetti/Quadro Elettrico/Quadro Elettrico.fbx
+     Technical name: Quadro Elettrico (cabinet that can host the main breaker)
+   - Assets/_Project/Shared/Oggetti/Presa/Presa.fbx
+     Technical name: Presa (socket)
+   - Assets/_Project/Shared/Oggetti/Manopola.fbx
+     Technical name: Manopola (knob; usable as a rotary disconnect handle)
+   Branch-only code that can be read and adapted, not copied blindly
+   (origin/group_simone, another group's work):
+   - Assets/_Project/Groups/G_Simone/Code/Scripts/QuadroElettricoInterattivo.cs
+   Missing: energy meter (contatore), main breaker, lockout/tagout padlock.
+   Suggested: MESH_DisconnectSwitch, MESH_EnergyMeter, MESH_LockoutPadlock.
+
+10. Tappeti per asciugare olio (oil absorbent mats)
+    STATUS: OK
+    - Assets/_Project/Shared/Art/Models/MESH_PANNO_ASSORBENTE_TEAM.fbx
+      Technical name: MESH_PANNO_ASSORBENTE_TEAM (absorbent cloth / mat)
+    - Assets/_Project/Shared/Art/Textures/MAPPA_NORMALE_PANNO.png
+      Technical name: MAPPA_NORMALE_PANNO (normal map)
+    - Assets/_Project/Shared/Art/Materials/Material.046.mat
+      Technical name: Material.046 (imported cloth material, roughness 0.1)
+    Branch-only prefabs (origin/group_tiziano):
+    - Assets/_Project/Groups/G_Tiziano/Level/Prefabs/AbsorbentSheet.prefab
+      Technical name: AbsorbentSheet (scaled Cube graybox, not the FBX)
+    - SpillKit.prefab         Technical name: SpillKit
+    - SpillSausage.prefab     Technical name: SpillSausage (absorbent sock)
+    Suggested production name for the group copy: MESH_OilAbsorbentMat.
+    Note: the mat is clean. There is no oil stain texture.
+
+11. Coni (forse)
+    STATUS: OK
+    - Assets/_Project/Shared/Art/Models/MESH_Magazzino_Cono.fbx
+      Technical name: MESH_Magazzino_Cono
+    - Branch-only prefab (origin/gruppo_ludovica):
+      Assets/_Project/Groups/G_Ludovica/Assets/Level/Prefabs/MDL_Magazzino_Cono.prefab
+      Technical name: MDL_Magazzino_Cono
+    Related: Assets/_Project/Shared/Art/Models/MESH_Magazzino_Barriera.fbx
+    (MESH_Magazzino_Barriera).
+
+
+================================================================================
+B. DPI (correct PPE)
+================================================================================
+
+1. Face shield
+   STATUS: MISSING (mesh) / data-only on branch
+   - origin/group_tiziano
+     Assets/_Project/Groups/G_Tiziano/Code/Scripts/Data/Assets/PPE/PPE_FaceShield.asset
+     Technical name: PPE_FaceShield (ScriptableObject; no mesh, no material)
+   Closest mesh, not a face shield:
+   - Assets/_Project/Shared/Art/Models/OCCHIALI_PROTETTIVI.fbx
+     Technical name: OCCHIALI_PROTETTIVI (safety glasses / goggles)
+   Suggested: MESH_FaceShield, MAT_FaceShield_Visor (transparent).
+
+2. Apron (grembiule anti schizzo)
+   STATUS: MISSING
+   No apron mesh anywhere.
+   - origin/group_tiziano
+     Assets/_Project/Groups/G_Tiziano/Code/Scripts/Data/Assets/PPE/PPE_ChemicalApron.asset
+     Technical name: PPE_ChemicalApron (ScriptableObject only)
+   Suggested: MESH_ChemicalApron, MAT_Apron_Rubber.
+
+3. Safety boots
+   STATUS: MISSING
+   No safety footwear mesh anywhere. The only footwear data is on the Marius
+   employee textures (origin/group_marius TEX_Employee/sneakers_SEVAN_Color_1K.jpeg),
+   which are sneakers, not PPE.
+   Suggested: MESH_SafetyBoots, MAT_SafetyBoot_Leather, MAT_SafetyBoot_Sole.
+
+4. Heat resistant gloves
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Art/Models/GUANTO.fbx
+     Technical name: GUANTO (generic glove / hand)
+   - Assets/_Project/Shared/Art/Textures/NORMAL_GUANTO.png
+     Technical name: NORMAL_GUANTO (normal map)
+   - Assets/_Project/Shared/Art/Materials/Material.001 1.mat
+     Technical name: Material.001 1 (importer-generated glove material; black
+     base color, normal map NORMAL_GUANTO, roughness 0.5)
+   Branch-only data (origin/group_tiziano):
+   - PPE_WorkGloves.asset     Technical name: PPE_WorkGloves
+   - PPE_ChemicalGloves.asset Technical name: PPE_ChemicalGloves
+   No heat-resistant material or mesh exists.
+   Suggested: MESH_HeatResistantGlove, MAT_HeatGlove (aluminized / thick fabric).
+
+
+================================================================================
+C. WRONG DPI
+================================================================================
+
+1. Surgical mask
+   STATUS: OK
+   - Assets/_Project/Shared/Art/Models/MASCHERINA.fbx
+     Technical name: MASCHERINA (surgical-style mask)
+     Imported materials: Material.054 (white mask) and Material.058.
+   - Assets/_Project/Shared/Art/Materials/Material.054.mat
+     Technical name: Material.054 (uses BAKEMASCHERA.001.png as normal map)
+   - Assets/_Project/Shared/Art/Materials/Material.058.mat
+     Technical name: Material.058 (secondary mask part)
+   - Assets/_Project/Shared/Art/BAKEMASCHERA.001.png
+     Technical name: BAKEMASCHERA.001 (baked mask texture)
+   - Assets/_Project/Shared/Art/Materials/MAT_MaskSurface.mat
+     Technical name: MAT_MaskSurface (exists, but it is not referenced by the
+     MASCHERINA FBX; do not assume it is the mask material)
+   Branch-only data (origin/group_tiziano):
+   - PPE_SimpleMask.asset     Technical name: PPE_SimpleMask
+   Suggested production name for the group copy: MESH_SurgicalMask.
+
+2. Latex gloves
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Art/Models/GUANTO.fbx
+     Technical name: GUANTO (same generic glove as the heat-resistant entry)
+   - Assets/_Project/Shared/Art/Textures/NORMAL_GUANTO.png
+   There is no latex-specific material. Recolor a copy to white / cream and
+   raise smoothness to read as latex.
+   Branch-only data (origin/group_tiziano):
+   - PPE_ChemicalGloves.asset Technical name: PPE_ChemicalGloves
+   Suggested: MESH_LatexGlove, MAT_Latex (white, smooth).
+
+3. Fire extinguisher
+   STATUS: OK
+   - Assets/_Project/Shared/Oggetti/Estintore/Estintore.fbx
+     Technical name: Estintore
+     Companion files: Estintore.blend, estintore_atlas.png
+   - Assets/_Project/Shared/Art/Models/MESH_Folgorazione_Estintore.fbx
+     Technical name: MESH_Folgorazione_Estintore (alternative prop)
+   - Assets/_Project/Shared/Art/Models/MESH_Folgorazione_CartelloEstintore.fbx
+     Technical name: MESH_Folgorazione_CartelloEstintore (wall sign)
+   WARNING about the shared prefab:
+   - Assets/_Project/Shared/Level/Prefabs/Office/MESH_FireExtinguisher.prefab
+     exists, but its mesh references point to GUID
+     b85958f6d8dd49a4db573c11f3cd5050, which is only on origin/group_marius
+     (MESH_FireExtinguisher.fbx). In this checkout the prefab has missing mesh
+     references, so do not use it as-is.
+   Higher-detail version (branch-only, origin/group_marius):
+   - Assets/_Project/Groups/G_Marius/Art/Models/Man_Down/MESH_FireExtinguisher.fbx
+   - .../Art/Textures/Man_Down/TEX_FireExtinguisher/
+     APC_Fire_extinguisher_AO.png, APC_Fire_extinguisher_BaseColor.png,
+     APC_Fire_extinguisher_Metallic.png, APC_Fire_extinguisher_Normal.png,
+     APC_Fire_extinguisher_Roughness.png
+   - .../Level/Prefabs/Man_Down/MESH_FireExtinguisher.prefab
+     Technical name: MESH_FireExtinguisher
+   Use Estintore.fbx from Shared, or merge the Marius FBX and prefab.
+
+
+================================================================================
+D. MATERIALS
+================================================================================
+
+1. Acciaio verniciato (painted steel)
+   STATUS: PARTIAL
+   - Assets/_Project/Shared/Art/Materials/MAT_OfficePropWhiteMetallic.mat
+     Technical name: MAT_OfficePropWhiteMetallic
+     URP Lit, white, metallic 0.32, smoothness 0.71. Closest painted/coated steel.
+   - Branch-only (origin/group_tiziano):
+     Assets/_Project/Groups/G_Tiziano/Art/Materials/MAT_SteelDark.mat
+     Technical name: MAT_SteelDark (dark steel, metallic 0.65, smoothness 0.55)
+   No chipped paint or wear texture exists.
+   Suggested: MAT_PaintedSteel (duplicate and adjust color / smoothness).
+
+2. Acciaio lucidato (polished steel)
+   STATUS: OK
+   - Assets/_Project/Shared/Art/Materials/MAT_OfficePropPolishedMetal.mat
+     Technical name: MAT_OfficePropPolishedMetal
+     URP Lit, metallic 1, smoothness 0.98. Exact match.
+   Worn steel textures, if a rougher look is needed:
+   - Assets/_Project/Shared/Art/Textures/rusty_metal_02_nor_gl_4k.exr
+   - Assets/_Project/Shared/Art/Textures/rusty_metal_02_rough_4k.jpg
+   - Assets/_Project/Shared/Art/Textures/rusty_metal_05_diff_4k.jpg
+   - Assets/_Project/Shared/Art/Textures/rusty_metal_05_nor_gl_4k.exr
+   - Assets/_Project/Shared/Art/Textures/rusty_metal_05_rough_4k.exr
+
+3. Concrete
+   STATUS: OK
+   - Assets/_Project/Shared/Art/Materials/Material.036.mat
+     Technical name: Material.036, wired to concrete_floor_worn_001_* (4K)
+   - Assets/_Project/Shared/Art/Materials/Material.038.mat
+     Technical name: Material.038, wired to concrete_layers_02_* (4K)
+   Suggested production names for group copies: MAT_ConcreteFloorWorn and
+   MAT_ConcreteLayers.
+
+4. Oil PBR
+   STATUS: MISSING
+   No oil, olio or lubricant texture or material exists in any branch.
+   - origin/group_tiziano Level/Prefabs/Puddle.prefab (Technical name: Puddle)
+     is a scaled primitive with a simple material, not an oil PBR.
+   Suggested: MAT_Oil plus TEX_OilStain_Albedo, TEX_OilStain_Normal,
+   TEX_OilStain_Roughness.
+   Quick stand-in: URP Lit, dark brown / black base color, metallic 0,
+   smoothness around 0.9.
+
+
+================================================================================
+E. PRIORITY - WHAT BLOCKS SCENARIO 08
+================================================================================
+1. Hydraulic press + moving ram. Nothing exists. Blocker.
+2. Lockout/tagout props: emergency stop, disconnect switch, energy meter,
+   padlock. Only generic buttons and a generic electrical cabinet exist.
+3. Correct / incorrect PPE meshes: face shield, apron, safety boots and heat
+   gloves are missing. Mask, generic gloves and extinguisher are available.
+4. Factory environment and floor decals. Graybox is possible with the
+   Chemical_Alert_Room shell; no production kit exists.
+5. Oil PBR. Cosmetic, but needed for the oil mat / spill beat.
+
+
+================================================================================
+F. BRANCH MAP (where the reusable content actually lives)
+================================================================================
+- HEAD (feat/movement-lock) and origin/main
+  Shared library only: concrete, metals, PPE props, warehouse props, room shell.
+- origin/group_marius
+  Man Down office scene (SCN_ManDown), office door, high-detail fire
+  extinguisher FBX and PBR textures, employee avatar. Not a factory.
+- origin/group_tiziano
+  Chemical Alert warehouse graybox (SCN_ChemicalAlert), PPE ScriptableObjects
+  (no meshes), spill kit / absorbent sheet / puddle prefabs, MAT_SteelDark,
+  MAT_Hazard, MAT_Safety.
+- origin/gruppo_ludovica
+  Forklift Chaos warehouse scene (SCN_ForkliftChaos), cone prefab, warehouse
+  prefabs, forklift audio.
+- origin/group_simone
+  Gas leak room, illuminated safety sign (MESH_SegnaleticaLuminosa),
+  interactive electrical panel script.
+
+
+================================================================================
+G. METHOD
+================================================================================
+- File-system scan of the current checkout under Assets/ (models, materials,
+  textures, prefabs, scenes, mission assets).
+- Full tree scan of every local and remote branch with git ls-tree, so assets
+  that exist only on unmerged group branches are reported as [BRANCH].
+- Content checks of the cited materials and prefabs (shader, base color,
+  metallic, smoothness, texture GUIDs, mesh GUIDs).
+- No Unity import, Play Mode run or on-device check was performed.
+================================================================================

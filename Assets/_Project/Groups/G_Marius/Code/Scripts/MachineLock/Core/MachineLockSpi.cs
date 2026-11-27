@@ -54,6 +54,12 @@ namespace SI81.MachineLock
         ApproachBeforeEStop,
         /// <summary>Player approached the live puddle danger zone before main power was off.</summary>
         ApproachLiveBeforeMainOff,
+        /// <summary>Main disconnect switch opened before pressing the E-stop mushroom (out-of-order penalty).</summary>
+        SequenceMainOffBeforeEStop,
+        /// <summary>Try-start executed after main power off but before voltage tester confirmed ZERO (out-of-order penalty).</summary>
+        SequenceTryStartBeforeTesterZero,
+        /// <summary>Spill containment started before full LOTO isolation and 4/4 PPE (out-of-order penalty).</summary>
+        SequenceContainmentBeforeReady,
         /// <summary>Early Exit while the press is still running: severe Safety/Decision penalty and critical debrief line.</summary>
         MissingEStop,
         /// <summary>Handover without the department alarm.</summary>
@@ -127,7 +133,13 @@ namespace SI81.MachineLock
         /// <summary>Exit without delimitation or containment.</summary>
         BadMissingContainment,
         /// <summary>Level time limit exceeded.</summary>
-        BadTimeout
+        BadTimeout,
+        /// <summary>Main disconnect switch opened before pressing the E-stop mushroom.</summary>
+        BadSequenceMainOffBeforeEStop,
+        /// <summary>Try-start executed before the voltage tester confirmed zero residual energy.</summary>
+        BadSequenceTryStartBeforeTesterZero,
+        /// <summary>Spill containment started before full LOTO isolation and 4/4 PPE.</summary>
+        BadSequenceContainmentBeforeReady
     }
 
     /// <summary>
@@ -172,6 +184,8 @@ namespace SI81.MachineLock
         public int MissingContainmentPenalty = 5;
         /// <summary>Decision penalty when the level time limit is reached.</summary>
         public int TimeoutPenalty = 5;
+        /// <summary>Decision penalty for each major safety/LOTO procedural order violation (once per violation).</summary>
+        public int SequenceOrderPenalty = 5;
         /// <summary>Execution reward for the E-stop.</summary>
         public int ExecutionEStop = 2;
         /// <summary>Execution reward for the alarm.</summary>
@@ -469,6 +483,24 @@ namespace SI81.MachineLock
                     if (approachLiveApplied) return;
                     approachLiveApplied = true;
                     AddDecision(-options.CriticalDecisionPenalty);
+                    break;
+
+                case SpiEvent.SequenceMainOffBeforeEStop:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.SequenceMainOffBeforeEStop)) return;
+                    AddDecision(-options.SequenceOrderPenalty);
+                    AddLine(DebriefLineId.BadSequenceMainOffBeforeEStop, false, false);
+                    break;
+
+                case SpiEvent.SequenceTryStartBeforeTesterZero:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.SequenceTryStartBeforeTesterZero)) return;
+                    AddDecision(-options.SequenceOrderPenalty);
+                    AddLine(DebriefLineId.BadSequenceTryStartBeforeTesterZero, false, false);
+                    break;
+
+                case SpiEvent.SequenceContainmentBeforeReady:
+                    if (!appliedPenaltyEvents.Add(SpiEvent.SequenceContainmentBeforeReady)) return;
+                    AddDecision(-options.SequenceOrderPenalty);
+                    AddLine(DebriefLineId.BadSequenceContainmentBeforeReady, false, false);
                     break;
 
                 case SpiEvent.MissingEStop:

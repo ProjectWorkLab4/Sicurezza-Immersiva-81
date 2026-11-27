@@ -217,11 +217,24 @@ namespace SI81.MachineLock
         /// <summary>Smoke stage reached by the inaction timer: 0 none, 1 stage 1, 2 stage 2.</summary>
         public int SmokeStage { get; private set; }
 
-        /// <summary>true when press is stopped and spill containment is complete (exit beacon bright green).</summary>
-        public bool IsExitBeaconReady => TaskEStop && TaskContainment;
+        /// <summary>true when press is stopped (E-stop or main disconnect) and spill containment is complete (exit beacon bright green).</summary>
+        public bool IsExitBeaconReady => (TaskEStop || TaskMainOff) && TaskContainment;
+        /// <summary>true while the press has neither been E-stopped nor isolated by the main disconnect.</summary>
+        public bool IsPressRunning => !TaskEStop && !TaskMainOff;
+        /// <summary>Current concise concrete objective text pushed to HUD_WristPanel (synced 1:1 with PauseChecklist).</summary>
+        public string CurrentWristObjectiveText { get; private set; } = string.Empty;
+        /// <summary>Number of required concrete safety steps currently completed (0 to 9).</summary>
+        public int CompletedRequiredSteps { get; private set; }
+        /// <summary>Most recent state-derived Guided wrist hint text.</summary>
+        public string CurrentHintText { get; private set; } = string.Empty;
+        /// <summary>Most recent state-derived HUD phase key.</summary>
+        public string CurrentPhaseKey { get; private set; } = PHASE_SCAN;
 
         /// <summary>Level used by the run: the forced test level, or the session level.</summary>
         private DifficultyLevel EffectiveLevel => forcedLevel ?? Level;
+
+        /// <summary>true once full LOTO isolation and 4/4 correct PPE are active before starting containment.</summary>
+        private bool IsReadyForContainment => TaskMainOff && TaskLockout && TaskTesterZero && TaskTryStart && TaskPpeFull;
 
         /// <summary>
         /// Starts the scenario: creates the SPI, applies the layout pattern via the persistent shuffle-bag,
@@ -235,6 +248,7 @@ namespace SI81.MachineLock
             currentMacro = 0;
             InactionElapsedSeconds = 0f;
             SmokeStage = 0;
+            CurrentPhaseKey = string.Empty;
             spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(EffectiveLevel));
             spi.SetElapsed(0f);
 
@@ -244,8 +258,6 @@ namespace SI81.MachineLock
             ApplySubStationOrder(panelOrder);
             StartAmbientAudio();
 
-            SetPhase(PHASE_SCAN);
-            SetHint(string.Format(MachineLockTexts.HintStartFormat, 0));
             RefreshObjectives();
             PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Intro1, MachineLockTexts.Intro2);
         }
@@ -269,7 +281,8 @@ namespace SI81.MachineLock
 
         /// <summary>
         /// Drives the inaction timer while the press keeps running (GDD §9.12). The timer is stopped by
-        /// any E-stop or once exit handover begins; it is independent of the level time limit.
+        /// any E-stop, opening the main disconnect, or once exit handover begins; it is independent of
+        /// the level time limit.
         /// </summary>
         protected override void OnDestroy()
         {
@@ -281,7 +294,7 @@ namespace SI81.MachineLock
 
         private void Update()
         {
-            if (!IsRunning || ended || TaskEStop || TaskExit || worldLockHandle.HasValue) return;
+            if (!IsRunning || ended || TaskEStop || TaskMainOff || TaskExit || worldLockHandle.HasValue) return;
             AdvanceInaction(Time.deltaTime);
         }
 
@@ -300,9 +313,7 @@ namespace SI81.MachineLock
             actionStarted = true;
             CancelInaction();
             Apply(SpiEvent.EStop);
-            SetPhase(PHASE_ACTION);
             PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.EStop, MachineLockTexts.EStop2);
-            SetHint(MachineLockTexts.HintAlarm);
             RefreshObjectives();
         }
 
@@ -316,21 +327,23 @@ namespace SI81.MachineLock
             actionStarted = true;
             Apply(SpiEvent.Alarm);
             PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Alarm, MachineLockTexts.Alarm2);
-            SetHint(MachineLockTexts.HintMainPower);
             RefreshObjectives();
         }
 
         /// <summary>
-        /// Main switch opened: the display and the motor go off.
+        /// Main switch opened: the display and the motor go off, cancelling the inaction timer.
+        /// Opening it before pressing E-stop applies a one-time procedural Decision penalty while
+        /// keeping E-stop completable afterward.
         /// </summary>
         public void NotifyMainPowerOff()
         {
             if (ended || TaskMainOff) return;
+            if (!TaskEStop) Apply(SpiEvent.SequenceMainOffBeforeEStop);
             TaskMainOff = true;
             actionStarted = true;
+            CancelInaction();
             Apply(SpiEvent.MainOff);
             PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Panel, MachineLockTexts.Panel2);
-            SetHint(MachineLockTexts.HintLockout);
             RefreshObjectives();
         }
 
@@ -344,7 +357,6 @@ namespace SI81.MachineLock
             actionStarted = true;
             Apply(SpiEvent.Lockout);
             PlayLines(MachineLockTexts.SpeakerSystem, MachineLockTexts.Lockout, MachineLockTexts.Lockout2);
-            SetHint(MachineLockTexts.HintTester);
             RefreshObjectives();
         }
 
@@ -380,21 +392,22 @@ namespace SI81.MachineLock
             actionStarted = true;
             Apply(SpiEvent.TesterZero);
             Alert(!string.IsNullOrEmpty(readout) ? readout : MachineLockTexts.TesterZero);
-            SetHint(MachineLockTexts.HintTryStart);
             RefreshObjectives();
         }
 
         /// <summary>
-        /// Try-start performed and the machine did not move: isolation confirmed.
+        /// Try-start performed and the machine did not move: isolation confirmed. Executing try-start
+        /// before the voltage tester confirms ZERO applies a one-time procedural Decision penalty while
+        /// still marking try-start completed.
         /// </summary>
         public void NotifyTryStartVerified()
         {
             if (ended || TaskTryStart) return;
+            if (!TaskTesterZero) Apply(SpiEvent.SequenceTryStartBeforeTesterZero);
             TaskTryStart = true;
             actionStarted = true;
             Apply(SpiEvent.TryStartVerified);
             Feedback(MachineLockTexts.TryOk, FeedbackKind.Positive);
-            SetHint(MachineLockTexts.HintPpe);
             RefreshObjectives();
         }
 
@@ -415,11 +428,6 @@ namespace SI81.MachineLock
             {
                 if (!wasFull) Apply(SpiEvent.PpeFull);
                 Alert(MachineLockTexts.PpeFull);
-                SetHint(MachineLockTexts.HintValveAndContainment);
-            }
-            else
-            {
-                SetHint(string.Format(MachineLockTexts.HintPpePartialFormat, correctPpeCount));
             }
             if (spillSystem != null) spillSystem.SetContainmentWayfindingActive(full);
             RefreshObjectives();
@@ -432,6 +440,7 @@ namespace SI81.MachineLock
         public void NotifyConePlaced(int count)
         {
             if (ended) return;
+            if (!IsReadyForContainment) Apply(SpiEvent.SequenceContainmentBeforeReady);
             conesPlaced = Mathf.Clamp(Mathf.Max(conesPlaced, count), 0, 4);
             actionStarted = true;
             Feedback(string.Format(MachineLockTexts.ConeFormat, conesPlaced), FeedbackKind.Positive);
@@ -441,12 +450,13 @@ namespace SI81.MachineLock
         /// <summary>
         /// An absorbent mat or sock snapped to a coverage zone. The Mat/Sock feedback is emitted once by
         /// <see cref="MachineLockSpillSystem.RegisterAbsorbent"/>; this method only updates the counters
-        /// and the containment hint.
+        /// and the containment state.
         /// </summary>
         /// <param name="count">Total number of placed absorbents, 0 to 4.</param>
         public void NotifyAbsorbentPlaced(int count)
         {
             if (ended) return;
+            if (!IsReadyForContainment) Apply(SpiEvent.SequenceContainmentBeforeReady);
             absorbentsPlaced = Mathf.Clamp(Mathf.Max(absorbentsPlaced, count), 0, 4);
             actionStarted = true;
             UpdateContainment();
@@ -462,7 +472,7 @@ namespace SI81.MachineLock
             actionStarted = true;
             Apply(SpiEvent.ValveClosed);
             Feedback(MachineLockTexts.Valve, FeedbackKind.Positive);
-            SyncPauseChecklist();
+            RefreshObjectives();
         }
 
         /// <summary>
@@ -473,8 +483,7 @@ namespace SI81.MachineLock
         {
             if (ended || spi == null) return;
             if (!spi.Observe(id)) return;
-            if (!actionStarted) SetHint(string.Format(MachineLockTexts.HintStartFormat, spi.ObservedTargets));
-            SyncPauseChecklist();
+            RefreshObjectives();
         }
 
         /// <summary>
@@ -717,7 +726,7 @@ namespace SI81.MachineLock
             actionStarted = true;
             BeginExitSequenceLock();
             ApplyHandoverPenalties();
-            if (TaskEStop) Apply(SpiEvent.Exit);
+            if (TaskEStop || TaskMainOff) Apply(SpiEvent.Exit);
             RefreshObjectives();
 
             OutcomeType outcome = spi.EvaluateOutcome(BuildOutcomeInput());
@@ -864,11 +873,15 @@ namespace SI81.MachineLock
             ActivePatternIndex = -1;
             InactionElapsedSeconds = 0f;
             SmokeStage = 0;
+            CurrentWristObjectiveText = string.Empty;
+            CompletedRequiredSteps = 0;
+            CurrentHintText = string.Empty;
+            CurrentPhaseKey = string.Empty;
             ResetTaskFlags();
 
             spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(overrideLevel));
             spi.SetElapsed(0f);
-            SyncPauseChecklist();
+            RefreshObjectives();
         }
 
         /// <summary>
@@ -887,7 +900,7 @@ namespace SI81.MachineLock
 
         private void AdvanceInaction(float deltaSeconds)
         {
-            if (deltaSeconds <= 0f || ended || TaskEStop) return;
+            if (deltaSeconds <= 0f || ended || TaskEStop || TaskMainOff) return;
 
             InactionElapsedSeconds += deltaSeconds;
             MachineLockConfig resolved = ResolveConfig();
@@ -1025,26 +1038,27 @@ namespace SI81.MachineLock
         // =====================================================================
 
         /// <summary>
-        /// Completes every macro-objective that is already satisfied and keeps the wrist panel on the
-        /// current one (GDD §10.3). Safe to call after every task event.
+        /// Recomputes derived macro progress, state, exit beacon, Pause checklist, Wrist Panel objective/counter,
+        /// Guided wrist hint, and monotonic HUD phase from live task flags. Safe to call after any task event
+        /// regardless of completion order.
         /// </summary>
         public void RefreshObjectives()
         {
-            while (currentMacro < MACRO_COUNT && MacroComplete(currentMacro))
-            {
-                CompleteObjective();
-                currentMacro++;
-            }
-            if (currentMacro < MACRO_COUNT) SetObjective(currentMacro);
+            int firstIncompleteMacro = 0;
+            while (firstIncompleteMacro < MACRO_COUNT && MacroComplete(firstIncompleteMacro))
+                firstIncompleteMacro++;
+            currentMacro = firstIncompleteMacro;
+            MissionFlow.ObjectiveIndex = Mathf.Clamp(currentMacro, 0, MACRO_COUNT - 1);
+
             UpdateState();
             RefreshExitBeacon();
             SyncPauseChecklist();
         }
 
         /// <summary>
-        /// Publishes the full 11-step Machine Lock checklist to <see cref="MissionFlow.PauseChecklist"/>
-        /// so <see cref="PauseScreen"/> renders every concrete task with live Done / Current / Todo status
-        /// while <c>HUD_WristPanel</c> keeps the 4 concise macro-objectives (Issue #46).
+        /// Single source of truth for both <see cref="MissionFlow.PauseChecklist"/> (9 required safety tasks +
+        /// 2 non-blocking awareness/valve rows) and <c>HUD_WristPanel</c> (active concrete step, completed
+        /// count out of 9, state-derived Guided hint, and monotonic phase).
         /// </summary>
         public void SyncPauseChecklist()
         {
@@ -1052,42 +1066,94 @@ namespace SI81.MachineLock
             int observedCap = config != null ? config.awarenessTargets : 6;
             bool observedDone = observed >= observedCap;
 
-            var steps = new (string Text, bool Done)[]
+            string ppeHint = correctPpeCount > 0
+                ? string.Format(MachineLockTexts.HintPpePartialFormat, correctPpeCount)
+                : MachineLockTexts.HintPpe;
+            bool containmentStarted = conesPlaced > 0 || absorbentsPlaced > 0;
+            string containmentWrist = containmentStarted
+                ? string.Format(MachineLockTexts.WristContainmentPartialFormat, conesPlaced, absorbentsPlaced)
+                : MachineLockTexts.WristContainment;
+            string containmentHint = containmentStarted || valveClosed
+                ? string.Format(MachineLockTexts.HintContainmentPartialFormat, conesPlaced, absorbentsPlaced)
+                : MachineLockTexts.HintValveAndContainment;
+
+            var requiredSteps = new (string PauseText, string WristText, string HintText, bool Done)[]
             {
-                (string.Format(MachineLockTexts.ChecklistObserveFormat, observed), observedDone),
-                (MachineLockTexts.ChecklistEStop, TaskEStop),
-                (MachineLockTexts.ChecklistAlarm, TaskAlarm),
-                (MachineLockTexts.ChecklistMainOff, TaskMainOff),
-                (MachineLockTexts.ChecklistLockout, TaskLockout),
-                (MachineLockTexts.ChecklistTesterZero, TaskTesterZero),
-                (MachineLockTexts.ChecklistTryStart, TaskTryStart),
-                (string.Format(MachineLockTexts.ChecklistPpeFormat, correctPpeCount), TaskPpeFull),
-                (MachineLockTexts.ChecklistValve, valveClosed),
-                (string.Format(MachineLockTexts.ChecklistContainmentFormat, conesPlaced, absorbentsPlaced), TaskContainment),
-                (MachineLockTexts.ChecklistExit, TaskExit)
+                (MachineLockTexts.ChecklistEStop, MachineLockTexts.WristEStop, MachineLockTexts.HintEStop, TaskEStop),
+                (MachineLockTexts.ChecklistAlarm, MachineLockTexts.WristAlarm, MachineLockTexts.HintAlarm, TaskAlarm),
+                (MachineLockTexts.ChecklistMainOff, MachineLockTexts.WristMainOff, MachineLockTexts.HintMainPower, TaskMainOff),
+                (MachineLockTexts.ChecklistLockout, MachineLockTexts.WristLockout, MachineLockTexts.HintLockout, TaskLockout),
+                (MachineLockTexts.ChecklistTesterZero, MachineLockTexts.WristTesterZero, MachineLockTexts.HintTester, TaskTesterZero),
+                (MachineLockTexts.ChecklistTryStart, MachineLockTexts.WristTryStart, MachineLockTexts.HintTryStart, TaskTryStart),
+                (string.Format(MachineLockTexts.ChecklistPpeFormat, correctPpeCount),
+                    string.Format(MachineLockTexts.WristPpeFormat, correctPpeCount), ppeHint, TaskPpeFull),
+                (string.Format(MachineLockTexts.ChecklistContainmentFormat, conesPlaced, absorbentsPlaced),
+                    containmentWrist, containmentHint, TaskContainment),
+                (MachineLockTexts.ChecklistExit, MachineLockTexts.WristExit, MachineLockTexts.HintExit, TaskExit)
             };
 
-            var entries = new PauseChecklistEntry[steps.Length];
-            bool currentAssigned = false;
-            for (int i = 0; i < steps.Length; i++)
+            var entries = new PauseChecklistEntry[requiredSteps.Length + 2];
+            int completedRequired = 0;
+            int activeIndex = -1;
+            for (int i = 0; i < requiredSteps.Length; i++)
             {
                 ObjectiveState stepState;
-                if (steps[i].Done)
+                if (requiredSteps[i].Done)
                 {
                     stepState = ObjectiveState.Done;
+                    completedRequired++;
                 }
-                else if (!currentAssigned)
+                else if (activeIndex < 0)
                 {
                     stepState = ObjectiveState.Current;
-                    currentAssigned = true;
+                    activeIndex = i;
                 }
                 else
                 {
                     stepState = ObjectiveState.Todo;
                 }
-                entries[i] = new PauseChecklistEntry(steps[i].Text, stepState);
+                entries[i] = new PauseChecklistEntry(requiredSteps[i].PauseText, stepState);
             }
+
+            // Non-blocking Awareness and optional Valve rows stay visible with live checkmarks
+            // without ever stealing Current focus from required safety tasks.
+            entries[requiredSteps.Length] = new PauseChecklistEntry(
+                string.Format(MachineLockTexts.ChecklistObserveFormat, observed),
+                observedDone ? ObjectiveState.Done : ObjectiveState.Todo);
+            entries[requiredSteps.Length + 1] = new PauseChecklistEntry(
+                MachineLockTexts.ChecklistValve,
+                valveClosed ? ObjectiveState.Done : ObjectiveState.Todo);
+
             MissionFlow.PauseChecklist = entries;
+
+            int wristIndex = activeIndex >= 0 ? activeIndex : requiredSteps.Length - 1;
+            CurrentWristObjectiveText = requiredSteps[wristIndex].WristText;
+            CompletedRequiredSteps = completedRequired;
+            HUDService.SetObjective(CurrentWristObjectiveText);
+            HUDService.SetObjectiveProgress(completedRequired, requiredSteps.Length);
+
+            string derivedHint = (!actionStarted && !TaskEStop && !observedDone)
+                ? string.Format(MachineLockTexts.HintStartFormat, observed)
+                : requiredSteps[wristIndex].HintText;
+            CurrentHintText = derivedHint;
+            SetHint(derivedHint);
+
+            string derivedPhase = ResolvePhaseKey();
+            if (CurrentPhaseKey != derivedPhase || MissionFlow.CurrentPhaseKey != derivedPhase)
+            {
+                CurrentPhaseKey = derivedPhase;
+                SetPhase(derivedPhase);
+            }
+        }
+
+        private string ResolvePhaseKey()
+        {
+            if (TaskContainment || TaskExit) return PHASE_RESOLUTION;
+            if (actionStarted || TaskEStop || TaskAlarm || TaskMainOff || TaskLockout
+                || TaskTesterZero || TaskTryStart || TaskPpeFull || valveClosed
+                || conesPlaced > 0 || absorbentsPlaced > 0)
+                return PHASE_ACTION;
+            return PHASE_SCAN;
         }
 
         private void RefreshExitBeacon()
@@ -1126,27 +1192,18 @@ namespace SI81.MachineLock
             else if (TaskPpeFull) state = MachineLockState.Protected;
             else if (TaskTesterZero && TaskTryStart) state = MachineLockState.ZeroEnergy;
             else if (TaskMainOff && TaskLockout) state = MachineLockState.Isolated;
-            else if (TaskEStop) state = MachineLockState.MachineStopped;
+            else if (TaskEStop || TaskMainOff) state = MachineLockState.MachineStopped;
             else state = MachineLockState.Emergency;
         }
 
         private void UpdateContainment()
         {
             bool complete = conesPlaced >= 4 && absorbentsPlaced >= 4;
-            if (complete)
+            if (complete && !TaskContainment)
             {
-                if (!TaskContainment)
-                {
-                    TaskContainment = true;
-                    Apply(SpiEvent.ContainmentComplete);
-                    SetPhase(PHASE_RESOLUTION);
-                    Alert(MachineLockTexts.Containment);
-                }
-                SetHint(MachineLockTexts.HintExit);
-            }
-            else
-            {
-                SetHint(string.Format(MachineLockTexts.HintContainmentPartialFormat, conesPlaced, absorbentsPlaced));
+                TaskContainment = true;
+                Apply(SpiEvent.ContainmentComplete);
+                Alert(MachineLockTexts.Containment);
             }
             RefreshObjectives();
         }
@@ -1154,7 +1211,7 @@ namespace SI81.MachineLock
         private void ApplyHandoverPenalties()
         {
             if (spi == null) return;
-            if (!TaskEStop) spi.ApplyEvent(SpiEvent.MissingEStop);
+            if (!TaskEStop && !TaskMainOff) spi.ApplyEvent(SpiEvent.MissingEStop);
             if (!TaskAlarm) spi.ApplyEvent(SpiEvent.MissingAlarm);
             if (!TaskMainOff) spi.ApplyEvent(SpiEvent.MissingMainOff);
             if (!TaskLockout) spi.ApplyEvent(SpiEvent.MissingLockout);
@@ -1189,7 +1246,7 @@ namespace SI81.MachineLock
         {
             return new MachineLockOutcomeInput
             {
-                PressRunning = !TaskEStop,
+                PressRunning = !TaskEStop && !TaskMainOff,
                 Contained = TaskContainment,
                 AllTasksComplete = TaskEStop && TaskAlarm && TaskMainOff && TaskLockout
                                   && TaskTesterZero && TaskTryStart && TaskPpeFull && TaskContainment && TaskExit,
@@ -1200,7 +1257,7 @@ namespace SI81.MachineLock
 
         private OutcomeType EvaluateTimeoutOutcome()
         {
-            return TaskEStop && TaskContainment ? OutcomeType.Partial : OutcomeType.Negative;
+            return (TaskEStop || TaskMainOff) && TaskContainment ? OutcomeType.Partial : OutcomeType.Negative;
         }
 
         private void Apply(SpiEvent evt)

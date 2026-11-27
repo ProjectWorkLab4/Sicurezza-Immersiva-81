@@ -194,6 +194,8 @@ namespace SI81.MachineLock
 
         /// <summary>Start hint format: {0} is the observed target count.</summary>
         public const string HintStartFormat = "Osserva la scena: {0}/6";
+        /// <summary>Hint when E-stop is the next incomplete step.</summary>
+        public const string HintEStop = "Premi il fungo di emergenza";
         /// <summary>Hint after the E-stop (landmark phrasing, zero cardinal directions — Issue #46).</summary>
         public const string HintAlarm = "Attiva l'allarme di reparto";
         /// <summary>Hint after the alarm (landmark phrasing, zero cardinal directions — Issue #46).</summary>
@@ -214,6 +216,29 @@ namespace SI81.MachineLock
         public const string HintContainmentPartialFormat = "Coni {0}/4 · Assorbenti {1}/4";
         /// <summary>Hint after containment is complete (landmark phrasing, zero cardinal directions — Issue #46).</summary>
         public const string HintExit = "Usa il maniglione della porta d'uscita";
+
+        // ------------------------------------------------------------------ Wrist Panel Concrete Objectives (<= 30 chars, synced 1:1 with Pause)
+
+        /// <summary>Wrist objective: press E-Stop (27 chars).</summary>
+        public const string WristEStop = "Premi il fungo di emergenza";
+        /// <summary>Wrist objective: raise department alarm (27 chars).</summary>
+        public const string WristAlarm = "Attiva l'allarme di reparto";
+        /// <summary>Wrist objective: open main disconnect (24 chars).</summary>
+        public const string WristMainOff = "Apri il quadro elettrico";
+        /// <summary>Wrist objective: apply lockout (29 chars).</summary>
+        public const string WristLockout = "Applica il lockout sul quadro";
+        /// <summary>Wrist objective: verify zero energy on tester (21 chars).</summary>
+        public const string WristTesterZero = "Verifica energia zero";
+        /// <summary>Wrist objective: run try-start check (26 chars).</summary>
+        public const string WristTryStart = "Esegui la prova di riavvio";
+        /// <summary>Wrist objective: equip 4/4 PPE ({0}/4) (21 chars).</summary>
+        public const string WristPpeFormat = "Indossa i 4 DPI ({0}/4)";
+        /// <summary>Wrist objective: contain spill (17 chars).</summary>
+        public const string WristContainment = "Contieni la pozza";
+        /// <summary>Wrist objective: partial containment counters (<= 29 chars).</summary>
+        public const string WristContainmentPartialFormat = "Coni {0}/4 · Assorbenti {1}/4";
+        /// <summary>Wrist objective: exit room (25 chars).</summary>
+        public const string WristExit = "Esci dalla porta d'uscita";
 
         // ------------------------------------------------------------------ Pause Menu Detailed Checklist (Issue #46)
 
@@ -287,6 +312,12 @@ namespace SI81.MachineLock
         public const string DebriefBadMissingContainment = "Delimitazione o contenimento incompleti → area non sicura";
         /// <summary>Bad line: time limit exceeded.</summary>
         public const string DebriefBadTimeout = "Tempo massimo superato → chiusura forzata";
+        /// <summary>Bad line: main disconnect opened before pressing E-stop.</summary>
+        public const string DebriefBadSequenceMainOffBeforeEStop = "Quadro aperto prima del fungo di emergenza → sequenza errata";
+        /// <summary>Bad line: try-start executed before tester confirmed zero energy.</summary>
+        public const string DebriefBadSequenceTryStartBeforeTesterZero = "Prova di riavvio prima del tester a zero → sequenza errata";
+        /// <summary>Bad line: containment started before LOTO isolation and full PPE.</summary>
+        public const string DebriefBadSequenceContainmentBeforeReady = "Contenimento avviato prima di isolamento e DPI completi";
 
         /// <summary>
         /// Resolves a debrief line id to its Italian text, without prefix. The SPI adds the shared
@@ -316,6 +347,9 @@ namespace SI81.MachineLock
                 case DebriefLineId.BadMissingIsolation: return DebriefBadMissingIsolation;
                 case DebriefLineId.BadMissingContainment: return DebriefBadMissingContainment;
                 case DebriefLineId.BadTimeout: return DebriefBadTimeout;
+                case DebriefLineId.BadSequenceMainOffBeforeEStop: return DebriefBadSequenceMainOffBeforeEStop;
+                case DebriefLineId.BadSequenceTryStartBeforeTesterZero: return DebriefBadSequenceTryStartBeforeTesterZero;
+                case DebriefLineId.BadSequenceContainmentBeforeReady: return DebriefBadSequenceContainmentBeforeReady;
                 default: return string.Empty;
             }
         }

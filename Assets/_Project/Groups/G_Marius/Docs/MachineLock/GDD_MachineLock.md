@@ -743,14 +743,14 @@ The builder adds entries in chronological order, then trims to 5 good and 4 bad/
 
 ### 12.1 Objectives
 
-`SO_Mission_MachineLock.Objectives` (4 concise macro-objectives shown on `HUD_WristPanel`):
+`SO_Mission_MachineLock.Objectives` (4 high-level summary objectives shown in Mission Brief):
 
 1. `Ferma la pressa e allarma` (25)
 2. `Isola l'energia e blocca` (24)
 3. `Indossa i DPI e contieni` (24)
 4. `Esci e avvisa il preposto` (25)
 
-In addition, `MachineLockScenario` publishes a live 11-step `MissionFlow.PauseChecklist` (Observation 0/6, E-Stop, Alarm, Main Disconnect, Lockout, Digital Meter ZERO, Try-Start, 4/4 PPE, Leak Valve, Containment 4/4 cones + 4/4 absorbents, Exit) rendered in a scrollable `ScrollRect` inside `PANEL_Pause` across all difficulty modes (Issue #46).
+At runtime, `MachineLockScenario` drives both `HUD_WristPanel` (concise ≤30-char active step + `done/9` completed counter + state-derived Guided hint) and `PANEL_Pause` (`MissionFlow.PauseChecklist` inside a scrollable `ScrollRect`) from the **same single source of truth**: the 9 required safety tasks (E-Stop, Alarm, Main Disconnect, Lockout, Tester ZERO, Try-Start, 4/4 DPI, Containment 4/4+4/4, Exit) plus 2 non-blocking awareness/good-practice rows (Observation `0/6`, Leak Valve) that display live checkmarks without stealing `Current` focus (Issue #46). Breaking sequence applies targeted `-5 Decision` procedural penalties (Main OFF before E-Stop, Try-Start before Tester ZERO, Containment before LOTO+PPE) while keeping every skipped task completable afterward without freezing Wrist hints or desyncing menus.
 
 ### 12.2 Phases
 

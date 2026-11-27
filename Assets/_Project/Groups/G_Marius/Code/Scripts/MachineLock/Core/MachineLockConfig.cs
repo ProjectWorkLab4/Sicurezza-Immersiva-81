@@ -105,6 +105,8 @@ namespace SI81.MachineLock
         public int missingContainmentPenalty = 5;
         [Tooltip("Decision penalty when the level time limit is reached.")]
         public int timeoutPenalty = 5;
+        [Tooltip("Decision penalty for each major safety/LOTO procedural order violation (applied once per violation).")]
+        public int sequenceOrderPenalty = 5;
 
         [Header("Execution rewards")]
         [Tooltip("Execution reward for the E-stop.")]
@@ -204,6 +206,7 @@ namespace SI81.MachineLock
                 MissingConesPenalty = missingConesPenalty,
                 MissingContainmentPenalty = missingContainmentPenalty,
                 TimeoutPenalty = timeoutPenalty,
+                SequenceOrderPenalty = sequenceOrderPenalty,
                 ExecutionEStop = executionEStop,
                 ExecutionAlarm = executionAlarm,
                 ExecutionIsolation = executionIsolation,

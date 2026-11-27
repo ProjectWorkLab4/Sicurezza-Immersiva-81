@@ -765,6 +765,7 @@ namespace SI81.MachineLock.Tests
             string[] hints =
             {
                 string.Format(MachineLockTexts.HintStartFormat, 0),
+                MachineLockTexts.HintEStop,
                 MachineLockTexts.HintAlarm,
                 MachineLockTexts.HintMainPower,
                 MachineLockTexts.HintLockout,
@@ -790,6 +791,51 @@ namespace SI81.MachineLock.Tests
                         $"Hint '{hint}' must not contain cardinal direction '{cardinal}' (Issue #46).");
                 }
             }
+
+            string[] wristObjectives =
+            {
+                MachineLockTexts.WristEStop,
+                MachineLockTexts.WristAlarm,
+                MachineLockTexts.WristMainOff,
+                MachineLockTexts.WristLockout,
+                MachineLockTexts.WristTesterZero,
+                MachineLockTexts.WristTryStart,
+                string.Format(MachineLockTexts.WristPpeFormat, 3),
+                MachineLockTexts.WristContainment,
+                string.Format(MachineLockTexts.WristContainmentPartialFormat, 4, 4),
+                MachineLockTexts.WristExit
+            };
+            foreach (string wrist in wristObjectives)
+            {
+                Assert.That(wrist.Length, Is.LessThanOrEqualTo(30),
+                    $"Wrist objective '{wrist}' exceeds 30-char wrist line limit.");
+            }
+        }
+
+        [Test]
+        public void SequencePenalties_ApplyMinusFiveDecisionOnceEach_AndAllowFullExecutionCredit()
+        {
+            MachineLockSpi spi = StartedRun(SpiTimeMode.Guided, 60f);
+
+            spi.ApplyEvent(SpiEvent.SequenceMainOffBeforeEStop);
+            spi.ApplyEvent(SpiEvent.SequenceMainOffBeforeEStop); // Idempotent
+            Assert.AreEqual(35f, spi.Decision, Tolerance);
+
+            spi.ApplyEvent(SpiEvent.SequenceTryStartBeforeTesterZero);
+            spi.ApplyEvent(SpiEvent.SequenceTryStartBeforeTesterZero); // Idempotent
+            Assert.AreEqual(30f, spi.Decision, Tolerance);
+
+            spi.ApplyEvent(SpiEvent.SequenceContainmentBeforeReady);
+            spi.ApplyEvent(SpiEvent.SequenceContainmentBeforeReady); // Idempotent
+            Assert.AreEqual(25f, spi.Decision, Tolerance);
+
+            // Completing every task afterward still awards full Execution credit and avoids CriticalOccurred.
+            CompleteAllTasks(spi);
+            Assert.AreEqual(15, spi.Execution);
+            Assert.IsFalse(spi.CriticalOccurred);
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadSequenceMainOffBeforeEStop.ToString()));
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadSequenceTryStartBeforeTesterZero.ToString()));
+            Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadSequenceContainmentBeforeReady.ToString()));
         }
 
         private static MachineLockPpeItem AddEditModeItem(GameObject parent, MachineLockPpeCabinet cabinet,

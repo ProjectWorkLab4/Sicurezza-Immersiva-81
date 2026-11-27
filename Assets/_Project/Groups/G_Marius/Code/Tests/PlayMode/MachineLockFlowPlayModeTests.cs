@@ -2123,9 +2123,10 @@ namespace SI81.MachineLock.Tests
         }
 
         /// <summary>
-        /// MachineLockScenario publishes an 11-step live checklist to MissionFlow.PauseChecklist (including
-        /// out-of-order tasks), PANEL_Pause renders it inside a clipped ScrollRect with an active vertical
-        /// Scrollbar, and clearing/unloading restores the 4-item fallback with the scrollbar hidden (Issue #46).
+        /// MachineLockScenario publishes an 11-step live checklist (9 required + 2 non-blocking) to
+        /// MissionFlow.PauseChecklist and syncs HUD_WristPanel 1:1 with the same active step; PANEL_Pause
+        /// renders all 11 rows inside a clipped ScrollRect with an active vertical Scrollbar, and clearing
+        /// restores the 4-item fallback with the scrollbar hidden (Issue #46).
         /// </summary>
         [UnityTest]
         public IEnumerator PauseChecklist_TracksAll11MachineLockSteps_AndScrollsInRealPauseScreen()
@@ -2139,20 +2140,29 @@ namespace SI81.MachineLock.Tests
             Assert.That(MissionFlow.PauseChecklist, Is.Not.Null);
             Assert.That(MissionFlow.PauseChecklist.Count, Is.EqualTo(11),
                 "Machine Lock must publish all 11 concrete checklist tasks to the Pause screen.");
-            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current));
-            Assert.That(MissionFlow.PauseChecklist[0].Text, Does.Contain("(0/6)"));
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current),
+                "Row 0 (E-Stop) must be the initial Current required step.");
             Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Todo));
+            Assert.That(MissionFlow.PauseChecklist[9].Text, Does.Contain("(0/6)"));
+            Assert.That(MissionFlow.PauseChecklist[9].State, Is.EqualTo(ObjectiveState.Todo),
+                "Observation must be non-blocking and must not steal Current from required safety steps.");
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristEStop));
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(0));
 
-            // Out-of-order completion: close valve and observe 1 target before E-stop.
+            // Out-of-order completion: close optional valve and observe 1 target before E-stop.
             valve.Valve.Close();
             scenario.NotifyObservation("press");
-            Assert.That(MissionFlow.PauseChecklist[8].State, Is.EqualTo(ObjectiveState.Done),
+            Assert.That(MissionFlow.PauseChecklist[10].State, Is.EqualTo(ObjectiveState.Done),
                 "Closing the oil leak valve out of order must check off the valve step immediately.");
-            Assert.That(MissionFlow.PauseChecklist[0].Text, Does.Contain("(1/6)"));
-            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current));
+            Assert.That(MissionFlow.PauseChecklist[9].Text, Does.Contain("(1/6)"));
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current),
+                "E-Stop must remain Current until pressed.");
 
             press.Press.PressEStop();
-            Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Done));
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Done));
+            Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Current));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristAlarm));
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(1));
 
 #if UNITY_EDITOR
             const string pausePrefabPath = "Assets/_Project/Home/UI/Prefabs/Screens/PANEL_Pause.prefab";
@@ -2198,6 +2208,147 @@ namespace SI81.MachineLock.Tests
                 "Scrollbar must hide when falling back to standard 4 objectives.");
             Assert.That(pauseScreen.ChecklistScrollRect.enabled, Is.False);
 #endif
+        }
+
+        /// <summary>
+        /// Breaking sequence never freezes the Wrist Panel, Guided hint, or Pause checklist on an already
+        /// completed task: targeted -5 Decision penalties apply once per violation, Main OFF stops the press
+        /// inaction timer, PPE distractor regression updates both menus, and every skipped step remains
+        /// completable afterward for full Execution credit (Issue #46).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator OutOfOrderSequence_NeverStucksWristOrHints_AppliesPenalties_AndRecoversCleanly()
+        {
+            // 1. Alarm before E-Stop: harmless parallel order (0 penalty), hint advances past Alarm once E-Stop pressed.
+            MachineLockScenario parallel = CreateScenario(DifficultyLevel.Guided);
+            PressFixture parallelPress = CreatePress(parallel);
+            AlarmFixture parallelAlarm = CreateAlarm(parallel);
+            yield return null;
+
+            parallelAlarm.Alarm.Raise();
+            Assert.That(parallel.Spi.Decision, Is.EqualTo(40f).Within(Tolerance));
+            Assert.That(parallel.CompletedRequiredSteps, Is.EqualTo(1));
+            Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Done));
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current));
+            Assert.That(parallel.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristEStop));
+            Assert.That(parallel.CurrentHintText, Is.EqualTo(MachineLockTexts.HintEStop));
+
+            parallelPress.Press.PressEStop();
+            Assert.That(parallel.CompletedRequiredSteps, Is.EqualTo(2));
+            Assert.That(parallel.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristMainOff));
+            Assert.That(parallel.CurrentHintText, Is.EqualTo(MachineLockTexts.HintMainPower),
+                "Pressing E-Stop after Alarm must never freeze the hint back on Alarm.");
+            DestroyTrackedObjects();
+
+            // 2. Full scrambled sequence: Main OFF -> Try-Start (before Tester ZERO) -> E-Stop -> Alarm ->
+            //    Lockout -> Tester ZERO -> Cone (before PPE) -> 4 PPE -> Distractor regression -> Fix PPE ->
+            //    Remaining containment -> Exit.
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            AlarmFixture alarm = CreateAlarm(scenario);
+            CabinetFixture cabinet = CreateCabinet(scenario, true);
+            SpillFixture spill = CreateSpill(scenario, true);
+            yield return null;
+
+            panel.Panel.InitializeState(true);
+            panel.Panel.SetMainPower(false);
+            Assert.That(scenario.Spi.Decision, Is.EqualTo(35f).Within(Tolerance),
+                "Opening Main Power before E-Stop applies -5 Decision.");
+            Assert.That(HasDebrief(scenario, DebriefLineId.BadSequenceMainOffBeforeEStop), Is.True);
+            Assert.That(scenario.IsPressRunning, Is.False);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(1));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristEStop));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintEStop));
+
+            // Cutting Main Power must cancel the press inaction smoke/Bad-Ending-2 timer.
+            scenario.TickInactionForTests(300f);
+            Assert.That(scenario.HasEnded, Is.False);
+            Assert.That(SmokeStage(scenario), Is.EqualTo(0));
+
+            // Try-Start after Main OFF but before Tester ZERO -> -5 Decision, still marks Try-Start done.
+            press.Press.TryStart();
+            Assert.That(scenario.TaskTryStart, Is.True);
+            Assert.That(scenario.Spi.Decision, Is.EqualTo(30f).Within(Tolerance));
+            Assert.That(HasDebrief(scenario, DebriefLineId.BadSequenceTryStartBeforeTesterZero), Is.True);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(2));
+
+            // Late E-Stop, Alarm, and Lockout all check off cleanly without regressing hints.
+            press.Press.PressEStop();
+            Assert.That(scenario.TaskEStop, Is.True);
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristAlarm));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintAlarm));
+
+            alarm.Alarm.Raise();
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristLockout));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintLockout));
+
+            panel.Panel.ApplyLockout();
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristTesterZero));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintTester));
+
+            // Tester reaches ZERO after Try-Start was already done -> skips directly to PPE!
+            panel.Panel.ForceZeroEnergy();
+            Assert.That(panel.Panel.ReadTester(), Is.EqualTo(MachineLockTexts.TesterReadZero));
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(6));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(string.Format(MachineLockTexts.WristPpeFormat, 0)));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintPpe),
+                "Tester ZERO after Try-Start must never get stuck telling the player to run Try-Start again.");
+
+            // Place 1 cone before wearing full PPE -> -5 Decision, Wrist/Hint still focus on PPE.
+            Assert.That(spill.Cones[0].Cone.TrySnap(), Is.True);
+            Assert.That(scenario.Spi.Decision, Is.EqualTo(25f).Within(Tolerance));
+            Assert.That(HasDebrief(scenario, DebriefLineId.BadSequenceContainmentBeforeReady), Is.True);
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(string.Format(MachineLockTexts.WristPpeFormat, 0)));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintPpe));
+
+            // Equip all 4 correct PPE -> advances to Containment with live 1/4 cone counter.
+            cabinet.Cabinet.Open();
+            for (int i = 0; i < cabinet.CorrectItems.Length; i++)
+                Assert.That(cabinet.Cabinet.Equip(cabinet.CorrectItems[i].Item), Is.True);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(7));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(string.Format(MachineLockTexts.WristContainmentPartialFormat, 1, 0)));
+
+            // Breaking 4/4 PPE with a distractor steps BOTH Pause and Wrist back to DPI (3/4), then recovers cleanly.
+            Assert.That(cabinet.Cabinet.Equip(cabinet.LatexGloves.Item), Is.True);
+            Assert.That(scenario.TaskPpeFull, Is.False);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(6));
+            Assert.That(MissionFlow.PauseChecklist[6].State, Is.EqualTo(ObjectiveState.Current));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(string.Format(MachineLockTexts.WristPpeFormat, 3)));
+            Assert.That(cabinet.Cabinet.Equip(cabinet.HeatGloves.Item), Is.True);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(7));
+
+            // Finish containment -> Phase Resolution, Wrist & Hint point to Exit.
+            for (int i = 1; i < spill.Cones.Length; i++)
+                Assert.That(spill.Cones[i].Cone.TrySnap(), Is.True);
+            for (int i = 0; i < spill.Absorbents.Length; i++)
+                Assert.That(spill.Absorbents[i].Absorbent.TrySnap(), Is.True);
+            Assert.That(scenario.CompletedRequiredSteps, Is.EqualTo(8));
+            Assert.That(scenario.CurrentPhaseKey, Is.EqualTo(ScenarioController.PHASE_RESOLUTION));
+            Assert.That(scenario.CurrentWristObjectiveText, Is.EqualTo(MachineLockTexts.WristExit));
+            Assert.That(scenario.CurrentHintText, Is.EqualTo(MachineLockTexts.HintExit));
+
+            // Late Exit awards full 15/15 Execution credit despite the earlier out-of-order penalties.
+            scenario.NotifyExitReached(endImmediately: true);
+            Assert.That(scenario.HasEnded, Is.True);
+            Assert.That(scenario.Spi.Execution, Is.EqualTo(MachineLockSpi.EXECUTION_MAX));
+            Assert.That(scenario.Spi.CriticalOccurred, Is.False);
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Positive));
+            DestroyTrackedObjects();
+
+            // 3. Exiting after cutting Main Power (without pressing E-Stop) is NOT "press still running".
+            MachineLockScenario mainOffOnly = CreateScenario(DifficultyLevel.Guided);
+            PressFixture mainOffPress = CreatePress(mainOffOnly);
+            PanelFixture mainOffPanel = CreatePanel(mainOffOnly, mainOffPress.Press);
+            yield return null;
+
+            mainOffPanel.Panel.InitializeState(false);
+            mainOffPanel.Panel.SetMainPower(false);
+            mainOffOnly.NotifyExitReached(endImmediately: true);
+            Assert.That(mainOffOnly.HasEnded, Is.True);
+            Assert.That(HasDebrief(mainOffOnly, DebriefLineId.CriticalMissingEStop), Is.False,
+                "An unpowered, stopped press must not report CriticalMissingEStop on exit.");
+            Assert.That(MissionSession.LastResult.Outcome, Is.EqualTo(OutcomeType.Partial));
         }
 
         /// <summary>

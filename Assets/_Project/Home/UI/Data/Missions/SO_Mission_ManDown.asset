@@ -24,17 +24,17 @@ MonoBehaviour:
   Complexity: 2
   SceneName: SCN_ManDown
   Objectives:
-  - Metti in sicurezza la scena
-  - Verifica coscienza e respiro
-  - Chiama il 112
-  - Usa il defibrillatore
+  - Verifica la coscienza
+  - Verifica la respirazione
+  - Chiama i soccorsi
+  - Esegui le manovre necessarie
   Criteria:
   - Outcome: 0
-    Text: Soccorsi chiamati e DAE usato subito
+    Text: Hai gestito correttamente l'emergenza.
   - Outcome: 1
-    Text: Soccorsi chiamati, DAE usato in ritardo
+    Text: "La gestione dell'emergenza presenta alcune criticit\xE0."
   - Outcome: 2
-    Text: Soccorsi non chiamati in tempo
+    Text: "La gestione dell'emergenza \xE8 risultata insufficiente."
   Levels:
   - Level: 1
     UnlockedByDefault: 1

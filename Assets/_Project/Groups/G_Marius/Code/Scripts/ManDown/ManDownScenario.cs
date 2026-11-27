@@ -111,6 +111,13 @@ namespace SI81.ManDown
         /// <summary>Messaggio condiviso di arrivo simulato dei soccorsi (solo se il 112 è stato chiamato).</summary>
         public const string RESCUE_ARRIVED_INFO = "I soccorsi sono arrivati.";
 
+        // Indici degli obiettivi nell'ordine approvato di SO_Mission_ManDown (limite comune: 4 voci).
+        private const int OBJECTIVE_COUNT = 4;
+        private const int OBJECTIVE_CONSCIOUSNESS = 0;
+        private const int OBJECTIVE_BREATHING = 1;
+        private const int OBJECTIVE_CALL_112 = 2;
+        private const int OBJECTIVE_MANOEUVRES = 3;
+
         // =================================================================
         // Inspector
         // =================================================================
@@ -167,6 +174,8 @@ namespace SI81.ManDown
         private readonly List<string> failureCauses = new List<string>();
         private readonly List<string> penalties = new List<string>();
         private readonly HashSet<int> electrodesPlaced = new HashSet<int>();
+        // Stato effettivo di ciascun obiettivo: indipendente dall'ordine in cui il giocatore agisce.
+        private readonly bool[] objectivesSatisfied = new bool[OBJECTIVE_COUNT];
 
         private bool initialized;
         private bool concluded;
@@ -497,6 +506,96 @@ namespace SI81.ManDown
         public ManDownScoreResult LastScoreResult => lastScoreResult;
 
         // =================================================================
+        // Obiettivi della missione (stato effettivo, ordine non vincolante)
+        // =================================================================
+
+        /// <summary>True se l'obiettivo indicato è stato effettivamente soddisfatto in questa partita.</summary>
+        public bool IsObjectiveSatisfied(int index) =>
+            index >= 0 && index < objectivesSatisfied.Length && objectivesSatisfied[index];
+
+        /// <summary>
+        /// Numero di obiettivi effettivamente soddisfatti. Nasconde il contatore privato della classe base,
+        /// che non è azzerabile da una classe derivata: il polso usa comunque l'indice impostato da
+        /// <see cref="SetObjective"/>, che viene ripristinato a ogni nuova partita.
+        /// </summary>
+        public new int ObjectivesCompleted
+        {
+            get
+            {
+                int completed = 0;
+                for (int i = 0; i < objectivesSatisfied.Length; i++)
+                    if (objectivesSatisfied[i]) completed++;
+                return completed;
+            }
+        }
+
+        /// <summary>
+        /// Segna un obiettivo come soddisfatto una sola volta: il contatore della classe base viene avanzato
+        /// solo per le voci davvero nuove, anche se il giocatore ha agito fuori dall'ordine della lista.
+        /// </summary>
+        private void MarkObjective(int index)
+        {
+            if (!IsRunning || index < 0 || index >= objectivesSatisfied.Length || objectivesSatisfied[index]) return;
+            objectivesSatisfied[index] = true;
+            CompleteObjective();
+        }
+
+        /// <summary>
+        /// Verifica tutti gli obiettivi dai soli dati già registrati. Non introduce nuove soglie e non tocca
+        /// scoring, esiti o timer: aggiorna solo lo stato degli obiettivi e la HUD.
+        /// </summary>
+        private void RefreshObjectiveProgress()
+        {
+            if (!IsRunning) return;
+            if (IsConsciousnessChecked) MarkObjective(OBJECTIVE_CONSCIOUSNESS);
+            if (IsBreathingChecked) MarkObjective(OBJECTIVE_BREATHING);
+            if (IsCall112Made) MarkObjective(OBJECTIVE_CALL_112);
+            if (ManoeuvresCompleted()) MarkObjective(OBJECTIVE_MANOEUVRES);
+            SyncWristObjective();
+        }
+
+        /// <summary>
+        /// Criteria dell'ultimo obiettivo, letti dallo stato già registrato: posa laterale corretta e
+        /// monitoraggio completato nel ramo normale; RCP nella finestra (o proroga) e, se il DAE è
+        /// disponibile, scarica completata nel ramo anomalo.
+        /// </summary>
+        private bool ManoeuvresCompleted()
+        {
+            if (!IsBreathingChecked) return false;
+
+            if (!breathingAbnormal)
+                return lastCorrectPosition == ManDownPositionChoice.SidePosition && finalMonitoringCompleted;
+
+            bool cprInWindow = ScoringCprSnapshot.TotalCompleted > 0 ||
+                               (graceGrantedOnce && LastCprQualitySnapshot.GraceCompressions > 0);
+            if (!cprInWindow) return false;
+            return !aedAvailable || LastAedSnapshot.ShockCompleted;
+        }
+
+        /// <summary>
+        /// Mostra sul polso il primo obiettivo non ancora soddisfatto nell'ordine della missione;
+        /// <see cref="SetObjective"/> aggiorna anche il contatore "n/N" e la Pausa. Se tutti sono
+        /// soddisfatti resta visibile l'ultimo, senza forzare completamenti fittizi.
+        /// </summary>
+        private void SyncWristObjective()
+        {
+            int count = ObjectiveCount;
+            if (count <= 0) return;
+
+            int first = 0;
+            while (first < objectivesSatisfied.Length && objectivesSatisfied[first]) first++;
+            if (first > count - 1) first = count - 1;
+            if (first != CurrentObjectiveIndex) SetObjective(first);
+        }
+
+        /// <summary>Azzera lo stato degli obiettivi e riporta il polso al primo all'inizio o al replay.</summary>
+        private void ResetObjectiveProgress()
+        {
+            for (int i = 0; i < objectivesSatisfied.Length; i++) objectivesSatisfied[i] = false;
+            SyncWristObjective();
+        }
+
+        // =================================================================
         // Ciclo di vita
         // =================================================================
 
@@ -600,6 +699,7 @@ namespace SI81.ManDown
             RecordAction(ACTION_CONSCIOUSNESS_CHECK, true, true, CONSCIOUSNESS_RESULT);
             if (phase == ManDownPhase.Initialization || phase == ManDownPhase.ConsciousnessAssessment)
                 ChangePhase(ManDownPhase.BreathingAssessment);
+            RefreshObjectiveProgress();
             ConsciousnessAssessed?.Invoke();
         }
 
@@ -650,6 +750,7 @@ namespace SI81.ManDown
             // Il vecchio evento resta per compatibilità; il nuovo evento distingue iniziale e rivalutazioni.
             BreathingAssessed?.Invoke(breathingAbnormal);
             BreathingAssessmentRecorded?.Invoke(assessment);
+            RefreshObjectiveProgress();
         }
 
         /// <summary>
@@ -660,8 +761,8 @@ namespace SI81.ManDown
         ///
         /// Una chiamata ripetuta con la stessa posizione di quella corrente viene ignorata (duplicato della
         /// stessa interazione). Gli errori già registrati restano sempre nel registro: una scelta corretta
-        /// successiva viene segnata come correzione senza cancellarli. Non cambia fase, timer, penalità o
-        /// punteggio: prepara soltanto i dati per il futuro scoring.
+        /// successiva viene segnata come correzione senza cancellarli. Non cambia penalità né punteggio:
+        /// prepara i dati per lo scoring e aggiorna lo stato degli obiettivi.
         /// </summary>
         /// <param name="choice">Posizione scelta dal giocatore.</param>
         /// <returns>Il record creato, oppure null se la scelta non è stata accettata.</returns>
@@ -727,6 +828,7 @@ namespace SI81.ManDown
                 StartFinalMonitoring();
 
             PositionChoiceRecorded?.Invoke(record);
+            RefreshObjectiveProgress();
             return record;
         }
 
@@ -811,6 +913,7 @@ namespace SI81.ManDown
 
             call112Made = true;
             RecordAction(ACTION_CALL_112, true, true, null);
+            RefreshObjectiveProgress();
             EmergencyCalled?.Invoke();
         }
 
@@ -856,6 +959,7 @@ namespace SI81.ManDown
 
             ChangePhase(result.Phase == ManDownCprPhase.AfterDefibrillation ? ManDownPhase.CprResume : ManDownPhase.Cpr);
             CprResultRegistered?.Invoke(result);
+            RefreshObjectiveProgress();
         }
 
         /// <summary>
@@ -876,6 +980,7 @@ namespace SI81.ManDown
                 CprStarted?.Invoke();
             }
             lastCprQualitySnapshot = snapshot;
+            RefreshObjectiveProgress();
         }
 
         /// <summary>Registra un problema di qualità della RCP (una sola volta).</summary>
@@ -950,6 +1055,8 @@ namespace SI81.ManDown
         {
             if (!AcceptsActions) return;
             lastAedSnapshot = snapshot;
+            // Aggiorna prima di EndGrace: la scarica può chiudere la missione e bloccare gli aggiornamenti.
+            RefreshObjectiveProgress();
             if (snapshot.ShockCompleted && graceActive) EndGrace("shock_completed");
             AedSnapshotReported?.Invoke(snapshot);
         }
@@ -1000,6 +1107,7 @@ namespace SI81.ManDown
             aedInstructionConfirmed = true;
             RecordAction(ACTION_AED_INSTRUCTION, true, true, null);
             if (phase != ManDownPhase.CprResume) ChangePhase(ManDownPhase.Aed);
+            RefreshObjectiveProgress();
             AedInstructionConfirmed?.Invoke();
         }
 
@@ -1055,8 +1163,9 @@ namespace SI81.ManDown
         /// <summary>
         /// Avvia il monitoraggio finale della durata configurata. È richiamato dal ramo con respirazione normale
         /// quando il giocatore sceglie la posizione laterale, ma è un'API pubblica riutilizzabile dal futuro ramo
-        /// RCP/DAE. Non tocca il timer comune, non avanza obiettivi e non mostra un secondo timer nell'HUD:
-        /// imposta solo la fase condivisa PHASE_RESOLUTION per la durata del monitoraggio.
+        /// RCP/DAE. Non tocca il timer comune e non mostra un secondo timer nell'HUD: imposta solo la fase
+        /// condivisa PHASE_RESOLUTION per la durata del monitoraggio. L'obiettivo delle manovre può avanzare
+        /// soltanto al completamento effettivo del monitoraggio, non all'avvio.
         /// Una nuova chiamata mentre è già attivo non riavvia il conteggio. Il parametro facoltativo
         /// distingue nel registro il ramo con respirazione anormale che ha completato la RCP.
         /// </summary>
@@ -1101,6 +1210,7 @@ namespace SI81.ManDown
             if (!AcceptsActions || !finalMonitoringStarted || finalMonitoringCompleted) return;
 
             finalMonitoringCompleted = true;
+            RefreshObjectiveProgress();
             if (call112Made) Alert(RESCUE_ARRIVED_INFO);
             CompleteFinalAssistance();
         }
@@ -1174,6 +1284,7 @@ namespace SI81.ManDown
             abnormalWindowEndedAt = Time.time - missionStartTime;
             // Congela qui le statistiche RCP che il futuro scoring userà per la finestra principale.
             cprWindowSnapshot = lastCprQualitySnapshot;
+            RefreshObjectiveProgress();
             AbnormalWindowElapsed?.Invoke(abnormalWindowEndedAt);
 
             if (CanGrantGrace()) StartGrace();
@@ -1552,6 +1663,7 @@ namespace SI81.ManDown
         private void ClearRuntimeData()
         {
             StopAbnormalTimers();
+            ResetObjectiveProgress();
             actions.Clear();
             cprResults.Clear();
             positionChoices.Clear();

@@ -39,9 +39,6 @@ namespace SI81.ManDown
         /// <summary>Unica opzione di conferma dei popup informativi.</summary>
         public const string CONFIRM_OPTION = "OK";
 
-        /// <summary>Indice dell'obiettivo "Verifica coscienza e respiro" in SO_Mission_ManDown.</summary>
-        private const int NPC_ASSESSMENT_OBJECTIVE = 1;
-
         /// <summary>
         /// Cinque scelte di posizione, compresa quella di partenza (None = supina). Il popup ne mostra quattro
         /// in ordine casuale, escludendo sempre la posizione logica corrente.
@@ -68,7 +65,6 @@ namespace SI81.ManDown
         [SerializeField] private ManDownPoseController poseController;
 
         // Stato di presentazione e di ingresso, non di valutazione: non duplica i dati del controller.
-        private bool npcObjectiveCompleted;
         private bool gripArmed = true;
         private bool popupPending;
         private string pendingInfo;
@@ -132,7 +128,6 @@ namespace SI81.ManDown
             if (scenario != null)
             {
                 scenario.ConsciousnessAssessed += OnConsciousnessAssessed;
-                scenario.BreathingAssessed += OnBreathingAssessed;
                 scenario.BreathingAssessmentRecorded += OnBreathingAssessmentRecorded;
                 scenario.MissionConcluded += OnMissionConcluded;
             }
@@ -151,7 +146,6 @@ namespace SI81.ManDown
             if (scenario != null)
             {
                 scenario.ConsciousnessAssessed -= OnConsciousnessAssessed;
-                scenario.BreathingAssessed -= OnBreathingAssessed;
                 scenario.BreathingAssessmentRecorded -= OnBreathingAssessmentRecorded;
                 scenario.MissionConcluded -= OnMissionConcluded;
             }
@@ -330,18 +324,12 @@ namespace SI81.ManDown
             FlushPendingInfo();
         }
 
-        /// <summary>Dopo la prima verifica della coscienza nasconde l'etichetta e mostra il messaggio informativo.</summary>
+        /// <summary>Dopo la prima verifica della coscienza nasconde l'etichetta e mostra il messaggio informativo.
+        /// L'avanzamento degli obiettivi è gestito dallo scenario, che riceve già la verifica.</summary>
         private void OnConsciousnessAssessed()
         {
             if (shoulderLabel != null) shoulderLabel.Suppressed = true;
             ShowInfo(CONSCIOUSNESS_INFO);
-            TryCompleteNpcObjective();
-        }
-
-        /// <summary>Completa l'obiettivo NPC quando coscienza e respirazione sono registrate, in ordine qualsiasi.</summary>
-        private void OnBreathingAssessed(bool abnormal)
-        {
-            TryCompleteNpcObjective();
         }
 
         /// <summary>
@@ -351,20 +339,6 @@ namespace SI81.ManDown
         private void OnBreathingAssessmentRecorded(ManDownBreathingAssessmentRecord record)
         {
             ShowInfo(record.Abnormal ? BREATHING_ABNORMAL_INFO : BREATHING_NORMAL_INFO);
-        }
-
-        /// <summary>
-        /// Completa l'obiettivo "Verifica coscienza e respiro" quando entrambe le valutazioni sono registrate.
-        /// Non aggiunge obiettivi né anticipa la conclusione della missione.
-        /// </summary>
-        private void TryCompleteNpcObjective()
-        {
-            if (npcObjectiveCompleted || scenario == null || !scenario.IsRunning) return;
-            if (!scenario.IsConsciousnessChecked || !scenario.IsBreathingChecked) return;
-
-            npcObjectiveCompleted = true;
-            scenario.SetObjective(NPC_ASSESSMENT_OBJECTIVE);
-            scenario.CompleteObjective();
         }
 
         /// <summary>
@@ -472,7 +446,6 @@ namespace SI81.ManDown
         /// </summary>
         private void OnMissionStarted()
         {
-            npcObjectiveCompleted = false;
             waitingForScenarioReset = true;
             appliedLabelState = 1;
             if (shoulderLabel != null) shoulderLabel.Suppressed = false;

@@ -55,6 +55,8 @@ jobs:
                   errors.append(f'Auto-generated Meta XR asset must not be committed: {p}')
               if p.endswith('.meta'):
                   continue
+              if any(part.endswith('~') for part in p.split('/')):
+                  continue
               if f'{p}.meta' not in tracked:
                   errors.append(f'Missing .meta file for tracked asset: {p}')
           if errors:

@@ -157,22 +157,57 @@ namespace SI81.UI
         {
             HUDService.TimerExpired -= HandleTimerExpired;
             if (decisionPanel != null && decisionPanel.IsOpen) decisionPanel.Close();
-            if (movedOrigin != null) movedOrigin.SetPositionAndRotation(originalOriginPosition, originalOriginRotation);
+            if (movedOrigin != null)
+            {
+                movedOrigin.localPosition = originalOriginPosition;
+                movedOrigin.localRotation = originalOriginRotation;
+            }
         }
 
         /// <summary>
-        /// Porta l'origine del tracciamento del rig sul punto di partenza (posizione e imbardata). La posa originale viene
-        /// ripristinata quando la scena si scarica. Con un rig reale (VR Interaction System) questa regola va confermata con quel team.
+        /// Porta l'origine del tracciamento del rig sul punto di partenza (posizione e imbardata) solo se la scena non
+        /// usa già <c>SI81.Rig.SpawnPoint</c>. Quando <c>SpawnPoint</c> è presente, è il componente del rig a spostare
+        /// e ripristinare la radice del rig senza spostare il <c>TrackingOrigin</c> figlio (che altrimenti corromperebbe
+        /// lo spawn degli scenari successivi e l'offset della modalità seduto).
         /// </summary>
         private void MoveRigToSpawnPoint()
         {
             if (spawnPoint == null || UIScreenManager.Instance == null) return;
+            if (HasRigSpawnPoint()) return;
             Transform origin = UIScreenManager.Instance.TrackingOrigin;
             if (origin == null) return;
             movedOrigin = origin;
-            originalOriginPosition = origin.position;
-            originalOriginRotation = origin.rotation;
+            originalOriginPosition = origin.localPosition;
+            originalOriginRotation = origin.localRotation;
             origin.SetPositionAndRotation(spawnPoint.position, Quaternion.Euler(0f, spawnPoint.eulerAngles.y, 0f));
+        }
+
+        /// <summary>
+        /// True se lo spawnPoint assegnato o un oggetto della stessa scena monta già <c>SI81.Rig.SpawnPoint</c>.
+        /// Controllo per nome di tipo per non introdurre una dipendenza da <c>SI81.UI</c> verso <c>SI81.Rig</c>.
+        /// </summary>
+        private bool HasRigSpawnPoint()
+        {
+            if (spawnPoint != null && HasRigSpawnPointComponent(spawnPoint.gameObject)) return true;
+            UnityEngine.SceneManagement.Scene scene = gameObject.scene;
+            if (!scene.IsValid() || !scene.isLoaded) return false;
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] != null && HasRigSpawnPointComponent(roots[i])) return true;
+            }
+            return false;
+        }
+
+        private static bool HasRigSpawnPointComponent(GameObject root)
+        {
+            MonoBehaviour[] behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                MonoBehaviour b = behaviours[i];
+                if (b != null && b.GetType().FullName == "SI81.Rig.SpawnPoint") return true;
+            }
+            return false;
         }
 
 #if UNITY_EDITOR

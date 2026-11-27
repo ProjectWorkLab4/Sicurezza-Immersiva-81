@@ -16,6 +16,8 @@ namespace SI81.UI
         private readonly bool additive;
         // Scena di scenario caricata in additivo, da scaricare al ritorno.
         private string loadedMissionScene;
+        // Contatore monotono per annullare callback di scaricamento obsolete se parte un nuovo lancio o un ritorno alla Home.
+        private int transitionGeneration;
 
         /// <summary>
         /// Crea il lanciatore.
@@ -67,6 +69,7 @@ namespace SI81.UI
         /// <inheritdoc/>
         public void ReturnToHome()
         {
+            int generation = ++transitionGeneration;
             Time.timeScale = 1f;
             MissionSession.Clear();
             if (additive && !string.IsNullOrEmpty(loadedMissionScene) && SceneManager.GetSceneByName(loadedMissionScene).isLoaded)
@@ -75,7 +78,7 @@ namespace SI81.UI
                 SetCoreSceneActive(SceneManager.GetSceneByName(loadedMissionScene));
                 AsyncOperation unload = SceneManager.UnloadSceneAsync(loadedMissionScene);
                 loadedMissionScene = null;
-                if (unload != null) unload.completed += _ => ShowHome();
+                if (unload != null) unload.completed += _ => { if (transitionGeneration == generation) ShowHome(); };
                 else ShowHome();
                 return;
             }
@@ -85,7 +88,7 @@ namespace SI81.UI
                 AsyncOperation load = SceneManager.LoadSceneAsync(menuSceneName, LoadSceneMode.Single);
                 if (load != null)
                 {
-                    load.completed += _ => ShowHome();
+                    load.completed += _ => { if (transitionGeneration == generation) ShowHome(); };
                     return;
                 }
             }
@@ -105,26 +108,33 @@ namespace SI81.UI
                 Debug.LogError($"[SI81 UI] Lo scenario \"{m.name}\" non ha SceneName: impossibile avviarlo.", m);
                 return;
             }
+            int generation = ++transitionGeneration;
             Time.timeScale = 1f;
             // Ricomincia / Riprova / Cambia livello: se uno scenario è ancora caricato lo scarica, altrimenti la scena si duplica.
-            // La nuova scena si carica solo a scaricamento finito: se le due operazioni si sovrappongono, lo SpawnPoint della scena
-            // vecchia (in OnDisable) riporta il rig alla posa di prima DOPO lo spawn della scena nuova, e il giocatore parte fuori
-            // dallo scenario (piu' probabile sul visore, dove i caricamenti sono lenti).
+            // La nuova sessione e la nuova scena partono solo a scaricamento finito: così OnDisable (SpawnPoint) e OnDestroy
+            // dello scenario vecchio completano prima che parta il nuovo scenario e non possono sovrascrivere posa, HUD o checklist.
             AsyncOperation unload = UnloadLoadedScene();
-            MissionSession.Begin(m, level, training);
             if (unload != null && !unload.isDone)
             {
-                unload.completed += _ => LoadMissionScene(m);
                 if (UIScreenManager.Instance != null) UIScreenManager.Instance.HideMenu();
+                unload.completed += _ =>
+                {
+                    if (transitionGeneration != generation) return;
+                    LoadMissionScene(m, level, training, generation);
+                };
                 return;
             }
-            LoadMissionScene(m);
+            LoadMissionScene(m, level, training, generation);
         }
 
-        /// <summary>Carica la scena dello scenario (additiva o singola) e la rende attiva a caricamento finito.</summary>
+        /// <summary>Avvia la sessione, carica la scena dello scenario (additiva o singola) e la rende attiva a caricamento finito.</summary>
         /// <param name="m">Scenario.</param>
-        private void LoadMissionScene(MissionDefinition m)
+        /// <param name="level">Livello.</param>
+        /// <param name="training">true per il Training.</param>
+        /// <param name="generation">Generazione della transizione per ignorare callback obsolete.</param>
+        private void LoadMissionScene(MissionDefinition m, DifficultyLevel level, bool training, int generation)
         {
+            MissionSession.Begin(m, level, training);
             AsyncOperation op = SceneManager.LoadSceneAsync(m.SceneName, additive ? LoadSceneMode.Additive : LoadSceneMode.Single);
             if (op == null)
             {
@@ -139,6 +149,7 @@ namespace SI81.UI
                 string sceneName = m.SceneName;
                 op.completed += _ =>
                 {
+                    if (transitionGeneration != generation) return;
                     Scene loaded = SceneManager.GetSceneByName(sceneName);
                     if (loaded.isLoaded && loadedMissionScene == sceneName) SceneManager.SetActiveScene(loaded);
                 };

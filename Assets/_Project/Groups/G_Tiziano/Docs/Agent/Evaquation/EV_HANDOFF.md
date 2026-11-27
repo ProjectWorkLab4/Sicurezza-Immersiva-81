@@ -1,7 +1,8 @@
 # HANDOFF — Evacuation
 
 ## Stato corrente (riscrivere a ogni task, max 15 righe)
-- Ultima task: E20 (2026-11-26) — mappa: corridoio e pareti graybox resi visibili (il FBX non li contiene).
+- Ultima task: E22 (2026-11-27) — SCN_Evacuation ricostruita con UFFICIO_STACCATO + 8 TAVOLO (passi 1–10 chiusi; restano test a mano nel Simulator, clip allarme, input hint).
+- Prima: E20 (2026-11-26) — mappa: corridoio e pareti graybox resi visibili (il FBX non li contiene).
 - E19: interazioni uffici sul muro del modello. E18: hit box NPC. E17: Home. E16: NPC non spingono. E15: missione 09.
 - Causa: collider di interazione tutti trigger; il `RayInteractor` condiviso raycasta con `QueryTriggerInteraction.Ignore` → piani/NPC/pulsante non colpibili. Il bridge duplicava `Select → Activated` (doppia apertura porte).
 - Fix: collider solidi di raycast su piani/porte/pulsante; `RaycastSurface` (sfera 0.55 @ y1.05) aggiunta a `EvacNpc.prefab`; area trigger NPC conservata.
@@ -236,3 +237,11 @@
 - Comandi di test: Play da `SCN_Evacuation` (il controller carica `SCN_Core` da solo) → `Y` → verificare i due step NPC su 50; `F11` → 5 replay; `F12` → 10 reset; `F5` → 200/200 lane libere.
 - Richieste all'utente: verifica visiva in Simulator/Quest che i 5 colleghi TIZIO siano leggibili accanto alle scrivanie del nuovo ufficio; se vuoi che l'FBX copra anche l'ufficio 2, fornisci il modello con arredi in quell'area oppure autorizza uno spostamento/scala del modello.
 - Problemi aperti: il nuovo FBX non è allineato al pavimento graybox (copre solo in parte l'ufficio 1); il smoke test completo resta 38/50 per i reference mancanti preesistenti.
+
+### E22 — Ricostruzione SCN_Evacuation con UFFICIO_STACCATO + TAVOLO — 2026-11-27
+- Fatto: passi 1–10 di `EV_REBUILD_STACCATO_PLAN.md`. Struttura da `UFFICIO_STACCATO.fbx` (referenziato da Shared), 8 `EvacDesk`, collider `Environment` a soli box, 49 marker + 10 `FIRESLOT` riposizionati, porte/piani/allarme/pulsante/cartello con modelli nuovi, riferimenti ricollegati, fix Hinge.
+- File (rel. a GROUP/): `Level/Scenes/SCN_Evacuation.unity` (+ backup `SCN_Evacuation_PRE_STACCATO.unity`), `Level/Prefabs/Evacuation/EvacDesk.prefab`, materiali `MAT_EV_AlarmModel_Red/ExitSignModel_*`, `Code/Scripts/Evacuation/Interaction/DoorInteractable.cs` (**unico C# modificato**: `IgnoreCollision` rig↔collider non-blocker, come E16), `Docs/EVAC_PERF_REPORT.md`, `Docs/Agent/Evaquation/EV_REBUILD_STACCATO_PLAN.md`.
+- Verifiche: Y `50/50 ALL PASS`; `ValidateSeeds(200)` → 0 scartati; O/F11/F12 eseguiti senza errori `[EV]` (riepiloghi non riletti); ≈387k tri statici. Pulizia: `SEGNALEVERDE` eliminato, `UFFICIO_ASSEMBLATO_UNITO` **disattivato** (non eliminato).
+- Decisioni/assunzioni: annesso est = scale interne (mai confermato dall'utente); ascensore a ovest del corridoio; scale senza gradini percorribili (solo pianerottolo → `ExitZone_*`); ID `evac.plan.*` e `evac.door.stairs.internal` assegnati da me (validati dallo smoke test).
+- Richieste all'utente: (1) test a mano nel Simulator: passaggio da tutte le porte aperte, scambio visivo porta emergenza, tavoli/NPC, tempi 180/120 s da ritarare; (2) clip audio per `AlarmSystem.alarmClip` (vuoto); (3) input A/X per gli hint: `EvacHintInput` non esiste più (rig ora `SI81.Rig`), resta `Director.RequestNextHint()` e tasto B; (4) confermare annesso est = scale interne.
+- Problemi aperti: draw call/frame time su Quest non misurati; `Door_StairsEmergency` scambio visual non testato in Play; `LabelAnchor` su `Door_StairsInternal` assente.

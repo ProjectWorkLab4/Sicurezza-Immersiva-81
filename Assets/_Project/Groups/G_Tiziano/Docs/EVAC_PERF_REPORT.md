@@ -53,3 +53,9 @@ Non sono state toccate luci, shader, materiali, ProjectSettings, package, UI o a
 ## 5. Giudizio
 
 Con 320 draw call in Editor e nessuna trasparenza/post-processing/luce extra, il scenario resta nel budget indicativo per Quest; la riduzione del 39% dei batch e del tetto particelle da 600 a 230 limita il costo della modalità Crisis. Il giudizio definitivo richiede il profilo su headset reale (E13 opzionale, outside scope del gruppo).
+
+
+## Aggiornamento E22 — ricostruzione con UFFICIO_STACCATO (2026-11-27)
+- Conteggio **statico** in editor (MeshRenderer attivi di `SCN_Evacuation`, senza `UFFICIO_ASSEMBLATO_UNITO`, disattivato): 72 MeshRenderer, ≈ **387k triangoli** (struttura `MODEL_Staccato` ≈ 40k + 8 × `EvacDesk` 42.8k = 343k + porte/piani/allarme/pulsante/cartello). NPC (SkinnedMeshRenderer TIZIO) esclusi.
+- Prima della ricostruzione: ≈ 575k tri (E13). Il guadagno viene dalla rimozione delle scrivanie incorporate nel modello (−531k) a fronte dei tavoli nuovi (+343k).
+- **Non misurati**: draw call/batches/SetPass in Play e frame time su Quest (misure E13 non rifatte). Da fare su headset reale. Se serve, versione semplificata di `TAVOLO` (8 × 42.8k è la voce più pesante).

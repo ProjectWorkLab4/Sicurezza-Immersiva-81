@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Events;
+using SI81.Rig;
 using SI81.Tiziano.ChemicalAlert.Core;
 using SI81.Tiziano.ChemicalAlert.Interaction;
 using SI81.Tiziano.Evacuation.Systems;
@@ -44,6 +45,7 @@ namespace SI81.Tiziano.Evacuation.Interaction
         [SerializeField] private UnityEvent onClosed = new UnityEvent();
 
         private bool isOpen;
+        private RigRegistration ignoredRig;
 
         /// <summary>Raised after every state change with the new open state.</summary>
         public event Action<DoorInteractable, bool> StateChanged;
@@ -92,6 +94,8 @@ namespace SI81.Tiziano.Evacuation.Interaction
                 interactable.Activated += HandleActivated;
             if (director != null)
                 director.RegisterResettable(this);
+            RigRegistration.Registered += HandleRigRegistered;
+            ApplyPlayerCollisionIgnore(RigRegistration.Instance);
         }
 
         private void OnDisable()
@@ -100,6 +104,36 @@ namespace SI81.Tiziano.Evacuation.Interaction
                 interactable.Activated -= HandleActivated;
             if (director != null)
                 director.UnregisterResettable(this);
+            RigRegistration.Registered -= HandleRigRegistered;
+        }
+
+        private void HandleRigRegistered(RigRegistration rig)
+        {
+            ApplyPlayerCollisionIgnore(rig);
+        }
+
+        /// <summary>
+        /// I collider solidi di raycast (Hinge*) restano nel varco anche a porta aperta e bloccherebbero il
+        /// CharacterController del rig. Il raggio della mano li colpisce comunque; solo i blocker veri
+        /// (<c>blockingColliders</c>) fermano il giocatore, e solo a porta chiusa.
+        /// </summary>
+        private void ApplyPlayerCollisionIgnore(RigRegistration rig)
+        {
+            if (rig == null || ignoredRig == rig)
+                return;
+
+            ignoredRig = rig;
+            CharacterController controller = rig.GetComponent<CharacterController>();
+            if (controller == null)
+                return;
+
+            Collider[] own = GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < own.Length; i++)
+            {
+                if (own[i] == null || own[i].isTrigger || Array.IndexOf(blockingColliders, own[i]) >= 0)
+                    continue;
+                Physics.IgnoreCollision(own[i], controller, true);
+            }
         }
 
         /// <summary>Opens the door (no effect if already open).</summary>

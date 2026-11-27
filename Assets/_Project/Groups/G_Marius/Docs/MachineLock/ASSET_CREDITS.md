@@ -131,7 +131,7 @@ All 12 prefabs keep their production root names under `Assets/_Project/Groups/G_
 | 6 | `TEX_GreenMetalRust_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_GreenMetalRust_*` | `DOWNLOADED` | `https://polyhaven.com/a/green_metal_rust` | Rob Tuytel (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #35 |
 | 7 | `TEX_ConcreteWall009_{Albedo,Normal,Rough}` | `Assets/_Project/Groups/G_Marius/Art/Textures/MachineLock/TEX_ConcreteWall009_*` | `DOWNLOADED` | `https://polyhaven.com/a/concrete_wall_009` | Charlotte Baglioni (Poly Haven) | `CC0-1.0` | 1K download; Android 1024 ASTC 6×6, no displacement | Issue #35 |
 
-### 4.6 Audio (18 authentic clips)
+### 4.6 Audio (20 clips)
 
 | # | Production asset | Unity path | Type | Status | Source | Author / publisher | License | Modifications | Phase |
 |---|---|---|---|---|---|---|---|---|---|
@@ -153,6 +153,8 @@ All 12 prefabs keep their production root names under `Assets/_Project/Groups/G_
 | 16 | `SFX_Shock` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Shock.wav` | Audio (one-shot) | `DOWNLOADED` | `https://github.com/wyzowl/sfx-kit` | Wyzowl | `CC0-1.0` | Retained fallback clip | Issue #35 |
 | 17 | `SFX_Burn` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_Burn.wav` | Audio (one-shot) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/9/9d/Zzrrrp_sizzle.ogg` | stephan (Wikimedia Commons) | `Public Domain` | 1.50 s hot-oil sizzle burst | Issue #35 |
 | 18 | `SFX_AmbientFactory` | `Assets/_Project/Groups/G_Marius/Audio/Music/MachineLock/SFX_AmbientFactory.wav` | Audio (loop) | `DOWNLOADED` | `https://upload.wikimedia.org/wikipedia/commons/d/d9/WWS_HydropowerStation.ogg` | Work With Sounds / Technical Museum of Slovenia | `CC-BY-4.0` | 8.00 s seamless industrial machine-hall hum | Issue #35 |
+| 19 | `SFX_FeedbackPositive` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_FeedbackPositive.wav` | Audio (one-shot) | `GENERATED` | Procedurally synthesized 44.1 kHz mono WAV (`MachineLockActionFeedback.BuildPositiveSamples`) | G_Marius | Project-owned | Ascending D5→A5 chime for valid safety actions (`MachineLockActionFeedback`) | Issue #46 |
+| 20 | `SFX_FeedbackNegative` | `Assets/_Project/Groups/G_Marius/Audio/Sound/MachineLock/SFX_FeedbackNegative.wav` | Audio (one-shot) | `GENERATED` | Procedurally synthesized 44.1 kHz mono WAV (`MachineLockActionFeedback.BuildNegativeSamples`) | G_Marius | Project-owned | Low double-buzz for wrong/blocked actions (`MachineLockActionFeedback`) | Issue #46 |
 
 ### 4.7 VFX, Lighting & Wayfinding (`SCN_MachineLock`)
 

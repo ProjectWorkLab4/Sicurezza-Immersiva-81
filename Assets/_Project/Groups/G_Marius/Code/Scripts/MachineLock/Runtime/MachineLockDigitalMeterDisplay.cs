@@ -5,10 +5,10 @@ using UnityEngine;
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Procedural diegetic 7-segment Digital Meter mounted on the Voltage Tester Sub-Station (Issue #45).
-    /// Renders an industrial panel-mount bezel ("Digital Meter", decorative wrench and lightbulb buttons)
-    /// and a backlit blue-grey LCD showing VOLTAGE (V), CURRENT (A), and POWER (W) without any scene Canvas
-    /// or per-frame heap allocations. Starts unlit/OFF until powered on by <see cref="MachineLockEnergyPanel"/>.
+    /// Procedural diegetic 7-segment Digital Meter mounted on the Voltage Tester Sub-Station (Issues #45, #46).
+    /// Renders a clean industrial panel-mount bezel ("Digital Meter", no non-functional buttons) and a widened
+    /// backlit blue-grey LCD showing VOLTAGE (V), CURRENT (A), and POWER (W) without any scene Canvas or
+    /// per-frame heap allocations. Starts unlit/OFF until powered on by <see cref="MachineLockEnergyPanel"/>.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Digital Meter Display")]
@@ -17,11 +17,11 @@ namespace SI81.MachineLock
         private const int TEX_WIDTH = 512;
         private const int TEX_HEIGHT = 432;
 
-        // Central LCD rectangle inside the 512x432 faceplate texture (pixel coordinates, Y=0 at bottom).
-        private const int LCD_LEFT = 128;
-        private const int LCD_RIGHT = 378;
-        private const int LCD_BOTTOM = 46;
-        private const int LCD_TOP = 386;
+        // Widened LCD rectangle inside the 512x432 faceplate texture (pixel coordinates, Y=0 at bottom).
+        private const int LCD_LEFT = 122;
+        private const int LCD_RIGHT = 476;
+        private const int LCD_BOTTOM = 44;
+        private const int LCD_TOP = 388;
 
         private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
         private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -29,7 +29,7 @@ namespace SI81.MachineLock
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
-        // Faceplate palette (matched to the industrial panel-mount Digital Meter reference).
+        // Faceplate palette (clean industrial panel-mount Digital Meter).
         private static readonly Color32 ColOuterBody = new Color32(34, 34, 32, 255);
         private static readonly Color32 ColOuterHighlight = new Color32(58, 58, 55, 255);
         private static readonly Color32 ColOuterShadow = new Color32(18, 18, 17, 255);
@@ -37,9 +37,6 @@ namespace SI81.MachineLock
         private static readonly Color32 ColBezelLight = new Color32(182, 188, 192, 255);
         private static readonly Color32 ColBezelDark = new Color32(118, 124, 129, 255);
         private static readonly Color32 ColBezelText = new Color32(28, 32, 36, 255);
-        private static readonly Color32 ColButtonWhite = new Color32(246, 248, 250, 255);
-        private static readonly Color32 ColButtonShadow = new Color32(104, 110, 115, 255);
-        private static readonly Color32 ColButtonIcon = new Color32(34, 38, 42, 255);
 
         // LCD palette: OFF (dark unlit glass) and ON (cool blue-grey backlit with dark-blue 7-segment ink).
         private static readonly Color32 ColLcdRecess = new Color32(82, 92, 102, 255);
@@ -240,21 +237,7 @@ namespace SI81.MachineLock
             FillRect(pixels, LCD_LEFT - 3, LCD_BOTTOM - 3, LCD_RIGHT + 3, LCD_TOP + 3, ColLcdRecess);
 
             // 4. Vertical "Digital Meter" label on the left (rotated 90 degrees CCW, bottom to top).
-            DrawTextRotated90CCW(pixels, "Digital Meter", 58, 76, 4, ColBezelText);
-
-            // 5. Decorative circular white buttons on the right: top = wrench, bottom = lightbulb.
-            const int btnX = 434;
-            const int topBtnY = 286;
-            const int botBtnY = 148;
-            const int btnR = 34;
-
-            FillCircle(pixels, btnX + 2, topBtnY - 2, btnR, ColButtonShadow);
-            FillCircle(pixels, btnX, topBtnY, btnR, ColButtonWhite);
-            DrawWrenchIcon(pixels, btnX, topBtnY, ColButtonIcon);
-
-            FillCircle(pixels, btnX + 2, botBtnY - 2, btnR, ColButtonShadow);
-            FillCircle(pixels, btnX, botBtnY, btnR, ColButtonWhite);
-            DrawLightbulbIcon(pixels, btnX, botBtnY, ColButtonIcon);
+            DrawTextRotated90CCW(pixels, "Digital Meter", 52, 74, 4, ColBezelText);
         }
 
         // =====================================================================
@@ -276,9 +259,9 @@ namespace SI81.MachineLock
 
             // Faint unpowered ghost segments and labels for physical LCD realism.
             DrawRowLabelsAndUnits(workingPixels, ColLcdOffGhost);
-            DrawSevenSegmentString(workingPixels, "888", 336, 304, 34, 64, 7, 10, ColLcdOffGhost, ColLcdOffGhost);
-            DrawSevenSegmentString(workingPixels, "8.88", 336, 196, 31, 60, 7, 9, ColLcdOffGhost, ColLcdOffGhost);
-            DrawSevenSegmentString(workingPixels, "888.8", 336, 86, 28, 56, 6, 8, ColLcdOffGhost, ColLcdOffGhost);
+            DrawSevenSegmentString(workingPixels, "888", 422, 306, 42, 70, 9, 12, ColLcdOffGhost, ColLcdOffGhost);
+            DrawSevenSegmentString(workingPixels, "8.88", 422, 196, 38, 66, 8, 11, ColLcdOffGhost, ColLcdOffGhost);
+            DrawSevenSegmentString(workingPixels, "888.8", 422, 86, 36, 62, 8, 10, ColLcdOffGhost, ColLcdOffGhost);
 
             displayTexture.SetPixels32(workingPixels);
             displayTexture.Apply(false, false);
@@ -288,21 +271,21 @@ namespace SI81.MachineLock
         {
             Array.Copy(baseFaceplate, workingPixels, workingPixels.Length);
 
-            // Cool blue-grey backlit LCD with two soft right-edge side-LED glow lobes matching the reference photo.
+            // Cool blue-grey backlit LCD with soft right-edge side-LED glow lobes.
             for (int y = LCD_BOTTOM; y < LCD_TOP; y++)
             {
                 int row = y * TEX_WIDTH;
-                float dy1 = (y - 308f) / 68f;
-                float dy2 = (y - 160f) / 68f;
+                float dy1 = (y - 310f) / 72f;
+                float dy2 = (y - 158f) / 72f;
                 for (int x = LCD_LEFT; x < LCD_RIGHT; x++)
                 {
                     float u = (x - LCD_LEFT) / (float)(LCD_RIGHT - LCD_LEFT);
                     Color32 baseBg = Color32.Lerp(ColLcdOnLeft, ColLcdOnRight, u * 0.7f);
 
-                    float dx = (LCD_RIGHT - x) / 48f;
+                    float dx = (LCD_RIGHT - x) / 56f;
                     float lobe1 = Mathf.Exp(-(dx * dx + dy1 * dy1));
                     float lobe2 = Mathf.Exp(-(dx * dx + dy2 * dy2));
-                    float glow = Mathf.Clamp01((lobe1 + lobe2) * 0.62f);
+                    float glow = Mathf.Clamp01((lobe1 + lobe2) * 0.58f);
 
                     workingPixels[row + x] = Color32.Lerp(baseBg, ColLcdGlow, glow);
                 }
@@ -316,17 +299,17 @@ namespace SI81.MachineLock
             DrawRowLabelsAndUnits(workingPixels, ColLcdInk);
 
             // Row 1: VOLTAGE (integer up to 3 digits, e.g. 222 V or 0 V).
-            DrawSevenSegmentString(workingPixels, voltageText, 336, 304, 34, 64, 7, 10, ColLcdInk, ColLcdGhostOn, drawInactive: false);
+            DrawSevenSegmentString(workingPixels, voltageText, 422, 306, 42, 70, 9, 12, ColLcdInk, ColLcdGhostOn, drawInactive: false);
 
             // Row 2: CURRENT (2 decimals, e.g. 0.00 A or 12.40 A).
-            int curDigitW = currentText.Length >= 5 ? 27 : 31;
-            int curGap = currentText.Length >= 5 ? 7 : 9;
-            DrawSevenSegmentString(workingPixels, currentText, 336, 196, curDigitW, 60, 7, curGap, ColLcdInk, ColLcdGhostOn, drawInactive: false);
+            int curDigitW = currentText.Length >= 5 ? 34 : 38;
+            int curGap = currentText.Length >= 5 ? 9 : 11;
+            DrawSevenSegmentString(workingPixels, currentText, 422, 196, curDigitW, 66, 8, curGap, ColLcdInk, ColLcdGhostOn, drawInactive: false);
 
             // Row 3: POWER (0.0..999.9 or 4-digit integer e.g. 2850 W).
-            int powDigitW = powerText.Length >= 5 ? 27 : 30;
-            int powGap = powerText.Length >= 5 ? 7 : 9;
-            DrawSevenSegmentString(workingPixels, powerText, 336, 86, powDigitW, 56, 6, powGap, ColLcdInk, ColLcdGhostOn, drawInactive: false);
+            int powDigitW = powerText.Length >= 5 ? 34 : 36;
+            int powGap = powerText.Length >= 5 ? 9 : 10;
+            DrawSevenSegmentString(workingPixels, powerText, 422, 86, powDigitW, 62, 8, powGap, ColLcdInk, ColLcdGhostOn, drawInactive: false);
 
             displayTexture.SetPixels32(workingPixels);
             displayTexture.Apply(false, false);
@@ -334,15 +317,15 @@ namespace SI81.MachineLock
 
         private static void DrawRowLabelsAndUnits(Color32[] pixels, Color32 color)
         {
-            // Bottom-left row captions matching the reference meter layout.
-            DrawText(pixels, "VOLTAGE", LCD_LEFT + 10, 278, 3, color);
-            DrawText(pixels, "CURRENT", LCD_LEFT + 10, 170, 3, color);
-            DrawText(pixels, "POWER", LCD_LEFT + 10, 62, 3, color);
+            // Bottom-left row captions across the widened LCD.
+            DrawText(pixels, "VOLTAGE", LCD_LEFT + 12, 282, 3, color);
+            DrawText(pixels, "CURRENT", LCD_LEFT + 12, 172, 3, color);
+            DrawText(pixels, "POWER", LCD_LEFT + 12, 62, 3, color);
 
-            // Right-aligned unit glyphs (V, A large; W compact like the photo).
-            DrawThickV(pixels, 346, 306, 22, 46, 5, color);
-            DrawThickA(pixels, 346, 198, 22, 46, 5, color);
-            DrawThickW(pixels, 344, 88, 26, 34, 4, color);
+            // Right-aligned unit glyphs (V, A large; W compact).
+            DrawThickV(pixels, 436, 308, 26, 52, 6, color);
+            DrawThickA(pixels, 436, 198, 26, 52, 6, color);
+            DrawThickW(pixels, 434, 88, 30, 38, 5, color);
         }
 
         // =====================================================================
@@ -440,7 +423,7 @@ namespace SI81.MachineLock
         }
 
         // =====================================================================
-        // Vector Unit Glyphs & Decorative Bezel Icons
+        // Vector Unit Glyphs
         // =====================================================================
 
         private static void DrawThickV(Color32[] pixels, int x, int y, int w, int h, int stroke, Color32 col)
@@ -465,35 +448,6 @@ namespace SI81.MachineLock
             DrawLine(pixels, q1, y, mid, y + (h * 3) / 5, stroke, col);
             DrawLine(pixels, mid, y + (h * 3) / 5, q3, y, stroke, col);
             DrawLine(pixels, q3, y, x + w - 2, y + h, stroke, col);
-        }
-
-        private static void DrawWrenchIcon(Color32[] pixels, int cx, int cy, Color32 col)
-        {
-            // Diagonal handle from bottom-left to top-right, with open-end wrench jaw at top-right.
-            DrawLine(pixels, cx - 14, cy - 14, cx + 8, cy + 8, 7, col);
-            FillCircle(pixels, cx + 10, cy + 10, 10, col);
-            // Cut the open jaw notch along the +45° tip in button white.
-            DrawLine(pixels, cx + 11, cy + 11, cx + 21, cy + 21, 7, ColButtonWhite);
-            FillCircle(pixels, cx - 14, cy - 14, 4, col);
-            FillCircle(pixels, cx - 14, cy - 14, 1, ColButtonWhite);
-        }
-
-        private static void DrawLightbulbIcon(Color32[] pixels, int cx, int cy, Color32 col)
-        {
-            // Outline bulb globe + neck + screw base + subtle rays.
-            int globeY = cy + 6;
-            DrawCircleRing(pixels, cx, globeY, 12, 2, col);
-            FillRect(pixels, cx - 6, cy - 10, cx + 6, cy - 5, col);
-            FillRect(pixels, cx - 5, cy - 14, cx + 5, cy - 11, col);
-            FillRect(pixels, cx - 3, cy - 17, cx + 3, cy - 15, col);
-            // Subtle inner cutout so the neck connects cleanly.
-            FillCircle(pixels, cx, globeY, 9, ColButtonWhite);
-            // Tiny radial rays around the top half of the bulb.
-            DrawLine(pixels, cx, globeY + 15, cx, globeY + 19, 2, col);
-            DrawLine(pixels, cx - 13, globeY + 11, cx - 16, globeY + 14, 2, col);
-            DrawLine(pixels, cx + 13, globeY + 11, cx + 16, globeY + 14, 2, col);
-            DrawLine(pixels, cx - 16, globeY, cx - 20, globeY, 2, col);
-            DrawLine(pixels, cx + 16, globeY, cx + 20, globeY, 2, col);
         }
 
         // =====================================================================
@@ -685,28 +639,6 @@ namespace SI81.MachineLock
                 {
                     int dx = x - cx;
                     if (dx * dx + dy * dy <= r2) pixels[row + x] = col;
-                }
-            }
-        }
-
-        private static void DrawCircleRing(Color32[] pixels, int cx, int cy, int r, int thickness, Color32 col)
-        {
-            int rOut2 = r * r;
-            int rIn = Mathf.Max(0, r - thickness);
-            int rIn2 = rIn * rIn;
-            int sx = Mathf.Max(0, cx - r);
-            int ex = Mathf.Min(TEX_WIDTH - 1, cx + r);
-            int sy = Mathf.Max(0, cy - r);
-            int ey = Mathf.Min(TEX_HEIGHT - 1, cy + r);
-            for (int y = sy; y <= ey; y++)
-            {
-                int dy = y - cy;
-                int row = y * TEX_WIDTH;
-                for (int x = sx; x <= ex; x++)
-                {
-                    int dx = x - cx;
-                    int d2 = dx * dx + dy * dy;
-                    if (d2 >= rIn2 && d2 <= rOut2) pixels[row + x] = col;
                 }
             }
         }

@@ -126,6 +126,7 @@ namespace SI81.MachineLock
 
             if (buttonAudio != null && buttonClip != null) buttonAudio.PlayOneShot(buttonClip);
             if (sirenAudio != null) sirenAudio.Play();
+            MachineLockActionFeedback.PlayPositive(alarmInteractable != null ? alarmInteractable.gameObject : gameObject, Hand.Any);
             if (HUDService.IsReady) HUDService.ShowSoundEvent(MachineLockTexts.SoundAlarmSiren, true);
             if (scenario != null) scenario.NotifyAlarmPressed();
         }

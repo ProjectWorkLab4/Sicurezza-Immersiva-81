@@ -274,6 +274,7 @@ namespace SI81.MachineLock
         protected override void OnDestroy()
         {
             ReleaseExitSequenceLock();
+            MissionFlow.PauseChecklist = null;
             if (damageFeedback != null) damageFeedback.Clear();
             base.OnDestroy();
         }
@@ -461,6 +462,7 @@ namespace SI81.MachineLock
             actionStarted = true;
             Apply(SpiEvent.ValveClosed);
             Feedback(MachineLockTexts.Valve, FeedbackKind.Positive);
+            SyncPauseChecklist();
         }
 
         /// <summary>
@@ -472,6 +474,7 @@ namespace SI81.MachineLock
             if (ended || spi == null) return;
             if (!spi.Observe(id)) return;
             if (!actionStarted) SetHint(string.Format(MachineLockTexts.HintStartFormat, spi.ObservedTargets));
+            SyncPauseChecklist();
         }
 
         /// <summary>
@@ -865,6 +868,7 @@ namespace SI81.MachineLock
 
             spi = new MachineLockSpi(ResolveConfig().CreateSpiOptions(overrideLevel));
             spi.SetElapsed(0f);
+            SyncPauseChecklist();
         }
 
         /// <summary>
@@ -945,6 +949,7 @@ namespace SI81.MachineLock
             if (ended) return;
             ended = true;
             activeExitDecisionPanel = null;
+            MissionFlow.PauseChecklist = null;
             BeginExitSequenceLock();
             state = MachineLockState.Ended;
             if (playingLines != null)
@@ -1033,6 +1038,56 @@ namespace SI81.MachineLock
             if (currentMacro < MACRO_COUNT) SetObjective(currentMacro);
             UpdateState();
             RefreshExitBeacon();
+            SyncPauseChecklist();
+        }
+
+        /// <summary>
+        /// Publishes the full 11-step Machine Lock checklist to <see cref="MissionFlow.PauseChecklist"/>
+        /// so <see cref="PauseScreen"/> renders every concrete task with live Done / Current / Todo status
+        /// while <c>HUD_WristPanel</c> keeps the 4 concise macro-objectives (Issue #46).
+        /// </summary>
+        public void SyncPauseChecklist()
+        {
+            int observed = spi != null ? spi.ObservedTargets : 0;
+            int observedCap = config != null ? config.awarenessTargets : 6;
+            bool observedDone = observed >= observedCap;
+
+            var steps = new (string Text, bool Done)[]
+            {
+                (string.Format(MachineLockTexts.ChecklistObserveFormat, observed), observedDone),
+                (MachineLockTexts.ChecklistEStop, TaskEStop),
+                (MachineLockTexts.ChecklistAlarm, TaskAlarm),
+                (MachineLockTexts.ChecklistMainOff, TaskMainOff),
+                (MachineLockTexts.ChecklistLockout, TaskLockout),
+                (MachineLockTexts.ChecklistTesterZero, TaskTesterZero),
+                (MachineLockTexts.ChecklistTryStart, TaskTryStart),
+                (string.Format(MachineLockTexts.ChecklistPpeFormat, correctPpeCount), TaskPpeFull),
+                (MachineLockTexts.ChecklistValve, valveClosed),
+                (string.Format(MachineLockTexts.ChecklistContainmentFormat, conesPlaced, absorbentsPlaced), TaskContainment),
+                (MachineLockTexts.ChecklistExit, TaskExit)
+            };
+
+            var entries = new PauseChecklistEntry[steps.Length];
+            bool currentAssigned = false;
+            for (int i = 0; i < steps.Length; i++)
+            {
+                ObjectiveState stepState;
+                if (steps[i].Done)
+                {
+                    stepState = ObjectiveState.Done;
+                }
+                else if (!currentAssigned)
+                {
+                    stepState = ObjectiveState.Current;
+                    currentAssigned = true;
+                }
+                else
+                {
+                    stepState = ObjectiveState.Todo;
+                }
+                entries[i] = new PauseChecklistEntry(steps[i].Text, stepState);
+            }
+            MissionFlow.PauseChecklist = entries;
         }
 
         private void RefreshExitBeacon()

@@ -20,6 +20,26 @@ namespace SI81.UI
     }
 
     /// <summary>
+    /// Una voce dettagliata opzionale per la checklist della schermata di Pausa (<see cref="MissionFlow.PauseChecklist"/>).
+    /// Quando uno scenario la popola, <see cref="PauseScreen"/> la mostra in un elenco scorrevole mantenendo intatti
+    /// gli obiettivi sintetici del pannello da polso.
+    /// </summary>
+    public readonly struct PauseChecklistEntry
+    {
+        /// <summary>Testo descrittivo del passo.</summary>
+        public string Text { get; }
+        /// <summary>Stato corrente del passo (Done / Current / Todo).</summary>
+        public ObjectiveState State { get; }
+
+        /// <summary>Crea una voce della checklist di pausa.</summary>
+        public PauseChecklistEntry(string text, ObjectiveState state)
+        {
+            Text = text ?? string.Empty;
+            State = state;
+        }
+    }
+
+    /// <summary>
     /// Colla del flusso di missione (Blocco C · C3), stato statico + azioni: pausa (Time.timeScale 0/1, HUD nascosta, PANEL_Pause),
     /// ricomincia, esci alla Home, esito di fine missione e badge nuovi. Il "motore" che ascolta eventi e tasti è
     /// <see cref="MissionFlowDriver"/> su MNG_UI; qui stanno le regole, così le schermate (Pausa, Score &amp; Replay) le usano senza duplicarle.
@@ -57,6 +77,11 @@ namespace SI81.UI
         /// Lo aggiorna chi gestisce gli obiettivi (HUDService.SetObjective o lo scenario).
         /// </summary>
         public static int ObjectiveIndex { get; set; }
+        /// <summary>
+        /// Checklist dettagliata opzionale per <see cref="PauseScreen"/>: se popolata, la Pausa mostra queste voci
+        /// in un elenco scorrevole mantenendo intatti gli obiettivi sintetici del pannello da polso.
+        /// </summary>
+        public static IReadOnlyList<PauseChecklistEntry> PauseChecklist { get; set; }
 
         /// <summary>Lanciato quando si entra (true) o si esce (false) dalla pausa.</summary>
         public static event Action<bool> PausedChanged;
@@ -73,6 +98,7 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            PauseChecklist = null;
             PausedChanged = null;
         }
 
@@ -164,6 +190,7 @@ namespace SI81.UI
             IsOutcomeShowing = false;
             CurrentPhaseKey = null;
             ObjectiveIndex = 0;
+            PauseChecklist = null;
             CaptureBadgeSnapshot();
             SetHudVisible(true);
         }
@@ -263,6 +290,7 @@ namespace SI81.UI
             bool training = MissionSession.IsTraining;
             ClearPauseState();
             IsOutcomeShowing = false;
+            PauseChecklist = null;
             if (UIScreenManager.Instance != null) UIScreenManager.Instance.HideMenu();
             SetHudVisible(true);
             if (training) UIServices.Launcher.LaunchTraining(mission);
@@ -277,6 +305,7 @@ namespace SI81.UI
         {
             ClearPauseState();
             IsOutcomeShowing = false;
+            PauseChecklist = null;
             SetHudVisible(false);
             if (UIServices.Launcher != null)
             {

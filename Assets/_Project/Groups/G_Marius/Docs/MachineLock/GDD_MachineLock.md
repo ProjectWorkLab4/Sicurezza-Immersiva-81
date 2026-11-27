@@ -177,7 +177,7 @@ These are mandatory. A violation breaks the shared application.
 - The main electrical bay on the **east wall** at `(8.72, 1.28, 0)` is expanded into **three physically separated (≥ 0.88 m), cohesive IP65 steel Sub-Stations** with compact recessed pilot LEDs and **unnumbered** engraved brushed-aluminum plaques, shuffled across the three symmetrical wall slots (`Z = -0.88, 0.00, +0.88`) via a 6-state persistent shuffle-bag (`machinelock_panel_order_state.json`, Issue #43):
   - `Main Disconnect Switch` (IP65 enclosure + yellow escutcheon + rotary red throw handle)
   - `Lockout Station` (safety-yellow/slate IP65 enclosure + steel padlock hasp & parked padlock)
-  - `Voltage Tester` (authentic industrial voltage tester / multimeter cabinet with probes, dial & LIVE/ZERO LEDs)
+  - `Voltage Tester` (authentic industrial voltage tester / multimeter cabinet with probes, LIVE/ZERO LEDs, and a button-free widened backlit 7-segment `VOLTAGE (V)` / `CURRENT (A)` / `POWER (W)` LCD powered ON on first select — Issues #45–#46)
 - The alarm button (looping spatial `SFX_AlarmSiren.wav`) is mounted on an industrial post on the west-north side at `(-8.50, 1.45, 2.4)` beneath an ISO 7010 `F005` wall sign.
 - The wide sliding-door PPE cabinet, red Spill Kit (with un-squashed `MESH_TrafficConeHero`, quilted `MESH_AbsorbentMatHero`, and fabric-sleeved `MESH_AbsorbentSockHero`), and un-squashed `MESH_WaterExtinguisherHero` are positioned per active Layout Pattern (A/B/C), always facing inward toward the Dry Perimeter.
 
@@ -743,12 +743,14 @@ The builder adds entries in chronological order, then trims to 5 good and 4 bad/
 
 ### 12.1 Objectives
 
-`SO_Mission_MachineLock.Objectives`:
+`SO_Mission_MachineLock.Objectives` (4 concise macro-objectives shown on `HUD_WristPanel`):
 
 1. `Ferma la pressa e allarma` (25)
 2. `Isola l'energia e blocca` (24)
-3. `Indossa i DPI e contiene` (24)
+3. `Indossa i DPI e contieni` (24)
 4. `Esci e avvisa il preposto` (25)
+
+In addition, `MachineLockScenario` publishes a live 11-step `MissionFlow.PauseChecklist` (Observation 0/6, E-Stop, Alarm, Main Disconnect, Lockout, Digital Meter ZERO, Try-Start, 4/4 PPE, Leak Valve, Containment 4/4 cones + 4/4 absorbents, Exit) rendered in a scrollable `ScrollRect` inside `PANEL_Pause` across all difficulty modes (Issue #46).
 
 ### 12.2 Phases
 
@@ -758,29 +760,31 @@ The builder adds entries in chronological order, then trims to 5 good and 4 bad/
 
 ### 12.3 Hints
 
+All wrist hints use room landmarks rather than cardinal directions (`nord`/`sud`/`est`/`ovest`, Issue #46):
+
 | Situation | Hint |
 |---|---|
 | Start | `Osserva la scena: 0/6` (count updates) |
-| After E-stop | `Suona l'allarme sul muro ovest` |
-| After alarm | `Apri il quadro a est e togli tensione` |
+| After E-stop | `Attiva l'allarme di reparto` |
+| After alarm | `Apri il quadro elettrico e togli tensione` |
 | Main off | `Applica il lockout sul quadro` |
 | Lockout | `Usa il tester di tensione` |
 | Tester zero | `Prova il riavvio: non deve partire` |
-| Zero energy | `Indossa i 4 DPI nell'armadio a sud` |
-| DPI partial | `DPI 2/4 — armadio a sud` |
+| Zero energy | `Indossa i 4 DPI nell'armadio DPI` |
+| DPI partial | `DPI 2/4 — completa nell'armadio DPI` |
 | PPE full | `Chiudi la valvola e delimita la pozza` |
 | Containment partial | `Coni 2/4 · Assorbenti 1/4` |
-| Containment complete | `Esci dalla porta ovest e avvisa il preposto` |
+| Containment complete | `Usa il maniglione della porta d'uscita` |
 
 Hints are shown only by the Guided level config; the scenario still calls `SetHint` and the common UI decides.
 
 ### 12.4 Alerts, feedback, subtitles
 
 - Use `Alert` for major events: E-stop, alarm, panel, lockout, live oil, full PPE, containment, critical, timeout.
-- Use `Feedback` for item-level results: cone placed, mat placed, DPI slot, wrong item, valve.
+- Use `Feedback` and `MachineLockActionFeedback` for item-level positive & negative audiovisual/haptic results: valid snaps, valid PPE, E-stop/alarm/valve/LOTO confirmations (green world flash + `SFX_FeedbackPositive.wav` + light haptic) and wrong/blocked actions such as misplaced cones/absorbents, distractor PPE, or clicking Lockout before Main Disconnect (red world flash + `SFX_FeedbackNegative.wav` + firm haptic + guidance line, Issue #46). World audio/flash play in all difficulty modes while HUD text obeys `AlertPresenter`'s level filter.
 - Use `Subtitle` for narrative and instructions.
 - `HUDService.ShowSoundEvent` for critical non-vocal sounds: alarm siren, steam burst, shock.
-- Do not use `AskDecision`.
+- `AskDecision` is used solely for the west exit door confirmation (ADR-0006, Issue #43).
 - Do not add keys to `SO_UIStrings_It`.
 
 ### 12.5 Text inventory
@@ -860,6 +864,8 @@ Every string must be checked against the HUD limits: subtitles 32 characters × 
 | `SFX_SteamBurst` | one-shot | Water extinguisher | Sharp steam |
 | `SFX_Shock` | one-shot | Live oil contact | Electric zap |
 | `SFX_Burn` | one-shot | Hot oil contact | Sizzle |
+| `SFX_FeedbackPositive` | one-shot | Valid actions (snap, PPE, E-stop, alarm, valve, LOTO) | Ascending chime paired with green world flash (Issue #46) |
+| `SFX_FeedbackNegative` | one-shot | Wrong/blocked actions (misplaced cone/absorbent, distractor PPE, blocked lockout) | Low double-buzz paired with red world flash (Issue #46) |
 | `SFX_AmbientFactory` | loop | Always | Low industrial room tone |
 
 Placeholders: CC0 or synthesized. Final audio later. Keep the `SFX_` names.

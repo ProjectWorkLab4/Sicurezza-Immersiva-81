@@ -163,7 +163,10 @@ namespace SI81.MachineLock.Tests
             Assert.That(panel.Panel.MainPowerOn, Is.True);
             Assert.That(panel.Panel.OilEnergized, Is.True);
             Assert.That(press.Press.IsPowered, Is.True);
-            Assert.That(panel.Lockout.Selectable, Is.False, "The lockout point is locked while the panel is live.");
+            Assert.That(panel.Lockout.Selectable, Is.True, "The lockout point stays clickable while live so early clicks give negative feedback (Issue #46).");
+            panel.Panel.ApplyLockout();
+            Assert.That(panel.Panel.LockedOut, Is.False, "Applying lockout while main power is ON must stay blocked.");
+            Assert.That(scenario.TaskLockout, Is.False);
             Assert.That(press.Display.sharedMaterial, Is.SameAs(press.FaultMaterial));
 
             panel.Panel.SetMainPower(false);
@@ -2018,6 +2021,185 @@ namespace SI81.MachineLock.Tests
             yield return null;
         }
 
+        // =====================================================================
+        // Issue #46 — Action Feedback & Exhaustive Scrollable Pause Checklist
+        // =====================================================================
+
+        /// <summary>
+        /// Misplaced cones/absorbents, distractor PPE, and blocked Lockout clicks emit negative
+        /// audiovisual/world-flash feedback without snapping or locking out; valid safety actions emit
+        /// positive feedback and respect accessibility.reduce_flashes (Issue #46).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ActionFeedback_WrongDrop_DistractorPpe_AndBlockedLockout_EmitNegative_ValidActionsEmitPositive()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            var actionFeedback = scenario.gameObject.AddComponent<MachineLockActionFeedback>();
+            PressFixture press = CreatePress(scenario);
+            PanelFixture panel = CreatePanel(scenario, press.Press);
+            CabinetFixture cabinet = CreateCabinet(scenario, true);
+            SpillFixture spill = CreateSpill(scenario, true);
+            ValveFixture valve = CreateValve(scenario, spill.Spill);
+
+            Vector3 farConePos = new Vector3(0f, 0f, 20f);
+            ConeFixture farCone = CreateCone(scenario, spill.Spill, farConePos);
+            MeshRenderer farConeRenderer = farCone.Cone.gameObject.AddComponent<MeshRenderer>();
+            farConeRenderer.sharedMaterial = CreateMaterial();
+
+            GameObject farAbsObj = new GameObject("MESH_Absorbent_Loose");
+            roots.Add(farAbsObj);
+            farAbsObj.transform.position = new Vector3(0f, 0f, -20f);
+            var farAbsInteractable = farAbsObj.AddComponent<Interactable>();
+            var farAbs = farAbsObj.AddComponent<MachineLockAbsorbent>();
+            WireObject(farAbs, "spillSystem", spill.Spill);
+            WireObject(farAbs, "config", config);
+            yield return null;
+
+            // 1. Misplaced cone stays where dropped, remains grabbable, flashes red & emits negative cue.
+            int negBefore = actionFeedback.NegativeCount;
+            int posBefore = actionFeedback.PositiveCount;
+            Assert.That(farCone.Cone.TrySnap(), Is.False);
+            Assert.That(farCone.Cone.Snapped, Is.False);
+            Assert.That(farCone.Interactable.Grabbable, Is.True);
+            Assert.That(Vector3.Distance(farCone.Cone.transform.position, farConePos), Is.LessThan(Tolerance));
+            Assert.That(actionFeedback.NegativeCount, Is.EqualTo(negBefore + 1));
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore));
+            Assert.That(actionFeedback.LastFeedbackMessage, Is.EqualTo(MachineLockTexts.ConeWrongSpot));
+            Assert.That(actionFeedback.LastFlashedTarget, Is.SameAs(farCone.Cone.gameObject));
+            Assert.That(farConeRenderer.HasPropertyBlock(), Is.True, "World flash must apply via MaterialPropertyBlock.");
+
+            // 2. Misplaced absorbent stays where dropped, remains grabbable, emits negative cue.
+            negBefore = actionFeedback.NegativeCount;
+            Assert.That(farAbs.TrySnap(), Is.False);
+            Assert.That(farAbs.Snapped, Is.False);
+            Assert.That(farAbsInteractable.Grabbable, Is.True);
+            Assert.That(actionFeedback.NegativeCount, Is.EqualTo(negBefore + 1));
+            Assert.That(actionFeedback.LastFeedbackMessage, Is.EqualTo(MachineLockTexts.AbsorbentWrongSpot));
+
+            // 3. Valid cone & absorbent snaps emit positive cues.
+            posBefore = actionFeedback.PositiveCount;
+            Assert.That(spill.Cones[0].Cone.TrySnap(), Is.True);
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+            posBefore = actionFeedback.PositiveCount;
+            Assert.That(spill.Absorbents[0].Absorbent.TrySnap(), Is.True);
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+
+            // 4. Distractor PPE emits negative cue; correct PPE emits positive cue.
+            cabinet.Cabinet.Open();
+            negBefore = actionFeedback.NegativeCount;
+            posBefore = actionFeedback.PositiveCount;
+            Assert.That(cabinet.Cabinet.Equip(cabinet.LatexGloves.Item), Is.True);
+            Assert.That(actionFeedback.NegativeCount, Is.EqualTo(negBefore + 1));
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore));
+            Assert.That(cabinet.Cabinet.Equip(cabinet.HeatGloves.Item), Is.True);
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+
+            // 5. Blocked Lockout while Main Power is ON emits negative feedback and stays unlocked;
+            //    Main OFF + valid Lockout + Valve close each emit positive feedback.
+            panel.Panel.InitializeState(true);
+            negBefore = actionFeedback.NegativeCount;
+            panel.Panel.ApplyLockout();
+            Assert.That(panel.Panel.LockedOut, Is.False);
+            Assert.That(actionFeedback.NegativeCount, Is.EqualTo(negBefore + 1));
+            Assert.That(actionFeedback.LastFeedbackMessage, Is.EqualTo(MachineLockTexts.LockoutBlockedFeedback));
+
+            posBefore = actionFeedback.PositiveCount;
+            panel.Panel.SetMainPower(false);
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+
+            posBefore = actionFeedback.PositiveCount;
+            panel.Panel.ApplyLockout();
+            Assert.That(panel.Panel.LockedOut, Is.True);
+            Assert.That(panel.Lockout.Selectable, Is.False);
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+
+            posBefore = actionFeedback.PositiveCount;
+            valve.Valve.Close();
+            Assert.That(actionFeedback.PositiveCount, Is.EqualTo(posBefore + 1));
+
+            // 6. Wait out the flash duration and confirm the MaterialPropertyBlock restores cleanly.
+            yield return new WaitForSeconds(0.45f);
+            Assert.That(farConeRenderer.HasPropertyBlock(), Is.False, "World flash must restore renderer MaterialPropertyBlock.");
+        }
+
+        /// <summary>
+        /// MachineLockScenario publishes an 11-step live checklist to MissionFlow.PauseChecklist (including
+        /// out-of-order tasks), PANEL_Pause renders it inside a clipped ScrollRect with an active vertical
+        /// Scrollbar, and clearing/unloading restores the 4-item fallback with the scrollbar hidden (Issue #46).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PauseChecklist_TracksAll11MachineLockSteps_AndScrollsInRealPauseScreen()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PressFixture press = CreatePress(scenario);
+            SpillFixture spill = CreateSpill(scenario, false);
+            ValveFixture valve = CreateValve(scenario, spill.Spill);
+            yield return null;
+
+            Assert.That(MissionFlow.PauseChecklist, Is.Not.Null);
+            Assert.That(MissionFlow.PauseChecklist.Count, Is.EqualTo(11),
+                "Machine Lock must publish all 11 concrete checklist tasks to the Pause screen.");
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current));
+            Assert.That(MissionFlow.PauseChecklist[0].Text, Does.Contain("(0/6)"));
+            Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Todo));
+
+            // Out-of-order completion: close valve and observe 1 target before E-stop.
+            valve.Valve.Close();
+            scenario.NotifyObservation("press");
+            Assert.That(MissionFlow.PauseChecklist[8].State, Is.EqualTo(ObjectiveState.Done),
+                "Closing the oil leak valve out of order must check off the valve step immediately.");
+            Assert.That(MissionFlow.PauseChecklist[0].Text, Does.Contain("(1/6)"));
+            Assert.That(MissionFlow.PauseChecklist[0].State, Is.EqualTo(ObjectiveState.Current));
+
+            press.Press.PressEStop();
+            Assert.That(MissionFlow.PauseChecklist[1].State, Is.EqualTo(ObjectiveState.Done));
+
+#if UNITY_EDITOR
+            const string pausePrefabPath = "Assets/_Project/Home/UI/Prefabs/Screens/PANEL_Pause.prefab";
+            GameObject pausePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(pausePrefabPath);
+            Assert.That(pausePrefab, Is.Not.Null, "PANEL_Pause prefab must exist at " + pausePrefabPath);
+
+            GameObject canvasRoot = new GameObject("TEST_PauseCanvas", typeof(RectTransform), typeof(Canvas));
+            roots.Add(canvasRoot);
+            var canvas = canvasRoot.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+
+            GameObject pauseInstance = UnityEngine.Object.Instantiate(pausePrefab, canvasRoot.transform, false);
+            pauseInstance.SetActive(true);
+            var pauseScreen = pauseInstance.GetComponent<PauseScreen>();
+            Assert.That(pauseScreen, Is.Not.Null);
+
+            pauseScreen.Refresh();
+            Canvas.ForceUpdateCanvases();
+            yield return null;
+
+            Assert.That(pauseScreen.VisibleObjectiveCount, Is.EqualTo(11));
+            Assert.That(pauseScreen.ChecklistScrollRect, Is.Not.Null);
+            Assert.That(pauseScreen.ChecklistScrollRect.enabled, Is.True,
+                "ScrollRect must be enabled when 11 checklist entries overflow the viewport.");
+            Assert.That(pauseScreen.ChecklistScrollbar, Is.Not.Null);
+            Assert.That(pauseScreen.ChecklistScrollbar.gameObject.activeSelf, Is.True,
+                "Vertical scrollbar must be visible for the 11-step Machine Lock checklist.");
+            Assert.That(pauseScreen.ChecklistScrollRect.content.sizeDelta.y,
+                Is.GreaterThan(pauseScreen.ChecklistScrollRect.viewport.rect.height),
+                "Checklist content height must exceed viewport height so scrolling is meaningful.");
+
+            // Unloading the scenario clears PauseChecklist and reverts PauseScreen to the 4 standard objectives.
+            UnityEngine.Object.DestroyImmediate(scenario.gameObject);
+            Assert.That(MissionFlow.PauseChecklist, Is.Null,
+                "Destroying MachineLockScenario must clear MissionFlow.PauseChecklist.");
+
+            pauseScreen.Refresh();
+            Canvas.ForceUpdateCanvases();
+            yield return null;
+
+            Assert.That(pauseScreen.VisibleObjectiveCount, Is.EqualTo(MachineLockScenario.MACRO_COUNT));
+            Assert.That(pauseScreen.ChecklistScrollbar.gameObject.activeSelf, Is.False,
+                "Scrollbar must hide when falling back to standard 4 objectives.");
+            Assert.That(pauseScreen.ChecklistScrollRect.enabled, Is.False);
+#endif
+        }
+
         /// <summary>
         /// Loads the real SCN_MachineLock additively with an active session (so the standalone-editor
         /// SCN_Core path never runs) and verifies the spawn marker, the absence of camera/UI
@@ -2139,6 +2321,8 @@ namespace SI81.MachineLock.Tests
             Assert.That(CountComponentsInScene<MachineLockSnapZone>(scene), Is.GreaterThanOrEqualTo(8));
             Assert.That(CountComponentsInScene<MachineLockObservationTarget>(scene), Is.EqualTo(ObservationIds.Length));
             Assert.That(CountComponentsInScene<MachineLockDamageFeedback>(scene), Is.GreaterThanOrEqualTo(1));
+            Assert.That(CountComponentsInScene<MachineLockActionFeedback>(scene), Is.EqualTo(1),
+                "MNG_Scenario needs MachineLockActionFeedback wired with positive/negative cues (Issue #46).");
             Assert.That(CountComponentsInScene<MachineLockExitDoor>(scene), Is.EqualTo(1),
                 "West exit door needs a MachineLockExitDoor component (ADR-0006).");
             Assert.That(CountComponentsInScene<ScenarioTrigger>(scene), Is.EqualTo(0),

@@ -76,10 +76,20 @@ namespace SI81.MachineLock
         /// <returns>true when the item is on a zone, false when it stays where it was released.</returns>
         public bool TrySnap()
         {
+            return TrySnap(Hand.Any, emitNegativeOnMiss: true);
+        }
+
+        private bool TrySnap(Hand hand, bool emitNegativeOnMiss)
+        {
             if (Snapped) return true;
 
             MachineLockSnapZone zone = FindZone();
-            if (zone == null || !zone.Occupy()) return false;
+            if (zone == null || !zone.Occupy())
+            {
+                if (emitNegativeOnMiss)
+                    MachineLockActionFeedback.PlayNegative(gameObject, hand, MachineLockTexts.AbsorbentWrongSpot);
+                return false;
+            }
 
             transform.SetPositionAndRotation(zone.SnapPoint.position, zone.SnapPoint.rotation);
             FreezeBody();
@@ -88,6 +98,7 @@ namespace SI81.MachineLock
             Snapped = true;
             if (labelAnchor != null) labelAnchor.Suppressed = true;
             PlayOneShot(snapClip);
+            MachineLockActionFeedback.PlayPositive(gameObject, hand);
 
             if (spillSystem != null) spillSystem.RegisterAbsorbent(zone, absorbentKind);
             return true;
@@ -212,7 +223,7 @@ namespace SI81.MachineLock
             RefreshPlayerCollisionIgnore();
             if (labelAnchor != null) labelAnchor.Suppressed = false;
             if (spillSystem != null) spillSystem.SetHeldSnapKind(MachineLockSnapZone.SnapKind.Absorbent, false);
-            TrySnap();
+            TrySnap(hand, emitNegativeOnMiss: true);
         }
 
         private void PlayOneShot(AudioClip clip)

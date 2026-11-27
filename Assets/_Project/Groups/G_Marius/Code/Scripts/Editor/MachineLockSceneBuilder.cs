@@ -50,13 +50,14 @@ namespace SI81.MachineLock.EditorTools
         /// <summary>Damage profile asset used by the URP damage volume (GDD §9.13).</summary>
         public const string DAMAGE_PROFILE_PATH = "Assets/_Project/Groups/G_Marius/Level/Data/SO_MachineLockDamageProfile.asset";
 
-        /// <summary>The workshop SFX clips shipped in G_Marius (including shock, mechanical button &amp; siren).</summary>
+        /// <summary>The workshop SFX clips shipped in G_Marius (including shock, mechanical button, siren &amp; action feedback).</summary>
         public static readonly string[] AUDIO_CLIPS =
         {
             "SFX_PressLoop.wav", "SFX_PressStop.wav", "SFX_EStopClack.wav", "SFX_MechanicalButton.wav",
             "SFX_AlarmButton.wav", "SFX_AlarmSiren.wav", "SFX_BreakerOff.wav", "SFX_Lockout.wav",
             "SFX_OilLeak.wav", "SFX_ValveTurn.wav", "SFX_TesterBeep.wav", "SFX_EquipPpe.wav",
-            "SFX_Snap.wav", "SFX_SteamBurst.wav", "SFX_Shock.wav", "SFX_ElectricShock.wav", "SFX_Burn.wav"
+            "SFX_Snap.wav", "SFX_SteamBurst.wav", "SFX_Shock.wav", "SFX_ElectricShock.wav", "SFX_Burn.wav",
+            "SFX_FeedbackPositive.wav", "SFX_FeedbackNegative.wav"
         };
 
         /// <summary>The ambient room tone that lives in the music folder of the group.</summary>
@@ -224,6 +225,7 @@ namespace SI81.MachineLock.EditorTools
             EnsurePbrWorkshopAndPropTextures();
             EnsureSignageAndPlaqueTextures();
             EnsureMaterials();
+            EnsureFeedbackAudioClips();
             MachineLockAudioClips clips = LoadAudioClips();
             EnsurePrefabs(clips);
             VolumeProfile damageProfile = CreateOrUpdateDamageProfile();
@@ -822,7 +824,58 @@ namespace SI81.MachineLock.EditorTools
             public AudioClip SteamBurst;
             public AudioClip ElectricShock;
             public AudioClip Burn;
+            public AudioClip FeedbackPositive;
+            public AudioClip FeedbackNegative;
             public AudioClip AmbientFactory;
+        }
+
+        private static void EnsureFeedbackAudioClips()
+        {
+            EnsureSynthWavClip(SOUND_DIR + "/SFX_FeedbackPositive.wav", MachineLockActionFeedback.BuildPositiveSamples(), 44100);
+            EnsureSynthWavClip(SOUND_DIR + "/SFX_FeedbackNegative.wav", MachineLockActionFeedback.BuildNegativeSamples(), 44100);
+        }
+
+        private static void EnsureSynthWavClip(string assetPath, float[] samples, int sampleRate)
+        {
+            EnsureFolder(assetPath);
+            string fullPath = Path.Combine(Directory.GetCurrentDirectory(), assetPath.Replace('/', Path.DirectorySeparatorChar));
+            if (File.Exists(fullPath) && AssetDatabase.LoadAssetAtPath<AudioClip>(assetPath) != null)
+                return;
+
+            WriteMonoPcm16Wav(fullPath, samples, sampleRate);
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+        }
+
+        private static void WriteMonoPcm16Wav(string fullPath, float[] samples, int sampleRate)
+        {
+            const short channels = 1;
+            const short bitsPerSample = 16;
+            int dataBytes = samples.Length * channels * (bitsPerSample / 8);
+            int byteRate = sampleRate * channels * (bitsPerSample / 8);
+            short blockAlign = (short)(channels * (bitsPerSample / 8));
+
+            using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write))
+            using (var writer = new BinaryWriter(stream))
+            {
+                writer.Write(new[] { 'R', 'I', 'F', 'F' });
+                writer.Write(36 + dataBytes);
+                writer.Write(new[] { 'W', 'A', 'V', 'E' });
+                writer.Write(new[] { 'f', 'm', 't', ' ' });
+                writer.Write(16);
+                writer.Write((short)1); // PCM
+                writer.Write(channels);
+                writer.Write(sampleRate);
+                writer.Write(byteRate);
+                writer.Write(blockAlign);
+                writer.Write(bitsPerSample);
+                writer.Write(new[] { 'd', 'a', 't', 'a' });
+                writer.Write(dataBytes);
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    short pcm = (short)Mathf.RoundToInt(Mathf.Clamp(samples[i], -1f, 1f) * short.MaxValue);
+                    writer.Write(pcm);
+                }
+            }
         }
 
         private static MachineLockAudioClips LoadAudioClips()
@@ -845,6 +898,8 @@ namespace SI81.MachineLock.EditorTools
                 SteamBurst = LoadAudioClip(SOUND_DIR, "SFX_SteamBurst.wav"),
                 ElectricShock = LoadAudioClip(SOUND_DIR, "SFX_ElectricShock.wav"),
                 Burn = LoadAudioClip(SOUND_DIR, "SFX_Burn.wav"),
+                FeedbackPositive = LoadAudioClip(SOUND_DIR, "SFX_FeedbackPositive.wav"),
+                FeedbackNegative = LoadAudioClip(SOUND_DIR, "SFX_FeedbackNegative.wav"),
                 AmbientFactory = LoadAudioClip(MUSIC_DIR, AMBIENT_CLIP)
             };
         }
@@ -2412,6 +2467,12 @@ namespace SI81.MachineLock.EditorTools
             fbSo.FindProperty("fadeOutSeconds").floatValue = 1.5f;
             fbSo.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(feedback);
+
+            var actionFeedback = EnsureComponent<MachineLockActionFeedback>(manager);
+            SetRef(actionFeedback, "oneShotAudio", oneShot);
+            SetRef(actionFeedback, "positiveClip", clips.FeedbackPositive);
+            SetRef(actionFeedback, "negativeClip", clips.FeedbackNegative);
+            EditorUtility.SetDirty(actionFeedback);
         }
 
         // ------------------------------------------------------------------ Scene wiring

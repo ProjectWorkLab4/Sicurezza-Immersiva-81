@@ -759,6 +759,39 @@ namespace SI81.MachineLock.Tests
             }
         }
 
+        [Test]
+        public void Hints_UseLandmarksOnly_WithZeroCardinalDirections()
+        {
+            string[] hints =
+            {
+                string.Format(MachineLockTexts.HintStartFormat, 0),
+                MachineLockTexts.HintAlarm,
+                MachineLockTexts.HintMainPower,
+                MachineLockTexts.HintLockout,
+                MachineLockTexts.HintTester,
+                MachineLockTexts.HintTryStart,
+                MachineLockTexts.HintPpe,
+                string.Format(MachineLockTexts.HintPpePartialFormat, 2),
+                MachineLockTexts.HintValveAndContainment,
+                string.Format(MachineLockTexts.HintContainmentPartialFormat, 2, 1),
+                MachineLockTexts.HintExit
+            };
+
+            string[] forbiddenCardinals = { "nord", "sud", "est", "ovest" };
+            foreach (string hint in hints)
+            {
+                Assert.That(hint.Length, Is.LessThanOrEqualTo(60), "Hint exceeds 60 chars: " + hint);
+                string[] tokens = hint.ToLowerInvariant().Split(
+                    new[] { ' ', '\'', '’', ',', '.', ':', ';', '!', '?', '-', '—', '·', '(', ')' },
+                    StringSplitOptions.RemoveEmptyEntries);
+                foreach (string cardinal in forbiddenCardinals)
+                {
+                    Assert.IsFalse(tokens.Contains(cardinal),
+                        $"Hint '{hint}' must not contain cardinal direction '{cardinal}' (Issue #46).");
+                }
+            }
+        }
+
         private static MachineLockPpeItem AddEditModeItem(GameObject parent, MachineLockPpeCabinet cabinet,
             PpeSlot slot, bool correct, string displayName)
         {

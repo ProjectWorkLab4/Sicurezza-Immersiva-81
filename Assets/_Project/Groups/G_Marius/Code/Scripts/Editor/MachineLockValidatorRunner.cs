@@ -777,6 +777,22 @@ namespace SI81.MachineLock.EditorTools
                     errors += Error($"MachineLockDamageFeedback.shockClip must be SFX_ElectricShock (actual: {shockClip?.name ?? "null"}).");
             }
 
+            MachineLockActionFeedback actionFeedback = manager != null ? manager.GetComponent<MachineLockActionFeedback>() : null;
+            if (actionFeedback == null)
+            {
+                errors += Error("MNG_Scenario must carry MachineLockActionFeedback with positive and negative SFX clips (Issue #46).");
+            }
+            else
+            {
+                var afSo = new SerializedObject(actionFeedback);
+                var posClip = afSo.FindProperty("positiveClip").objectReferenceValue as AudioClip;
+                var negClip = afSo.FindProperty("negativeClip").objectReferenceValue as AudioClip;
+                if (posClip == null || posClip.name != "SFX_FeedbackPositive")
+                    errors += Error($"MachineLockActionFeedback.positiveClip must be SFX_FeedbackPositive (actual: {posClip?.name ?? "null"}).");
+                if (negClip == null || negClip.name != "SFX_FeedbackNegative")
+                    errors += Error($"MachineLockActionFeedback.negativeClip must be SFX_FeedbackNegative (actual: {negClip?.name ?? "null"}).");
+            }
+
             Transform pressTransform = FindDeep(scene, "MESH_HydraulicPress");
             MachineLockPress press = pressTransform != null ? pressTransform.GetComponent<MachineLockPress>() : null;
             if (press != null)

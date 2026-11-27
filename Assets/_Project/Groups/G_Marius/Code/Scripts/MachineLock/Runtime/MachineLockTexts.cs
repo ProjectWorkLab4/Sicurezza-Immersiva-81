@@ -125,6 +125,13 @@ namespace SI81.MachineLock
         /// <summary>Hover feedback for the exit door panic bar.</summary>
         public const string HoverExitPanicBar = "Maniglione antipanico — TRIGGER o GRIP per uscire";
 
+        /// <summary>Negative feedback when clicking Lockout before opening Main Disconnect (Issue #46).</summary>
+        public const string LockoutBlockedFeedback = "Apri prima il quadro generale";
+        /// <summary>Negative feedback when releasing a delimitation cone outside a valid Containment Zone (Issue #46).</summary>
+        public const string ConeWrongSpot = "Cono fuori posizione: posalo agli angoli della pozza";
+        /// <summary>Negative feedback when releasing an absorbent mat or sock outside a valid puddle quadrant (Issue #46).</summary>
+        public const string AbsorbentWrongSpot = "Assorbente fuori posizione: posalo sulla pozza";
+
         // ------------------------------------------------------------------ Spill and containment
 
         /// <summary>Valve closed feedback.</summary>
@@ -187,10 +194,10 @@ namespace SI81.MachineLock
 
         /// <summary>Start hint format: {0} is the observed target count.</summary>
         public const string HintStartFormat = "Osserva la scena: {0}/6";
-        /// <summary>Hint after the E-stop.</summary>
-        public const string HintAlarm = "Suona l'allarme sul muro ovest";
-        /// <summary>Hint after the alarm.</summary>
-        public const string HintMainPower = "Apri il quadro a est e togli tensione";
+        /// <summary>Hint after the E-stop (landmark phrasing, zero cardinal directions — Issue #46).</summary>
+        public const string HintAlarm = "Attiva l'allarme di reparto";
+        /// <summary>Hint after the alarm (landmark phrasing, zero cardinal directions — Issue #46).</summary>
+        public const string HintMainPower = "Apri il quadro elettrico e togli tensione";
         /// <summary>Hint after main power off.</summary>
         public const string HintLockout = "Applica il lockout sul quadro";
         /// <summary>Hint after the lockout.</summary>
@@ -205,8 +212,33 @@ namespace SI81.MachineLock
         public const string HintValveAndContainment = "Chiudi la valvola e delimita la pozza";
         /// <summary>Partial containment hint format: {0} cones, {1} absorbents.</summary>
         public const string HintContainmentPartialFormat = "Coni {0}/4 · Assorbenti {1}/4";
-        /// <summary>Hint after containment is complete.</summary>
-        public const string HintExit = "Usa il maniglione della porta ovest per uscire";
+        /// <summary>Hint after containment is complete (landmark phrasing, zero cardinal directions — Issue #46).</summary>
+        public const string HintExit = "Usa il maniglione della porta d'uscita";
+
+        // ------------------------------------------------------------------ Pause Menu Detailed Checklist (Issue #46)
+
+        /// <summary>Pause checklist: observation progress ({0}/6).</summary>
+        public const string ChecklistObserveFormat = "Osserva la sala e i rischi ({0}/6)";
+        /// <summary>Pause checklist: press E-Stop.</summary>
+        public const string ChecklistEStop = "Premi il fungo di emergenza";
+        /// <summary>Pause checklist: raise department alarm.</summary>
+        public const string ChecklistAlarm = "Attiva l'allarme di reparto";
+        /// <summary>Pause checklist: open main disconnect switch.</summary>
+        public const string ChecklistMainOff = "Apri il sezionatore generale sul quadro";
+        /// <summary>Pause checklist: apply lockout.</summary>
+        public const string ChecklistLockout = "Applica il lockout sul quadro";
+        /// <summary>Pause checklist: verify zero residual energy with digital meter.</summary>
+        public const string ChecklistTesterZero = "Verifica energia zero col tester digitale";
+        /// <summary>Pause checklist: try-start verification.</summary>
+        public const string ChecklistTryStart = "Esegui la prova di riavvio sul piedistallo";
+        /// <summary>Pause checklist: equip all 4 correct PPE items ({0}/4).</summary>
+        public const string ChecklistPpeFormat = "Indossa i 4 DPI corretti ({0}/4)";
+        /// <summary>Pause checklist: close oil leak valve.</summary>
+        public const string ChecklistValve = "Chiudi la valvola della perdita olio";
+        /// <summary>Pause checklist: place 4 cones and 4 absorbents ({0}/4 cones, {1}/4 absorbents).</summary>
+        public const string ChecklistContainmentFormat = "Contieni la pozza (coni {0}/4 · assorbenti {1}/4)";
+        /// <summary>Pause checklist: exit through the safety exit door.</summary>
+        public const string ChecklistExit = "Esci dal reparto dalla porta d'uscita";
 
         // ------------------------------------------------------------------ HUD sound events
 

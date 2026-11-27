@@ -173,7 +173,8 @@ namespace SI81.MachineLock
             RefreshStatusLamps();
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledOffMaterial);
-            SetLockoutSelectable(false);
+            // Keep Lockout clickable before Main Power is OFF so early clicks emit clear negative feedback (Issue #46).
+            SetLockoutSelectable(true);
             SyncDisplayOff();
         }
 
@@ -347,7 +348,7 @@ namespace SI81.MachineLock
             RefreshStatusLamps();
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledOffMaterial);
-            SetLockoutSelectable(false);
+            SetLockoutSelectable(true);
             if (arcVfx != null) arcVfx.SetActive(false);
             if (press != null) press.SetPower(true);
             SyncDisplayOff();
@@ -402,7 +403,7 @@ namespace SI81.MachineLock
                 noResidualSettleRemaining = 0f;
                 ApplySwitchHandle(true);
                 RefreshStatusLamps();
-                SetLockoutSelectable(false);
+                SetLockoutSelectable(!LockedOut);
                 if (press != null) press.SetPower(true);
                 if (TesterDisplayOn)
                 {
@@ -419,6 +420,9 @@ namespace SI81.MachineLock
             SetLockoutSelectable(!LockedOut);
             if (press != null) press.SetPower(false);
             PlayClip(breakerOffClip);
+            MachineLockActionFeedback.PlayPositive(
+                mainSwitchStationRoot != null ? mainSwitchStationRoot.gameObject : gameObject,
+                Hand.Any);
             if (scenario != null) scenario.NotifyMainPowerOff();
 
             if (TesterDisplayOn)
@@ -439,16 +443,33 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Applies the abstract lockout. Only valid with main power off; lights the red LOCK lamp,
-        /// disables further lockout selection and notifies the scenario.
+        /// Applies the abstract lockout. Only valid with main power off; selecting it while main power
+        /// is still on emits negative audiovisual feedback without locking out (Issue #46).
         /// </summary>
         public void ApplyLockout()
         {
-            if (MainPowerOn || LockedOut) return;
+            ApplyLockout(Hand.Any);
+        }
+
+        private void ApplyLockout(Hand hand)
+        {
+            if (LockedOut) return;
+            if (MainPowerOn)
+            {
+                MachineLockActionFeedback.PlayNegative(
+                    lockoutStationRoot != null ? lockoutStationRoot.gameObject : gameObject,
+                    hand,
+                    MachineLockTexts.LockoutBlockedFeedback);
+                return;
+            }
+
             LockedOut = true;
             RefreshStatusLamps();
             SetLockoutSelectable(false);
             PlayClip(lockoutClip);
+            MachineLockActionFeedback.PlayPositive(
+                lockoutStationRoot != null ? lockoutStationRoot.gameObject : gameObject,
+                hand);
             if (scenario != null) scenario.NotifyLockoutApplied();
         }
 
@@ -480,7 +501,14 @@ namespace SI81.MachineLock
 
             ApplyLed(testerRedLedRenderer, ledOffMaterial);
             ApplyLed(testerGreenLedRenderer, ledGreenMaterial);
+            bool newlyConfirmed = !TesterZero;
             TesterZero = true;
+            if (newlyConfirmed)
+            {
+                MachineLockActionFeedback.PlayPositive(
+                    testerStationRoot != null ? testerStationRoot.gameObject : gameObject,
+                    Hand.Any);
+            }
             UpdateLiveMeterDisplay(forceImmediate: true);
             if (scenario != null) scenario.NotifyTesterRead(true, MachineLockTexts.TesterReadZero);
             return MachineLockTexts.TesterReadZero;
@@ -503,6 +531,9 @@ namespace SI81.MachineLock
             ApplyLed(testerGreenLedRenderer, ledGreenMaterial);
             TesterZero = true;
             PlayClip(testerBeepClip);
+            MachineLockActionFeedback.PlayPositive(
+                testerStationRoot != null ? testerStationRoot.gameObject : gameObject,
+                Hand.Any);
             UpdateLiveMeterDisplay(forceImmediate: true);
             if (scenario != null) scenario.NotifyTesterRead(true, MachineLockTexts.TesterReadZero);
         }
@@ -642,7 +673,7 @@ namespace SI81.MachineLock
         private void OnLockoutSelected(Hand hand)
         {
             hoverFeedback.CancelHover();
-            ApplyLockout();
+            ApplyLockout(hand);
         }
 
         private void OnTesterSelected(Hand hand)

@@ -70,6 +70,7 @@ namespace SI81.MachineLock
             if (interactable != null) interactable.Selectable = false;
             ClearPulseVisual();
             PlayOneShot(squeakClip);
+            MachineLockActionFeedback.PlayPositive(gameObject, Hand.Any);
 
             if (spillSystem != null) spillSystem.CloseValve();
             if (scenario != null) scenario.NotifyValveClosed();

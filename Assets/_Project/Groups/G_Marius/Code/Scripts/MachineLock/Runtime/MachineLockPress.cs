@@ -159,6 +159,7 @@ namespace SI81.MachineLock
             StopLoop();
             PlayOneShot(clackClip);
             PlayOneShot(stopClip);
+            MachineLockActionFeedback.PlayPositive(estopInteractable != null ? estopInteractable.gameObject : gameObject, Hand.Any);
             if (scenario != null) scenario.NotifyEStopPressed();
         }
 
@@ -195,11 +196,13 @@ namespace SI81.MachineLock
         {
             if (!powered)
             {
+                MachineLockActionFeedback.PlayPositive(testStartInteractable != null ? testStartInteractable.gameObject : gameObject, Hand.Any);
                 if (scenario != null) scenario.NotifyTryStartVerified();
                 return;
             }
 
             if (jogRoutine != null) return;
+            MachineLockActionFeedback.PlayNegative(testStartInteractable != null ? testStartInteractable.gameObject : gameObject, Hand.Any);
             jogRoutine = StartCoroutine(JogRoutine());
         }
 

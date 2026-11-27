@@ -167,7 +167,15 @@ namespace SI81.MachineLock
 
             equippedBySlot[index] = item;
             item.SetEquipped(true, IsOpen);
-            PlayOneShot(equipClip);
+            if (item.IsCorrect)
+            {
+                PlayOneShot(equipClip);
+                MachineLockActionFeedback.PlayPositive(item.gameObject, Hand.Any);
+            }
+            else
+            {
+                MachineLockActionFeedback.PlayNegative(item.gameObject, Hand.Any);
+            }
 
             if (scenario != null)
             {

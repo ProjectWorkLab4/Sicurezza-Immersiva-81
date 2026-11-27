@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.IO;
+using SI81.Input;
 using SI81.Rig;
+using UnityEngine.SceneManagement;
 using SI81.UI;
 using UnityEngine;
 
@@ -150,6 +152,8 @@ namespace SI81.MachineLock
         private int forcedPatternIndex = -1;
         private int forcedSubStationOrderIndex = -1;
         private DecisionPanel activeExitDecisionPanel;
+        private InputContextHandle? worldLockHandle;
+        private bool worldVisualsHidden;
         private DifficultyLevel? forcedLevel;
 
         /// <summary>Current high-level state.</summary>
@@ -202,6 +206,12 @@ namespace SI81.MachineLock
         public int ActiveSubStationOrderIndex => energyPanel != null ? energyPanel.ActiveSubStationOrderIndex : -1;
         /// <summary>true while the shared HUD_DecisionPanel opened by the exit door is still active.</summary>
         public bool IsExitConfirmationPanelOpen => activeExitDecisionPanel != null && activeExitDecisionPanel.IsOpen;
+        /// <summary>true when the scenario has locked locomotion and world interaction (keeping UI interactive).</summary>
+        public bool IsMovementLockedForEndUi => worldLockHandle.HasValue;
+        /// <summary>true when <see cref="damageFeedback"/> is wired to drive the smooth exit fade-to-black backdrop.</summary>
+        public bool HasExitFadeFeedback => damageFeedback != null && damageFeedback.isActiveAndEnabled;
+        /// <summary>true after 3D workshop visuals have been hidden behind the black end-of-level UI backdrop.</summary>
+        public bool AreWorldVisualsHiddenForEndUi => worldVisualsHidden;
         /// <summary>Seconds the press kept running without an E-stop (inaction timer, GDD §9.12).</summary>
         public float InactionElapsedSeconds { get; private set; }
         /// <summary>Smoke stage reached by the inaction timer: 0 none, 1 stage 1, 2 stage 2.</summary>
@@ -261,9 +271,16 @@ namespace SI81.MachineLock
         /// Drives the inaction timer while the press keeps running (GDD §9.12). The timer is stopped by
         /// any E-stop or once exit handover begins; it is independent of the level time limit.
         /// </summary>
+        protected override void OnDestroy()
+        {
+            ReleaseExitSequenceLock();
+            if (damageFeedback != null) damageFeedback.Clear();
+            base.OnDestroy();
+        }
+
         private void Update()
         {
-            if (!IsRunning || ended || TaskEStop || TaskExit) return;
+            if (!IsRunning || ended || TaskEStop || TaskExit || worldLockHandle.HasValue) return;
             AdvanceInaction(Time.deltaTime);
         }
 
@@ -596,25 +613,139 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
+        /// Locks player locomotion, snap-turn, and world ray interactions via
+        /// <see cref="InputChannel.World"/> while leaving <see cref="InputChannel.UI"/> fully interactive.
+        /// Released automatically when the scenario unloads (<see cref="OnDestroy"/>).
+        /// </summary>
+        public void BeginExitSequenceLock()
+        {
+            if (worldLockHandle.HasValue) return;
+            InputService service = InputService.Instance;
+            if (service != null)
+                worldLockHandle = service.PushContext(InputChannel.World, this);
+        }
+
+        /// <summary>
+        /// Releases the <see cref="InputChannel.World"/> lock if active.
+        /// </summary>
+        public void ReleaseExitSequenceLock()
+        {
+            if (!worldLockHandle.HasValue) return;
+            worldLockHandle.Value.Dispose();
+            worldLockHandle = null;
+        }
+
+        /// <summary>
+        /// Starts the smooth full-screen fade to pure black on <see cref="damageFeedback"/> and fades out
+        /// scenario room audio. Invokes <paramref name="onFullyBlack"/> once the backdrop is solid black
+        /// behind the UI render queue.
+        /// </summary>
+        public void StartExitFadeToBlack(float durationSeconds, Action onFullyBlack)
+        {
+            if (Application.isPlaying && ambientAudio != null && ambientAudio.isPlaying)
+                StartCoroutine(FadeOutAudioRoutine(ambientAudio, durationSeconds));
+
+            if (damageFeedback != null && damageFeedback.isActiveAndEnabled)
+            {
+                damageFeedback.PlayExitFadeToBlack(durationSeconds, onFullyBlack);
+                return;
+            }
+            onFullyBlack?.Invoke();
+        }
+
+        /// <summary>
+        /// Disables 3D Renderers, Lights, ParticleSystems, and looping audio under the scenario's world
+        /// roots once faded to black, leaving floor colliders intact (so gravity never drops the rig) and
+        /// leaving an empty Z-buffer so <c>HUD_OutcomePanel</c> and <c>CANVAS_Menu</c> never compenetrate
+        /// with 3D geometry.
+        /// </summary>
+        public void HideScenarioWorldVisualsForEndUi()
+        {
+            if (worldVisualsHidden) return;
+            worldVisualsHidden = true;
+
+            Scene scenarioScene = gameObject.scene;
+            if (!scenarioScene.IsValid() || !scenarioScene.isLoaded) return;
+
+            GameObject[] roots = scenarioScene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                GameObject root = roots[i];
+                if (root == null || root == gameObject) continue;
+                bool isScenarioWorldRoot =
+                    root.name.StartsWith("ENV_", StringComparison.Ordinal)
+                    || root.name.StartsWith("HAZARD_", StringComparison.Ordinal)
+                    || root.name.StartsWith("ZONE_", StringComparison.Ordinal);
+                if (!isScenarioWorldRoot) continue;
+
+                foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+                    if (r != null) r.enabled = false;
+                foreach (Light l in root.GetComponentsInChildren<Light>(true))
+                    if (l != null) l.enabled = false;
+                foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true))
+                    if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                foreach (AudioSource audio in root.GetComponentsInChildren<AudioSource>(true))
+                    if (audio != null && audio.loop) audio.Stop();
+            }
+
+            if (ambientAudio != null) ambientAudio.Stop();
+        }
+
+        /// <summary>
         /// The player confirmed leaving the room through the west exit door (ADR-0006). Early Exit is
         /// always allowed, even while the press is still running: missing tasks (including an active press)
         /// are penalized at handover, the supervisor closing line plays, and the mission ends once.
         /// </summary>
         public void NotifyExitReached()
         {
+            NotifyExitReached(false);
+        }
+
+        /// <summary>
+        /// Resolves exit handover and ends the mission. When <paramref name="endImmediately"/> is true
+        /// (after the locked door-open + fade-to-black sequence completes), ends immediately without an
+        /// extra subtitle wait so <c>HUD_OutcomePanel</c> appears right away over the black backdrop.
+        /// </summary>
+        public void NotifyExitReached(bool endImmediately)
+        {
             if (ended || TaskExit || spi == null) return;
 
             TaskExit = true;
             actionStarted = true;
+            BeginExitSequenceLock();
             ApplyHandoverPenalties();
             if (TaskEStop) Apply(SpiEvent.Exit);
             RefreshObjectives();
 
             OutcomeType outcome = spi.EvaluateOutcome(BuildOutcomeInput());
+            if (endImmediately || !Application.isPlaying)
+            {
+                EndMissionOnce(outcome);
+                return;
+            }
+
             PlayLines(MachineLockTexts.SpeakerSupervisor,
                 outcome == OutcomeType.Positive ? MachineLockTexts.PrepostoSafe : MachineLockTexts.PrepostoUnsafe);
-            if (Application.isPlaying) StartCoroutine(EndAfterSupervisorLine(outcome));
-            else EndMissionOnce(outcome);
+            StartCoroutine(EndAfterSupervisorLine(outcome));
+        }
+
+        private static IEnumerator FadeOutAudioRoutine(AudioSource source, float durationSeconds)
+        {
+            if (source == null) yield break;
+            float startVolume = source.volume;
+            float duration = Mathf.Max(0.05f, durationSeconds);
+            float elapsed = 0f;
+            while (elapsed < duration && source != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                source.volume = Mathf.Lerp(startVolume, 0f, Mathf.Clamp01(elapsed / duration));
+                yield return null;
+            }
+            if (source != null)
+            {
+                source.volume = 0f;
+                source.Stop();
+            }
         }
 
         // =====================================================================
@@ -814,6 +945,7 @@ namespace SI81.MachineLock
             if (ended) return;
             ended = true;
             activeExitDecisionPanel = null;
+            BeginExitSequenceLock();
             state = MachineLockState.Ended;
             if (playingLines != null)
             {

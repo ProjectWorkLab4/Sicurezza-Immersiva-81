@@ -534,6 +534,9 @@ MonoBehaviour:
   openAxis: {x: 0, y: 1, z: 0}
   openAngleDegrees: 90
   openDurationSeconds: 0.8
+  exitStandLocalOffset: {x: 1.65, y: 0, z: 0}
+  moveToDoorDurationSeconds: 0.45
+  fadeToBlackDurationSeconds: 0.95
   oneShotAudio: {fileID: 6402615514790008743}
   pressClickClip: {fileID: 8300000, guid: 00864079a9039054096f7397563c6b37, type: 3}
   latchClip: {fileID: 8300000, guid: 7b9a8efc948e42041860f20fd5b67c7f, type: 3}

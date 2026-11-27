@@ -9,27 +9,30 @@ using UnityEngine.Rendering.Universal;
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Damage feedback of the Machine Lock scenario (GDD §9.13, ADR-0003). Inspects whether the active
-    /// camera has URP post-processing enabled (<see cref="UniversalAdditionalCameraData.renderPostProcessing"/>).
-    /// When URP post-processing is active and the damage volume is valid, drives the global URP Vignette.
-    /// When camera post-processing is disabled (as on the shared <c>MNG_CoreRig</c> on Quest 3) or the
-    /// volume is unavailable, automatically engages the scenario-owned visual path: a head-aligned peripheral
-    /// red vignette overlay mesh (unlit, stereo-safe, never creating a camera or Canvas), a red point-light
-    /// pulse, strong dual-hand Haptics, and a smooth brief dark respawn blink (<c>0.3 s</c>) synchronized
-    /// with the Guided respawn teleport. Respects <c>accessibility.reduce_flashes</c>.
+    /// Damage feedback and exit fade-to-black backdrop of the Machine Lock scenario (GDD §9.13, ADR-0003,
+    /// ADR-0006). Drives either the URP damage Vignette or the scenario-owned head-aligned peripheral red
+    /// overlay + dual-hand haptics + Guided respawn blink, and also provides a smooth full-screen fade to
+    /// pure black on exit confirmation that drops its render queue strictly behind World Space UI
+    /// (<see cref="EXIT_BACKDROP_RENDER_QUEUE"/> = 2950 &lt; 3000) once fully black so end-of-level UI
+    /// (<c>HUD_OutcomePanel</c>, <c>PANEL_Debrief</c>, <c>UIPointer</c>) renders crisply over pure black
+    /// with zero 3D world compenetration.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Damage Feedback")]
     public sealed class MachineLockDamageFeedback : MonoBehaviour
     {
+        /// <summary>Render queue used while holding pure black behind World Space UI (UI = 3000, reticle = 3100).</summary>
+        public const int EXIT_BACKDROP_RENDER_QUEUE = (int)RenderQueue.Transparent - 50;
+
         private const float MINOR_INTENSITY_SCALE = 0.35f;
         private const float OVERLAY_DISTANCE = 0.36f;
-        private const float OVERLAY_SCALE = 1.25f;
+        private const float OVERLAY_SCALE = 2.40f;
         private const float DEFAULT_RESPAWN_BLINK_HALF_SECONDS = 0.15f;
 
         private static readonly Color DamageTint = new Color(1f, 0.72f, 0.68f, 1f);
         private static readonly Color OverlayRedColor = new Color(0.88f, 0.04f, 0.04f, 1f);
         private static readonly Color OverlayDarkColor = new Color(0.02f, 0.02f, 0.03f, 1f);
+        private static readonly Color OverlayPureBlackColor = new Color(0f, 0f, 0f, 1f);
 
         private static readonly int ColorPropId = Shader.PropertyToID("_Color");
         private static readonly int BaseColorPropId = Shader.PropertyToID("_BaseColor");
@@ -44,7 +47,7 @@ namespace SI81.MachineLock
         [SerializeField] private Light fallbackFlashLight;
 
         [Header("Scenario-owned overlay (ADR-0003)")]
-        [Tooltip("Optional pre-authored overlay material using SI81/MachineLock/DamageOverlay. Created at runtime if empty.")]
+        [Tooltip("Optional pre-authored overlay material using SI81/MachineLock/DamageOverlay. Instantiated at runtime so shared assets are never mutated.")]
         [SerializeField] private Material overlayMaterialAsset;
 
         [Header("Audio")]
@@ -79,6 +82,7 @@ namespace SI81.MachineLock
 
         private Coroutine pulse;
         private Coroutine respawnBlinkRoutine;
+        private Coroutine exitFadeRoutine;
         private ColorAdjustments colorAdjustments;
         private Color authoredFilter = Color.white;
         private bool tintCaptured;
@@ -89,19 +93,29 @@ namespace SI81.MachineLock
         private MaterialPropertyBlock overlayBlock;
         private float currentOverlayIntensity;
         private float currentBlinkIntensity;
+        private float currentExitFadeIntensity;
         private bool usesCustomOverlayShader;
 
         /// <summary>true while the scenario-owned head-aligned overlay quad is actively rendering.</summary>
         public bool IsScenarioOverlayActive => overlayRenderer != null && overlayRenderer.enabled;
 
-        /// <summary>Current normalized 0..1 intensity of the scenario-owned overlay (vignette or blink).</summary>
-        public float CurrentOverlayIntensity => Mathf.Max(currentOverlayIntensity, currentBlinkIntensity);
+        /// <summary>Current normalized 0..1 intensity of the scenario-owned overlay (vignette, blink, or exit fade).</summary>
+        public float CurrentOverlayIntensity => Mathf.Max(currentOverlayIntensity, Mathf.Max(currentBlinkIntensity, currentExitFadeIntensity));
 
         /// <summary>true when the last triggered feedback used the scenario-owned path instead of the URP Volume.</summary>
         public bool LastUsedScenarioOverlayPath { get; private set; }
 
         /// <summary>true while the brief dark respawn blink coroutine is running.</summary>
         public bool IsRespawnBlinkActive => respawnBlinkRoutine != null;
+
+        /// <summary>true while the exit fade-to-black or its persistent pure-black UI backdrop is active.</summary>
+        public bool IsExitFadeActive => exitFadeRoutine != null || currentExitFadeIntensity > 0.001f;
+
+        /// <summary>Current 0..1 alpha of the exit fade-to-black backdrop.</summary>
+        public float ExitFadeAlpha => currentExitFadeIntensity;
+
+        /// <summary>Active render queue of the runtime overlay material, or -1 if not yet created.</summary>
+        public int ActiveOverlayRenderQueue => runtimeOverlayMaterial != null ? runtimeOverlayMaterial.renderQueue : -1;
 
         private void Awake()
         {
@@ -141,7 +155,7 @@ namespace SI81.MachineLock
         }
 
         // =====================================================================
-        // Public API (GDD §14.3, ADR-0003)
+        // Public API (GDD §14.3, ADR-0003, ADR-0006)
         // =====================================================================
 
         /// <summary>
@@ -151,6 +165,8 @@ namespace SI81.MachineLock
         /// </summary>
         public void PlayCritical(CriticalEvent evt = CriticalEvent.HotOilBurn)
         {
+            if (IsExitFadeActive) return;
+
             PlayClip(SelectClip(evt));
             if (HUDService.IsReady)
             {
@@ -181,6 +197,7 @@ namespace SI81.MachineLock
         /// </summary>
         public void PlayMinor()
         {
+            if (IsExitFadeActive) return;
             if (HUDService.IsReady) HUDService.Pulse(0.4f, 0.15f);
 
             bool reducedFlashes = ReduceFlashes;
@@ -220,8 +237,37 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Stops every active pulse/blink and resets the damage volume, scenario overlay mesh, fallback
-        /// light, and authored colour filter cleanly.
+        /// Smoothly fades the entire workshop scene to pure black over <paramref name="durationSeconds"/>,
+        /// then switches the black backdrop to <see cref="EXIT_BACKDROP_RENDER_QUEUE"/> (strictly behind
+        /// World Space UI and <c>UIPointer</c>) and invokes <paramref name="onFullyBlack"/> so the end-of-level
+        /// UI renders cleanly in a dark void until the scenario unloads.
+        /// </summary>
+        public Coroutine PlayExitFadeToBlack(float durationSeconds, Action onFullyBlack = null)
+        {
+            Clear();
+            if (!isActiveAndEnabled)
+            {
+                onFullyBlack?.Invoke();
+                return null;
+            }
+
+            EnsureOverlayMesh();
+            SetOverlayRenderQueue((int)RenderQueue.Overlay);
+            AlignOverlayToHead();
+
+            if (durationSeconds <= 0.001f)
+            {
+                CompleteExitFadeToBackdrop(onFullyBlack);
+                return null;
+            }
+
+            exitFadeRoutine = StartCoroutine(ExitFadeRoutine(durationSeconds, onFullyBlack));
+            return exitFadeRoutine;
+        }
+
+        /// <summary>
+        /// Stops every active pulse/blink/fade and resets the damage volume, scenario overlay mesh,
+        /// fallback light, and authored colour filter cleanly.
         /// </summary>
         public void Clear()
         {
@@ -235,11 +281,16 @@ namespace SI81.MachineLock
                 StopCoroutine(respawnBlinkRoutine);
                 respawnBlinkRoutine = null;
             }
+            if (exitFadeRoutine != null)
+            {
+                StopCoroutine(exitFadeRoutine);
+                exitFadeRoutine = null;
+            }
             ResetVisuals();
         }
 
         // =====================================================================
-        // Pulse & Respawn Blink
+        // Pulse, Respawn Blink & Exit Fade-To-Black
         // =====================================================================
 
         private void StartPulse(float fadeIn, float hold, float fadeOut, float peak, bool scenarioOverlayPath,
@@ -256,6 +307,7 @@ namespace SI81.MachineLock
             if (scenarioOverlayPath)
             {
                 EnsureOverlayMesh();
+                SetOverlayRenderQueue((int)RenderQueue.Overlay);
                 AlignOverlayToHead();
                 if (!reducedFlashes) PlaceFallbackLight();
             }
@@ -297,6 +349,7 @@ namespace SI81.MachineLock
         private IEnumerator RespawnBlinkRoutine(float halfDuration, Action onMidpoint)
         {
             EnsureOverlayMesh();
+            SetOverlayRenderQueue((int)RenderQueue.Overlay);
             AlignOverlayToHead();
 
             bool reduced = ReduceFlashes;
@@ -329,6 +382,33 @@ namespace SI81.MachineLock
             respawnBlinkRoutine = null;
         }
 
+        private IEnumerator ExitFadeRoutine(float durationSeconds, Action onFullyBlack)
+        {
+            float duration = Mathf.Max(0.001f, durationSeconds);
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                // Smooth ease-in-out curve for comfortable VR blackout.
+                currentExitFadeIntensity = t * t * (3f - 2f * t);
+                RefreshOverlayRender();
+                yield return null;
+            }
+
+            exitFadeRoutine = null;
+            CompleteExitFadeToBackdrop(onFullyBlack);
+        }
+
+        private void CompleteExitFadeToBackdrop(Action onFullyBlack)
+        {
+            currentExitFadeIntensity = 1f;
+            // Drop below Queue.Transparent (3000) so HUD_OutcomePanel, CANVAS_Menu and UIPointer render crisply on top.
+            SetOverlayRenderQueue(EXIT_BACKDROP_RENDER_QUEUE);
+            RefreshOverlayRender();
+            onFullyBlack?.Invoke();
+        }
+
         private void ApplyPulseEnvelope(bool scenarioOverlayPath, float amount, float peak, float normalized,
             bool reducedFlashes)
         {
@@ -357,16 +437,21 @@ namespace SI81.MachineLock
         {
             if (overlayRenderer == null) return;
 
-            bool blinkDominates = currentBlinkIntensity > 0.001f;
-            float activeIntensity = blinkDominates ? currentBlinkIntensity : currentOverlayIntensity;
+            bool exitDominates = currentExitFadeIntensity > 0.001f;
+            bool blinkDominates = !exitDominates && currentBlinkIntensity > 0.001f;
+            float activeIntensity = exitDominates
+                ? currentExitFadeIntensity
+                : (blinkDominates ? currentBlinkIntensity : currentOverlayIntensity);
             bool visible = activeIntensity > 0.001f;
 
             overlayRenderer.enabled = visible;
             if (!visible) return;
 
             AlignOverlayToHead();
-            Color tint = blinkDominates ? OverlayDarkColor : OverlayRedColor;
-            float fullScreen = blinkDominates ? 1f : 0f;
+            Color tint = exitDominates
+                ? OverlayPureBlackColor
+                : (blinkDominates ? OverlayDarkColor : OverlayRedColor);
+            float fullScreen = (exitDominates || blinkDominates) ? 1f : 0f;
 
             if (overlayBlock == null) overlayBlock = new MaterialPropertyBlock();
             overlayRenderer.GetPropertyBlock(overlayBlock);
@@ -378,7 +463,8 @@ namespace SI81.MachineLock
             }
             else
             {
-                Color fallbackTint = new Color(tint.r, tint.g, tint.b, activeIntensity * (blinkDominates ? 0.9f : 0.45f));
+                float alphaScale = exitDominates ? 1f : (blinkDominates ? 0.9f : 0.45f);
+                Color fallbackTint = new Color(tint.r, tint.g, tint.b, activeIntensity * alphaScale);
                 overlayBlock.SetColor(BaseColorPropId, fallbackTint);
                 overlayBlock.SetColor(ColorPropId, fallbackTint);
             }
@@ -401,6 +487,8 @@ namespace SI81.MachineLock
         private void ResetVisuals()
         {
             currentBlinkIntensity = 0f;
+            currentExitFadeIntensity = 0f;
+            SetOverlayRenderQueue((int)RenderQueue.Overlay);
             ResetDamageVisualsOnly();
         }
 
@@ -426,10 +514,11 @@ namespace SI81.MachineLock
             overlayRenderer.lightProbeUsage = LightProbeUsage.Off;
             overlayRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
 
+            // Always instantiate a runtime material copy so renderQueue changes never mutate shared assets on disk.
             if (overlayMaterialAsset != null)
             {
-                overlayRenderer.sharedMaterial = overlayMaterialAsset;
-                usesCustomOverlayShader = overlayMaterialAsset.HasProperty(IntensityPropId);
+                runtimeOverlayMaterial = new Material(overlayMaterialAsset);
+                usesCustomOverlayShader = runtimeOverlayMaterial.HasProperty(IntensityPropId);
             }
             else
             {
@@ -447,10 +536,15 @@ namespace SI81.MachineLock
                     ConfigureTransparentFallback(runtimeOverlayMaterial);
                     usesCustomOverlayShader = false;
                 }
-                overlayRenderer.sharedMaterial = runtimeOverlayMaterial;
             }
-
+            overlayRenderer.sharedMaterial = runtimeOverlayMaterial;
             overlayRenderer.enabled = false;
+        }
+
+        private void SetOverlayRenderQueue(int queue)
+        {
+            if (runtimeOverlayMaterial != null)
+                runtimeOverlayMaterial.renderQueue = queue;
         }
 
         private static void ConfigureTransparentFallback(Material mat)

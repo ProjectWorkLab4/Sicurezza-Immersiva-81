@@ -1175,6 +1175,9 @@ namespace SI81.MachineLock.EditorTools
             SetVector3(exitDoor, "openAxis", Vector3.up);
             SetSerializedFloat(exitDoor, "openAngleDegrees", 90f);
             SetSerializedFloat(exitDoor, "openDurationSeconds", 0.8f);
+            SetVector3(exitDoor, "exitStandLocalOffset", new Vector3(1.65f, 0f, 0f));
+            SetSerializedFloat(exitDoor, "moveToDoorDurationSeconds", 0.45f);
+            SetSerializedFloat(exitDoor, "fadeToBlackDurationSeconds", 0.95f);
             SetRef(exitDoor, "oneShotAudio", latchAudio);
             SetRef(exitDoor, "pressClickClip", clips.MechanicalButton);
             SetRef(exitDoor, "latchClip", clips.Lockout);

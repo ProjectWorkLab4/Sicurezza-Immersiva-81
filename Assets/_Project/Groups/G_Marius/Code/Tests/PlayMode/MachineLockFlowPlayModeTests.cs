@@ -1693,6 +1693,148 @@ namespace SI81.MachineLock.Tests
         }
 
         /// <summary>
+        /// Regression test for Issue #43 exit transition: clicking Yes locks InputChannel.World
+        /// (blocking RigLocomotion while leaving UI interactive), moves the rig to the front of the
+        /// West exit door, swings the door open +90 deg, smoothly fades to pure black with the
+        /// backdrop dropped strictly below Queue.Transparent (2950 < 3000), hides 3D world renderers
+        /// while keeping the floor collider grounded, ends the mission, and cleanly unlocks input on unload.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ExitDoor_ConfirmYes_MovesRigToDoor_LocksWorld_FadesBehindUi_AndUnlocksOnDestroy()
+        {
+#if UNITY_EDITOR
+            InputService input = InputService.EnsureInstance();
+
+            // Build a lightweight Player Rig with CharacterController + RigRegistration + RigLocomotion + Head camera.
+            GameObject rigObj = new GameObject("TEST_PlayerRig");
+            roots.Add(rigObj);
+            rigObj.transform.position = new Vector3(-6.0f, 0f, 1.4f);
+            rigObj.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            CharacterController cc = rigObj.AddComponent<CharacterController>();
+            cc.height = 1.8f;
+            cc.radius = 0.3f;
+            cc.center = new Vector3(0f, 0.9f, 0f);
+
+            GameObject headObj = new GameObject("TEST_RigHead");
+            headObj.tag = "MainCamera";
+            headObj.transform.SetParent(rigObj.transform, false);
+            headObj.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+            headObj.AddComponent<Camera>();
+            GameObject leftHand = new GameObject("LeftHand");
+            leftHand.transform.SetParent(rigObj.transform, false);
+            GameObject rightHand = new GameObject("RightHand");
+            rightHand.transform.SetParent(rigObj.transform, false);
+
+            RigRegistration rig = rigObj.AddComponent<RigRegistration>();
+            rig.Configure(headObj.transform, rigObj.transform, leftHand.transform, rightHand.transform);
+            RigLocomotion locomotion = rigObj.AddComponent<RigLocomotion>();
+
+            // Build a mock ENV_Room root with a visible wall renderer and a solid floor collider.
+            GameObject envRoom = new GameObject("ENV_Room");
+            roots.Add(envRoom);
+            GameObject wallCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallCube.name = "MESH_TestWall";
+            wallCube.transform.SetParent(envRoom.transform, false);
+            wallCube.transform.position = new Vector3(-9.1f, 1.5f, 0f);
+            Renderer wallRenderer = wallCube.GetComponent<Renderer>();
+
+            GameObject floorCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floorCube.name = "MESH_Floor";
+            floorCube.transform.SetParent(envRoom.transform, false);
+            floorCube.transform.position = new Vector3(0f, -0.5f, 0f);
+            floorCube.transform.localScale = new Vector3(25f, 1f, 25f);
+            Collider floorCollider = floorCube.GetComponent<Collider>();
+
+            // Build scenario + damageFeedback + HUD_DecisionPanel + exit door.
+            GameObject decisionPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Project/Home/UI/Prefabs/HUD/HUD_DecisionPanel.prefab");
+            Assert.That(decisionPrefab, Is.Not.Null);
+            GameObject decisionInstance = UnityEngine.Object.Instantiate(decisionPrefab);
+            roots.Add(decisionInstance);
+            DecisionPanel decisionPanel = decisionInstance.GetComponent<DecisionPanel>();
+            decisionPanel.SetRig(headObj.transform);
+
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            MachineLockDamageFeedback feedback = scenario.gameObject.AddComponent<MachineLockDamageFeedback>();
+            WireBool(feedback, "forceFallbackForTesting", true);
+            WireObject(scenario, "damageFeedback", feedback);
+            CreatePress(scenario);
+
+            GameObject doorRoot = NewRoot("TEST_ExitDoorTransition");
+            doorRoot.transform.position = new Vector3(-9.0f, 0f, 0f);
+            GameObject doorLeaf = new GameObject("MESH_SteelExitDoorLeaf");
+            doorLeaf.transform.SetParent(doorRoot.transform, false);
+            BoxCollider leafCollider = doorLeaf.AddComponent<BoxCollider>();
+            Interactable doorInteractable = doorLeaf.AddComponent<Interactable>();
+            WireBool(doorInteractable, "canSelect", true);
+            WireBool(doorInteractable, "canGrab", true);
+            WireBool(doorInteractable, "followsHand", false);
+
+            MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
+            WireObject(exitDoor, "scenario", scenario);
+            WireObject(exitDoor, "doorInteractable", doorInteractable);
+            WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
+            WireObject(exitDoor, "doorLeafCollider", leafCollider);
+            WireFloat(exitDoor, "openAngleDegrees", 90f);
+            WireFloat(exitDoor, "openDurationSeconds", 0.20f);
+            WireFloat(exitDoor, "moveToDoorDurationSeconds", 0.15f);
+            WireFloat(exitDoor, "fadeToBlackDurationSeconds", 0.20f);
+            doorRoot.SetActive(true);
+            yield return null;
+
+            Assert.That(input.IsWorldSuppressed, Is.False);
+            Assert.That(wallRenderer.enabled, Is.True);
+
+            // Open confirmation and click Yes (Option 0).
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True);
+            MethodInfo chooseMethod = typeof(DecisionPanel).GetMethod("Choose", BindingFlags.Instance | BindingFlags.NonPublic);
+            chooseMethod.Invoke(decisionPanel, new object[] { 0 });
+
+            // Immediately on Yes: movement & world interaction are locked while UI channel stays active.
+            Assert.That(scenario.IsMovementLockedForEndUi, Is.True);
+            Assert.That(input.IsWorldSuppressed, Is.True, "World input/locomotion must lock immediately on Yes.");
+            Assert.That(input.IsSuppressed(InputChannel.UI), Is.False, "UI channel must remain interactive.");
+
+            // Wait for move-to-door + door-swing + fade-to-black to complete.
+            yield return new WaitForSecondsRealtime(0.75f);
+
+            // 1. Player moved cleanly to the front of the West Exit Door (~ -7.35, 0) facing West (-X).
+            Vector3 finalHead = headObj.transform.position;
+            Assert.That(finalHead.x, Is.EqualTo(-7.35f).Within(0.15f), "Player should move directly in front of the door.");
+            Assert.That(finalHead.z, Is.EqualTo(0f).Within(0.15f), "Player should center on the doorway Z.");
+            Assert.That(Vector3.Dot(Vector3.ProjectOnPlane(headObj.transform.forward, Vector3.up).normalized, Vector3.left),
+                Is.GreaterThan(0.7f), "Player should face toward the opening West exit door.");
+
+            // 2. Door swung open +90 deg and level faded to full black BEHIND UI (renderQueue < Transparent 3000).
+            Assert.That(exitDoor.IsOpened, Is.True);
+            Assert.That(feedback.IsExitFadeActive, Is.True);
+            Assert.That(feedback.ExitFadeAlpha, Is.EqualTo(1f).Within(0.01f));
+            Assert.That(feedback.ActiveOverlayRenderQueue, Is.EqualTo(MachineLockDamageFeedback.EXIT_BACKDROP_RENDER_QUEUE));
+            Assert.That(feedback.ActiveOverlayRenderQueue, Is.LessThan(3000),
+                "Black backdrop must render behind World Space UI (3000) and UIPointer (3000/3100).");
+
+            // 3. 3D workshop visuals hidden (empty Z-buffer -> zero UI compenetration), floor collider still grounded!
+            Assert.That(scenario.AreWorldVisualsHiddenForEndUi, Is.True);
+            Assert.That(wallRenderer.enabled, Is.False, "3D scene renderers must hide behind the black end-of-level void.");
+            Assert.That(floorCollider.enabled, Is.True, "Floor collider must stay enabled so RigLocomotion gravity keeps player grounded.");
+
+            // 4. Mission ended while movement remains locked and UI stays interactive.
+            Assert.That(scenario.HasEnded, Is.True);
+            Assert.That(input.IsWorldSuppressed, Is.True);
+            Assert.That(input.IsSuppressed(InputChannel.UI), Is.False);
+            Assert.That(locomotion.enabled, Is.True);
+
+            // 5. Unloading the scenario (Return to Home / Replay) cleanly unlocks InputChannel.World!
+            UnityEngine.Object.DestroyImmediate(scenario.gameObject);
+            Assert.That(input.IsWorldSuppressed, Is.False,
+                "Destroying MachineLockScenario on unload must cleanly release the InputChannel.World lock.");
+#else
+            Assert.Ignore("HUD_DecisionPanel prefab test requires the Editor AssetDatabase.");
+            yield return null;
+#endif
+        }
+
+        /// <summary>
         /// The time limit ends the mission only outside Guided: a stopped and contained run is Partial,
         /// a run with the press still moving or the spill still open is Negative.
         /// </summary>

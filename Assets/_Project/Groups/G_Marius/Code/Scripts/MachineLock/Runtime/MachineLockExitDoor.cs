@@ -1,6 +1,7 @@
 using System.Collections;
 using SI81.Input;
 using SI81.Interaction;
+using SI81.Rig;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -12,9 +13,11 @@ namespace SI81.MachineLock
     /// without pulling the door off its hinges. Activating the door opens (or recenters, if already open)
     /// the shared <c>HUD_DecisionPanel</c> safely inside the bay via
     /// <see cref="MachineLockScenario.RequestExitConfirmation"/>, plays a subtle mechanical click, and
-    /// auto-closes the confirmation if the player walks away (&gt; 3.5 m) so confirmation state can never
-    /// deadlock. Confirming exit plays the latch sound, disables the leaf collider, swings the door open
-    /// 90 degrees outward (-X) into the west vestibule, and calls <see cref="MachineLockScenario.NotifyExitReached"/>.
+    /// auto-closes the confirmation if the player walks away (&gt; 3.5 m).
+    /// Confirming exit locks player movement and world interaction immediately (keeping UI interactive),
+    /// moves the player cleanly in front of the door, unlatches and swings the steel leaf open 90 degrees
+    /// outward (-X), fades the level smoothly to pure black (hiding 3D scene visuals behind the UI so
+    /// end-of-level panels never compenetrate with geometry), and ends the mission.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Exit Door")]
@@ -25,9 +28,12 @@ namespace SI81.MachineLock
 
         private const float DEFAULT_OPEN_ANGLE_DEGREES = 90f;
         private const float DEFAULT_OPEN_DURATION_SECONDS = 0.8f;
+        private const float DEFAULT_MOVE_TO_DOOR_SECONDS = 0.45f;
+        private const float DEFAULT_FADE_TO_BLACK_SECONDS = 0.95f;
+        private const float YAW_ALIGN_THRESHOLD_DEGREES = 45f;
 
         [Header("Scenario")]
-        [Tooltip("Scenario that displays the confirmation decision panel and resolves exit handover.")]
+        [Tooltip("Scenario that displays the confirmation decision panel, locks movement, fades to black, and resolves exit handover.")]
         [SerializeField] private MachineLockScenario scenario;
 
         [Header("Door and panic bar")]
@@ -39,13 +45,19 @@ namespace SI81.MachineLock
         [Tooltip("Solid door leaf collider disabled once the player confirms exit.")]
         [SerializeField] private Collider doorLeafCollider;
 
-        [Header("Motion")]
+        [Header("Motion & Exit Sequence")]
         [Tooltip("Local axis around which the door leaf swings open.")]
         [SerializeField] private Vector3 openAxis = Vector3.up;
         [Tooltip("Swing angle in degrees when opening (+90 swings outward along -X into the west vestibule).")]
         [SerializeField] private float openAngleDegrees = DEFAULT_OPEN_ANGLE_DEGREES;
         [Tooltip("Seconds taken to swing the door open; 0 snaps open immediately.")]
         [SerializeField] private float openDurationSeconds = DEFAULT_OPEN_DURATION_SECONDS;
+        [Tooltip("Local offset in front of the door where the player is positioned on exit confirmation (1.65 m east of door center).")]
+        [SerializeField] private Vector3 exitStandLocalOffset = new Vector3(1.65f, 0f, 0f);
+        [Tooltip("Seconds taken to glide the player smoothly in front of the door while movement is locked.")]
+        [SerializeField] private float moveToDoorDurationSeconds = DEFAULT_MOVE_TO_DOOR_SECONDS;
+        [Tooltip("Seconds taken to fade the room smoothly to pure black as the door opens (0 skips fade).")]
+        [SerializeField] private float fadeToBlackDurationSeconds = DEFAULT_FADE_TO_BLACK_SECONDS;
 
         [Header("Audio")]
         [Tooltip("One-shot audio source for door press click and latch release.")]
@@ -62,10 +74,13 @@ namespace SI81.MachineLock
 
         /// <summary>true while the exit confirmation DecisionPanel is currently awaiting a player choice.</summary>
         public bool IsConfirmationOpen { get; private set; }
-        /// <summary>true while the steel door leaf is swinging open.</summary>
+        /// <summary>true while the exit sequence (move to door, swing open, fade to black) is running.</summary>
         public bool IsOpening { get; private set; }
         /// <summary>true once the door has fully swung open and handed control to the scenario exit flow.</summary>
         public bool IsOpened { get; private set; }
+
+        /// <summary>World-space standing point directly in front of the exit door used during the locked exit sequence.</summary>
+        public Vector3 ExitStandWorldPosition => transform.TransformPoint(exitStandLocalOffset);
 
         private void Awake()
         {
@@ -148,8 +163,8 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Callback passed to <c>HUD_DecisionPanel</c>. Option 0 confirms exit and opens the door;
-        /// any other option (1 = stay, or timeout) cancels without ending the mission.
+        /// Callback passed to <c>HUD_DecisionPanel</c>. Option 0 confirms exit and starts the locked
+        /// exit sequence; any other option (1 = stay, or timeout) cancels without ending the mission.
         /// </summary>
         /// <param name="optionIndex">0 = confirm exit, 1 = stay in room, -1 = timeout.</param>
         public void HandleExitDecision(int optionIndex)
@@ -160,8 +175,10 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Unlatches the panic bar, disables the door leaf collider, swings the steel leaf open by
-        /// <see cref="openAngleDegrees"/>, and notifies <see cref="MachineLockScenario.NotifyExitReached"/>.
+        /// Locks movement and world interaction immediately (keeping UI interactive), disables the door
+        /// interactable and leaf collider, moves the player in front of the door, unlatches and swings
+        /// the steel leaf open by <see cref="openAngleDegrees"/>, fades the level to black, hides 3D
+        /// workshop visuals behind the UI backdrop, and completes the mission exit.
         /// </summary>
         public void OpenAndCompleteExit()
         {
@@ -179,44 +196,136 @@ namespace SI81.MachineLock
             if (doorLeafCollider != null)
                 doorLeafCollider.enabled = false;
 
-            PlayClip(latchClip);
+            // Lock movement and world interaction immediately while leaving the UI channel active.
+            if (scenario != null)
+                scenario.BeginExitSequenceLock();
 
             if (Application.isPlaying && openDurationSeconds > 0.001f && doorLeafTransform != null)
             {
                 if (openRoutine != null) StopCoroutine(openRoutine);
-                openRoutine = StartCoroutine(OpenDoorRoutine());
+                openRoutine = StartCoroutine(OpenDoorAndFadeSequence());
             }
             else
             {
+                PlayClip(latchClip);
                 ApplyDoorAngle(openAngleDegrees);
-                FinishOpen();
+                FinishOpen(false);
             }
         }
 
-        private IEnumerator OpenDoorRoutine()
+        private IEnumerator OpenDoorAndFadeSequence()
         {
+            // 1. Move the locked player smoothly in front of the West Exit Door so they watch it open cleanly.
+            yield return MovePlayerToDoorFrontRoutine();
+
+            // 2. Unlatch and smoothly swing the steel exit door outward (+90 deg along -X).
+            PlayClip(latchClip);
+            bool runFade = scenario != null && scenario.HasExitFadeFeedback && fadeToBlackDurationSeconds > 0.001f;
+            float openDuration = Mathf.Max(0.001f, openDurationSeconds);
+            float fadeTriggerTime = openDuration * 0.5f;
+            bool fadeStarted = false;
+            bool fadeCompleted = false;
+
             float elapsed = 0f;
-            float duration = Mathf.Max(0.001f, openDurationSeconds);
-            while (elapsed < duration)
+            while (elapsed < openDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                // Smooth cubic ease-out for a weighted industrial steel door swing.
+                float t = Mathf.Clamp01(elapsed / openDuration);
                 float eased = 1f - Mathf.Pow(1f - t, 3f);
                 ApplyDoorAngle(openAngleDegrees * eased);
+
+                if (runFade && !fadeStarted && elapsed >= fadeTriggerTime)
+                {
+                    fadeStarted = true;
+                    scenario.StartExitFadeToBlack(fadeToBlackDurationSeconds, () => fadeCompleted = true);
+                }
                 yield return null;
             }
 
             ApplyDoorAngle(openAngleDegrees);
+
+            // 3. Finish fading the room to pure black while movement stays locked, then clear 3D visuals and end level.
+            if (runFade)
+            {
+                if (!fadeStarted)
+                    scenario.StartExitFadeToBlack(fadeToBlackDurationSeconds, () => fadeCompleted = true);
+
+                while (!fadeCompleted)
+                    yield return null;
+
+                scenario.HideScenarioWorldVisualsForEndUi();
+                openRoutine = null;
+                FinishOpen(endImmediately: true);
+                yield break;
+            }
+
             openRoutine = null;
-            FinishOpen();
+            FinishOpen(endImmediately: false);
         }
 
-        private void FinishOpen()
+        private IEnumerator MovePlayerToDoorFrontRoutine()
+        {
+            RigRegistration rig = RigRegistration.Instance;
+            if (rig == null) yield break;
+
+            Transform rigTransform = rig.transform;
+            Transform head = rig.Head;
+            Vector3 targetEyeWorld = ExitStandWorldPosition;
+            Vector3 doorDirection = (transform.position - targetEyeWorld);
+            doorDirection.y = 0f;
+            if (doorDirection.sqrMagnitude < 0.0001f) doorDirection = Vector3.left;
+            doorDirection.Normalize();
+
+            // If the player turned well away from the door before clicking Yes, snap-turn once to face it comfortably.
+            Quaternion targetRigRotation = rigTransform.rotation;
+            if (head != null)
+            {
+                Vector3 headForward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+                if (headForward.sqrMagnitude > 0.0001f
+                    && Vector3.Angle(headForward.normalized, doorDirection) > YAW_ALIGN_THRESHOLD_DEGREES)
+                {
+                    float yawDelta = Vector3.SignedAngle(headForward.normalized, doorDirection, Vector3.up);
+                    targetRigRotation = Quaternion.AngleAxis(yawDelta, Vector3.up) * rigTransform.rotation;
+                    Vector3 rotatedOffset = Quaternion.AngleAxis(yawDelta, Vector3.up)
+                        * new Vector3(head.position.x - rigTransform.position.x, 0f, head.position.z - rigTransform.position.z);
+                    Vector3 pivotRigPos = new Vector3(head.position.x - rotatedOffset.x, rigTransform.position.y, head.position.z - rotatedOffset.z);
+                    rig.TeleportTo(pivotRigPos, targetRigRotation);
+                }
+            }
+
+            Vector3 headOffset = head != null
+                ? new Vector3(head.position.x - rigTransform.position.x, 0f, head.position.z - rigTransform.position.z)
+                : Vector3.zero;
+            Vector3 startPos = rigTransform.position;
+            Vector3 endPos = new Vector3(targetEyeWorld.x - headOffset.x, startPos.y, targetEyeWorld.z - headOffset.z);
+
+            float horizontalDistance = Vector2.Distance(new Vector2(startPos.x, startPos.z), new Vector2(endPos.x, endPos.z));
+            if (horizontalDistance <= 0.05f || moveToDoorDurationSeconds <= 0.001f)
+            {
+                rig.TeleportTo(endPos, targetRigRotation);
+                yield break;
+            }
+
+            float duration = Mathf.Max(0.05f, moveToDoorDurationSeconds);
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                Vector3 pos = Vector3.Lerp(startPos, endPos, eased);
+                rig.TeleportTo(pos, targetRigRotation);
+                yield return null;
+            }
+
+            rig.TeleportTo(endPos, targetRigRotation);
+        }
+
+        private void FinishOpen(bool endImmediately)
         {
             IsOpening = false;
             IsOpened = true;
-            if (scenario != null) scenario.NotifyExitReached();
+            if (scenario != null) scenario.NotifyExitReached(endImmediately);
         }
 
         private void ApplyDoorAngle(float degrees)

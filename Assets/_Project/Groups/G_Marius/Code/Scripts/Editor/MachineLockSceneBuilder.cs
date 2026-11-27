@@ -1154,27 +1154,29 @@ namespace SI81.MachineLock.EditorTools
                 new Vector3(0.18f, 2.63f, 0f), matExitBeaconIdle, false);
 
             // Hinged REI-120 steel door leaf pivoted on North hinge edge (-0.05, 0, +0.94); swings +90 deg outward (-X) into the west vestibule.
+            // Placing Interactable on MESH_SteelExitDoorLeaf ensures aiming anywhere on the door leaf OR panic bar resolves cleanly via GetComponentInParent (Issue #43).
             var leafPivot = NewChild(root, "MESH_SteelExitDoorLeaf", new Vector3(-0.05f, 0f, 0.94f));
             AddHeroModelChild(leafPivot, "MESH_ExitDoorLeafBody", "MESH_SteelExitDoorLeaf.fbx", Vector3.zero, Vector3.zero);
             BoxCollider leafCollider = leafPivot.AddComponent<BoxCollider>();
             leafCollider.center = new Vector3(0f, 1.22f, -0.94f);
             leafCollider.size = new Vector3(0.10f, 2.42f, 1.88f);
+            Interactable doorInteractable = AddInteractable(leafPivot, true, true, false);
 
-            // Prominent green EN 1125 horizontal panic bar accepting both Select (Trigger) and Grab (Grip).
+            // Prominent green EN 1125 horizontal panic bar protruding from the door leaf (shares parent Interactable).
             var panicBarObj = NewChild(leafPivot, "MESH_PanicBar", new Vector3(0.036f, 1.05f, -0.94f));
             AddHeroModelChild(panicBarObj, "MESH_PanicBarBody", "MESH_PanicBar.fbx", Vector3.zero, Vector3.zero);
             AddBoxCollider(panicBarObj, new Vector3(0.09f, 0f, 0f), new Vector3(0.24f, 0.30f, 1.44f));
-            Interactable panicBarInteractable = AddInteractable(panicBarObj, true, true, false);
 
             AudioSource latchAudio = AddAudioSource(root, null, false, false, 1f, 0.85f);
             var exitDoor = root.AddComponent<MachineLockExitDoor>();
-            SetRef(exitDoor, "panicBarInteractable", panicBarInteractable);
+            SetRef(exitDoor, "doorInteractable", doorInteractable);
             SetRef(exitDoor, "doorLeafTransform", leafPivot.transform);
             SetRef(exitDoor, "doorLeafCollider", leafCollider);
             SetVector3(exitDoor, "openAxis", Vector3.up);
             SetSerializedFloat(exitDoor, "openAngleDegrees", 90f);
             SetSerializedFloat(exitDoor, "openDurationSeconds", 0.8f);
             SetRef(exitDoor, "oneShotAudio", latchAudio);
+            SetRef(exitDoor, "pressClickClip", clips.MechanicalButton);
             SetRef(exitDoor, "latchClip", clips.Lockout);
             SavePrefab(root);
         }
@@ -1318,6 +1320,9 @@ namespace SI81.MachineLock.EditorTools
 
             AudioSource oneShot = AddAudioSource(root, null, false, false, 1f, 0.85f);
             var panel = root.AddComponent<MachineLockEnergyPanel>();
+            SetRef(panel, "mainSwitchStationRoot", subMain.transform);
+            SetRef(panel, "lockoutStationRoot", subLock.transform);
+            SetRef(panel, "testerStationRoot", subTester.transform);
             SetRef(panel, "mainSwitchInteractable", switchInteractable);
             SetRef(panel, "lockoutInteractable", lockoutInteractable);
             SetRef(panel, "testerInteractable", testerInteractable);
@@ -2551,8 +2556,8 @@ namespace SI81.MachineLock.EditorTools
             AddLabel(Find("MESH_Thermometer"), LabelKind.Risk, "Olio a 120 °C", "Superficie bollente", new Vector3(-0.55f, 0.35f, 0f));
             AddLabel(Find("VFX_OilPuddle"), LabelKind.Risk, "Pozza d'olio bollente", "Non calpestare", new Vector3(0f, 0.55f, 2.35f));
 
-            // Single clean electrical bay anchor (detailed control labels live on engraved plaques + hover).
-            AddLabel(Find("MESH_ElectricalPanel"), LabelKind.ContextHelp, "Quadro elettrico", "Sezionatore · Lockout · Tester", new Vector3(-0.75f, 1.15f, 0f));
+            // Single order-neutral electrical bay anchor (unnumbered plaques + randomized slots, Issue #43).
+            AddLabel(Find("MESH_ElectricalPanel"), LabelKind.ContextHelp, "Quadro elettrico", "Isolamento elettrico LOTO", new Vector3(-0.75f, 1.15f, 0f));
 
             // Sparse ContextHelp anchors; Exit uses ContextHelp to avoid the shared Interaction "GRIP — Afferra" default.
             AddLabel(Find("MESH_EStopPedestal"), LabelKind.ContextHelp, "Fungo di emergenza", "Premi per fermare la pressa", new Vector3(0f, 1.72f, 0f));
@@ -2561,7 +2566,7 @@ namespace SI81.MachineLock.EditorTools
             AddLabel(Find("MESH_SpillKit"), LabelKind.ContextHelp, "Kit antispandimento", "Coni e assorbenti (GRIP)", new Vector3(0f, 1.15f, 0f));
             AddLabel(Find("MESH_Valve"), LabelKind.ContextHelp, "Valvola olio", "Chiudi per fermare la perdita", new Vector3(0f, 1.05f, 0f));
             AddLabel(Find("MESH_WaterExtinguisher"), LabelKind.ContextHelp, "Estintore ad acqua", "Non usare su olio o quadro", new Vector3(0f, 0.95f, 0.40f));
-            AddLabel(Find("MESH_Door"), LabelKind.ContextHelp, "Uscita di emergenza", "Usa il maniglione (TRIGGER o GRIP)", new Vector3(0.55f, 1.58f, 0f));
+            AddLabel(Find("MESH_Door"), LabelKind.ContextHelp, "Uscita di emergenza", "Punta la porta o il maniglione (TRIGGER o GRIP)", new Vector3(0.35f, 1.95f, 0.85f));
         }
 
         private static GameObject Find(string name)

@@ -57,6 +57,26 @@ namespace SI81.MachineLock
         private const float SMOKE_STAGE2_RATE = 60f;
         /// <summary>Seconds each subtitle stays on screen.</summary>
         private const float LINE_SECONDS = 2.5f;
+        /// <summary>Persistent shuffle-bag filename for the six electrical Sub-Station slot permutations.</summary>
+        private const string PANEL_ORDER_STATE_FILE = "machinelock_panel_order_state.json";
+        /// <summary>Half-width of the active stamping bay along X (West door leaf sits at -9.00 m).</summary>
+        private const float BAY_HALF_X = 9.0f;
+        /// <summary>Half-depth of the active stamping bay along Z.</summary>
+        private const float BAY_HALF_Z = 5.5f;
+        /// <summary>Preferred clearance kept between the outer panel edges and bay walls/exit door.</summary>
+        private const float DECISION_WALL_CLEARANCE_M = 0.22f;
+        /// <summary>Minimum clearance kept between panel edges and walls when standing very close to the door.</summary>
+        private const float DECISION_MIN_WALL_CLEARANCE_M = 0.12f;
+        /// <summary>Emergency clearance when the player leans directly against the closed door leaf.</summary>
+        private const float DECISION_EMERGENCY_WALL_CLEARANCE_M = 0.04f;
+        /// <summary>Preferred minimum eye-to-panel distance before tightening wall clearance.</summary>
+        private const float DECISION_MIN_EYE_DISTANCE_M = 0.35f;
+        /// <summary>Half-width of HUD_DecisionPanel (480 Canvas units * 0.5 * 0.00126) per metre of distance, slightly padded.</summary>
+        private const float DECISION_HALF_WIDTH_PER_METER = 0.31f;
+        /// <summary>Minimum world Y height for the clamped exit decision panel.</summary>
+        private const float DECISION_MIN_Y = 1.05f;
+        /// <summary>Maximum world Y height for the clamped exit decision panel.</summary>
+        private const float DECISION_MAX_Y = 2.15f;
 
         [Header("Machine Lock")]
         [Tooltip("Tunable Machine Lock values (SO_MachineLockConfig).")]
@@ -126,7 +146,10 @@ namespace SI81.MachineLock
         private Coroutine playingLines;
         private Coroutine respawnRoutine;
         private MachineLockPatternSelector patternSelector;
+        private MachineLockPatternSelector panelOrderSelector;
         private int forcedPatternIndex = -1;
+        private int forcedSubStationOrderIndex = -1;
+        private DecisionPanel activeExitDecisionPanel;
         private DifficultyLevel? forcedLevel;
 
         /// <summary>Current high-level state.</summary>
@@ -175,6 +198,10 @@ namespace SI81.MachineLock
         public new int ObjectivesCompleted => currentMacro;
         /// <summary>Index of the applied layout pattern, 0 to 2; -1 before the first application.</summary>
         public int ActivePatternIndex { get; private set; } = -1;
+        /// <summary>Index of the applied electrical Sub-Station permutation, 0 to 5; -1 without panel.</summary>
+        public int ActiveSubStationOrderIndex => energyPanel != null ? energyPanel.ActiveSubStationOrderIndex : -1;
+        /// <summary>true while the shared HUD_DecisionPanel opened by the exit door is still active.</summary>
+        public bool IsExitConfirmationPanelOpen => activeExitDecisionPanel != null && activeExitDecisionPanel.IsOpen;
         /// <summary>Seconds the press kept running without an E-stop (inaction timer, GDD §9.12).</summary>
         public float InactionElapsedSeconds { get; private set; }
         /// <summary>Smoke stage reached by the inaction timer: 0 none, 1 stage 1, 2 stage 2.</summary>
@@ -203,6 +230,8 @@ namespace SI81.MachineLock
 
             int pattern = ResolvePatternSelector().NextPattern(forcedPatternIndex);
             ApplyLayoutPattern(pattern);
+            int panelOrder = ResolvePanelOrderSelector().NextPattern(forcedSubStationOrderIndex);
+            ApplySubStationOrder(panelOrder);
             StartAmbientAudio();
 
             SetPhase(PHASE_SCAN);
@@ -462,19 +491,108 @@ namespace SI81.MachineLock
         }
 
         /// <summary>
-        /// Opens the shared <c>HUD_DecisionPanel</c> to ask the player whether they want to leave the
-        /// stamping room now (ADR-0006). Used by <see cref="MachineLockExitDoor"/>.
+        /// Opens (or recenters) the shared <c>HUD_DecisionPanel</c> safely inside the stamping bay to ask
+        /// the player whether they want to leave the room now (ADR-0006, Issue #43).
         /// </summary>
         /// <param name="onChosen">Callback invoked with 0 (confirm exit), 1 (stay), or -1 (timeout).</param>
         /// <returns>true when the shared decision panel opened cleanly.</returns>
         public bool RequestExitConfirmation(Action<int> onChosen)
         {
             if (ended || TaskExit) return false;
-            return AskDecision(
+            bool opened = AskDecision(
                 MachineLockTexts.ExitConfirmQuestion,
                 new[] { MachineLockTexts.ExitConfirmYes, MachineLockTexts.ExitConfirmNo },
                 onChosen,
                 0f);
+            if (!opened) return false;
+
+            activeExitDecisionPanel = FindFirstObjectByType<DecisionPanel>(FindObjectsInactive.Include);
+            if (activeExitDecisionPanel != null)
+                PositionDecisionPanelSafely(activeExitDecisionPanel.transform, ResolvePlayerHead());
+            return true;
+        }
+
+        /// <summary>
+        /// Closes the shared <c>HUD_DecisionPanel</c> if it is currently open for an exit prompt.
+        /// </summary>
+        public void CloseActiveExitConfirmation()
+        {
+            if (activeExitDecisionPanel != null && activeExitDecisionPanel.IsOpen)
+                activeExitDecisionPanel.Close();
+            activeExitDecisionPanel = null;
+        }
+
+        /// <summary>
+        /// Resolves the active player head transform (shared rig first, then UI/Camera fallback).
+        /// </summary>
+        public Transform ResolvePlayerHead()
+        {
+            if (RigRegistration.Instance != null && RigRegistration.Instance.Head != null)
+                return RigRegistration.Instance.Head;
+            return WorldPlacement.ResolveHead(null, nameof(MachineLockScenario));
+        }
+
+        /// <summary>
+        /// Clamps <paramref name="panelTransform"/> (accounting for its full horizontal width at oblique
+        /// gaze angles and close leans) strictly inside the stamping bay walls and strictly in front of the
+        /// player's eyes, scaling by the actual 3D eye-to-panel distance via
+        /// <see cref="UITheme.GetCanvasScale"/> (Issue #43).
+        /// </summary>
+        public static void PositionDecisionPanelSafely(Transform panelTransform, Transform head)
+        {
+            if (panelTransform == null || head == null) return;
+
+            Vector3 forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.0001f)
+                forward = Vector3.ProjectOnPlane(head.forward.y < 0f ? head.up : -head.up, Vector3.up);
+            forward = forward.sqrMagnitude < 0.0001f ? Vector3.forward : forward.normalized;
+            Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+
+            Vector3 headPos = head.position;
+            float preferredDist = ComputeMaxPanelDistance(headPos, forward, right, DECISION_WALL_CLEARANCE_M);
+            float finalDist;
+            if (preferredDist >= DECISION_MIN_EYE_DISTANCE_M)
+            {
+                finalDist = preferredDist;
+            }
+            else
+            {
+                float tightDist = ComputeMaxPanelDistance(headPos, forward, right, DECISION_MIN_WALL_CLEARANCE_M);
+                if (tightDist >= 0.15f)
+                    finalDist = tightDist;
+                else
+                    finalDist = Mathf.Max(0.05f, ComputeMaxPanelDistance(headPos, forward, right, DECISION_EMERGENCY_WALL_CLEARANCE_M));
+            }
+
+            Vector3 position = headPos + forward * finalDist;
+            position.y = Mathf.Clamp(headPos.y, DECISION_MIN_Y, DECISION_MAX_Y);
+            float actualEyeDistance = Mathf.Max(0.05f, Vector3.Distance(headPos, position));
+            panelTransform.SetPositionAndRotation(position, Quaternion.LookRotation(forward, Vector3.up));
+            panelTransform.localScale = Vector3.one * UITheme.GetCanvasScale(actualEyeDistance);
+        }
+
+        private static float ComputeMaxPanelDistance(Vector3 headPos, Vector3 forward, Vector3 right, float wallClearance)
+        {
+            float maxX = BAY_HALF_X - wallClearance;
+            float maxZ = BAY_HALF_Z - wallClearance;
+            float extentX = Mathf.Abs(right.x) * DECISION_HALF_WIDTH_PER_METER;
+            float extentZ = Mathf.Abs(right.z) * DECISION_HALF_WIDTH_PER_METER;
+
+            float maxDist = UITheme.DECISION_DISTANCE_M;
+            float westSlope = forward.x - extentX;
+            if (westSlope < -0.0001f)
+                maxDist = Mathf.Min(maxDist, (-maxX - headPos.x) / westSlope);
+            float eastSlope = forward.x + extentX;
+            if (eastSlope > 0.0001f)
+                maxDist = Mathf.Min(maxDist, (maxX - headPos.x) / eastSlope);
+            float southSlope = forward.z - extentZ;
+            if (southSlope < -0.0001f)
+                maxDist = Mathf.Min(maxDist, (-maxZ - headPos.z) / southSlope);
+            float northSlope = forward.z + extentZ;
+            if (northSlope > 0.0001f)
+                maxDist = Mathf.Min(maxDist, (maxZ - headPos.z) / northSlope);
+
+            return Mathf.Max(0f, maxDist);
         }
 
         /// <summary>
@@ -512,6 +630,27 @@ namespace SI81.MachineLock
         {
             forcedPatternIndex = index;
             if (index >= 0) ApplyLayoutPattern(index);
+        }
+
+        /// <summary>
+        /// Forces the electrical Sub-Station permutation used at the next start (0 to 5) and applies it
+        /// immediately; a negative value resumes the 6-state persistent shuffle-bag (Issue #43).
+        /// </summary>
+        /// <param name="index">0 to 5 to force a permutation, any negative value to shuffle.</param>
+        public void SetForcedSubStationOrderIndex(int index)
+        {
+            forcedSubStationOrderIndex = index;
+            if (index >= 0) ApplySubStationOrder(index);
+        }
+
+        /// <summary>
+        /// Applies one of the six Sub-Station slot permutations to the electrical panel.
+        /// </summary>
+        /// <param name="index">Permutation index, normalized modulo 6.</param>
+        public void ApplySubStationOrder(int index)
+        {
+            if (energyPanel == null) return;
+            energyPanel.ApplySubStationOrder(index);
         }
 
         /// <summary>
@@ -674,6 +813,7 @@ namespace SI81.MachineLock
         {
             if (ended) return;
             ended = true;
+            activeExitDecisionPanel = null;
             state = MachineLockState.Ended;
             if (playingLines != null)
             {
@@ -840,13 +980,22 @@ namespace SI81.MachineLock
 
         private MachineLockPatternSelector ResolvePatternSelector()
         {
-            if (patternSelector != null) return patternSelector;
             int count = layoutPatterns != null && layoutPatterns.Length > 0
                 ? layoutPatterns.Length
                 : MachineLockPatternSelector.DEFAULT_PATTERN_COUNT;
-            string statePath = Path.Combine(Application.persistentDataPath, MachineLockPatternSelector.DEFAULT_FILE_NAME);
-            patternSelector = new MachineLockPatternSelector(statePath, count);
-            return patternSelector;
+            return patternSelector ?? (patternSelector = CreatePersistentSelector(MachineLockPatternSelector.DEFAULT_FILE_NAME, count));
+        }
+
+        private MachineLockPatternSelector ResolvePanelOrderSelector()
+        {
+            return panelOrderSelector ?? (panelOrderSelector = CreatePersistentSelector(
+                PANEL_ORDER_STATE_FILE,
+                MachineLockEnergyPanel.SUB_STATION_PERMUTATION_COUNT));
+        }
+
+        private static MachineLockPatternSelector CreatePersistentSelector(string fileName, int count)
+        {
+            return new MachineLockPatternSelector(Path.Combine(Application.persistentDataPath, fileName), count);
         }
 
         private MachineLockOutcomeInput BuildOutcomeInput()

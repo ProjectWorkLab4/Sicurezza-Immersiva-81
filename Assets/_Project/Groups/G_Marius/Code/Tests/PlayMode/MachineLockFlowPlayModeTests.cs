@@ -1361,7 +1361,7 @@ namespace SI81.MachineLock.Tests
 
             MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
             WireObject(exitDoor, "scenario", scenario);
-            WireObject(exitDoor, "panicBarInteractable", panicBar);
+            WireObject(exitDoor, "doorInteractable", panicBar);
             WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
             WireObject(exitDoor, "doorLeafCollider", leafCollider);
             WireFloat(exitDoor, "openAngleDegrees", 90f);
@@ -1464,7 +1464,7 @@ namespace SI81.MachineLock.Tests
 
             MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
             WireObject(exitDoor, "scenario", scenario);
-            WireObject(exitDoor, "panicBarInteractable", panicBar);
+            WireObject(exitDoor, "doorInteractable", panicBar);
             WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
             WireObject(exitDoor, "doorLeafCollider", leafCollider);
             WireFloat(exitDoor, "openAngleDegrees", 90f);
@@ -1506,6 +1506,190 @@ namespace SI81.MachineLock.Tests
             Assert.Ignore("HUD_DecisionPanel prefab test requires the Editor AssetDatabase.");
             yield return null;
 #endif
+        }
+
+        /// <summary>
+        /// Regression test for Issue #43: aiming anywhere on the steel door leaf (not just the panic bar)
+        /// resolves to the exit Interactable; opening confirmation close to the West door clamps
+        /// HUD_DecisionPanel strictly inside the bay and in front of the eyes; re-clicking recenters
+        /// without deadlocking; walking beyond 3.5 m or external closure cleanly resets confirmation state.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ExitDoor_WholeLeafHit_BayClampedDecisionPanel_RecenterAndWalkAwayAutoClose()
+        {
+#if UNITY_EDITOR
+            GameObject decisionPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Project/Home/UI/Prefabs/HUD/HUD_DecisionPanel.prefab");
+            Assert.That(decisionPrefab, Is.Not.Null);
+
+            GameObject decisionInstance = UnityEngine.Object.Instantiate(decisionPrefab);
+            roots.Add(decisionInstance);
+            DecisionPanel decisionPanel = decisionInstance.GetComponent<DecisionPanel>();
+            Assert.That(decisionPanel, Is.Not.Null);
+
+            // Temporary camera acting as player head (Camera.main) standing right in front of the West Exit Door.
+            GameObject headObj = new GameObject("TEST_MainCamera");
+            headObj.tag = "MainCamera";
+            roots.Add(headObj);
+            headObj.AddComponent<Camera>();
+            headObj.transform.position = new Vector3(-8.50f, 1.65f, 0f);
+            headObj.transform.rotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
+            decisionPanel.SetRig(headObj.transform);
+
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            CreatePress(scenario);
+
+            GameObject doorRoot = NewRoot("TEST_ExitDoorIssue43");
+            doorRoot.transform.position = new Vector3(-9.0f, 0f, 0f);
+            GameObject doorLeaf = new GameObject("MESH_SteelExitDoorLeaf");
+            doorLeaf.transform.SetParent(doorRoot.transform, false);
+            doorLeaf.transform.localPosition = new Vector3(-0.05f, 0f, 0.94f);
+            BoxCollider leafCollider = doorLeaf.AddComponent<BoxCollider>();
+            leafCollider.center = new Vector3(0f, 1.22f, -0.94f);
+            leafCollider.size = new Vector3(0.10f, 2.42f, 1.88f);
+            Interactable doorInteractable = doorLeaf.AddComponent<Interactable>();
+            WireBool(doorInteractable, "canSelect", true);
+            WireBool(doorInteractable, "canGrab", true);
+            WireBool(doorInteractable, "followsHand", false);
+
+            GameObject panicBarObj = new GameObject("MESH_PanicBar");
+            panicBarObj.transform.SetParent(doorLeaf.transform, false);
+            panicBarObj.transform.localPosition = new Vector3(0.036f, 1.05f, -0.94f);
+            BoxCollider barCollider = panicBarObj.AddComponent<BoxCollider>();
+            barCollider.center = new Vector3(0.09f, 0f, 0f);
+            barCollider.size = new Vector3(0.24f, 0.30f, 1.44f);
+
+            MachineLockExitDoor exitDoor = doorRoot.AddComponent<MachineLockExitDoor>();
+            WireObject(exitDoor, "scenario", scenario);
+            WireObject(exitDoor, "doorInteractable", doorInteractable);
+            WireObject(exitDoor, "doorLeafTransform", doorLeaf.transform);
+            WireObject(exitDoor, "doorLeafCollider", leafCollider);
+            doorRoot.SetActive(true);
+            yield return null;
+            yield return new WaitForFixedUpdate();
+
+            // 1. Raycast aimed at the upper door leaf (y = 1.65, well above the panic bar) must resolve Interactable.
+            bool hitUpperLeaf = Physics.Raycast(new Vector3(-7.5f, 1.65f, 0f), Vector3.left, out RaycastHit leafHit,
+                5f, ~0, QueryTriggerInteraction.Ignore);
+            Assert.That(hitUpperLeaf, Is.True, "Raycast must hit the upper door leaf.");
+            Assert.That(leafHit.collider.GetComponentInParent<Interactable>(true), Is.EqualTo(doorInteractable),
+                "Upper door leaf collider must resolve to the exit door Interactable.");
+
+            // 2. Raycast aimed at the protruding panic bar must also resolve to the same Interactable.
+            bool hitBar = Physics.Raycast(new Vector3(-7.5f, 1.05f, 0f), Vector3.left, out RaycastHit barHit,
+                5f, ~0, QueryTriggerInteraction.Ignore);
+            Assert.That(hitBar, Is.True, "Raycast must hit the panic bar.");
+            Assert.That(barHit.collider.GetComponentInParent<Interactable>(true), Is.EqualTo(doorInteractable),
+                "Panic bar collider must resolve to the same exit door Interactable.");
+
+            // 3. Standing 0.50 m from the West door facing West: HUD_DecisionPanel must stay inside bay (> -9.00) and ahead of eyes (< -8.50).
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True);
+            Assert.That(decisionPanel.IsOpen, Is.True);
+            float clampedX = decisionPanel.transform.position.x;
+            Assert.That(clampedX, Is.GreaterThan(-8.95f),
+                "HUD_DecisionPanel must never clip behind the opaque West exit door at x = -9.00.");
+            Assert.That(clampedX, Is.LessThan(headObj.transform.position.x - 0.15f),
+                "HUD_DecisionPanel must stay strictly in front of the player's eyes.");
+            float actualDist = Vector3.Distance(
+                new Vector3(headObj.transform.position.x, decisionPanel.transform.position.y, headObj.transform.position.z),
+                decisionPanel.transform.position);
+            Assert.That(decisionPanel.transform.localScale.x, Is.EqualTo(UITheme.GetCanvasScale(actualDist)).Within(0.0001f),
+                "HUD_DecisionPanel scale must match its clamped distance from the eyes.");
+
+            // 3b. Oblique 60-deg NW gaze at x = -8.50: even the westernmost panel edge must stay inside x = -9.00.
+            headObj.transform.position = new Vector3(-8.50f, 1.65f, 0f);
+            headObj.transform.rotation = Quaternion.LookRotation(new Vector3(-0.5f, 0f, 0.866f), Vector3.up);
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True);
+            Vector3 obliqueCenter = decisionPanel.transform.position;
+            float obliqueHalfWidth = 240f * decisionPanel.transform.localScale.x;
+            float westEdgeX = obliqueCenter.x - Mathf.Abs(decisionPanel.transform.right.x) * obliqueHalfWidth;
+            Assert.That(westEdgeX, Is.GreaterThan(-8.98f),
+                "Outer west edge of HUD_DecisionPanel must never clip behind the West wall at oblique angles.");
+
+            // 3c. Ultra-close roomscale lean (x = -8.85 facing West): panel still stays strictly inside x = -9.00 and ahead of eyes.
+            headObj.transform.position = new Vector3(-8.85f, 1.65f, 0f);
+            headObj.transform.rotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True);
+            Assert.That(decisionPanel.transform.position.x, Is.GreaterThan(-8.98f),
+                "Even when leaning within 0.15 m of the closed door, panel must not clip behind x = -9.00.");
+            Assert.That(decisionPanel.transform.position.x, Is.LessThan(headObj.transform.position.x - 0.04f),
+                "Even at ultra-close lean, panel must stay in front of the player's eyes.");
+
+            // 4. Stepping back and re-clicking while already open must recenter (never deadlock IsConfirmationOpen).
+            headObj.transform.position = new Vector3(-7.20f, 1.65f, 0f);
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True,
+                "Re-activating the door while confirmation is open must recenter instead of deadlocking.");
+            Assert.That(decisionPanel.transform.position.x, Is.EqualTo(-8.40f).Within(0.05f),
+                "Recentered panel at x = -7.20 should sit at the full 1.20 m distance (-8.40).");
+
+            // 5. Walking beyond AUTO_CLOSE_DISTANCE_METERS (> 3.5 m from x = -9.0) auto-closes the panel.
+            headObj.transform.position = new Vector3(-4.50f, 1.65f, 0f);
+            yield return null;
+            Assert.That(exitDoor.IsConfirmationOpen, Is.False,
+                "Walking > 3.5 m away from the exit door must auto-close confirmation.");
+            Assert.That(decisionPanel.IsOpen, Is.False);
+
+            // 6. External closure of DecisionPanel clears IsConfirmationOpen cleanly on the next frame.
+            headObj.transform.position = new Vector3(-7.50f, 1.65f, 0f);
+            Assert.That(exitDoor.RequestExitConfirmation(), Is.True);
+            decisionPanel.Close();
+            yield return null;
+            Assert.That(exitDoor.IsConfirmationOpen, Is.False,
+                "Closing HUD_DecisionPanel externally must clear IsConfirmationOpen.");
+#else
+            Assert.Ignore("HUD_DecisionPanel prefab test requires the Editor AssetDatabase.");
+            yield return null;
+#endif
+        }
+
+        /// <summary>
+        /// Regression test for Issue #43: all 6 Sub-Station permutations place SUB_MainDisconnect,
+        /// SUB_LockoutStation and SUB_VoltageTester into distinct symmetrical Z slots (-0.88, 0, +0.88)
+        /// with full separation, and MachineLockScenario.SetForcedSubStationOrderIndex applies cleanly.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnergyPanel_AllSixSubStationPermutations_AreDistinctAndKeepFullSeparation()
+        {
+            MachineLockScenario scenario = CreateScenario(DifficultyLevel.Guided);
+            PanelFixture fixture = CreatePanel(scenario, null);
+
+            GameObject subMain = new GameObject("SUB_MainDisconnect");
+            subMain.transform.SetParent(fixture.Panel.transform, false);
+            subMain.transform.localPosition = new Vector3(0f, 0f, -0.88f);
+
+            GameObject subLock = new GameObject("SUB_LockoutStation");
+            subLock.transform.SetParent(fixture.Panel.transform, false);
+            subLock.transform.localPosition = Vector3.zero;
+
+            GameObject subTest = new GameObject("SUB_VoltageTester");
+            subTest.transform.SetParent(fixture.Panel.transform, false);
+            subTest.transform.localPosition = new Vector3(0f, 0f, 0.88f);
+
+            WireObject(fixture.Panel, "mainSwitchStationRoot", subMain.transform);
+            WireObject(fixture.Panel, "lockoutStationRoot", subLock.transform);
+            WireObject(fixture.Panel, "testerStationRoot", subTest.transform);
+            WireObject(scenario, "energyPanel", fixture.Panel);
+            yield return null;
+
+            var seenLayouts = new HashSet<string>();
+            for (int perm = 0; perm < MachineLockEnergyPanel.SUB_STATION_PERMUTATION_COUNT; perm++)
+            {
+                scenario.SetForcedSubStationOrderIndex(perm);
+                Assert.That(scenario.ActiveSubStationOrderIndex, Is.EqualTo(perm));
+
+                float zMain = subMain.transform.localPosition.z;
+                float zLock = subLock.transform.localPosition.z;
+                float zTest = subTest.transform.localPosition.z;
+
+                Assert.That(Mathf.Abs(zMain - zLock), Is.GreaterThanOrEqualTo(0.87f));
+                Assert.That(Mathf.Abs(zLock - zTest), Is.GreaterThanOrEqualTo(0.87f));
+                Assert.That(Mathf.Abs(zMain - zTest), Is.GreaterThanOrEqualTo(0.87f));
+
+                string key = $"{zMain:F2}|{zLock:F2}|{zTest:F2}";
+                Assert.That(seenLayouts.Add(key), Is.True, $"Duplicate Sub-Station layout at perm {perm}: {key}");
+            }
+
+            Assert.That(seenLayouts.Count, Is.EqualTo(MachineLockEnergyPanel.SUB_STATION_PERMUTATION_COUNT));
         }
 
         /// <summary>

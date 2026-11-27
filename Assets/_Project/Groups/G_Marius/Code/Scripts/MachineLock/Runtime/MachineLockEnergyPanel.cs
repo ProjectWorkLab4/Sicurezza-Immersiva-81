@@ -7,9 +7,10 @@ using UnityEngine;
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Electrical wall bay of the Machine Lock scenario (GDD §9.3 and §9.4, ADR-0002): three physically
-    /// separated, high-contrast color-coded Sub-Stations (Main Disconnect Switch, Lockout Station, Voltage
-    /// Tester). Power starts ON; opening the main switch cuts press power and unlocks the lockout station;
+    /// Electrical wall bay of the Machine Lock scenario (GDD §9.3 and §9.4, ADR-0002, Issue #43): three
+    /// physically separated, unnumbered, color-coded Sub-Stations (Main Disconnect Switch, Lockout Station,
+    /// Voltage Tester) whose horizontal slot positions shuffle across the 3! = 6 permutations per run.
+    /// Power starts ON; opening the main switch cuts press power and unlocks the lockout station;
     /// residual charge decays linearly only while the main switch is open. The tester never discharges the
     /// oil, it only reads it. Hovering any Sub-Station emits throttled Action Feedback with its name and
     /// live state.
@@ -21,12 +22,25 @@ namespace SI81.MachineLock
         /// <summary>Charge above which the oil still counts as energised (GDD §9.4).</summary>
         public const float ENERGIZED_THRESHOLD = 0.05f;
 
+        /// <summary>Number of distinct left-to-right permutations of the three Sub-Stations (3! = 6).</summary>
+        public const int SUB_STATION_PERMUTATION_COUNT = 6;
+
         private const float DEFAULT_DECAY_SECONDS = 90f;
         private const float DEFAULT_ENERGIZED_PROBABILITY = 0.5f;
         private const float SWITCH_OFF_ANGLE = -80f;
         private const float ARC_PULSE_SECONDS = 0.35f;
 
         private static readonly WaitForSeconds ArcPulseWait = new WaitForSeconds(ARC_PULSE_SECONDS);
+        private static readonly float[] DefaultSubStationSlotZ = { -0.88f, 0f, 0.88f };
+        private static readonly int[][] SubStationPermutations =
+        {
+            new[] { 0, 1, 2 },
+            new[] { 0, 2, 1 },
+            new[] { 1, 0, 2 },
+            new[] { 1, 2, 0 },
+            new[] { 2, 0, 1 },
+            new[] { 2, 1, 0 }
+        };
 
         [Header("Scenario")]
         [Tooltip("Scenario that receives the panel events. Optional.")]
@@ -36,12 +50,22 @@ namespace SI81.MachineLock
         [Tooltip("Press that loses power when the main switch opens.")]
         [SerializeField] private MachineLockPress press;
 
+        [Header("Sub-Station Layout (Randomized Slots)")]
+        [Tooltip("Root transform of the Main Disconnect Switch Sub-Station (SUB_MainDisconnect).")]
+        [SerializeField] private Transform mainSwitchStationRoot;
+        [Tooltip("Root transform of the Lockout Station Sub-Station (SUB_LockoutStation).")]
+        [SerializeField] private Transform lockoutStationRoot;
+        [Tooltip("Root transform of the Voltage Tester Sub-Station (SUB_VoltageTester).")]
+        [SerializeField] private Transform testerStationRoot;
+        [Tooltip("Three symmetrical local Z slot offsets aligned with the bay rails and overhead conduit risers.")]
+        [SerializeField] private float[] subStationSlotZ = { -0.88f, 0f, 0.88f };
+
         [Header("Sub-Station Controls")]
-        [Tooltip("Sub-Station 1: Main disconnect switch.")]
+        [Tooltip("Main disconnect switch Interactable.")]
         [SerializeField] private Interactable mainSwitchInteractable;
-        [Tooltip("Sub-Station 2: Lockout station, selectable only after main power is off.")]
+        [Tooltip("Lockout station Interactable, selectable only after main power is off.")]
         [SerializeField] private Interactable lockoutInteractable;
-        [Tooltip("Sub-Station 3: Voltage tester.")]
+        [Tooltip("Voltage tester Interactable.")]
         [SerializeField] private Interactable testerInteractable;
         [Tooltip("Rotary disconnect handle on the Main Disconnect Switch Sub-Station.")]
         [SerializeField] private Transform switchHandle;
@@ -53,7 +77,7 @@ namespace SI81.MachineLock
         [SerializeField] private Renderer mainSwitchOnLedRenderer;
         [Tooltip("Optional OFF (green) indicator on the Main Disconnect Switch Sub-Station.")]
         [SerializeField] private Renderer mainSwitchOffLedRenderer;
-        [Tooltip("Optional READY (yellow/green) indicator on the Lockout Station when unlocked after main off.")]
+        [Tooltip("Optional READY (green) indicator on the Lockout Station when unlocked after main off.")]
         [SerializeField] private Renderer lockoutReadyLedRenderer;
         [Tooltip("Red LOCK lamp of the Lockout Station.")]
         [SerializeField] private Renderer lockoutLedRenderer;
@@ -97,6 +121,8 @@ namespace SI81.MachineLock
         public bool TesterZero { get; private set; }
         /// <summary>Most recent hover Action Feedback string emitted by any of the three Sub-Stations.</summary>
         public string LastHoverFeedback => hoverFeedback.LastFeedback;
+        /// <summary>Active Sub-Station slot permutation index, 0 to 5.</summary>
+        public int ActiveSubStationOrderIndex { get; private set; }
 
         private void Awake()
         {
@@ -185,23 +211,58 @@ namespace SI81.MachineLock
         }
 
         // =====================================================================
+        // Randomized Sub-Station slot permutation (Issue #43)
+        // =====================================================================
+
+        /// <summary>
+        /// Places the three Sub-Stations (Main Disconnect, Lockout, Voltage Tester) into the three
+        /// symmetrical bay slots according to <paramref name="permutationIndex"/> (0..5). Because every
+        /// cabinet's plaque, LEDs, handle/hasp/multimeter, collider and arc VFX are parented under its
+        /// Sub-Station root, each station moves atomically and aligns with the rails and overhead conduits.
+        /// </summary>
+        /// <param name="permutationIndex">Permutation index (normalized modulo 6).</param>
+        public void ApplySubStationOrder(int permutationIndex)
+        {
+            int normalized = ((permutationIndex % SUB_STATION_PERMUTATION_COUNT) + SUB_STATION_PERMUTATION_COUNT)
+                             % SUB_STATION_PERMUTATION_COUNT;
+            ActiveSubStationOrderIndex = normalized;
+
+            float[] slots = subStationSlotZ != null && subStationSlotZ.Length == 3
+                ? subStationSlotZ
+                : DefaultSubStationSlotZ;
+            int[] permutation = SubStationPermutations[normalized];
+
+            SetStationLocalZ(mainSwitchStationRoot, slots[permutation[0]]);
+            SetStationLocalZ(lockoutStationRoot, slots[permutation[1]]);
+            SetStationLocalZ(testerStationRoot, slots[permutation[2]]);
+        }
+
+        private static void SetStationLocalZ(Transform stationRoot, float localZ)
+        {
+            if (stationRoot == null) return;
+            Vector3 pos = stationRoot.localPosition;
+            pos.z = localZ;
+            stationRoot.localPosition = pos;
+        }
+
+        // =====================================================================
         // Hover status text helpers
         // =====================================================================
 
-        /// <summary>Current Italian hover Action Feedback for Sub-Station 1 (Main Disconnect Switch).</summary>
+        /// <summary>Current Italian hover Action Feedback for the Main Disconnect Switch Sub-Station.</summary>
         public string GetMainSwitchHoverText()
         {
             return MainPowerOn ? MachineLockTexts.HoverMainSwitchOn : MachineLockTexts.HoverMainSwitchOff;
         }
 
-        /// <summary>Current Italian hover Action Feedback for Sub-Station 2 (Lockout Station).</summary>
+        /// <summary>Current Italian hover Action Feedback for the Lockout Station Sub-Station.</summary>
         public string GetLockoutHoverText()
         {
             if (LockedOut) return MachineLockTexts.HoverLockoutApplied;
             return MainPowerOn ? MachineLockTexts.HoverLockoutBlocked : MachineLockTexts.HoverLockoutReady;
         }
 
-        /// <summary>Current Italian hover Action Feedback for Sub-Station 3 (Voltage Tester).</summary>
+        /// <summary>Current Italian hover Action Feedback for the Voltage Tester Sub-Station.</summary>
         public string GetTesterHoverText()
         {
             if (TesterZero) return MachineLockTexts.HoverTesterZeroConfirmed;

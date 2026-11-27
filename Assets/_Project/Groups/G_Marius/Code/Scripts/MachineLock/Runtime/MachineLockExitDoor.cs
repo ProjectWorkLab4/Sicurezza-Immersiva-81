@@ -1,23 +1,28 @@
 using System.Collections;
 using SI81.Input;
 using SI81.Interaction;
-using SI81.UI;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace SI81.MachineLock
 {
     /// <summary>
-    /// Interactive hinged steel exit door for the Machine Lock scenario (ADR-0006, Issue #41).
-    /// Replaces the old walk-into <c>ScenarioTrigger</c> with a physical panic bar that accepts both
-    /// Select (Trigger) and Grab (Grip) without pulling the bar off the door. Activating the panic bar
-    /// opens the shared <c>HUD_DecisionPanel</c> via <see cref="MachineLockScenario.RequestExitConfirmation"/>.
-    /// Confirming exit plays the latch sound, disables the leaf collider, swings the door open 90 degrees
-    /// into the west vestibule, and calls <see cref="MachineLockScenario.NotifyExitReached"/>.
+    /// Interactive hinged steel exit door for the Machine Lock scenario (ADR-0006, Issue #41, Issue #43).
+    /// Accepts both Select (Trigger) and Grab (Grip) on the entire steel door leaf and protruding panic bar
+    /// without pulling the door off its hinges. Activating the door opens (or recenters, if already open)
+    /// the shared <c>HUD_DecisionPanel</c> safely inside the bay via
+    /// <see cref="MachineLockScenario.RequestExitConfirmation"/>, plays a subtle mechanical click, and
+    /// auto-closes the confirmation if the player walks away (&gt; 3.5 m) so confirmation state can never
+    /// deadlock. Confirming exit plays the latch sound, disables the leaf collider, swings the door open
+    /// 90 degrees outward (-X) into the west vestibule, and calls <see cref="MachineLockScenario.NotifyExitReached"/>.
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("SI81/MachineLock/Machine Lock Exit Door")]
     public sealed class MachineLockExitDoor : MonoBehaviour
     {
+        /// <summary>Horizontal distance in metres beyond which an unanswered exit confirmation auto-closes.</summary>
+        public const float AUTO_CLOSE_DISTANCE_METERS = 3.5f;
+
         private const float DEFAULT_OPEN_ANGLE_DEGREES = 90f;
         private const float DEFAULT_OPEN_DURATION_SECONDS = 0.8f;
 
@@ -26,8 +31,9 @@ namespace SI81.MachineLock
         [SerializeField] private MachineLockScenario scenario;
 
         [Header("Door and panic bar")]
-        [Tooltip("Panic bar Interactable supporting both Select (Trigger) and Grab (Grip) with FollowsHand = false.")]
-        [SerializeField] private Interactable panicBarInteractable;
+        [Tooltip("Exit door Interactable (on MESH_SteelExitDoorLeaf covering both leaf and panic bar) supporting Select (Trigger) and Grab (Grip) with FollowsHand = false.")]
+        [FormerlySerializedAs("panicBarInteractable")]
+        [SerializeField] private Interactable doorInteractable;
         [Tooltip("Hinged steel door leaf transform rotated around its hinge pivot when opening.")]
         [SerializeField] private Transform doorLeafTransform;
         [Tooltip("Solid door leaf collider disabled once the player confirms exit.")]
@@ -42,9 +48,11 @@ namespace SI81.MachineLock
         [SerializeField] private float openDurationSeconds = DEFAULT_OPEN_DURATION_SECONDS;
 
         [Header("Audio")]
-        [Tooltip("One-shot audio source for the panic-bar latch release.")]
+        [Tooltip("One-shot audio source for door press click and latch release.")]
         [SerializeField] private AudioSource oneShotAudio;
-        [Tooltip("Mechanical latch release clip played when the door unlatches.")]
+        [Tooltip("Subtle mechanical click clip played when pressing the door/panic bar opens the exit prompt.")]
+        [SerializeField] private AudioClip pressClickClip;
+        [Tooltip("Mechanical latch release clip played when the door unlatches and swings open.")]
         [SerializeField] private AudioClip latchClip;
 
         private Quaternion closedLocalRotation = Quaternion.identity;
@@ -63,35 +71,57 @@ namespace SI81.MachineLock
         {
             CaptureClosedRotation();
             if (oneShotAudio != null) oneShotAudio.playOnAwake = false;
-            EnsurePanicBarInteractable();
+            EnsureDoorInteractable();
         }
 
         private void OnEnable()
         {
-            EnsurePanicBarInteractable();
-            WirePanicBar();
+            EnsureDoorInteractable();
+            WireDoorInteractable();
         }
 
         private void OnDisable()
         {
-            UnwirePanicBar();
+            UnwireDoorInteractable();
             if (openRoutine != null)
             {
                 StopCoroutine(openRoutine);
                 openRoutine = null;
             }
+            if (IsConfirmationOpen && scenario != null)
+                scenario.CloseActiveExitConfirmation();
             IsOpening = false;
             IsConfirmationOpen = false;
         }
 
+        private void Update()
+        {
+            if (!IsConfirmationOpen) return;
+
+            if (scenario == null || scenario.HasEnded || !scenario.IsExitConfirmationPanelOpen)
+            {
+                IsConfirmationOpen = false;
+                return;
+            }
+
+            Transform head = scenario.ResolvePlayerHead();
+            if (head == null) return;
+
+            Vector3 delta = head.position - transform.position;
+            delta.y = 0f;
+            if (delta.sqrMagnitude > AUTO_CLOSE_DISTANCE_METERS * AUTO_CLOSE_DISTANCE_METERS)
+                CancelExitConfirmation();
+        }
+
         /// <summary>
-        /// Opens the shared exit confirmation panel through <see cref="MachineLockScenario.RequestExitConfirmation"/>.
-        /// Ignored when the confirmation is already open, the door is already opening/opened, or the scenario ended.
+        /// Opens (or safely recenters if already open) the shared exit confirmation panel through
+        /// <see cref="MachineLockScenario.RequestExitConfirmation"/> and plays a subtle click cue.
+        /// Ignored only when the door is already opening/opened or the scenario has ended.
         /// </summary>
-        /// <returns>true when the decision panel opened cleanly.</returns>
+        /// <returns>true when the decision panel opened or recentered cleanly.</returns>
         public bool RequestExitConfirmation()
         {
-            if (IsOpened || IsOpening || IsConfirmationOpen) return false;
+            if (IsOpened || IsOpening) return false;
             if (scenario == null || scenario.HasEnded) return false;
 
             IsConfirmationOpen = true;
@@ -101,7 +131,20 @@ namespace SI81.MachineLock
                 IsConfirmationOpen = false;
                 return false;
             }
+
+            PlayClip(pressClickClip);
             return true;
+        }
+
+        /// <summary>
+        /// Cancels an active exit confirmation prompt and closes the shared DecisionPanel without
+        /// ending the mission. Called automatically when the player walks away from the exit door.
+        /// </summary>
+        public void CancelExitConfirmation()
+        {
+            if (!IsConfirmationOpen) return;
+            IsConfirmationOpen = false;
+            if (scenario != null) scenario.CloseActiveExitConfirmation();
         }
 
         /// <summary>
@@ -128,15 +171,15 @@ namespace SI81.MachineLock
             IsOpening = true;
             IsConfirmationOpen = false;
 
-            if (panicBarInteractable != null)
+            if (doorInteractable != null)
             {
-                panicBarInteractable.Selectable = false;
-                panicBarInteractable.Grabbable = false;
+                doorInteractable.Selectable = false;
+                doorInteractable.Grabbable = false;
             }
             if (doorLeafCollider != null)
                 doorLeafCollider.enabled = false;
 
-            PlayLatchClip();
+            PlayClip(latchClip);
 
             if (Application.isPlaying && openDurationSeconds > 0.001f && doorLeafTransform != null)
             {
@@ -190,38 +233,38 @@ namespace SI81.MachineLock
             closedRotationCaptured = true;
         }
 
-        private void EnsurePanicBarInteractable()
+        private void EnsureDoorInteractable()
         {
-            if (panicBarInteractable != null) return;
-            panicBarInteractable = GetComponentInChildren<Interactable>(true);
+            if (doorInteractable != null) return;
+            doorInteractable = GetComponentInChildren<Interactable>(true);
         }
 
-        private void WirePanicBar()
+        private void WireDoorInteractable()
         {
-            if (panicBarInteractable == null || wiredInteractable == panicBarInteractable) return;
-            UnwirePanicBar();
-            wiredInteractable = panicBarInteractable;
-            wiredInteractable.SelectEntered += OnPanicBarActivated;
-            wiredInteractable.GrabEntered += OnPanicBarActivated;
+            if (doorInteractable == null || wiredInteractable == doorInteractable) return;
+            UnwireDoorInteractable();
+            wiredInteractable = doorInteractable;
+            wiredInteractable.SelectEntered += OnDoorActivated;
+            wiredInteractable.GrabEntered += OnDoorActivated;
         }
 
-        private void UnwirePanicBar()
+        private void UnwireDoorInteractable()
         {
             if (wiredInteractable == null) return;
-            wiredInteractable.SelectEntered -= OnPanicBarActivated;
-            wiredInteractable.GrabEntered -= OnPanicBarActivated;
+            wiredInteractable.SelectEntered -= OnDoorActivated;
+            wiredInteractable.GrabEntered -= OnDoorActivated;
             wiredInteractable = null;
         }
 
-        private void OnPanicBarActivated(Hand hand)
+        private void OnDoorActivated(Hand hand)
         {
             RequestExitConfirmation();
         }
 
-        private void PlayLatchClip()
+        private void PlayClip(AudioClip clip)
         {
-            if (oneShotAudio == null || latchClip == null) return;
-            oneShotAudio.PlayOneShot(latchClip);
+            if (oneShotAudio == null || clip == null) return;
+            oneShotAudio.PlayOneShot(clip);
         }
     }
 }

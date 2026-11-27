@@ -247,6 +247,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1718610183246822470}
   - component: {fileID: 466906216630723354}
+  - component: {fileID: 1942811598851320088}
   m_Layer: 0
   m_Name: MESH_SteelExitDoorLeaf
   m_TagString: Untagged
@@ -292,6 +293,39 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.1, y: 2.42, z: 1.88}
   m_Center: {x: 0, y: 1.22, z: -0.94}
+--- !u!114 &1942811598851320088
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4274840072204721195}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
+  canSelect: 1
+  canGrab: 1
+  followsHand: 0
+  hoverEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  hoverExited:
+    m_PersistentCalls:
+      m_Calls: []
+  selectEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  selectExited:
+    m_PersistentCalls:
+      m_Calls: []
+  grabEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  grabExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &4438905828085719993
 GameObject:
   m_ObjectHideFlags: 0
@@ -494,13 +528,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: SI81.MachineLock.Runtime::SI81.MachineLock.MachineLockExitDoor
   scenario: {fileID: 0}
-  panicBarInteractable: {fileID: 2103160334010413561}
+  doorInteractable: {fileID: 1942811598851320088}
   doorLeafTransform: {fileID: 1718610183246822470}
   doorLeafCollider: {fileID: 466906216630723354}
   openAxis: {x: 0, y: 1, z: 0}
   openAngleDegrees: 90
   openDurationSeconds: 0.8
   oneShotAudio: {fileID: 6402615514790008743}
+  pressClickClip: {fileID: 8300000, guid: 00864079a9039054096f7397563c6b37, type: 3}
   latchClip: {fileID: 8300000, guid: 7b9a8efc948e42041860f20fd5b67c7f, type: 3}
 --- !u!1 &6308553815337253075
 GameObject:
@@ -697,7 +732,6 @@ GameObject:
   m_Component:
   - component: {fileID: 5287273867746925288}
   - component: {fileID: 3491469529422981303}
-  - component: {fileID: 2103160334010413561}
   m_Layer: 0
   m_Name: MESH_PanicBar
   m_TagString: Untagged
@@ -742,39 +776,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.24, y: 0.3, z: 1.44}
   m_Center: {x: 0.09, y: 0, z: 0}
---- !u!114 &2103160334010413561
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6666517052849106357}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ec80b277695cd104cac9846c50454ba4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: SI81.Interaction::SI81.Interaction.Interactable
-  canSelect: 1
-  canGrab: 1
-  followsHand: 0
-  hoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  hoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  selectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  selectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  grabEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  grabExited:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!1 &7885728679252980350
 GameObject:
   m_ObjectHideFlags: 0

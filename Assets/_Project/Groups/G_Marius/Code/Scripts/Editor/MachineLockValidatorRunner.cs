@@ -633,10 +633,28 @@ namespace SI81.MachineLock.EditorTools
             {
                 float d1 = Vector3.Distance(mainSub.position, lockSub.position);
                 float d2 = Vector3.Distance(lockSub.position, testSub.position);
-                Debug.Log($"[MachineLockValidator] ElectricalSubStations Separation Main-Lock={d1:0.00}m Lock-Tester={d2:0.00}m");
-                if (d1 < 0.55f || d2 < 0.55f)
-                    errors += Error($"Electrical Sub-Stations are too close (Main-Lock={d1:0.00}m, Lock-Tester={d2:0.00}m; minimum 0.55 m).");
+                float d3 = Vector3.Distance(mainSub.position, testSub.position);
+                Debug.Log($"[MachineLockValidator] ElectricalSubStations Separation Main-Lock={d1:0.00}m Lock-Tester={d2:0.00}m Main-Tester={d3:0.00}m");
+                if (d1 < 0.55f || d2 < 0.55f || d3 < 0.55f)
+                    errors += Error($"Electrical Sub-Stations are too close (Main-Lock={d1:0.00}m, Lock-Tester={d2:0.00}m, Main-Tester={d3:0.00}m; minimum 0.55 m).");
             }
+
+            Transform panelTransform = FindDeep(scene, "MESH_ElectricalPanel");
+            MachineLockEnergyPanel energyPanel = panelTransform != null ? panelTransform.GetComponent<MachineLockEnergyPanel>() : null;
+            if (energyPanel != null)
+            {
+                var panelSo = new SerializedObject(energyPanel);
+                if (panelSo.FindProperty("mainSwitchStationRoot").objectReferenceValue == null
+                    || panelSo.FindProperty("lockoutStationRoot").objectReferenceValue == null
+                    || panelSo.FindProperty("testerStationRoot").objectReferenceValue == null)
+                {
+                    errors += Error("MachineLockEnergyPanel must wire mainSwitchStationRoot, lockoutStationRoot, and testerStationRoot for randomized slot order (Issue #43).");
+                }
+            }
+
+            Transform doorLeafTransform = FindDeep(scene, "MESH_SteelExitDoorLeaf");
+            if (doorLeafTransform == null || doorLeafTransform.GetComponent<SI81.Interaction.Interactable>() == null)
+                errors += Error("MESH_SteelExitDoorLeaf must carry the exit Interactable so both full door leaf and panic bar respond cleanly (Issue #43).");
 
             int correctCount = 0;
             int distractorCount = 0;

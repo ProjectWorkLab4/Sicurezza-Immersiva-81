@@ -6073,6 +6073,13 @@ MonoBehaviour:
   scenario: {fileID: 0}
   config: {fileID: 0}
   press: {fileID: 0}
+  mainSwitchStationRoot: {fileID: 8471583480725441262}
+  lockoutStationRoot: {fileID: 1094756141369295413}
+  testerStationRoot: {fileID: 3480941688490123021}
+  subStationSlotZ:
+  - -0.88
+  - 0
+  - 0.88
   mainSwitchInteractable: {fileID: 3456851394925244771}
   lockoutInteractable: {fileID: 6526164354372336639}
   testerInteractable: {fileID: 5480709626887052323}

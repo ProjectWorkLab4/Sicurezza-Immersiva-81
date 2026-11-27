@@ -711,45 +711,47 @@ namespace SI81.MachineLock.Tests
             Assert.AreEqual(1, CountLines(spi, DebriefLineId.BadMissingContainment.ToString()));
         }
 
-        [Test]
-        public void PatternSelector_NeverRepeatsBackToBack_CyclesAllThree_AndPersistsAcrossReload()
+        [TestCase(3, 10, 2, 12345)]
+        [TestCase(MachineLockEnergyPanel.SUB_STATION_PERMUTATION_COUNT, 5, 4, 67890)]
+        public void PatternSelector_NeverRepeatsBackToBack_CyclesAll_AndPersistsAcrossReload(
+            int patternCount, int cycles, int forcedIndex, int seed)
         {
             string tempPath = Path.Combine(Path.GetTempPath(), "ml_pattern_test_" + Guid.NewGuid().ToString("N") + ".json");
             try
             {
-                var rng = new System.Random(12345);
+                var rng = new System.Random(seed);
                 Func<int, int> nextInt = max => rng.Next(max);
 
                 int previous = -1;
-                for (int cycle = 0; cycle < 10; cycle++)
+                for (int cycle = 0; cycle < cycles; cycle++)
                 {
                     var seenInCycle = new HashSet<int>();
-                    for (int step = 0; step < 3; step++)
+                    for (int step = 0; step < patternCount; step++)
                     {
                         // Reload from disk every single run to prove JSON persistence across sessions.
-                        var selector = new MachineLockPatternSelector(tempPath, 3, nextInt);
+                        var selector = new MachineLockPatternSelector(tempPath, patternCount, nextInt);
                         int chosen = selector.NextPattern();
 
-                        Assert.That(chosen, Is.InRange(0, 2));
+                        Assert.That(chosen, Is.InRange(0, patternCount - 1));
                         Assert.AreNotEqual(previous, chosen,
                             $"Back-to-back repeat at cycle {cycle} step {step}: {chosen}");
                         seenInCycle.Add(chosen);
                         previous = chosen;
                     }
-                    Assert.AreEqual(3, seenInCycle.Count,
-                        $"Every 3-run cycle must visit all 3 Layout Patterns (cycle {cycle}).");
+                    Assert.AreEqual(patternCount, seenInCycle.Count,
+                        $"Every {patternCount}-run cycle must visit all {patternCount} entries (cycle {cycle}).");
                 }
 
                 // Forced pattern override must return the forced index without corrupting saved state.
-                var forcedSelector = new MachineLockPatternSelector(tempPath, 3, nextInt);
+                var forcedSelector = new MachineLockPatternSelector(tempPath, patternCount, nextInt);
                 int beforeForced = forcedSelector.LastPatternIndex;
-                Assert.AreEqual(2, forcedSelector.NextPattern(forcedPatternIndex: 2));
+                Assert.AreEqual(forcedIndex, forcedSelector.NextPattern(forcedPatternIndex: forcedIndex));
                 Assert.AreEqual(beforeForced, forcedSelector.LastPatternIndex);
 
                 // Corrupt JSON file must recover gracefully without throwing.
                 File.WriteAllText(tempPath, "{ not valid json !!!");
-                var recovered = new MachineLockPatternSelector(tempPath, 3, nextInt);
-                Assert.That(recovered.NextPattern(), Is.InRange(0, 2));
+                var recovered = new MachineLockPatternSelector(tempPath, patternCount, nextInt);
+                Assert.That(recovered.NextPattern(), Is.InRange(0, patternCount - 1));
             }
             finally
             {

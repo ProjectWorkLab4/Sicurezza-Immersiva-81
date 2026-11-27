@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07cf34d3b51b99e41925ba3564361cd0, type: 3}
+  m_Name: SO_EvacuationConfig_Guided
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Data.EvacuationConfig
+  difficulty: 0
+  totalDurationSeconds: 0
+  hasTimeLimit: 0
+  hearts: 0
+  fireEnabled: 0
+  activeFireCount: 5
+  lethalContacts: 3
+  contactCooldownSeconds: 2
+  highlightEnabled: 1
+  hintsEnabled: 1
+  hintIdleSeconds: 20
+  orderedHints:
+  - {fileID: 11400000, guid: 2b6743fb9ace5a34c8d65aee7d43fcab, type: 2}
+  - {fileID: 11400000, guid: 843c36408b867a24cbd453bd22a49cd4, type: 2}
+  - {fileID: 11400000, guid: bc75413473baf494e985b79af5503b67, type: 2}
+  - {fileID: 11400000, guid: 923cdb38d27dbde47b3fc269c2281d82, type: 2}
+  - {fileID: 11400000, guid: 97fa23b83c6df94408511928f52184fe, type: 2}
+  startWithReducedEffects: 0
+  disturbancesEnabled: 0
+  npcCountRoom1: 3
+  npcCountRoom2: 2
+  routeLaneWidth: 1.2
+  interactionDwellSeconds: 0.75
+  inspectMaxDistance: 1.2
+  successPoints: 0
+  partialPoints: 0
+  failurePoints: 0
+  scoring:
+    SafetyContactPenalty: 25
+    AwarenessNoPlanScore: 30
+    DecisionMissingNpcPenalty: 30
+    DecisionInternalStairsPenalty: 40
+    DecisionElevatorPenalty: 60
+    TimeFullScoreFraction: 0.6
+    TimeMinScore: 40
+    GuidedFullScoreSeconds: 90
+    GuidedMinScoreSeconds: 240
+    ImpulsivePenalty: 20
+    ImpulsiveWindowSeconds: 5

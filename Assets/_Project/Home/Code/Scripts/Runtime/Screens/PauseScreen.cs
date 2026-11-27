@@ -191,7 +191,10 @@ namespace SI81.UI
                 var rect = (RectTransform)item.transform;
                 PanelLayout.SetRect(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
                     new Vector2(0f, -y - rect.rect.height), new Vector2(width, -y));
-                ObjectiveState state = i < current ? ObjectiveState.Done : (i == current ? ObjectiveState.Current : ObjectiveState.Todo);
+                bool done = MissionFlow.HasObjectiveCompletionState
+                    ? MissionFlow.IsObjectiveCompleted(i)
+                    : i < current;
+                ObjectiveState state = done ? ObjectiveState.Done : (i == current ? ObjectiveState.Current : ObjectiveState.Todo);
                 item.SetObjective(mission.Objectives[i], state);
                 PanelLayout.SetRect(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
                     new Vector2(0f, -y - rect.rect.height), new Vector2(width, -y));

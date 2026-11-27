@@ -1,0 +1,114 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3123598074934728539
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6006014434458521447}
+  - component: {fileID: 8322780439068777298}
+  m_Layer: 0
+  m_Name: EvacDebugCommands
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6006014434458521447
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123598074934728539}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3648951106045281872}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8322780439068777298
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123598074934728539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a82c04f7521f9142becc143e524de5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Debug.EvacDebugCommands
+  director: {fileID: 0}
+  markersRoot: {fileID: 0}
+  teleportMarkerNames:
+  - SPAWN_Player
+  - POS_Plan_R1
+  - POS_Plan_R2
+  - POS_Plan_Corridor
+  - POS_Elevator
+  - ZONE_StairsEmergency
+  - ZONE_StairsInternal
+  debugSeed: 81081
+--- !u!1 &3569574102541886153
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3648951106045281872}
+  - component: {fileID: 5911409146652581102}
+  m_Layer: 0
+  m_Name: MNG_EvacuationDirector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3648951106045281872
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3569574102541886153}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6006014434458521447}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5911409146652581102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3569574102541886153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 877bc62806504654797d9ba5ba973101, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SI81.Tiziano.Evacuation.Systems.EvacuationDirector
+  difficulty: 1
+  configurations:
+  - {fileID: 11400000, guid: 6502c12bc38c77747b22b3c7b6508a97, type: 2}
+  - {fileID: 11400000, guid: 8d05fcff5fc2c8d47a8cf1f50a55007a, type: 2}
+  - {fileID: 11400000, guid: 36f015d07863a6948b6610ad98692e5c, type: 2}
+  rigRoot: {fileID: 0}
+  spawnMarker: {fileID: 0}
+  autoStartOnPlay: 1
+  autoStartDelaySeconds: 2
+  resolutionSeconds: 0
+  useFixedSeed: 0
+  fixedSeed: 81081

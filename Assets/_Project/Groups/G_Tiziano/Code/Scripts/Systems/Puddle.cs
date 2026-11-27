@@ -1,0 +1,352 @@
+using UnityEngine;
+using SI81.Tiziano.ChemicalAlert.Core;
+using SI81.Tiziano.ChemicalAlert.Data;
+
+namespace SI81.Tiziano.ChemicalAlert.Systems
+{
+    /// <summary>
+    /// Grows the spill visual and trigger until containment stops it.
+    /// </summary>
+    public sealed class Puddle : MonoBehaviour, IResettable
+    {
+        [SerializeField] private ChemicalAlertDirector director;
+        [SerializeField] private SubstanceVariant currentVariant;
+        [SerializeField] private Transform visual;
+        [SerializeField, Range(0.01f, 1f)] private float initialRadiusFraction = 0.25f;
+
+        private Vector3 initialRootScale;
+        private float currentRadius;
+        private bool growing;
+        private bool contained;
+        private bool covered;
+        private bool secondSpillActive;
+        private float activeGrowthMultiplier = 1f;
+        private bool absorbing;
+        private float absorptionElapsedSeconds;
+        private float absorptionDurationSeconds;
+        private float absorptionStartRadius;
+        private float sheetCoverageMultiplier = 1f;
+        private float sheetCoverageStart = 1f;
+        private float sheetCoverageTarget = 1f;
+        private float sheetCoverageElapsed;
+        private float sheetCoverageDuration;
+        private bool sheetCoverageAnimating;
+        private Collider puddleCollider;
+        private Renderer visualRenderer;
+        private MaterialPropertyBlock colorPropertyBlock;
+
+        /// <summary>Raised when containment state changes.</summary>
+        public event System.Action<bool> ContainedChanged;
+        /// <summary>Raised when the timed absorbent-sheet sequence reaches zero radius.</summary>
+        public event System.Action AbsorptionCompleted;
+        /// <summary>Gets whether the spill is contained.</summary>
+        public bool Contained => contained;
+        /// <summary>Gets whether absorbent-sheet coverage has hidden the spill.</summary>
+        public bool Covered => covered;
+        /// <summary>Gets the current radius.</summary>
+        public float CurrentRadius => currentRadius;
+        /// <summary>Gets the configured maximum radius.</summary>
+        public float MaxRadius => currentVariant == null ? 1f : currentVariant.MaxRadius;
+        /// <summary>Gets the configured growth rate.</summary>
+        public float GrowthRate => currentVariant == null ? 0f : currentVariant.GrowthRate;
+        /// <summary>Gets the current substance variant.</summary>
+        public SubstanceVariant CurrentVariant => currentVariant;
+        /// <summary>Gets whether the second-spill growth acceleration is active.</summary>
+        public bool SecondSpillActive => secondSpillActive;
+        /// <summary>Gets whether the puddle is currently shrinking during absorption.</summary>
+        public bool IsAbsorbing => absorbing;
+        /// <summary>Gets the current sheet-coverage scale multiplier.</summary>
+        public float SheetCoverageMultiplier => sheetCoverageMultiplier;
+        /// <summary>Gets whether the sheet-coverage scale is animating.</summary>
+        public bool IsSheetCoverageAnimating => sheetCoverageAnimating;
+        /// <summary>Gets the current normalized absorption progress.</summary>
+        public float AbsorptionProgress => covered
+            ? 1f
+            : absorbing && absorptionDurationSeconds > 0f
+                ? Mathf.Clamp01(absorptionElapsedSeconds / absorptionDurationSeconds)
+                : 0f;
+
+        private void Awake()
+        {
+            initialRootScale = transform.localScale;
+            puddleCollider = GetComponent<Collider>();
+            if (visual != null)
+                visualRenderer = visual.GetComponent<Renderer>();
+            ResetState();
+        }
+
+        private void OnEnable()
+        {
+            if (director != null)
+                director.PhaseChanged += HandlePhaseChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (director != null)
+                director.PhaseChanged -= HandlePhaseChanged;
+        }
+
+        private void Update()
+        {
+            if (sheetCoverageAnimating)
+                AdvanceSheetCoverage(Time.deltaTime);
+
+            if (absorbing)
+            {
+                AdvanceAbsorption(Time.deltaTime);
+                return;
+            }
+
+            if (!growing && !contained && !covered && director != null &&
+                director.CurrentPhase == ChemicalAlertDirector.Phase.Action)
+                growing = true;
+
+            if (!growing || contained || GrowthRate <= 0f)
+                return;
+
+            AdvanceDebugTime(Time.deltaTime);
+        }
+
+        /// <summary>Advances growth without waiting for real time in debug checks.</summary>
+        public void AdvanceDebugTime(float seconds)
+        {
+            if (!growing || contained || GrowthRate <= 0f || seconds <= 0f)
+                return;
+
+            currentRadius = Mathf.Min(MaxRadius,
+                currentRadius + GrowthRate * activeGrowthMultiplier * seconds);
+            ApplyScale();
+        }
+
+        /// <summary>Applies the replay-selected variant and resets the puddle tuning/visual.</summary>
+        public void SetVariant(SubstanceVariant variant)
+        {
+            if (variant == null)
+            {
+                UnityEngine.Debug.LogError($"[CA] {name}: cannot assign a null SubstanceVariant.", this);
+                return;
+            }
+
+            currentVariant = variant;
+            ApplyVariantColor();
+            ResetState();
+        }
+
+        /// <summary>Activates faster growth for the second spill unless the puddle is contained.</summary>
+        public bool TriggerSecondSpill(float growthMultiplier)
+        {
+            if (secondSpillActive)
+                return false;
+
+            secondSpillActive = true;
+            activeGrowthMultiplier = Mathf.Max(1f, growthMultiplier);
+            if (!contained && !covered)
+                growing = true;
+
+            bool expanded = !contained && !covered;
+            UnityEngine.Debug.Log($"[CA] Puddle second-spill growth: active={expanded}; multiplier={activeGrowthMultiplier:0.00}; radius={currentRadius:0.00}.");
+            return expanded;
+        }
+
+        /// <summary>Starts the configured puddle shrink after all required sheets are placed.</summary>
+        public bool BeginAbsorption(float durationSeconds)
+        {
+            if (absorbing || covered || !contained)
+                return false;
+
+            growing = false;
+            absorbing = true;
+            absorptionElapsedSeconds = 0f;
+            absorptionDurationSeconds = Mathf.Max(0.1f, durationSeconds);
+            absorptionStartRadius = currentRadius;
+            UnityEngine.Debug.Log($"[CA] Puddle absorption started: radius={absorptionStartRadius:0.00}; duration={absorptionDurationSeconds:0.00}s.");
+            return true;
+        }
+
+        /// <summary>Advances the absorption visual without waiting for real time in debug checks.</summary>
+        public void AdvanceAbsorptionDebugTime(float seconds)
+        {
+            if (absorbing && seconds > 0f)
+                AdvanceAbsorption(seconds);
+        }
+
+        /// <summary>Marks the puddle contained and stops growth.</summary>
+        public void SetContained(bool value)
+        {
+            if (contained == value)
+                return;
+
+            contained = value;
+            if (contained)
+                growing = false;
+            ContainedChanged?.Invoke(contained);
+            UnityEngine.Debug.Log($"[CA] Puddle contained={contained}; radius={currentRadius:0.00}");
+        }
+
+        /// <summary>Hides or reveals the spill after cleanup coverage.</summary>
+        public void SetCovered(bool value)
+        {
+            if (covered == value)
+                return;
+
+            covered = value;
+            if (covered)
+                growing = false;
+            if (puddleCollider != null)
+                puddleCollider.enabled = !covered;
+            if (visualRenderer != null)
+                visualRenderer.enabled = !covered;
+            UnityEngine.Debug.Log($"[CA] Puddle covered={covered}; radius={currentRadius:0.00}");
+        }
+
+        /// <summary>
+        /// Animates the puddle scale from placed absorbent sheets: each sheet covers an equal share,
+        /// and reaching the required count brings the scale to zero. A non-positive duration applies
+        /// the target immediately (used by resets and deterministic debug checks).
+        /// </summary>
+        public void SetSheetCoverage(int placedSheets, int requiredSheets, float durationSeconds = 0f)
+        {
+            float target = requiredSheets <= 0
+                ? 1f
+                : Mathf.Clamp01(1f - Mathf.Clamp01((float)Mathf.Max(0, placedSheets) / requiredSheets));
+
+            if (durationSeconds <= 0f)
+            {
+                sheetCoverageMultiplier = target;
+                sheetCoverageAnimating = false;
+                sheetCoverageElapsed = 0f;
+                sheetCoverageDuration = 0f;
+                ApplyScale();
+                return;
+            }
+
+            if (Mathf.Approximately(target, sheetCoverageMultiplier))
+                return;
+
+            sheetCoverageStart = sheetCoverageMultiplier;
+            sheetCoverageTarget = target;
+            sheetCoverageElapsed = 0f;
+            sheetCoverageDuration = Mathf.Max(0.1f, durationSeconds);
+            sheetCoverageAnimating = true;
+            UnityEngine.Debug.Log($"[CA] Puddle sheet coverage shrinking: {sheetCoverageStart:0.00} -> {target:0.00} in {sheetCoverageDuration:0.00}s.");
+        }
+
+        /// <summary>Advances the sheet-coverage animation without waiting for real time in debug checks.</summary>
+        public void AdvanceSheetCoverageDebugTime(float seconds)
+        {
+            if (seconds > 0f)
+                AdvanceSheetCoverage(seconds);
+        }
+
+        /// <summary>Resets radius, growth and containment state.</summary>
+        public void ResetState()
+        {
+            contained = false;
+            growing = false;
+            covered = false;
+            secondSpillActive = false;
+            activeGrowthMultiplier = 1f;
+            absorbing = false;
+            absorptionElapsedSeconds = 0f;
+            absorptionDurationSeconds = 0f;
+            absorptionStartRadius = 0f;
+            sheetCoverageMultiplier = 1f;
+            sheetCoverageStart = 1f;
+            sheetCoverageTarget = 1f;
+            sheetCoverageElapsed = 0f;
+            sheetCoverageDuration = 0f;
+            sheetCoverageAnimating = false;
+            currentRadius = Mathf.Max(0.01f, MaxRadius * initialRadiusFraction);
+            if (puddleCollider != null)
+                puddleCollider.enabled = true;
+            if (visualRenderer != null)
+                visualRenderer.enabled = true;
+            ApplyScale();
+            ApplyVariantColor();
+        }
+
+        private void AdvanceSheetCoverage(float seconds)
+        {
+            if (!sheetCoverageAnimating || seconds <= 0f)
+                return;
+
+            sheetCoverageElapsed = Mathf.Min(sheetCoverageDuration, sheetCoverageElapsed + seconds);
+            float progress = sheetCoverageDuration <= 0f
+                ? 1f
+                : Mathf.Clamp01(sheetCoverageElapsed / sheetCoverageDuration);
+            float eased = progress * progress * (3f - 2f * progress);
+            sheetCoverageMultiplier = Mathf.Lerp(sheetCoverageStart, sheetCoverageTarget, eased);
+            ApplyScale();
+
+            if (progress < 1f)
+                return;
+
+            sheetCoverageMultiplier = sheetCoverageTarget;
+            sheetCoverageAnimating = false;
+            ApplyScale();
+        }
+
+        private void AdvanceAbsorption(float seconds)
+        {
+            if (!absorbing || seconds <= 0f)
+                return;
+
+            absorptionElapsedSeconds = Mathf.Min(
+                absorptionDurationSeconds,
+                absorptionElapsedSeconds + seconds);
+            float progress = Mathf.Clamp01(absorptionElapsedSeconds / absorptionDurationSeconds);
+            currentRadius = Mathf.Lerp(absorptionStartRadius, 0f, progress);
+            ApplyScale();
+
+            if (progress < 1f)
+                return;
+
+            currentRadius = 0f;
+            absorbing = false;
+            ApplyScale();
+            SetCovered(true);
+            AbsorptionCompleted?.Invoke();
+            UnityEngine.Debug.Log("[CA] Puddle absorption completed: radius=0.");
+        }
+
+        private void HandlePhaseChanged(ChemicalAlertDirector.Phase phase)
+        {
+            if (phase == ChemicalAlertDirector.Phase.Briefing)
+                ResetState();
+            else if (phase == ChemicalAlertDirector.Phase.Action && !contained)
+                growing = true;
+        }
+
+        private void ApplyScale()
+        {
+            float factor = MaxRadius <= 0f ? 1f : Mathf.Clamp01(currentRadius / MaxRadius);
+            float sheetFactor = Mathf.Clamp01(sheetCoverageMultiplier);
+            transform.localScale = new Vector3(
+                initialRootScale.x * factor * sheetFactor,
+                initialRootScale.y,
+                initialRootScale.z * factor * sheetFactor);
+            if (visual != null)
+                visual.localScale = Vector3.one;
+        }
+
+        private void ApplyVariantColor()
+        {
+            if (visualRenderer == null || currentVariant == null)
+                return;
+
+            if (colorPropertyBlock == null)
+                colorPropertyBlock = new MaterialPropertyBlock();
+            visualRenderer.GetPropertyBlock(colorPropertyBlock);
+            colorPropertyBlock.SetColor("_BaseColor", currentVariant.PuddleColor);
+            colorPropertyBlock.SetColor("_Color", currentVariant.PuddleColor);
+            visualRenderer.SetPropertyBlock(colorPropertyBlock);
+        }
+
+        private void OnValidate()
+        {
+            if (currentVariant == null)
+                UnityEngine.Debug.LogWarning($"[CA] {name}: puddle SubstanceVariant is not assigned.", this);
+        }
+    }
+}

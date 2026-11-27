@@ -1,0 +1,25 @@
+# ENV_REPORT — Chemical Alert (T00)
+
+- **Unity Version**: `6000.3.14f1` (`d68c3f99a318`)
+- **Active Input Handling**: `1` (Input System Package New, `com.unity.inputsystem` `1.19.0`; legacy Input disabilitato)
+- **Build Target**: non leggibile via MCP (Editor non connesso). `QualitySettings` configurati per `Android` (Quality 0: `Mobile`) e `Standalone` (Quality 1: `PC`).
+- **Render Pipeline**: URP `17.3.0` (`com.unity.render-pipelines.universal`)
+  - Default `GraphicsSettings`: `Assets/Settings/PC_RPAsset.asset`
+  - `QualitySettings` attivo (`m_CurrentQuality: 1`): `PC` → `PC_RPAsset.asset` + `PC_Renderer.asset`
+  - Profilo `Android`: `Mobile` (index 0) → `Mobile_RPAsset.asset` + `Mobile_Renderer.asset`
+- **Meta XR Core SDK**: `com.meta.xr.sdk.core` `209.0.0` (+ `com.unity.xr.management` `4.7.0`, `com.unity.xr.openxr` `1.16.1`)
+- **Prefab `OVRCameraRig`**:
+  - Package path: `Packages/com.meta.xr.sdk.core/Prefabs/OVRCameraRig.prefab`
+  - Cache disk path: `Library/PackageCache/com.meta.xr.sdk.core@614f80947fc6/Prefabs/OVRCameraRig.prefab`
+- **Contenuto `Assets/_Project/Shared/`**:
+  - Cartelle con soli `PLACEHOLDER.txt`: `Art/` (`Materials`, `Models`, `Textures`), `Audio/` (`Music`, `Sound`), `Code/` (`Scripts`, `Shaders`), `Docs/`, `UI/`
+  - `Lista Asset gruppo Tiziano.txt`: testo segnaposto (`sgdgggggg`)
+  - `Level/Prefabs/`: 7 FBX (`MESH_CAMION_PIENO_TEAM.fbx`, `MESH_CAMION_VUOTO_TEAM.fbx`, `MESH_RACCOGLITORE_TEAM.fbx`, `MESH_SCATOLA_APRIBILE_TEAM.fbx`, `MESH_SCATOLA_APRIBILE_ROSSA_TEAM.fbx`, `MESH_SCATOLA_APRIBILE_VERDE_TEAM.fbx`, `MESH_SODA_CAUSTICA_TEAM.fbx`)
+  - Nessuno script o shader condiviso presente.
+- **Capacità MCP (`unityMCP`, 47 tool)**:
+  - Console: `read_console`
+  - Play Mode: `manage_editor`
+  - Scene/Prefab/GO/Componenti: `manage_scene`, `manage_prefabs`, `manage_gameobject`, `manage_components`, `manage_asset`
+  - Script/SO: `create_script`, `manage_script`, `apply_text_edits`, `manage_scriptable_object`, `refresh_unity`
+  - **Stato attuale**: Unity Editor NON connesso (`No Unity Editor instances found`). Serve aprire Unity con bridge MCP attivo per T01+.
+- **Budget prestazionale documentato**: nessuno trovato nel progetto (`Assets/_Project/` e `Assets/`).

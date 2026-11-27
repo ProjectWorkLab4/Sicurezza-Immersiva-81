@@ -1,0 +1,13 @@
+# Coding Standards — Sicurezza Immersiva 81
+
+Review-time standards for human and agent reviewers. Mechanical rules (`collab-proxy` ban, `OVRInput`/XRI ban, `.meta` pairing, protected path guards, scene budgets, ASTC checks, floor continuity) are enforced deterministically by `scripts/check-hygiene.ps1`, `.githooks/pre-commit`, `.github/workflows/hygiene.yml`, `.editorconfig`, and `MachineLockValidatorRunner` — do not duplicate those checks by hand.
+
+## Judgement-Call Rules
+
+1. **Extract recurring VR interaction patterns.** When the same behaviour (such as hover-feedback throttling or player-body collision ignoring) appears across three or more scenario components, consolidate it into a single shared helper instead of copying boilerplate across MonoBehaviours.
+2. **Name by domain purpose, not appearance.** Name prefabs, materials, scripts, and constants for their functional role (`MAT_ExitBeacon_Ready`, `MAT_SubStationFrame`) rather than surface colour (`MAT_DarkSlate`), following `Assets/_Project/Docs/Nomenclatura.md` prefixes. Keep technical names and XML `<summary>` doc comments in English; keep player-facing text in Italian constants or localization data.
+3. **Document public APIs and non-obvious invariants.** Every public type/method and any scene-builder/validator helper enforcing a non-obvious constraint (slab thickness offset, stereo shader macro, OpenXR flag) carries a concise XML `<summary>` explaining *why*.
+4. **Honour ADR and Issue precedence.** Accepted scenario ADRs (`Assets/_Project/Groups/*/Docs/*/adr/`) and explicit Issue acceptance gates override generic `README.md` defaults (for example Quest 3 APK output naming or approved `Shared/` asset drops). Flag undocumented deviations; accept documented ones.
+5. **Keep one source of truth for scenario docs.** Authoritative spatial coordinates, gameplay rules, label tables, and audio/VFX inventories live in each scenario's GDD and `ASSET_CREDITS.md`. Implementation guides link to those sections instead of copying tables that drift on future edits.
+6. **Guard scenario blast radius.** Scenario branches confine changes to `Assets/_Project/Groups/G_<Team>/`, their existing `SO_Mission_<Scenario>.asset` edited in place, and explicitly approved `Shared/` additions. Flag silent machine/editor rewrites (`ProjectSettings/`, `Assets/XR/Settings/`, pre-existing `Shared/` materials) immediately.
+7. **Verify 3D readability before packaging.** For scene layout or material changes, inspect rendered Editor previews (`scripts/unity-run.ps1 capture-views`) alongside validator output so geometry clipping, buried slabs, and unreadable plaques are caught before building an Android APK.

@@ -1,42 +1,19 @@
 # Agent rules — Sicurezza Immersiva 81
 
-These rules apply to every contributor and to every agent working in this
-repository. They are mandatory unless the team explicitly agrees otherwise on
-`main`.
-
 ## Version control: Git only
 
-**Git is the only version control system used in this project. Nothing else.**
+Use **Git and GitHub exclusively** for branching, commits, merges, reviews, and releases. Decline any Unity or Unity Hub prompt for Unity Version Control / Plastic SCM, and keep `com.unity.collab-proxy` out of `Packages/manifest.json` and `Packages/packages-lock.json` (enforced mechanically by `.githooks/pre-commit` and `scripts/check-hygiene.ps1`).
 
-- Use `git` and GitHub for branching, commits, merges, reviews and releases.
-- **Never install, enable, initialize or use Unity Version Control** — also
-  called Unity VCS, UVCS, Plastic SCM, or `com.unity.collab-proxy`.
-  This covers the Unity Hub Version Control tab, the Editor Version Control
-  window, the `com.unity.collab-proxy` package, and the `plastic` / `cm` /
-  `uvcs` command-line tools.
-- Never add `com.unity.collab-proxy` back to `Packages/manifest.json` or
-  `Packages/packages-lock.json`. A change that reintroduces it must be rejected
-  in review.
-- Never create or commit Unity Version Control workspace files such as
-  `.plastic/`, `plastic.workspace`, `plastic.workspace.plastic`, `ignore.conf`,
-  or any other Plastic/UVCS configuration.
-- If Unity, Unity Hub or any tool offers to set up version control, connect a
-  workspace or install the Version Control package, **decline**. Close the
-  prompt and keep using Git.
-- If a Unity asset appears "checked out" or read-only, fix the file permissions
-  and use Git normally. Do not "fix" it by installing or re-enabling Unity
-  Version Control.
-
-Quick check before committing:
+Enable the repo pre-commit guardrail once per clone:
 
 ```bash
-git grep -n "collab-proxy" -- Packages/manifest.json Packages/packages-lock.json
+git config core.hooksPath .githooks
 ```
 
-The command must print nothing.
+## Navigation
 
-## Related project rules
-
-The rules for shared assets, the Meta XR Project Setup Tool and naming live in
-[README.md](README.md). Read them before touching `Assets/_Project/Shared/` or
-`ProjectSettings/`.
+- **Unity builds, validator, EditMode/PlayMode tests, Editor preview PNGs, and Quest 3 APK deploy** → [`scripts/unity-run.ps1`](scripts/unity-run.ps1) (resolves Unity `6000.3.14f1` and ADB, waits synchronously on Windows, omits `-nographics` for Windows OpenXR PlayMode/preview/APK runs, and cleans URP auto-touched Shared materials).
+- **Pre-commit & repository hygiene checks** → [`scripts/check-hygiene.ps1`](scripts/check-hygiene.ps1).
+- **Code review standards (judgement calls)** → [`CODING_STANDARDS.md`](CODING_STANDARDS.md); asset naming prefixes in [`Assets/_Project/Docs/Nomenclatura.md`](Assets/_Project/Docs/Nomenclatura.md); shared-asset and Project Setup Tool rules in [`README.md`](README.md).
+- **Shared Player Rig, HUD, and Interaction runtime contracts** → `Assets/_Project/Home/Code/Scripts/Runtime/` (UI data/prefabs live in `Assets/_Project/Home/UI/`).
+- **Scenario 08 (Machine Lock) design, glossary, ADRs, and credits** → `Assets/_Project/Groups/G_Marius/Docs/MachineLock/`.
